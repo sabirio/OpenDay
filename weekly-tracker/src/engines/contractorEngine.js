@@ -1,0 +1,113 @@
+import { estimateProgressFromStatuses, computeCumulativeStatuses } from "../reportUtils";
+import { computePmAlignmentItems } from "./pmAlignmentEngine";
+import { computeScheduleDeviation } from "./riskEngine";
+
+export function computeContractorScores(project, projReports, projSiteVisits) {
+  if (!projReports.length) {
+    return { totalScore: 50, performanceScore: 50, reportingAccuracy: 50, breakdown: { reporting: 10, pmAlignment: 15, progress: 12, issues: 8, communication: 5 }, pmAlignmentDetails: [] };
+  }
+  const sorted = [...projReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
+  const latest = sorted[sorted.length - 1];
+
+  // 1. Reporting Discipline (0-20)
+  let reportingPts = 20;
+  const gapPenalty = sorted.slice(1).reduce((pen, r, i) => {
+    const gap = (new Date(r.reportingDate || r.submittedAt) - new Date(sorted[i].reportingDate || sorted[i].submittedAt)) / 86400000;
+    return pen + (gap > 21 ? 6 : gap > 14 ? 3 : 0);
+  }, 0);
+  reportingPts -= Math.min(8, gapPenalty);
+  if (!latest.nextWeekTop3 && !latest.lookAheadNotes) reportingPts -= 4;
+  if ((latest.risks || []).filter(Boolean).length > 0 && !latest.riskDescription) reportingPts -= 3;
+  if (!(latest.photos || []).length) reportingPts -= 3;
+  reportingPts = Math.max(0, Math.round(reportingPts));
+
+  // 2. PM Verification Alignment (0-30)
+  let pmAlignmentPts = 25;
+  const pmAlignmentDetails = [];
+  if (projSiteVisits && projSiteVisits.length > 0) {
+    pmAlignmentPts = 30;
+    const visitsSorted = [...projSiteVisits].sort((a, b) => new Date(b.visitDate || b.submittedAt) - new Date(a.visitDate || a.submittedAt));
+    visitsSorted.slice(0, 3).forEach(visit => {
+      const visitDate = new Date(visit.visitDate || visit.submittedAt);
+      const gcAtVisit = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || sorted[sorted.length - 1];
+      const items = computePmAlignmentItems(gcAtVisit, visit);
+      const total = items.length;
+      const overstatements = items.filter(i => i.overstate).length;
+      const matches = items.filter(i => i.match).length;
+      const matchRate = total > 0 ? Math.round((matches / total) * 100) : 100;
+      pmAlignmentDetails.push({ visitDate: visit.visitDate || visit.submittedAt, matchRate, overstatements, total, items });
+      items.forEach(item => {
+        if (item.severity === "CRITICAL" || item.severity === "HIGH") pmAlignmentPts -= 4;
+        else if (item.severity === "MEDIUM") pmAlignmentPts -= 1;
+      });
+      const pmSevere = ["Delayed", "Critical"].includes(visit.pmScheduleAssessment);
+      const pmBadV   = pmSevere || visit.pmScheduleAssessment === "At Risk";
+      const gcGoodV  = gcAtVisit.projectScheduleStatus === "On Track";
+      const gcAtRiskV = gcAtVisit.projectScheduleStatus === "At Risk";
+      if (pmBadV && gcGoodV) pmAlignmentPts -= pmSevere ? 7 : 5;
+      else if (pmSevere && gcAtRiskV) pmAlignmentPts -= 3;
+    });
+    pmAlignmentPts = Math.max(0, Math.round(pmAlignmentPts));
+  }
+
+  // 3. Contractor-Controlled Progress (0-25): penalise only when behind expected
+  const cumStatuses = computeCumulativeStatuses(projReports) || {};
+  const gcProgress = estimateProgressFromStatuses(cumStatuses);
+  const schedDev = computeScheduleDeviation(project, gcProgress);
+  let progressPts;
+  if (!schedDev) {
+    progressPts = 15;
+  } else {
+    const dev = schedDev.deviationPct;
+    progressPts = dev <= 0 ? 25 : dev <= 5 ? 22 : dev <= 10 ? 18 : dev <= 20 ? 12 : dev <= 30 ? 6 : 2;
+  }
+  progressPts = Math.min(25, Math.max(0, progressPts));
+
+  // 4. Issue Management (0-15)
+  let issuePts = 15;
+  const blockerHistory = sorted.filter(r => r.activitiesBlocked === "Yes");
+  if (blockerHistory.length >= 3) issuePts -= 6;
+  else if (blockerHistory.length >= 2) issuePts -= 3;
+  const risksWithoutMit = sorted.filter(r => (r.risks || []).filter(Boolean).length > 0 && !r.riskDescription).length;
+  issuePts -= Math.min(5, risksWithoutMit * 2);
+  issuePts = Math.max(0, Math.round(issuePts));
+
+  // 5. Communication Quality (0-10)
+  let commPts = 10;
+  if (!latest.nextWeekTop3 && !latest.lookAheadNotes) commPts -= 4;
+  if (!latest.finalComments && !latest.pendingIssues) commPts -= 2;
+  if (latest.supportRequired === "Yes" && !latest.supportDescription && !(latest.supportTypes || []).length) commPts -= 2;
+  if (!(latest.photos || []).length) commPts -= 2;
+  commPts = Math.max(0, Math.round(commPts));
+
+  const totalScore = Math.min(100, reportingPts + pmAlignmentPts + progressPts + issuePts + commPts);
+  const performanceScore = Math.min(100, Math.round(((reportingPts + progressPts + issuePts + commPts) / 70) * 100));
+  const reportingAccuracy = Math.min(100, Math.round((pmAlignmentPts / 30) * 100));
+
+  return { totalScore, performanceScore, reportingAccuracy, breakdown: { reporting: reportingPts, pmAlignment: pmAlignmentPts, progress: progressPts, issues: issuePts, communication: commPts }, pmAlignmentDetails };
+}
+
+export function computePortfolioContractorScores(allRows) {
+  const map = {};
+  allRows.forEach(({ project, contScore, projReports, latestReport }) => {
+    const name = project.generalContractor || latestReport?.contractor || "Unknown";
+    if (!map[name]) map[name] = { projects: [], totalPerf: 0, totalAccuracy: 0, totalScore: 0, reportCount: 0 };
+    const c = map[name];
+    c.projects.push(project.storeCode);
+    c.totalPerf += contScore.performanceScore;
+    c.totalAccuracy += contScore.reportingAccuracy;
+    c.totalScore += contScore.totalScore;
+    c.reportCount += projReports.length;
+  });
+  return Object.entries(map).map(([name, d]) => {
+    const n = d.projects.length;
+    const avgPerf     = Math.round(d.totalPerf / n);
+    const avgAccuracy = Math.round(d.totalAccuracy / n);
+    const avgTotal    = Math.round(d.totalScore / n);
+    const perfColor   = avgPerf >= 80 ? "#22c55e" : avgPerf >= 60 ? "#f59e0b" : "#dc2626";
+    const accColor    = avgAccuracy >= 80 ? "#22c55e" : avgAccuracy >= 60 ? "#f59e0b" : "#dc2626";
+    const perfLevel   = avgPerf >= 80 ? "Reliable" : avgPerf >= 60 ? "Moderate" : "Needs Attention";
+    const accLevel    = avgAccuracy >= 80 ? "Accurate" : avgAccuracy >= 60 ? "Moderate" : "Unreliable";
+    return { name, avgTotal, avgPerf, avgAccuracy, perfColor, accColor, perfLevel, accLevel, projects: d.projects, n, reportCount: d.reportCount };
+  }).sort((a, b) => a.avgTotal - b.avgTotal);
+}
