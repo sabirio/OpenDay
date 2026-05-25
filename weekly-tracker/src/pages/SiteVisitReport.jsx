@@ -232,7 +232,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error("Failed to submit site visit:", err);
-      alert("Failed to submit site visit. Please try again.");
+      alert(`Site visit error: ${err?.message || JSON.stringify(err)}`);
     }
   }
 
