@@ -63,11 +63,12 @@ function getConstructionWeekInfo(start, end, reference) {
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function FormSection({ title, accentColor = "#2f855a", children }) {
+function FormSection({ title, accentColor = "#2f855a", badge, children }) {
   return (
     <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, marginBottom: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-      <div style={{ padding: "12px 22px", borderBottom: "1px solid #f3f4f6", borderLeft: `4px solid ${accentColor}`, background: "#fafafa" }}>
+      <div style={{ padding: "12px 22px", borderBottom: "1px solid #f3f4f6", borderLeft: `4px solid ${accentColor}`, background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <h3 style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>{title}</h3>
+        {badge}
       </div>
       <div style={{ padding: "20px 22px" }}>{children}</div>
     </div>
@@ -84,42 +85,43 @@ const WP_STATUS_OPTS = [
 const STATUS_SCORE = { "Not Started": 0, "In Progress": 0.5, "Delayed": 0.3, "Completed": 1 };
 
 function WPTaskRow({ taskName, entry, prevEntry, onChange }) {
-  const e = entry || { status: "Not Started" };
+  const e          = entry || { status: "Not Started" };
   const prevStatus = prevEntry?.status ?? null;
   const curStatus  = e.status;
-
-  const changed  = prevStatus !== null && prevStatus !== curStatus;
-  const improved = changed && (STATUS_SCORE[curStatus] ?? 0) > (STATUS_SCORE[prevStatus] ?? 0);
-  const regressed = changed && (STATUS_SCORE[curStatus] ?? 0) < (STATUS_SCORE[prevStatus] ?? 0);
-  const prevSt   = prevStatus ? STATUS_STYLE[prevStatus] : null;
+  const changed    = prevStatus !== null && prevStatus !== curStatus;
+  const improved   = changed && (STATUS_SCORE[curStatus] ?? 0) > (STATUS_SCORE[prevStatus] ?? 0);
+  const regressed  = changed && (STATUS_SCORE[curStatus] ?? 0) < (STATUS_SCORE[prevStatus] ?? 0);
 
   return (
-    <div style={{ borderBottom: "1px solid #f9fafb", padding: "9px 0" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+    <div style={{ borderBottom: "1px solid #f3f4f6", padding: "10px 0" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
 
-        {/* Task name + change arrow */}
-        <span style={{ flex: "1 1 160px", fontSize: 13, color: "#374151", lineHeight: 1.35 }}>
+        {/* Task name */}
+        <span style={{ flex: "1 1 180px", fontSize: 13, color: "#374151", lineHeight: 1.35, minWidth: 0 }}>
           {taskName}
-          {improved  && <span style={{ marginLeft: 5, fontSize: 11, fontWeight: 800, color: "#16a34a" }}>↑</span>}
-          {regressed && <span style={{ marginLeft: 5, fontSize: 11, fontWeight: 800, color: "#be185d" }}>↓</span>}
         </span>
 
-        {/* Previous report status — dimmed badge */}
-        {prevStatus ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            <span style={{ fontSize: 10, color: "#94a3b8", whiteSpace: "nowrap" }}>prev:</span>
-            <span style={{
-              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
-              background: prevSt?.bg || "#f3f4f6",
-              color: prevSt?.color || "#6b7280",
-              opacity: 0.72, whiteSpace: "nowrap",
-            }}>{prevStatus}</span>
-          </div>
-        ) : (
-          <span style={{ fontSize: 10, color: "#d1d5db", flexShrink: 0 }}>—</span>
-        )}
+        {/* Last week indicator */}
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, minWidth: 150 }}>
+          <span style={{ fontSize: 10, color: "#9ca3af", whiteSpace: "nowrap" }}>Last week:</span>
+          {prevStatus ? (
+            <>
+              <span style={{
+                fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 6,
+                background: STATUS_STYLE[prevStatus]?.bg || "#f3f4f6",
+                color: STATUS_STYLE[prevStatus]?.color || "#6b7280",
+                border: `1px solid ${STATUS_STYLE[prevStatus]?.bg || "#e5e7eb"}`,
+                whiteSpace: "nowrap",
+              }}>{prevStatus}</span>
+              {improved  && <span style={{ fontSize: 12, fontWeight: 800, color: "#16a34a" }}>↑</span>}
+              {regressed && <span style={{ fontSize: 12, fontWeight: 800, color: "#be185d" }}>↓</span>}
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: "#d1d5db" }}>—</span>
+          )}
+        </div>
 
-        {/* Current status buttons */}
+        {/* Status buttons */}
         <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
           {WP_STATUS_OPTS.map((opt) => {
             const sel = curStatus === opt.value;
@@ -127,11 +129,12 @@ function WPTaskRow({ taskName, entry, prevEntry, onChange }) {
               <button key={opt.value} type="button"
                 onClick={() => onChange({ ...e, status: opt.value })}
                 style={{
-                  padding: "3px 8px", borderRadius: 6, fontSize: 11,
+                  padding: "4px 9px", borderRadius: 6, fontSize: 11,
                   border: `1px solid ${sel ? opt.border : "#e5e7eb"}`,
                   background: sel ? opt.bg : "white",
                   color: sel ? opt.color : "#9ca3af",
                   fontWeight: sel ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap",
+                  outline: "none",
                 }}>
                 {opt.label}
               </button>
@@ -150,95 +153,27 @@ const STATUS_STYLE = {
   "Completed":    { color: "#16a34a", bg: "#dcfce7" },
 };
 
-// Read-only summary of the last submitted report shown above the form
-function LastReportSummary({ prevReport }) {
-  const [open, setOpen] = useState(false);
-  if (!prevReport) return null;
-
-  const date = prevReport.reportingDate ||
-    new Date(prevReport.submittedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-
-  const activeWPs = (prevReport.currentPackages || [])
-    .map((id) => WORK_PACKAGES.find((wp) => wp.id === id))
-    .filter(Boolean);
-
-  // Old-format fallback: build a minimal display from legacy fields
-  const hasWPStatuses = !!prevReport.workPackageStatuses;
-
-  return (
-    <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 14, marginBottom: 16, overflow: "hidden" }}>
-      {/* Header row */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "13px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0369a1" }}>Last Submitted Report</span>
-          <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: "#0369a1", color: "white" }}>{date}</span>
-          {prevReport.projectScheduleStatus && (
-            <span style={{ padding: "2px 9px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" }}>
-              {prevReport.projectScheduleStatus}
-            </span>
-          )}
-        </div>
-        <span style={{ fontSize: 10, color: "#7dd3fc" }}>{open ? "▲ hide" : "▼ show"}</span>
-      </button>
-
-      {open && (
-        <div style={{ padding: "0 20px 16px", borderTop: "1px solid #bae6fd" }}>
-          {activeWPs.length === 0 && (
-            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 12 }}>No work packages recorded in this report.</div>
-          )}
-
-          {activeWPs.map((wp) => {
-            const pkgStatuses = hasWPStatuses
-              ? (prevReport.workPackageStatuses?.[wp.id] || {})
-              : {};
-            const tasks = wp.tasks.map((t) => ({
-              name: t.name,
-              status: pkgStatuses[t.name]?.status || "Not Started",
-            }));
-            const nonDefault = tasks.filter((t) => t.status !== "Not Started");
-
-            return (
-              <div key={wp.id} style={{ marginTop: 14 }}>
-                {/* WP header */}
-                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
-                  <div style={{ width: 9, height: 9, borderRadius: "50%", background: wp.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#1e3a5f" }}>{wp.name}</span>
-                  <span style={{ fontSize: 11, color: "#94a3b8" }}>
-                    {nonDefault.length}/{tasks.length} reported
-                  </span>
-                </div>
-
-                {/* Task grid — only show tasks that have a status set, or all if all are Not Started */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 3 }}>
-                  {(nonDefault.length > 0 ? nonDefault : tasks).map(({ name, status }) => {
-                    const st = STATUS_STYLE[status] || STATUS_STYLE["Not Started"];
-                    return (
-                      <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", borderRadius: 7, background: "white", border: "1px solid #e0f2fe" }}>
-                        <span style={{ fontSize: 11, color: "#374151", flex: 1, paddingRight: 8, lineHeight: 1.3 }}>{name}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: st.bg, color: st.color, whiteSpace: "nowrap", flexShrink: 0 }}>{status}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function WPSection({ wp, pkgStatuses, prevPkgStatuses, onChange }) {
+function WPSection({ wp, pkgStatuses, prevPkgStatuses, prevDate, onChange }) {
   function handleTask(taskName, entry) {
     onChange({ ...pkgStatuses, [taskName]: entry });
   }
+
+  const badge = prevDate ? (
+    <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 400, whiteSpace: "nowrap" }}>
+      Pre-filled from {prevDate}
+    </span>
+  ) : null;
+
   return (
-    <FormSection title={wp.name} accentColor={wp.color}>
+    <FormSection title={wp.name} accentColor={wp.color} badge={badge}>
+      {/* Column header — only shown when there's prev data */}
+      {prevDate && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 8, marginBottom: 4, borderBottom: "1px solid #f3f4f6" }}>
+          <span style={{ flex: "1 1 180px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d1d5db" }}>Task</span>
+          <span style={{ minWidth: 150, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d1d5db" }}>Last week</span>
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d1d5db" }}>This week</span>
+        </div>
+      )}
       {wp.tasks.map((task) => (
         <WPTaskRow
           key={task.name}
@@ -676,8 +611,6 @@ function ContractorReport({ projects, reports, onSaveReport }) {
           </div>
         </div>
 
-        {/* ── Last report summary (read-only reference for the contractor) ── */}
-        <LastReportSummary prevReport={prevReport} />
 
         {/* ── Validation errors ── */}
         {validationErrors.length > 0 && (
@@ -733,6 +666,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
             wp={wp}
             pkgStatuses={form.workPackageStatuses?.[wp.id] || {}}
             prevPkgStatuses={prevReport?.workPackageStatuses?.[wp.id] ?? null}
+            prevDate={prevReport?.reportingDate || null}
             onChange={(pkgStatuses) => updateWPStatuses(wp.id, pkgStatuses)}
           />
         ))}
