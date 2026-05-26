@@ -113,6 +113,96 @@ function WPTaskRow({ taskName, entry, onChange }) {
   );
 }
 
+const STATUS_STYLE = {
+  "Not Started": { color: "#6b7280", bg: "#f3f4f6" },
+  "In Progress":  { color: "#d97706", bg: "#fef3c7" },
+  "Delayed":      { color: "#be185d", bg: "#fce7f3" },
+  "Completed":    { color: "#16a34a", bg: "#dcfce7" },
+};
+
+// Read-only summary of the last submitted report shown above the form
+function LastReportSummary({ prevReport }) {
+  const [open, setOpen] = useState(true);
+  if (!prevReport) return null;
+
+  const date = prevReport.reportingDate ||
+    new Date(prevReport.submittedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+  const activeWPs = (prevReport.currentPackages || [])
+    .map((id) => WORK_PACKAGES.find((wp) => wp.id === id))
+    .filter(Boolean);
+
+  // Old-format fallback: build a minimal display from legacy fields
+  const hasWPStatuses = !!prevReport.workPackageStatuses;
+
+  return (
+    <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 14, marginBottom: 16, overflow: "hidden" }}>
+      {/* Header row */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "13px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0369a1" }}>Last Submitted Report</span>
+          <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, background: "#0369a1", color: "white" }}>{date}</span>
+          {prevReport.projectScheduleStatus && (
+            <span style={{ padding: "2px 9px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" }}>
+              {prevReport.projectScheduleStatus}
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: 10, color: "#7dd3fc" }}>{open ? "▲ hide" : "▼ show"}</span>
+      </button>
+
+      {open && (
+        <div style={{ padding: "0 20px 16px", borderTop: "1px solid #bae6fd" }}>
+          {activeWPs.length === 0 && (
+            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 12 }}>No work packages recorded in this report.</div>
+          )}
+
+          {activeWPs.map((wp) => {
+            const pkgStatuses = hasWPStatuses
+              ? (prevReport.workPackageStatuses?.[wp.id] || {})
+              : {};
+            const tasks = wp.tasks.map((t) => ({
+              name: t.name,
+              status: pkgStatuses[t.name]?.status || "Not Started",
+            }));
+            const nonDefault = tasks.filter((t) => t.status !== "Not Started");
+
+            return (
+              <div key={wp.id} style={{ marginTop: 14 }}>
+                {/* WP header */}
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
+                  <div style={{ width: 9, height: 9, borderRadius: "50%", background: wp.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#1e3a5f" }}>{wp.name}</span>
+                  <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                    {nonDefault.length}/{tasks.length} reported
+                  </span>
+                </div>
+
+                {/* Task grid — only show tasks that have a status set, or all if all are Not Started */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 3 }}>
+                  {(nonDefault.length > 0 ? nonDefault : tasks).map(({ name, status }) => {
+                    const st = STATUS_STYLE[status] || STATUS_STYLE["Not Started"];
+                    return (
+                      <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 8px", borderRadius: 7, background: "white", border: "1px solid #e0f2fe" }}>
+                        <span style={{ fontSize: 11, color: "#374151", flex: 1, paddingRight: 8, lineHeight: 1.3 }}>{name}</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: st.bg, color: st.color, whiteSpace: "nowrap", flexShrink: 0 }}>{status}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WPSection({ wp, pkgStatuses, onChange }) {
   function handleTask(taskName, entry) {
     onChange({ ...pkgStatuses, [taskName]: entry });
@@ -553,6 +643,9 @@ function ContractorReport({ projects, reports, onSaveReport }) {
             </span>
           </div>
         </div>
+
+        {/* ── Last report summary (read-only reference for the contractor) ── */}
+        <LastReportSummary prevReport={prevReport} />
 
         {/* ── Validation errors ── */}
         {validationErrors.length > 0 && (
