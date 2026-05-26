@@ -200,6 +200,23 @@ function deriveWPStatusesFromOldReport(report) {
   return result;
 }
 
+// Merge multiple derived WP-status maps, keeping the highest-scored status per task
+function mergeOldDerivedStatuses(derivedList) {
+  const result = {};
+  for (const derived of derivedList) {
+    for (const [wpId, tasks] of Object.entries(derived)) {
+      if (!result[wpId]) result[wpId] = {};
+      for (const [taskName, entry] of Object.entries(tasks)) {
+        const cur = result[wpId][taskName];
+        if (!cur || (WP_STATUS_SCORES[entry.status] ?? -1) > (WP_STATUS_SCORES[cur.status] ?? -1)) {
+          result[wpId][taskName] = entry;
+        }
+      }
+    }
+  }
+  return result;
+}
+
 function statusColor(status) {
   const score = WP_STATUS_SCORES[status] ?? 0;
   return score >= 1 ? "#22c55e" : score >= 0.5 ? "#f59e0b" : score >= 0.3 ? "#be185d" : "#94a3b8";
@@ -214,23 +231,28 @@ function deriveOverallStatus(statuses) {
 }
 
 // One card per WP phase — always rendered, collapsible task rows
-function WPPhaseCard({ wp, wpStatuses, wpCumStatuses }) {
-  const [expanded, setExpanded] = useState(false);
+function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, defaultExpanded }) {
+  const [expanded, setExpanded] = useState(defaultExpanded ?? false);
 
   const taskStatuses    = wpStatuses?.[wp.id]    || {};
   const cumTaskStatuses = wpCumStatuses?.[wp.id] || {};
 
-  const pct = computePackageProgress(
-    { [wp.id]: Object.keys(cumTaskStatuses).length ? cumTaskStatuses : taskStatuses },
-    wp.id
-  );
-
+  // Merge per-task: pick the highest-scored status between this report and cumulative
   const tasks = wp.tasks;
-  const resolvedStatuses = tasks.map((t) => {
-    const e = taskStatuses[t.name]    || {};
-    const c = cumTaskStatuses[t.name] || {};
-    return e.status || c.status || "Not Started";
-  });
+  const mergedTaskStatuses = {};
+  for (const task of tasks) {
+    const e = taskStatuses[task.name]    || {};
+    const c = cumTaskStatuses[task.name] || {};
+    const eScore = WP_STATUS_SCORES[e.status] ?? -1;
+    const cScore = WP_STATUS_SCORES[c.status] ?? -1;
+    mergedTaskStatuses[task.name] = cScore >= eScore
+      ? (c.status ? c : e)
+      : (e.status ? e : c);
+  }
+
+  const pct = computePackageProgress({ [wp.id]: mergedTaskStatuses }, wp.id);
+
+  const resolvedStatuses = tasks.map((t) => mergedTaskStatuses[t.name]?.status || "Not Started");
 
   const overallStatus  = deriveOverallStatus(resolvedStatuses);
   const delayedCount   = resolvedStatuses.filter((s) => s === "Delayed").length;
@@ -267,10 +289,8 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses }) {
       {expanded && (
         <div style={{ borderTop: "1px solid #334155", padding: "6px 20px 14px" }}>
           {tasks.map((task) => {
-            const entry    = taskStatuses[task.name]    || {};
-            const cumEntry = cumTaskStatuses[task.name] || {};
-            const status   = entry.status || cumEntry.status || "Not Started";
-            const tsc      = statusColor(status);
+            const status = mergedTaskStatuses[task.name]?.status || "Not Started";
+            const tsc    = statusColor(status);
             return (
               <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid #2d3f54" }}>
                 <span style={{ fontSize: 12, color: "#94a3b8", flex: 1, paddingRight: 12, lineHeight: 1.35 }}>{task.name}</span>
@@ -580,15 +600,17 @@ function WeeklyReports({ projects, reports }) {
                 : deriveWPStatusesFromOldReport(selectedReport);
               const wpCumStatuses = wpReport
                 ? computeWPCumulativeStatuses(projectReports)?.workPackageStatuses
-                : null;
+                : mergeOldDerivedStatuses(projectReports.map(deriveWPStatusesFromOldReport));
               return (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14, marginBottom: 20 }}>
-                  {WORK_PACKAGES.map((wp) => (
+                // key on effectiveReportId forces card remount (and defaultExpanded reset) when report changes
+                <div key={effectiveReportId} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14, marginBottom: 20 }}>
+                  {WORK_PACKAGES.map((wp, index) => (
                     <WPPhaseCard
                       key={wp.id}
                       wp={wp}
                       wpStatuses={derivedStatuses}
                       wpCumStatuses={wpCumStatuses}
+                      defaultExpanded={index === 0}
                     />
                   ))}
                 </div>
