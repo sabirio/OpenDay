@@ -303,7 +303,8 @@ function ContractorReport({ projects, reports, onSaveReport }) {
   const prefillDone = useRef(false);
 
   useEffect(() => {
-    if (!prefillDone.current) {
+    // Wait for reports to load before prefilling (prevReport is null until Supabase responds)
+    if (prevReport && !prefillDone.current) {
       prefillDone.current = true;
       setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
     }
