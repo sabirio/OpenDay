@@ -216,10 +216,10 @@ export function computePackageProgress(wpStatuses, wpId) {
     if (!entry) continue;
 
     const score = WP_STATUS_SCORES[entry.status];
-    if (score === null) continue; // Not Applicable — skip
+    if (score == null) continue; // undefined status or Not Applicable — skip
 
     const effectiveProgress =
-      entry.progress > 0 ? entry.progress / 100 : score;
+      (entry.progress > 0) ? entry.progress / 100 : score;
 
     totalWeight += task.weight;
     weightedScore += task.weight * effectiveProgress;

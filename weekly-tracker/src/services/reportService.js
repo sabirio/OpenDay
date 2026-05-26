@@ -36,6 +36,9 @@ function fromDB(row) {
     finalComments: row.final_comments,
     declarationConfirmed: row.declaration_confirmed,
     photos: row.photos || [],
+    workPackageStatuses: row.work_package_statuses || null,
+    currentPackages: row.current_packages || [],
+    previousReportId: row.previous_report_id || null,
   };
 }
 
@@ -75,6 +78,9 @@ function toDB(report) {
     final_comments: report.finalComments || null,
     declaration_confirmed: report.declarationConfirmed || false,
     photos: report.photos || [],
+    work_package_statuses: report.workPackageStatuses || null,
+    current_packages: report.currentPackages || [],
+    previous_report_id: report.previousReportId || null,
   };
 }
 
