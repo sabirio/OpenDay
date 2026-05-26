@@ -100,7 +100,7 @@ export const WORK_PACKAGES = [
   },
   {
     id: 'commissioning',
-    name: 'Testing, Commissioning & Integration',
+    name: 'Testing & Commissioning',
     color: '#b45309',
     weight: 0.10,
     tasks: [

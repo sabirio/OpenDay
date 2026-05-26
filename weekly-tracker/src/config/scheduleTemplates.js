@@ -5,7 +5,7 @@
 // keys used in ContractorReport.jsx (constructionStatuses, testingStatuses,
 // handoverStatuses) so report statuses can be mapped directly.
 
-import { generateGanttTasksFromWP } from "./workPackages";
+import { generateGanttTasksFromWP, WORK_PACKAGES } from "./workPackages";
 
 function task(id, name, duration, dependencies, weight, reportPhase, reportKey) {
   return {
@@ -79,6 +79,32 @@ const DEMO_FITOUT_TASKS = [
 // ── TEMPLATE 3: Work Package Based (generated from WORK_PACKAGES) ─────────────
 // Tasks linked directly to WP ids and task names for new-format reports.
 
+// ── TEMPLATE 4: Phase Milestones ──────────────────────────────────────────────
+// One sequential milestone per WP phase — no sub-tasks.
+// Duration scaled by WP weight relative to a 40-week baseline.
+// Each milestone maps to a WP via _wpId for status look-up.
+
+function generatePhaseMilestones() {
+  return WORK_PACKAGES.map((wp, i) => {
+    const durationWeeks = Math.max(1, Math.round(wp.weight * 40));
+    const prevId = i > 0 ? WORK_PACKAGES[i - 1].id : null;
+    return {
+      id:           wp.id,
+      name:         wp.name,
+      duration:     durationWeeks,
+      dependencies: prevId ? [{ id: prevId, type: "FS", lag: 0 }] : [],
+      weight:       Math.round(wp.weight * 100),
+      reportPhase:  wp.id,
+      reportKey:    null,
+      _wpId:        wp.id,
+      status:       "Not Started",
+      progress:     0,
+      actualStart:  null,
+      actualFinish: null,
+    };
+  });
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 export const GANTT_TEMPLATES = {
@@ -99,6 +125,12 @@ export const GANTT_TEMPLATES = {
     label: "Work Package Schedule",
     description: "Auto-generated from centralized Work Packages (new format)",
     get tasks() { return generateGanttTasksFromWP(180); },
+  },
+  phase_milestones: {
+    id: "phase_milestones",
+    label: "Phase Milestones",
+    description: "8 sequential phase milestones — one per Work Package, no sub-tasks",
+    get tasks() { return generatePhaseMilestones(); },
   },
 };
 
