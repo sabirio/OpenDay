@@ -1,45 +1,89 @@
 import { useParams } from "react-router-dom";
 import { useState } from "react";
-import { getStatusScore } from "../reportUtils";
-
-const constructionItems = [
-  "Flooring installation",
-  "Drywall partition installation",
-  "Electrical systems installation",
-  "HVAC systems installation",
-  "Fire safety systems installation",
-  "Low current systems installation",
-  "Ceiling installation",
-  "Lighting installation",
-  "Furniture installation",
-];
-
-const testingItems = [
-  "Sprinkler system testing and commissioning",
-  "Smoke detection system testing and commissioning",
-  "Emergency announcement system testing and commissioning",
-  "HVAC system testing and commissioning",
-  "Electrical system testing and commissioning",
-  "Low current testing and commissioning",
-];
-
-const handoverItems = [
-  "Staff training",
-  "Manuals, certificates, test reports",
-  "Final cleaning",
-  "Snag list resolution",
-];
+import { WORK_PACKAGES, WP_STATUS_SCORES, makeEmptyPMWPStatuses } from "../config/workPackages";
 
 const ACCENT = "#0891b2";
 
-function gcPrefill(ref) {
-  if (!ref) return { demolitionStatus: "", constructionStatuses: {}, testingStatuses: {}, handoverStatuses: {} };
-  return {
-    demolitionStatus: ref.demolitionStatus || "",
-    constructionStatuses: Object.fromEntries(constructionItems.map(k => [k, ref.constructionStatuses?.[k] || ""])),
-    testingStatuses:      Object.fromEntries(testingItems.map(k => [k, ref.testingStatuses?.[k] || ""])),
-    handoverStatuses:     Object.fromEntries(handoverItems.map(k => [k, ref.handoverStatuses?.[k] || ""])),
-  };
+// ── GC reference status helpers ───────────────────────────────────────────────
+
+// Old-format field → WP task name best-effort mapping
+const OLD_TO_WP = {
+  "Flooring installation":                              { wpId: "finishes",       task: "Floor finishes" },
+  "Drywall partition installation":                     { wpId: "construction",   task: "Partitions & drywall" },
+  "Electrical systems installation":                    { wpId: "mep",            task: "Electrical conduits & cabling" },
+  "HVAC systems installation":                          { wpId: "mep",            task: "HVAC ducts" },
+  "Fire safety systems installation":                   { wpId: "mep",            task: "Fire suppression pipes" },
+  "Low current systems installation":                   { wpId: "mep",            task: "Low current systems" },
+  "Ceiling installation":                               { wpId: "construction",   task: "Ceiling structures" },
+  "Lighting installation":                              { wpId: "finishes",       task: "Lighting fixtures" },
+  "Furniture installation":                             { wpId: "equipment",      task: "Furniture & loose items" },
+  "Sprinkler system testing and commissioning":         { wpId: "commissioning",  task: "Sprinkler testing & commissioning" },
+  "Smoke detection system testing and commissioning":   { wpId: "commissioning",  task: "Fire alarm testing" },
+  "Emergency announcement system testing and commissioning": { wpId: "commissioning", task: "Integrated systems testing" },
+  "HVAC system testing and commissioning":              { wpId: "commissioning",  task: "HVAC balancing & commissioning" },
+  "Electrical system testing and commissioning":        { wpId: "commissioning",  task: "Electrical testing & certification" },
+  "Low current testing and commissioning":              { wpId: "commissioning",  task: "Security & access control testing" },
+  "Staff training":                                     { wpId: "handover",       task: "Staff training" },
+  "Manuals, certificates, test reports":                { wpId: "handover",       task: "O&M manuals" },
+  "Final cleaning":                                     { wpId: "handover",       task: "Final cleaning" },
+  "Snag list resolution":                               { wpId: "handover",       task: "Defects & snagging resolution" },
+};
+
+// Convert old GC status string → new WP status string
+function mapOldStatus(s) {
+  if (!s) return null;
+  const lower = s.toLowerCase();
+  if (lower.includes("completed") || lower.includes("ready")) return "Completed";
+  if (lower.includes("in progress") || lower.includes("started")) return "In Progress";
+  if (lower === "not applicable" || lower === "n/a") return null;
+  return "Not Started";
+}
+
+/**
+ * Get GC's reported status for a given WP task from either format.
+ * Returns { status, progress } or null.
+ */
+function getGCTaskEntry(gcReport, wpId, taskName) {
+  if (!gcReport) return null;
+
+  // New format
+  if (gcReport.workPackageStatuses?.[wpId]?.[taskName] != null) {
+    const e = gcReport.workPackageStatuses[wpId][taskName];
+    return { status: e.status, progress: e.progress ?? 0 };
+  }
+
+  // Old format — reverse-lookup by checking if this wpId+taskName matches an old item
+  for (const [oldItem, mapping] of Object.entries(OLD_TO_WP)) {
+    if (mapping.wpId === wpId && mapping.task === taskName) {
+      let oldStatus = null;
+      if (oldItem === "Demolition works") {
+        oldStatus = gcReport.demolitionStatus;
+      } else if (gcReport.constructionStatuses?.[oldItem] != null) {
+        oldStatus = gcReport.constructionStatuses[oldItem];
+      } else if (gcReport.testingStatuses?.[oldItem] != null) {
+        oldStatus = gcReport.testingStatuses[oldItem];
+      } else if (gcReport.handoverStatuses?.[oldItem] != null) {
+        oldStatus = gcReport.handoverStatuses[oldItem];
+      }
+      const mapped = mapOldStatus(oldStatus);
+      return mapped ? { status: mapped, progress: 0 } : null;
+    }
+  }
+
+  return null;
+}
+
+// ── Status comparison ─────────────────────────────────────────────────────────
+
+function comparisonResult(pmStatus, gcStatus) {
+  if (!pmStatus && !gcStatus) return null;
+  if (!pmStatus) return { type: "not-assessed", badge: "Not assessed", color: "#94a3b8", bg: "white",    border: "#f3f4f6" };
+  if (!gcStatus) return { type: "no-gc",        badge: "No GC data",   color: "#6b7280",  bg: "#f8fafc", border: "#e5e7eb" };
+  const ps = WP_STATUS_SCORES[pmStatus] ?? 0;
+  const gs = WP_STATUS_SCORES[gcStatus] ?? 0;
+  if (ps === gs) return { type: "match",        badge: "✓ Match",       color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" };
+  if (ps < gs)   return { type: "discrepancy",  badge: "⚠ Discrepancy", color: "#991b1b", bg: "#fff1f2", border: "#fca5a5" };
+  return               { type: "pm-higher",    badge: "↑ PM ahead",    color: "#92400e", bg: "#fefce8", border: "#fde68a" };
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -58,51 +102,120 @@ function FormSection({ title, accentColor = ACCENT, note, children }) {
   );
 }
 
-function StatusSelector({ label, value, onChange, gcStatus }) {
-  const opts = [
-    { label: "N/A",         value: "Not applicable", activeBg: "#f3f4f6", activeColor: "#6b7280",  activeBorder: "#d1d5db" },
-    { label: "Not started", value: "Not started",    activeBg: "#fee2e2", activeColor: "#dc2626",  activeBorder: "#fca5a5" },
-    { label: "In progress", value: "In progress",    activeBg: "#fef3c7", activeColor: "#d97706",  activeBorder: "#fde68a" },
-    { label: "Completed",   value: "Completed",      activeBg: "#dcfce7", activeColor: "#16a34a",  activeBorder: "#86efac" },
-  ];
-  const gcMatchesOpt = gcStatus && opts.some(o => o.value === gcStatus);
-  const pmChanged = value && gcStatus && value !== gcStatus;
+const WP_STATUS_OPTS = [
+  { value: "Not Started", label: "Not Started", bg: "#f3f4f6",  color: "#6b7280", border: "#d1d5db" },
+  { value: "In Progress", label: "In Progress", bg: "#fef3c7",  color: "#d97706", border: "#fde68a" },
+  { value: "Delayed",     label: "Delayed",     bg: "#fce7f3",  color: "#be185d", border: "#fbcfe8" },
+  { value: "Completed",   label: "Completed",   bg: "#dcfce7",  color: "#16a34a", border: "#86efac" },
+];
+
+function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
+  const [expanded, setExpanded] = useState(false);
+  const e = entry || { observedStatus: "", progress: 0, issueFound: false, riskLevel: "None", comment: "" };
+  const gcStatus = gcEntry?.status || null;
+  const pmStatus = e.observedStatus || null;
+  const result = comparisonResult(pmStatus, gcStatus);
+
   return (
-    <div style={{ padding: "8px 0", borderBottom: "1px solid #f9fafb" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, paddingRight: 16 }}>
-          <span style={{ fontSize: 13, color: "#374151", lineHeight: 1.4 }}>{label}</span>
-          {pmChanged && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a", whiteSpace: "nowrap" }}>PM changed</span>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-          {opts.map((opt) => {
-            const sel = value === opt.value;
-            const isGc = gcStatus === opt.value;
+    <div style={{
+      borderBottom: "1px solid #f9fafb", padding: "9px 0",
+      background: result?.type === "discrepancy" ? "#fff8f8" : "transparent",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ flex: "1 1 160px", fontSize: 13, color: "#374151", lineHeight: 1.35 }}>{taskName}</span>
+
+        {/* GC reference badge */}
+        {gcEntry && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: ACCENT, color: "white", letterSpacing: "0.02em" }}>GC</span>
+            <span style={{
+              fontSize: 11, padding: "2px 7px", borderRadius: 5, fontWeight: 600,
+              background: gcStatus === "Completed" ? "#dcfce7" : gcStatus === "In Progress" ? "#fef3c7" : gcStatus === "Delayed" ? "#fce7f3" : "#f3f4f6",
+              color: gcStatus === "Completed" ? "#16a34a" : gcStatus === "In Progress" ? "#d97706" : gcStatus === "Delayed" ? "#be185d" : "#6b7280",
+            }}>
+              {gcStatus}
+            </span>
+            {gcEntry.progress > 0 && <span style={{ fontSize: 10, color: "#9ca3af" }}>{gcEntry.progress}%</span>}
+          </div>
+        )}
+
+        {/* PM Status buttons */}
+        <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+          {WP_STATUS_OPTS.map((opt) => {
+            const sel = e.observedStatus === opt.value;
             return (
-              <button key={opt.value} type="button" onClick={() => onChange(opt.value)} style={{
-                position: "relative",
-                padding: "4px 10px", borderRadius: 7,
-                border: `1.5px solid ${sel ? opt.activeBorder : isGc ? "#7dd3fc" : "#e5e7eb"}`,
-                background: sel ? opt.activeBg : isGc ? "#e0f2fe" : "white",
-                color: sel ? opt.activeColor : isGc ? "#0369a1" : "#9ca3af",
-                fontSize: 11, fontWeight: sel ? 700 : isGc ? 600 : 400,
-                cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.1s",
-              }}>
+              <button key={opt.value} type="button"
+                onClick={() => onChange({ ...e, observedStatus: opt.value })}
+                style={{
+                  padding: "3px 8px", borderRadius: 6, fontSize: 11,
+                  border: `1px solid ${sel ? opt.border : "#e5e7eb"}`,
+                  background: sel ? opt.bg : "white",
+                  color: sel ? opt.color : "#9ca3af",
+                  fontWeight: sel ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap",
+                }}>
                 {opt.label}
-                {isGc && (
-                  <span style={{ position: "absolute", top: -7, right: -5, fontSize: 7, fontWeight: 800, background: ACCENT, color: "white", borderRadius: 4, padding: "1px 4px", lineHeight: 1.4, letterSpacing: "0.02em", pointerEvents: "none" }}>GC</span>
-                )}
               </button>
             );
           })}
         </div>
-      </div>
-      {gcStatus && !gcMatchesOpt && (
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3, paddingLeft: 2 }}>
-          GC reported: <em style={{ color: "#6b7280" }}>{gcStatus}</em>
+
+        {/* Progress % */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <input
+            type="number" min={0} max={100}
+            value={e.progress}
+            onChange={(ev) => onChange({ ...e, progress: Math.max(0, Math.min(100, Number(ev.target.value) || 0)) })}
+            style={{ width: 50, height: 28, textAlign: "center", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 12, outline: "none" }}
+          />
+          <span style={{ fontSize: 11, color: "#9ca3af" }}>%</span>
         </div>
+
+        {/* Issue found */}
+        <button type="button"
+          onClick={() => onChange({ ...e, issueFound: !e.issueFound })}
+          style={{
+            padding: "3px 9px", borderRadius: 6, fontSize: 11,
+            border: `1px solid ${e.issueFound ? "#fca5a5" : "#e5e7eb"}`,
+            background: e.issueFound ? "#fff1f2" : "white",
+            color: e.issueFound ? "#dc2626" : "#9ca3af",
+            fontWeight: e.issueFound ? 700 : 400, cursor: "pointer", flexShrink: 0,
+          }}>
+          ⚠ Issue
+        </button>
+
+        {/* Comparison badge */}
+        {result && result.type !== "not-assessed" && result.type !== "no-gc" && (
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5, flexShrink: 0,
+            background: result.bg, color: result.color, border: `1px solid ${result.border}` }}>
+            {result.badge}
+          </span>
+        )}
+
+        {/* Comment toggle */}
+        <button type="button"
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            padding: "3px 9px", borderRadius: 6, fontSize: 11,
+            border: `1px solid ${e.comment ? "#bbf7d0" : "#e5e7eb"}`,
+            background: e.comment ? "#f0fdf4" : "white",
+            color: e.comment ? "#16a34a" : "#9ca3af", cursor: "pointer", flexShrink: 0,
+          }}>
+          💬
+        </button>
+      </div>
+
+      {expanded && (
+        <textarea
+          value={e.comment}
+          onChange={(ev) => onChange({ ...e, comment: ev.target.value })}
+          placeholder="PM observation / note..."
+          rows={2}
+          style={{
+            width: "100%", marginTop: 8, padding: "8px 12px",
+            border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12,
+            resize: "vertical", boxSizing: "border-box", fontFamily: "inherit",
+          }}
+        />
       )}
     </div>
   );
@@ -110,69 +223,13 @@ function StatusSelector({ label, value, onChange, gcStatus }) {
 
 function StatusPill({ status }) {
   if (!status) return <span style={{ color: "#d1d5db", fontSize: 12 }}>—</span>;
-  const schedColor = status === "On Track" ? "#16a34a" : status === "Critical" ? "#7f1d1d" : status === "Delayed" ? "#dc2626" : status === "At Risk" ? "#d97706" : null;
-  const schedBg    = status === "On Track" ? "#dcfce7" : status === "Critical" ? "#fff1f2" : status === "Delayed" ? "#fee2e2" : status === "At Risk" ? "#fef3c7" : null;
-  const score = getStatusScore(status);
-  const color = schedColor ?? (score >= 1 ? "#16a34a" : score >= 0.5 ? "#d97706" : score > 0 ? "#2563eb" : "#6b7280");
-  const bg    = schedBg    ?? (score >= 1 ? "#dcfce7" : score >= 0.5 ? "#fef3c7" : score > 0 ? "#dbeafe" : "#f3f4f6");
+  const s = WP_STATUS_SCORES[status] ?? -1;
+  const color = s >= 1 ? "#16a34a" : s >= 0.5 ? "#d97706" : s >= 0.3 ? "#be185d" : "#6b7280";
+  const bg    = s >= 1 ? "#dcfce7" : s >= 0.5 ? "#fef3c7" : s >= 0.3 ? "#fce7f3" : "#f3f4f6";
   return (
     <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: bg, color }}>
       {status}
     </span>
-  );
-}
-
-function comparisonResult(pm, gc) {
-  if (!pm && !gc) return null;
-  if (!pm) return { type: "not-assessed", badge: "Not assessed", color: "#94a3b8", bg: "white",    border: "#f3f4f6" };
-  if (!gc) return { type: "no-gc",        badge: "No GC data",   color: "#6b7280",  bg: "#f8fafc", border: "#e5e7eb" };
-  const ps = getStatusScore(pm), gs = getStatusScore(gc);
-  if (ps === gs) return { type: "match",       badge: "✓ Match",       color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" };
-  if (ps <  gs) return { type: "discrepancy", badge: "⚠ Discrepancy", color: "#991b1b", bg: "#fff1f2", border: "#fca5a5" };
-  return              { type: "pm-higher",    badge: "↑ PM ahead",    color: "#92400e", bg: "#fefce8", border: "#fde68a" };
-}
-
-const CMP_HEADER = (
-  <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 140px 120px", gap: 8, padding: "6px 10px", background: "#f8fafc", borderRadius: 8, marginBottom: 4 }}>
-    {["Item", "GC Report", "PM Observed", "Result"].map((h, i) => (
-      <div key={h} style={{ fontSize: 10, fontWeight: 700, color: i === 2 ? ACCENT : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</div>
-    ))}
-  </div>
-);
-
-function ComparisonSection({ title, accentColor, items, pmStatuses, gcStatuses, demolition }) {
-  const rows = demolition
-    ? [{ item: "Demolition works", pm: pmStatuses, gc: gcStatuses }]
-    : items.map(item => ({ item, pm: pmStatuses?.[item], gc: gcStatuses?.[item] }));
-
-  const visible = rows.filter(r => r.pm || r.gc);
-  if (!visible.length) return null;
-
-  const discrepancies = visible.filter(r => comparisonResult(r.pm, r.gc)?.type === "discrepancy").length;
-
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: accentColor }}>{title}</div>
-        {discrepancies > 0 && (
-          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }}>
-            {discrepancies} discrepanc{discrepancies === 1 ? "y" : "ies"}
-          </span>
-        )}
-      </div>
-      {CMP_HEADER}
-      {visible.map(({ item, pm, gc }) => {
-        const r = comparisonResult(pm, gc);
-        return (
-          <div key={item} style={{ display: "grid", gridTemplateColumns: "1fr 140px 140px 120px", gap: 8, padding: "8px 10px", borderRadius: 8, background: r?.bg || "white", border: `1px solid ${r?.border || "#f3f4f6"}`, marginBottom: 3, alignItems: "center" }}>
-            <div style={{ fontSize: 12, color: "#374151" }}>{item}</div>
-            <div><StatusPill status={gc} /></div>
-            <div><StatusPill status={pm} /></div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: r?.color }}>{r?.badge}</div>
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
@@ -190,7 +247,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   const [form, setForm] = useState(() => ({
     visitDate: new Date().toISOString().split("T")[0],
     referenceReportId: latestReport?.id ? String(latestReport.id) : "",
-    ...gcPrefill(latestReport),
+    pmWorkPackageStatuses: makeEmptyPMWPStatuses(),
     pmScheduleAssessment: "",
     observations: "",
     photos: [],
@@ -204,7 +261,21 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   const referenceReport = projectReports.find((r) => String(r.id) === String(form.referenceReportId));
 
   function set(name, value) { setForm((p) => ({ ...p, [name]: value })); }
-  function setNested(group, item, value) { setForm((p) => ({ ...p, [group]: { ...p[group], [item]: value } })); }
+
+  function updateWPTask(wpId, taskName, entry) {
+    setForm((p) => ({
+      ...p,
+      pmWorkPackageStatuses: {
+        ...p.pmWorkPackageStatuses,
+        [wpId]: { ...p.pmWorkPackageStatuses[wpId], [taskName]: entry },
+      },
+    }));
+  }
+
+  // When reference report changes, keep PM statuses but update selection
+  function handleReferenceChange(newId) {
+    setForm((p) => ({ ...p, referenceReportId: newId }));
+  }
 
   function validate() {
     const errs = [];
@@ -219,7 +290,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
     if (errs.length) { setErrors(errs); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     setErrors([]);
     const visitData = {
-      projectId: projectId,
+      projectId,
       referenceReportId: form.referenceReportId || null,
       ...form,
       photos: form.photos.map((p) => p?.name || p),
@@ -253,24 +324,29 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   if (submitted && savedVisit) {
     const refRep = projectReports.find((r) => String(r.id) === String(savedVisit.referenceReportId));
 
-    const allItems = [
-      { pm: savedVisit.demolitionStatus, gc: refRep?.demolitionStatus },
-      ...constructionItems.map((i) => ({ pm: savedVisit.constructionStatuses?.[i], gc: refRep?.constructionStatuses?.[i] })),
-      ...testingItems.map((i)      => ({ pm: savedVisit.testingStatuses?.[i],      gc: refRep?.testingStatuses?.[i] })),
-      ...handoverItems.map((i)     => ({ pm: savedVisit.handoverStatuses?.[i],     gc: refRep?.handoverStatuses?.[i] })),
-    ].filter((r) => r.pm || r.gc);
-
-    const matches      = allItems.filter((r) => comparisonResult(r.pm, r.gc)?.type === "match").length;
-    const discrepancies = allItems.filter((r) => comparisonResult(r.pm, r.gc)?.type === "discrepancy").length;
-    const pmHigher     = allItems.filter((r) => comparisonResult(r.pm, r.gc)?.type === "pm-higher").length;
-
-    const gcRefPhases = refRep
-      ? (Array.isArray(refRep.currentPhases) ? refRep.currentPhases : (refRep.currentPhase ? [refRep.currentPhase] : []))
-      : [];
+    let totalItems = 0, matches = 0, discrepancies = 0, pmHigher = 0;
+    const wpComparisons = WORK_PACKAGES.map((wp) => {
+      const tasks = wp.tasks.map((task) => {
+        const pmEntry = savedVisit.pmWorkPackageStatuses?.[wp.id]?.[task.name];
+        const pmStatus = pmEntry?.observedStatus || null;
+        const gcEntry = getGCTaskEntry(refRep, wp.id, task.name);
+        const gcStatus = gcEntry?.status || null;
+        if (!pmStatus && !gcStatus) return null;
+        const r = comparisonResult(pmStatus, gcStatus);
+        if (r) {
+          totalItems++;
+          if (r.type === "match") matches++;
+          else if (r.type === "discrepancy") discrepancies++;
+          else if (r.type === "pm-higher") pmHigher++;
+        }
+        return { taskName: task.name, pmStatus, pmProgress: pmEntry?.progress, gcStatus, gcProgress: gcEntry?.progress, result: r };
+      }).filter(Boolean);
+      return tasks.length ? { wp, tasks } : null;
+    }).filter(Boolean);
 
     return (
       <div style={{ minHeight: "100vh", background: "#f0f7fa", padding: "36px 20px 80px" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
           {/* Result header */}
           <div style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: "24px 28px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -283,10 +359,10 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
               {[
-                { label: "Items Assessed",  value: allItems.length,  color: ACCENT,    bg: "#e0f2fe" },
-                { label: "Matches",          value: matches,          color: "#166534", bg: "#dcfce7" },
-                { label: "Discrepancies",    value: discrepancies,    color: discrepancies > 0 ? "#991b1b" : "#166534", bg: discrepancies > 0 ? "#fee2e2" : "#dcfce7" },
-                { label: "PM Ahead",         value: pmHigher,         color: "#92400e", bg: "#fef3c7" },
+                { label: "Items Assessed",  value: totalItems,     color: ACCENT,    bg: "#e0f2fe" },
+                { label: "Matches",          value: matches,        color: "#166534", bg: "#dcfce7" },
+                { label: "Discrepancies",    value: discrepancies,  color: discrepancies > 0 ? "#991b1b" : "#166534", bg: discrepancies > 0 ? "#fee2e2" : "#dcfce7" },
+                { label: "PM Ahead",         value: pmHigher,       color: "#92400e", bg: "#fef3c7" },
               ].map(({ label, value, color, bg }) => (
                 <div key={label} style={{ textAlign: "center", background: bg, borderRadius: 10, padding: "14px 8px" }}>
                   <div style={{ fontSize: 30, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
@@ -296,26 +372,52 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
             </div>
           </div>
 
-          {/* Comparison detail */}
+          {/* Comparison by WP */}
           <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: "22px 24px", marginBottom: 14 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 }}>Comparison Results</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 }}>Comparison by Work Package</div>
             <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 18 }}>
               {refRep
-                ? <>Reference: <strong style={{ color: "#374151" }}>GC Report {refRep.reportingDate || new Date(refRep.submittedAt).toLocaleDateString("en-GB")}</strong>{gcRefPhases.length > 0 && <> · Phases: <strong style={{ color: "#374151" }}>{gcRefPhases.join(", ")}</strong></>}</>
-                : "No reference GC report selected — standalone site visit."
+                ? <>Reference: <strong style={{ color: "#374151" }}>GC Report — {refRep.reportingDate || new Date(refRep.submittedAt).toLocaleDateString("en-GB")}</strong></>
+                : "No reference GC report — standalone site visit."
               }
             </div>
 
-            <ComparisonSection title="Demolition Works" accentColor="#8b5cf6"
-              demolition pmStatuses={savedVisit.demolitionStatus} gcStatuses={refRep?.demolitionStatus} />
-            <ComparisonSection title="Construction Works" accentColor="#0891b2"
-              items={constructionItems} pmStatuses={savedVisit.constructionStatuses} gcStatuses={refRep?.constructionStatuses} />
-            <ComparisonSection title="Testing & Commissioning" accentColor="#f59e0b"
-              items={testingItems} pmStatuses={savedVisit.testingStatuses} gcStatuses={refRep?.testingStatuses} />
-            <ComparisonSection title="Handover" accentColor="#22c55e"
-              items={handoverItems} pmStatuses={savedVisit.handoverStatuses} gcStatuses={refRep?.handoverStatuses} />
+            {wpComparisons.map(({ wp, tasks }) => {
+              const wpDisc = tasks.filter((t) => t.result?.type === "discrepancy").length;
+              return (
+                <div key={wp.id} style={{ marginBottom: 20 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: wp.color }}>{wp.name}</div>
+                    {wpDisc > 0 && (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }}>
+                        {wpDisc} discrepanc{wpDisc === 1 ? "y" : "ies"}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px 110px", gap: 8, padding: "6px 10px", background: "#f8fafc", borderRadius: 8, marginBottom: 4 }}>
+                    {["Task", "GC Report", "PM Observed", "Result"].map((h, i) => (
+                      <div key={h} style={{ fontSize: 10, fontWeight: 700, color: i === 2 ? ACCENT : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</div>
+                    ))}
+                  </div>
+                  {tasks.map(({ taskName, pmStatus, pmProgress, gcStatus, gcProgress, result: r }) => (
+                    <div key={taskName} style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px 110px", gap: 8, padding: "8px 10px", borderRadius: 8, background: r?.bg || "white", border: `1px solid ${r?.border || "#f3f4f6"}`, marginBottom: 3, alignItems: "center" }}>
+                      <div style={{ fontSize: 12, color: "#374151" }}>{taskName}</div>
+                      <div style={{ fontSize: 12 }}>
+                        <StatusPill status={gcStatus} />
+                        {gcProgress > 0 && <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>{gcProgress}%</span>}
+                      </div>
+                      <div style={{ fontSize: 12 }}>
+                        <StatusPill status={pmStatus} />
+                        {pmProgress > 0 && <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>{pmProgress}%</span>}
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: r?.color }}>{r?.badge}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
 
-            {/* PM Assessment vs GC */}
+            {/* Schedule assessment */}
             {(savedVisit.pmScheduleAssessment || refRep?.projectScheduleStatus) && (
               <div style={{ marginTop: 4, padding: "14px 16px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#94a3b8", marginBottom: 10 }}>Schedule Assessment</div>
@@ -328,8 +430,14 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
                   )}
                   {savedVisit.pmScheduleAssessment && (
                     <div>
-                      <div style={{ fontSize: 10, color: "#0891b2", fontWeight: 700, marginBottom: 4 }}>PM Assessment</div>
-                      <StatusPill status={savedVisit.pmScheduleAssessment} />
+                      <div style={{ fontSize: 10, color: ACCENT, fontWeight: 700, marginBottom: 4 }}>PM Assessment</div>
+                      <span style={{
+                        display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                        background: savedVisit.pmScheduleAssessment === "On Track" ? "#dcfce7" : savedVisit.pmScheduleAssessment === "Critical" ? "#fff1f2" : savedVisit.pmScheduleAssessment === "Delayed" ? "#fee2e2" : "#fef3c7",
+                        color: savedVisit.pmScheduleAssessment === "On Track" ? "#166534" : savedVisit.pmScheduleAssessment === "Critical" ? "#7f1d1d" : savedVisit.pmScheduleAssessment === "Delayed" ? "#dc2626" : "#92400e",
+                      }}>
+                        {savedVisit.pmScheduleAssessment}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -337,7 +445,6 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
             )}
           </div>
 
-          {/* PM Observations */}
           {savedVisit.observations && (
             <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: "20px 22px", marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 8 }}>PM Observations</div>
@@ -345,11 +452,9 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
             </div>
           )}
 
-          {/* Actions */}
           <div style={{ display: "flex", gap: 12 }}>
             <button type="button" onClick={() => {
-              const ref = projectReports[0] || null;
-              setForm({ visitDate: new Date().toISOString().split("T")[0], referenceReportId: ref?.id ? String(ref.id) : "", ...gcPrefill(ref), pmScheduleAssessment: "", observations: "", photos: [], declarationConfirmed: false });
+              setForm({ visitDate: new Date().toISOString().split("T")[0], referenceReportId: latestReport?.id ? String(latestReport.id) : "", pmWorkPackageStatuses: makeEmptyPMWPStatuses(), pmScheduleAssessment: "", observations: "", photos: [], declarationConfirmed: false });
               setSavedVisit(null); setErrors([]); setSubmitted(false);
             }}
               style={{ flex: 1, padding: "14px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, #06b6d4 100%)`, color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
@@ -370,7 +475,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f0f7fa", padding: "36px 20px 80px" }}>
-      <div style={{ maxWidth: 820, margin: "0 auto" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* Header card */}
         <div style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: "24px 28px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -438,16 +543,13 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
                   No contractor reports submitted yet
                 </div>
               ) : (
-                <select value={form.referenceReportId} onChange={(e) => {
-                    const newId = e.target.value;
-                    const ref = projectReports.find(r => String(r.id) === newId);
-                    setForm(prev => ({ ...prev, referenceReportId: newId, ...gcPrefill(ref || null) }));
-                  }}
+                <select value={form.referenceReportId} onChange={(e) => handleReferenceChange(e.target.value)}
                   style={{ height: 42, padding: "0 14px", border: "1px solid #d1d5db", borderRadius: 10, fontSize: 13, color: "#1f2937", background: "white", outline: "none", width: "100%", cursor: "pointer" }}>
                   <option value="">— No comparison —</option>
                   {projectReports.map((r) => (
                     <option key={r.id} value={String(r.id)}>
                       {r.reportingDate || new Date(r.submittedAt).toLocaleDateString("en-GB")} — {r.contractor || "GC"}
+                      {r.workPackageStatuses ? " (new format)" : ""}
                     </option>
                   ))}
                 </select>
@@ -457,56 +559,32 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
           {referenceReport && (
             <div style={{ marginTop: 14, padding: "10px 14px", background: "#e0f2fe", borderRadius: 10, border: "1px solid #7dd3fc", fontSize: 12, color: "#0c4a6e" }}>
               Comparing against <strong>{referenceReport.reportingDate || new Date(referenceReport.submittedAt).toLocaleDateString("en-GB")}</strong>
-              {" · "}Phase: <strong>{Array.isArray(referenceReport.currentPhases) ? referenceReport.currentPhases.join(", ") : referenceReport.currentPhase || "—"}</strong>
               {" · "}Schedule: <strong>{referenceReport.projectScheduleStatus || "—"}</strong>
+              {referenceReport.workPackageStatuses
+                ? <span style={{ marginLeft: 8, padding: "1px 6px", background: "#0891b2", color: "white", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>WP Format</span>
+                : <span style={{ marginLeft: 8, padding: "1px 6px", background: "#9ca3af", color: "white", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>Legacy Format</span>
+              }
             </div>
           )}
         </FormSection>
 
-        {/* 2. Demolition */}
-        <FormSection title="Demolition Works" accentColor="#8b5cf6" note="Record actual site observation. GC-reported status shown as reference below each item.">
-          <StatusSelector
-            label="Demolition works"
-            value={form.demolitionStatus}
-            onChange={(v) => set("demolitionStatus", v)}
-            gcStatus={referenceReport?.demolitionStatus}
-          />
-        </FormSection>
+        {/* 2. Work Package Observation Sections */}
+        {WORK_PACKAGES.map((wp) => (
+          <FormSection key={wp.id} title={wp.name} accentColor={wp.color}
+            note="Record actual site observation for each task. GC-reported status shown as reference badge.">
+            {wp.tasks.map((task) => (
+              <PMTaskRow
+                key={task.name}
+                taskName={task.name}
+                entry={form.pmWorkPackageStatuses?.[wp.id]?.[task.name]}
+                gcEntry={getGCTaskEntry(referenceReport, wp.id, task.name)}
+                onChange={(entry) => updateWPTask(wp.id, task.name, entry)}
+              />
+            ))}
+          </FormSection>
+        ))}
 
-        {/* 3. Construction Works */}
-        <FormSection title="Construction Works" accentColor="#0891b2" note="Observe and record the actual status of each work package. GC-reported status is shown as reference.">
-          {constructionItems.map((item) => (
-            <StatusSelector key={item} label={item}
-              value={form.constructionStatuses[item] || ""}
-              onChange={(v) => setNested("constructionStatuses", item, v)}
-              gcStatus={referenceReport?.constructionStatuses?.[item]}
-            />
-          ))}
-        </FormSection>
-
-        {/* 4. Testing & Commissioning */}
-        <FormSection title="Testing & Commissioning" accentColor="#f59e0b" note="Verify commissioning progress on site.">
-          {testingItems.map((item) => (
-            <StatusSelector key={item} label={item}
-              value={form.testingStatuses[item] || ""}
-              onChange={(v) => setNested("testingStatuses", item, v)}
-              gcStatus={referenceReport?.testingStatuses?.[item]}
-            />
-          ))}
-        </FormSection>
-
-        {/* 5. Handover */}
-        <FormSection title="Handover" accentColor="#22c55e" note="Check handover readiness items on site.">
-          {handoverItems.map((item) => (
-            <StatusSelector key={item} label={item}
-              value={form.handoverStatuses[item] || ""}
-              onChange={(v) => setNested("handoverStatuses", item, v)}
-              gcStatus={referenceReport?.handoverStatuses?.[item]}
-            />
-          ))}
-        </FormSection>
-
-        {/* 6. PM Assessment */}
+        {/* 3. PM Assessment */}
         <FormSection title="PM Assessment" accentColor="#475569">
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 6 }}>Schedule Assessment (PM view)</div>
@@ -527,7 +605,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
                     border: `2px solid ${sel ? border : "#e5e7eb"}`,
                     background: sel ? bg : "white",
                     color: sel ? color : "#9ca3af",
-                    fontSize: 13, fontWeight: sel ? 700 : 400, cursor: "pointer", transition: "all 0.12s",
+                    fontSize: 13, fontWeight: sel ? 700 : 400, cursor: "pointer",
                   }}>{label}</button>
                 );
               })}
@@ -544,7 +622,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
           </div>
         </FormSection>
 
-        {/* 7. Photos */}
+        {/* 4. Photos */}
         <FormSection title="Site Photos" accentColor="#6b7280">
           <label style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "2px dashed #d1d5db", cursor: "pointer", color: "#6b7280", fontSize: 13, fontWeight: 500, background: "#fafafa" }}>
             <span style={{ fontSize: 18 }}>📷</span>
@@ -562,7 +640,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
           )}
         </FormSection>
 
-        {/* 8. Declaration */}
+        {/* 5. Declaration */}
         <FormSection title="Declaration" accentColor="#475569">
           <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer" }}>
             <div
@@ -571,8 +649,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
                 width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
                 border: `2px solid ${form.declarationConfirmed ? ACCENT : "#d1d5db"}`,
                 background: form.declarationConfirmed ? ACCENT : "white",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", transition: "all 0.15s",
+                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
               }}
             >
               {form.declarationConfirmed && <span style={{ color: "white", fontSize: 13, fontWeight: 800, lineHeight: 1 }}>✓</span>}

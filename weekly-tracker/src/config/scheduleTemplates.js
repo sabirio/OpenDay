@@ -1,9 +1,11 @@
 // ── Schedule Templates ────────────────────────────────────────────────────────
-// Two templates keyed by project.ganttTemplate value.
+// Templates keyed by project.ganttTemplate value.
 //
 // IMPORTANT: task names and reportKey values MUST match exactly the work-package
 // keys used in ContractorReport.jsx (constructionStatuses, testingStatuses,
 // handoverStatuses) so report statuses can be mapped directly.
+
+import { generateGanttTasksFromWP } from "./workPackages";
 
 function task(id, name, duration, dependencies, weight, reportPhase, reportKey) {
   return {
@@ -74,6 +76,9 @@ const DEMO_FITOUT_TASKS = [
   task("d20", "Snag list resolution",                                       4,  [dep("d17"), dep("d18"), dep("d19")],                            5,  "handover",      "Snag list resolution"),
 ];
 
+// ── TEMPLATE 3: Work Package Based (generated from WORK_PACKAGES) ─────────────
+// Tasks linked directly to WP ids and task names for new-format reports.
+
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 export const GANTT_TEMPLATES = {
@@ -89,6 +94,12 @@ export const GANTT_TEMPLATES = {
     description: "Full demolition followed by construction, T&C and handover",
     tasks: DEMO_FITOUT_TASKS,
   },
+  work_packages: {
+    id: "work_packages",
+    label: "Work Package Schedule",
+    description: "Auto-generated from centralized Work Packages (new format)",
+    get tasks() { return generateGanttTasksFromWP(180); },
+  },
 };
 
 export const GANTT_TEMPLATE_IDS = Object.keys(GANTT_TEMPLATES);
@@ -99,14 +110,25 @@ export function generateFromTemplate(templateId) {
   return JSON.parse(JSON.stringify(tpl.tasks));
 }
 
-// Get status from cumulative report/visit statuses for a given task
-export function getTaskReportStatus(cumulativeStatuses, reportPhase, reportKey) {
-  if (!cumulativeStatuses || !reportPhase) return null;
+// Get status from cumulative report/visit statuses for a given task.
+// Supports both old format (reportPhase string) and new WP format (_wpId + reportKey).
+export function getTaskReportStatus(cumulativeStatuses, reportPhase, reportKey, wpId) {
+  if (!cumulativeStatuses) return null;
+
+  // New WP format: cumulativeStatuses has workPackageStatuses
+  if (wpId && cumulativeStatuses.workPackageStatuses) {
+    const entry = cumulativeStatuses.workPackageStatuses?.[wpId]?.[reportKey];
+    return entry?.status || null;
+  }
+
+  if (!reportPhase) return null;
   switch (reportPhase) {
-    case "demolition":   return cumulativeStatuses.demolitionStatus          || null;
-    case "construction": return cumulativeStatuses.constructionStatuses?.[reportKey] || null;
-    case "testing":      return cumulativeStatuses.testingStatuses?.[reportKey]      || null;
-    case "handover":     return cumulativeStatuses.handoverStatuses?.[reportKey]     || null;
-    default:             return null;
+    case "demolition":   return cumulativeStatuses.demolitionStatus                   || null;
+    case "construction": return cumulativeStatuses.constructionStatuses?.[reportKey]  || null;
+    case "testing":      return cumulativeStatuses.testingStatuses?.[reportKey]       || null;
+    case "handover":     return cumulativeStatuses.handoverStatuses?.[reportKey]      || null;
+    // New WP format via reportPhase = wpId
+    default:
+      return cumulativeStatuses.workPackageStatuses?.[reportPhase]?.[reportKey]?.status || null;
   }
 }

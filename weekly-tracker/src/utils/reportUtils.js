@@ -6,6 +6,15 @@ import {
   statusScores,
 } from "../config/reportWeights";
 
+import {
+  WORK_PACKAGES,
+  WP_STATUS_SCORES,
+  computePackageProgress,
+  computeProjectProgressFromWP,
+  mergeWPStatuses,
+  makeEmptyWPStatuses,
+} from "../config/workPackages";
+
 export const PHASE_ORDER = [
   "Demolition works",
   "Construction works",
@@ -98,6 +107,64 @@ export function computeCumulativeStatuses(projectReports) {
     currentPhase: maxPhaseIdx >= 0 ? PHASE_ORDER[maxPhaseIdx] : (latest?.currentPhases?.[0] || latest?.currentPhase),
     projectScheduleStatus: latest?.projectScheduleStatus,
   };
+}
+
+// ─── Work Package utilities (new format) ──────────────────────────────────────
+
+/** Returns true if a report uses the new workPackageStatuses format */
+export function isWPReport(report) {
+  return report && report.workPackageStatuses != null;
+}
+
+/**
+ * Compute cumulative WP statuses across all project reports that use the new format.
+ * Keeps the best (highest scoring) status per task across all reports.
+ */
+export function computeWPCumulativeStatuses(projectReports) {
+  if (!projectReports || projectReports.length === 0) return null;
+
+  const wpReports = projectReports.filter(isWPReport);
+  if (wpReports.length === 0) return null;
+
+  const sorted = [...wpReports].sort(
+    (a, b) =>
+      new Date(a.reportingDate || a.submittedAt) -
+      new Date(b.reportingDate || b.submittedAt)
+  );
+
+  const snapshots = sorted.map((r) => r.workPackageStatuses);
+  const merged = mergeWPStatuses(snapshots);
+  const latest = sorted[sorted.length - 1];
+
+  return {
+    workPackageStatuses: merged,
+    projectScheduleStatus: latest?.projectScheduleStatus,
+    currentPhase: latest?.currentPhase || latest?.currentPhases?.[0],
+  };
+}
+
+/**
+ * Estimate progress % from either old or new report format.
+ * Tries new WP format first; falls back to old estimateProgressFromStatuses.
+ */
+export function estimateProgressAuto(r) {
+  if (!r) return 0;
+  if (isWPReport(r)) {
+    return computeProjectProgressFromWP(r.workPackageStatuses);
+  }
+  return estimateProgressFromStatuses(r);
+}
+
+/**
+ * Get per-package progress map { [wpId]: 0-100 } from a WP report.
+ */
+export function getPackageProgressMap(wpStatuses) {
+  if (!wpStatuses) return {};
+  const map = {};
+  for (const wp of WORK_PACKAGES) {
+    map[wp.id] = computePackageProgress(wpStatuses, wp.id);
+  }
+  return map;
 }
 
 export function estimateProgressFromStatuses(r) {

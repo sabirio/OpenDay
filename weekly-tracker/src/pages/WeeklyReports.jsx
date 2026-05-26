@@ -5,7 +5,10 @@ import {
   getStatusScore,
   computeCumulativeStatuses,
   estimateProgressFromStatuses,
+  computeWPCumulativeStatuses,
+  isWPReport,
 } from "../reportUtils";
+import { WORK_PACKAGES, computePackageProgress, WP_STATUS_SCORES } from "../config/workPackages";
 
 // ─────────────────────────────────────────────
 // ErrorBoundary — перехватывает ошибки рендера
@@ -138,6 +141,57 @@ function PhaseCard({ title, items, statuses, progressStatuses, accentColor }) {
             <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #334155" }}>
               <span style={{ fontSize: 12, color: "#94a3b8", flex: 1, paddingRight: 12 }}>{key}</span>
               <StatusBadge value={displayVal} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// WP-format phase card — shows tasks from one work package
+function WPPhaseCard({ wp, wpStatuses, cumulativeWPStatuses }) {
+  const taskStatuses = wpStatuses || {};
+  const cumulativeStatuses = cumulativeWPStatuses || {};
+
+  const pct = computePackageProgress(
+    { [wp.id]: cumulativeStatuses[wp.id] || taskStatuses },
+    wp.id
+  );
+
+  const tasks = wp.tasks;
+  if (!tasks.length) return null;
+
+  return (
+    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: "20px 22px", borderTop: `3px solid ${wp.color}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: "#f1f5f9", lineHeight: 1.3 }}>{wp.name}</div>
+        <span style={{ fontSize: 20, fontWeight: 800, color: wp.color }}>{pct}%</span>
+      </div>
+      <div style={{ background: "#334155", borderRadius: 6, height: 6, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: wp.color, borderRadius: 6, transition: "width 0.35s ease" }} />
+      </div>
+      <div style={{ display: "grid", gap: 2 }}>
+        {tasks.map((task) => {
+          const entry = taskStatuses[task.name] || {};
+          const cumEntry = cumulativeStatuses[wp.id]?.[task.name] || {};
+          const status = entry.status || cumEntry.status || "Not Started";
+          const progress = entry.progress || 0;
+          const risk = entry.risk || false;
+          const score = WP_STATUS_SCORES[status] ?? 0;
+          const statusColor = score >= 1 ? "#22c55e" : score >= 0.5 ? "#f59e0b" : score >= 0.3 ? "#be185d" : "#94a3b8";
+          return (
+            <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid #334155" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5, flex: 1, paddingRight: 8 }}>
+                {risk && <span style={{ fontSize: 9, color: "#dc2626", flexShrink: 0 }}>⚠</span>}
+                <span style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.3 }}>{task.name}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                {progress > 0 && <span style={{ fontSize: 10, color: "#64748b" }}>{progress}%</span>}
+                <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: statusColor + "20", color: statusColor, border: `1px solid ${statusColor}44`, whiteSpace: "nowrap" }}>
+                  {status}
+                </span>
+              </div>
             </div>
           );
         })}
@@ -432,37 +486,55 @@ function WeeklyReports({ projects, reports }) {
               </div>
             </div>
 
-            {/* Карточки фаз: 4 колонки */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
-              <PhaseCard
-                title="Demolition Works"
-                items={{ "Demolition works": 10 }}
-                statuses={{ "Demolition works": selectedReport.demolitionStatus }}
-                progressStatuses={{ "Demolition works": cumulativeUpToSelected?.demolitionStatus || selectedReport.demolitionStatus }}
-                accentColor="#8b5cf6"
-              />
-              <PhaseCard
-                title="Construction Works"
-                items={constructionWeights}
-                statuses={selectedReport.constructionStatuses}
-                progressStatuses={cumulativeUpToSelected?.constructionStatuses || selectedReport.constructionStatuses}
-                accentColor="#3b82f6"
-              />
-              <PhaseCard
-                title="Testing & Commissioning"
-                items={testingWeights}
-                statuses={selectedReport.testingStatuses}
-                progressStatuses={cumulativeUpToSelected?.testingStatuses || selectedReport.testingStatuses}
-                accentColor="#f59e0b"
-              />
-              <PhaseCard
-                title="Handover"
-                items={handoverWeights}
-                statuses={selectedReport.handoverStatuses}
-                progressStatuses={cumulativeUpToSelected?.handoverStatuses || selectedReport.handoverStatuses}
-                accentColor="#22c55e"
-              />
-            </div>
+            {/* Карточки фаз: dual-format — WP cards for new reports, old phase cards for legacy */}
+            {isWPReport(selectedReport) ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, marginBottom: 20 }}>
+                {WORK_PACKAGES.map((wp) => {
+                  const wpStatuses = selectedReport.workPackageStatuses?.[wp.id];
+                  const wpCumStatuses = computeWPCumulativeStatuses(projectReports)?.workPackageStatuses;
+                  if (!wpStatuses && !wpCumStatuses?.[wp.id]) return null;
+                  return (
+                    <WPPhaseCard
+                      key={wp.id}
+                      wp={wp}
+                      wpStatuses={wpStatuses}
+                      cumulativeWPStatuses={wpCumStatuses}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
+                <PhaseCard
+                  title="Demolition Works"
+                  items={{ "Demolition works": 10 }}
+                  statuses={{ "Demolition works": selectedReport.demolitionStatus }}
+                  progressStatuses={{ "Demolition works": cumulativeUpToSelected?.demolitionStatus || selectedReport.demolitionStatus }}
+                  accentColor="#8b5cf6"
+                />
+                <PhaseCard
+                  title="Construction Works"
+                  items={constructionWeights}
+                  statuses={selectedReport.constructionStatuses}
+                  progressStatuses={cumulativeUpToSelected?.constructionStatuses || selectedReport.constructionStatuses}
+                  accentColor="#3b82f6"
+                />
+                <PhaseCard
+                  title="Testing & Commissioning"
+                  items={testingWeights}
+                  statuses={selectedReport.testingStatuses}
+                  progressStatuses={cumulativeUpToSelected?.testingStatuses || selectedReport.testingStatuses}
+                  accentColor="#f59e0b"
+                />
+                <PhaseCard
+                  title="Handover"
+                  items={handoverWeights}
+                  statuses={selectedReport.handoverStatuses}
+                  progressStatuses={cumulativeUpToSelected?.handoverStatuses || selectedReport.handoverStatuses}
+                  accentColor="#22c55e"
+                />
+              </div>
+            )}
 
             {/* ── 4 колонки: Look Ahead / Declaration / Risk Details / Client Support ── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 16 }}>

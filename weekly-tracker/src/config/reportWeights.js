@@ -48,3 +48,26 @@ export const phaseWeights = {
   Handover: 0.15,
   total: 1,
 };
+
+// ─── Work Package aligned weights (new format) ────────────────────────────────
+// These mirror WORK_PACKAGES task weights but kept here for engine compatibility.
+
+export const wpPhaseWeights = {
+  preconstruction: 0.05,
+  demolition: 0.05,
+  construction: 0.20,
+  mep: 0.25,
+  finishes: 0.20,
+  equipment: 0.10,
+  commissioning: 0.10,
+  handover: 0.05,
+};
+
+// Status scores for the new WP format (Delayed is a first-class status)
+export const wpStatusScores = {
+  'Not Started': 0,
+  'In Progress': 0.5,
+  Delayed: 0.3,
+  Completed: 1,
+  'Not Applicable': null,
+};

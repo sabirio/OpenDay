@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { constructionWeights, testingWeights, handoverWeights } from "../reportWeights";
 import {
   formatDate, getStatusScore, estimateProgressFromStatuses, computeCumulativeStatuses,
+  computeWPCumulativeStatuses, estimateProgressAuto,
 } from "../reportUtils";
+import { WORK_PACKAGES, computePackageProgress } from "../config/workPackages";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -20,22 +22,15 @@ const RL = {
   UNKNOWN: { text:"#94a3b8", bg:"#1e293b", border:"#334155" },
 };
 
-const WP_COLS = [
-  { label:"Demolition",      phase:"demolition",   key:"demolition" },
-  { label:"Flooring",  phase:"construction", key:"Flooring installation" },
-  { label:"Drywall",   phase:"construction", key:"Drywall partition installation" },
-  { label:"Electrical",phase:"construction", key:"Electrical systems installation" },
-  { label:"HVAC",      phase:"construction", key:"HVAC systems installation" },
-  { label:"Fire",      phase:"construction", key:"Fire safety systems installation" },
-  { label:"Low Cur.",  phase:"construction", key:"Low current systems installation" },
-  { label:"Ceiling",   phase:"construction", key:"Ceiling installation" },
-  { label:"Lighting",  phase:"construction", key:"Lighting installation" },
-  { label:"Furniture", phase:"construction", key:"Furniture installation" },
-  { label:"Spr.T&C",   phase:"testing",      key:"Sprinkler system testing and commissioning" },
-  { label:"Elec.T&C",  phase:"testing",      key:"Electrical system testing and commissioning" },
-  { label:"HVAC T&C",  phase:"testing",      key:"HVAC system testing and commissioning" },
-  { label:"Snag",      phase:"handover",     key:"Snag list resolution" },
-];
+// WP_COLS: one column per work package for the heatmap tab
+const WP_COLS = WORK_PACKAGES.map((wp) => ({
+  label:  wp.name.replace('Pre-construction', 'Pre-Con').replace('Demolition & Preparation', 'Demo').replace('Construction', 'Struct.').replace('MEP Rough-in', 'MEP').replace('Finishes & Final Installation', 'Finishes').replace('Fixtures & Equipment', 'Equipment').replace('Testing, Commissioning & Integration', 'T&C').replace('Snagging & Handover', 'Handover'),
+  wpId:   wp.id,
+  color:  wp.color,
+  // Old-format fallback mappings (used when report has no workPackageStatuses)
+  phase:  wp.id === 'demolition' ? 'demolition' : wp.id === 'commissioning' ? 'testing' : wp.id === 'handover' ? 'handover' : 'construction',
+  key:    wp.id === 'demolition' ? null : wp.id === 'commissioning' ? 'Sprinkler system testing and commissioning' : wp.id === 'handover' ? 'Snag list resolution' : null,
+}));
 
 const CONSTRUCTION_ITEMS = [
   "Flooring installation","Drywall partition installation","Electrical systems installation",
@@ -101,12 +96,26 @@ function computePriorityScore(riskLevel, daysToOpening, missingReport) {
   return 5;
 }
 
-function getWpStatus(cs, col) {
-  if (col.phase === "demolition")   return cs.demolitionStatus || null;
-  if (col.phase === "construction") return cs.constructionStatuses?.[col.key] || null;
-  if (col.phase === "testing")      return cs.testingStatuses?.[col.key] || null;
-  if (col.phase === "handover")     return cs.handoverStatuses?.[col.key] || null;
+function getWpStatus(cs, wpCs, col) {
+  // New WP format: return progress % as pseudo-status
+  if (wpCs?.workPackageStatuses) {
+    const pct = computePackageProgress(wpCs.workPackageStatuses, col.wpId);
+    if (pct >= 100) return "Completed";
+    if (pct >= 50)  return "In Progress";
+    if (pct > 0)    return "In Progress";
+    return null;
+  }
+  // Old format fallback
+  if (col.phase === "demolition")   return cs?.demolitionStatus || null;
+  if (col.key && col.phase === "construction") return cs?.constructionStatuses?.[col.key] || null;
+  if (col.key && col.phase === "testing")      return cs?.testingStatuses?.[col.key] || null;
+  if (col.key && col.phase === "handover")     return cs?.handoverStatuses?.[col.key] || null;
   return null;
+}
+
+function getWpProgress(wpCs, col) {
+  if (!wpCs?.workPackageStatuses) return null;
+  return computePackageProgress(wpCs.workPackageStatuses, col.wpId);
 }
 
 function wpStyle(status) {
@@ -450,8 +459,11 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     const projReports = reports.filter(r=>r.projectId===project.id);
     const sorted = [...projReports].sort((a,b)=>new Date(a.reportingDate||a.submittedAt)-new Date(b.reportingDate||b.submittedAt));
     const cumulativeStatuses = computeCumulativeStatuses(projReports)||{};
+    const wpCumulativeStatuses = computeWPCumulativeStatuses(projReports)||null;
     const latestReport = sorted[sorted.length-1]||null;
-    const progress = estimateProgressFromStatuses(cumulativeStatuses);
+    const progress = wpCumulativeStatuses
+      ? estimateProgressAuto(latestReport)
+      : estimateProgressFromStatuses(cumulativeStatuses);
     const color = PROJECT_COLORS[idx%PROJECT_COLORS.length];
     const progressPoints = sorted.map((r,i)=>({ date:r.reportingDate||r.submittedAt, value:estimateProgressFromStatuses(computeCumulativeStatuses(sorted.slice(0,i+1))) }));
     const now = new Date();
@@ -460,7 +472,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     const daysToOpening = project.targetOpeningDate ? Math.ceil((new Date(project.targetOpeningDate)-now)/86400000) : null;
     const riskLevel = computeRiskLevel(latestReport,progress,daysToOpening,missingReport);
     const priorityScore = computePriorityScore(riskLevel,daysToOpening,missingReport);
-    return { project,latestReport,cumulativeStatuses,progress,projReports,sorted,color,progressPoints,daysSinceReport,missingReport,daysToOpening,riskLevel,priorityScore };
+    return { project,latestReport,cumulativeStatuses,wpCumulativeStatuses,progress,projReports,sorted,color,progressPoints,daysSinceReport,missingReport,daysToOpening,riskLevel,priorityScore };
   }), [projects,reports]);
 
   const filteredRows = useMemo(()=>allRows.filter(({project,latestReport,missingReport})=>{
@@ -877,17 +889,20 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
               <thead>
                 <tr>
                   <th style={{ textAlign:"left",padding:"4px 8px",fontSize:11,fontWeight:700,color:"#94a3b8",minWidth:110 }}>Project</th>
-                  {WP_COLS.map(c=><th key={c.key} style={{ textAlign:"center",padding:"4px 3px",fontSize:9,fontWeight:700,color:"#94a3b8",minWidth:48,whiteSpace:"nowrap" }}>{c.label}</th>)}
+                  {WP_COLS.map(c=><th key={c.wpId} style={{ textAlign:"center",padding:"4px 3px",fontSize:9,fontWeight:700,color:c.color||"#94a3b8",minWidth:48,whiteSpace:"nowrap" }}>{c.label}</th>)}
                 </tr>
               </thead>
               <tbody>
-                {defaultSorted.map(({project,cumulativeStatuses})=>(
+                {defaultSorted.map(({project,cumulativeStatuses,wpCumulativeStatuses})=>(
                   <tr key={project.id} onClick={()=>sel(String(project.id))} style={{ cursor:"pointer" }}>
                     <td style={{ padding:"4px 8px",fontSize:12,fontWeight:700,color:"#f1f5f9",whiteSpace:"nowrap" }}>{project.storeCode}</td>
                     {WP_COLS.map(col=>{
-                      const st=getWpStatus(cumulativeStatuses,col);
+                      const st=getWpStatus(cumulativeStatuses,wpCumulativeStatuses,col);
+                      const pct=getWpProgress(wpCumulativeStatuses,col);
                       const s=wpStyle(st);
-                      return <td key={col.key} style={{ textAlign:"center",padding:"3px" }}><div title={st||"No data"} style={{ width:44,height:28,borderRadius:6,background:s.bg,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",fontSize:13,fontWeight:800,color:s.text,border:"1px solid #334155" }}>{s.lbl}</div></td>;
+                      const cellLabel=pct!==null?`${pct}%`:s.lbl;
+                      const title=pct!==null?`${col.wpId}: ${pct}%`:(st||"No data");
+                      return <td key={col.wpId} style={{ textAlign:"center",padding:"3px" }}><div title={title} style={{ width:44,height:28,borderRadius:6,background:s.bg,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",fontSize:pct!==null?10:13,fontWeight:800,color:s.text,border:"1px solid #334155" }}>{cellLabel}</div></td>;
                     })}
                   </tr>
                 ))}

@@ -75,6 +75,63 @@ export const PROJECT_TEMPLATES = {
     ],
     color: "#dc2626", // red
   },
+
+  // ── New WP-format project types ───────────────────────────────────────────
+
+  full_fitout: {
+    id:                    "full_fitout",
+    label:                 "Full Fit-out",
+    description:           "Complete retail fit-out — all 8 work packages",
+    defaultGanttTemplate:  "work_packages",
+    typicalDurationWeeks:  20,
+    defaultWorkPackages:   ["preconstruction", "demolition", "construction", "mep", "finishes", "equipment", "commissioning", "handover"],
+    phases: ["Demolition works", "Construction works", "Testing & Commissioning", "Handover"],
+    color: "#0284c7", // sky blue
+  },
+
+  renovation: {
+    id:                    "renovation",
+    label:                 "Renovation",
+    description:           "Partial renovation with selective WPs",
+    defaultGanttTemplate:  "work_packages",
+    typicalDurationWeeks:  12,
+    defaultWorkPackages:   ["demolition", "construction", "finishes", "commissioning", "handover"],
+    phases: ["Demolition works", "Construction works", "Handover"],
+    color: "#d97706", // amber
+  },
+
+  mep_heavy: {
+    id:                    "mep_heavy",
+    label:                 "MEP Heavy",
+    description:           "MEP-dominant project (data centres, labs, specialist installs)",
+    defaultGanttTemplate:  "work_packages",
+    typicalDurationWeeks:  18,
+    defaultWorkPackages:   ["preconstruction", "construction", "mep", "commissioning", "handover"],
+    phases: ["Construction works", "Testing & Commissioning", "Handover"],
+    color: "#0891b2", // cyan
+  },
+
+  refresh: {
+    id:                    "refresh",
+    label:                 "Refresh",
+    description:           "Light cosmetic refresh — finishes and equipment only",
+    defaultGanttTemplate:  "work_packages",
+    typicalDurationWeeks:  6,
+    defaultWorkPackages:   ["finishes", "equipment", "handover"],
+    phases: ["Construction works", "Handover"],
+    color: "#7c3aed", // violet
+  },
+
+  custom: {
+    id:                    "custom",
+    label:                 "Custom",
+    description:           "Custom scope — select work packages manually",
+    defaultGanttTemplate:  "work_packages",
+    typicalDurationWeeks:  16,
+    defaultWorkPackages:   [],
+    phases: [],
+    color: "#64748b", // slate
+  },
 };
 
 // ── PROJECT_TEMPLATE_IDS ──────────────────────────────────────────────────────
