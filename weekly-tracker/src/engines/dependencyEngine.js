@@ -10,31 +10,20 @@ export const SCHEDULE_MODES = {
   LOCKED:          "LOCKED",
 };
 
-// ── Internal: Build adjacency map ─────────────────────────────────────────────
-
-function buildAdjacency(tasks) {
-  const map = new Map();
-  for (const task of tasks) {
-    if (!map.has(task.id)) map.set(task.id, []);
-    for (const dep of (task.dependencies || [])) {
-      if (!map.has(dep.id)) map.set(dep.id, []);
-      // Edge: dep.id → task.id (dep must come before task)
-    }
-  }
-  // Build: for each task, list of tasks that depend on it (successors)
-  // For cycle detection we traverse: task → its dependencies
-  return map;
-}
-
 // ── validateDependencies ──────────────────────────────────────────────────────
+
+// Tasks matching these name patterns must have at least one dependency
+const DEPENDENCY_REQUIRED_PATTERN =
+  /testing|commissioning|t&c|inspection|approval|certificate|training|handover/i;
 
 /**
  * Validates a task list for:
  *   1. Broken dependency references (dep.id not found in tasks)
  *   2. Circular dependencies (DFS with WHITE/GRAY/BLACK coloring)
+ *   3. Dependency gaps (T&C/handover tasks with no predecessors)
  *
  * @param {object[]} tasks
- * @returns {{ valid: boolean, error: object|null, brokenRefs: string[] }}
+ * @returns {{ valid: boolean, error: object|null, brokenRefs: string[], warnings: object[] }}
  */
 export function validateDependencies(tasks) {
   const WHITE = 0; // unvisited
@@ -44,7 +33,7 @@ export function validateDependencies(tasks) {
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
   const brokenRefs = [];
 
-  // Collect broken refs first
+  // 1. Collect broken refs
   for (const task of tasks) {
     for (const dep of (task.dependencies || [])) {
       if (!taskMap.has(dep.id)) {
@@ -53,7 +42,38 @@ export function validateDependencies(tasks) {
     }
   }
 
-  // DFS cycle detection
+  if (brokenRefs.length > 0) {
+    return {
+      valid: false,
+      error: {
+        type:       "broken_dependency_reference",
+        severity:   "HIGH",
+        message:    `${brokenRefs.length} dependency reference(s) point to unknown task IDs: ${brokenRefs.join(", ")}`,
+        brokenRefs,
+      },
+      brokenRefs,
+      warnings: [],
+    };
+  }
+
+  // 2. Dependency-gap warnings: T&C / handover tasks with no dependencies
+  const warnings = [];
+  for (const task of tasks) {
+    if (
+      DEPENDENCY_REQUIRED_PATTERN.test(task.name || "") &&
+      (task.dependencies || []).length === 0
+    ) {
+      warnings.push({
+        taskId:   task.id,
+        taskName: task.name || task.id,
+        type:     "dependency_gap",
+        severity: "MEDIUM",
+        message:  `Task "${task.name || task.id}" appears to be a T&C/handover task but has no dependencies.`,
+      });
+    }
+  }
+
+  // 3. DFS cycle detection
   const color = new Map();
   const parent = new Map();
 
@@ -99,6 +119,7 @@ export function validateDependencies(tasks) {
             cycle,
           },
           brokenRefs,
+          warnings,
         };
       }
 
@@ -120,7 +141,7 @@ export function validateDependencies(tasks) {
     }
   }
 
-  return { valid: true, error: null, brokenRefs };
+  return { valid: true, error: null, brokenRefs, warnings };
 }
 
 // ── topoSort ──────────────────────────────────────────────────────────────────
@@ -210,10 +231,14 @@ export function checkManualOverrideConflicts(scheduledTasks) {
 
     for (const dep of (task.dependencies || [])) {
       const predecessor = taskMap.get(dep.id);
-      if (!predecessor || predecessor._manualOffset === undefined) continue;
+      if (!predecessor) continue;
 
-      const predStart  = predecessor._manualOffset;
-      const predFinish = predStart + (predecessor.duration || 0);
+      // Use manual offset if available; fall back to CPM early dates
+      const predStart = predecessor._manualOffset ?? predecessor.earlyStart;
+      if (predStart === undefined) continue;
+      const predFinish = predecessor._manualOffset !== undefined
+        ? predStart + (predecessor.duration || 0)
+        : (predecessor.earlyFinish ?? predStart + (predecessor.duration || 0));
       const lag        = dep.lag || 0;
       const depType    = (dep.type || "FS").toUpperCase();
 
