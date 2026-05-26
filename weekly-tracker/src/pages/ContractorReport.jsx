@@ -81,18 +81,48 @@ const WP_STATUS_OPTS = [
   { value: "Completed",   label: "Completed",   bg: "#dcfce7",  color: "#16a34a", border: "#86efac" },
 ];
 
-function WPTaskRow({ taskName, entry, onChange }) {
+const STATUS_SCORE = { "Not Started": 0, "In Progress": 0.5, "Delayed": 0.3, "Completed": 1 };
+
+function WPTaskRow({ taskName, entry, prevEntry, onChange }) {
   const e = entry || { status: "Not Started" };
+  const prevStatus = prevEntry?.status ?? null;
+  const curStatus  = e.status;
+
+  const changed  = prevStatus !== null && prevStatus !== curStatus;
+  const improved = changed && (STATUS_SCORE[curStatus] ?? 0) > (STATUS_SCORE[prevStatus] ?? 0);
+  const regressed = changed && (STATUS_SCORE[curStatus] ?? 0) < (STATUS_SCORE[prevStatus] ?? 0);
+  const prevSt   = prevStatus ? STATUS_STYLE[prevStatus] : null;
 
   return (
     <div style={{ borderBottom: "1px solid #f9fafb", padding: "9px 0" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ flex: "1 1 160px", fontSize: 13, color: "#374151", lineHeight: 1.35 }}>{taskName}</span>
 
-        {/* Status buttons */}
+        {/* Task name + change arrow */}
+        <span style={{ flex: "1 1 160px", fontSize: 13, color: "#374151", lineHeight: 1.35 }}>
+          {taskName}
+          {improved  && <span style={{ marginLeft: 5, fontSize: 11, fontWeight: 800, color: "#16a34a" }}>↑</span>}
+          {regressed && <span style={{ marginLeft: 5, fontSize: 11, fontWeight: 800, color: "#be185d" }}>↓</span>}
+        </span>
+
+        {/* Previous report status — dimmed badge */}
+        {prevStatus ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <span style={{ fontSize: 10, color: "#94a3b8", whiteSpace: "nowrap" }}>prev:</span>
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 5,
+              background: prevSt?.bg || "#f3f4f6",
+              color: prevSt?.color || "#6b7280",
+              opacity: 0.72, whiteSpace: "nowrap",
+            }}>{prevStatus}</span>
+          </div>
+        ) : (
+          <span style={{ fontSize: 10, color: "#d1d5db", flexShrink: 0 }}>—</span>
+        )}
+
+        {/* Current status buttons */}
         <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
           {WP_STATUS_OPTS.map((opt) => {
-            const sel = e.status === opt.value;
+            const sel = curStatus === opt.value;
             return (
               <button key={opt.value} type="button"
                 onClick={() => onChange({ ...e, status: opt.value })}
@@ -122,7 +152,7 @@ const STATUS_STYLE = {
 
 // Read-only summary of the last submitted report shown above the form
 function LastReportSummary({ prevReport }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   if (!prevReport) return null;
 
   const date = prevReport.reportingDate ||
@@ -203,7 +233,7 @@ function LastReportSummary({ prevReport }) {
   );
 }
 
-function WPSection({ wp, pkgStatuses, onChange }) {
+function WPSection({ wp, pkgStatuses, prevPkgStatuses, onChange }) {
   function handleTask(taskName, entry) {
     onChange({ ...pkgStatuses, [taskName]: entry });
   }
@@ -214,6 +244,7 @@ function WPSection({ wp, pkgStatuses, onChange }) {
           key={task.name}
           taskName={task.name}
           entry={pkgStatuses?.[task.name]}
+          prevEntry={prevPkgStatuses?.[task.name] ?? null}
           onChange={(entry) => handleTask(task.name, entry)}
         />
       ))}
@@ -476,6 +507,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
         projectName: project.shoppingMallName,
         contractor: project.generalContractor,
         submittedAt: new Date().toISOString(),
+        previousReportId: prevReport?.id ?? null, // report chain for future risk analysis
         ...form,
         currentPhases: deriveOldPhasesFromPackages(form.currentPackages),
         photos: form.photos.map((p) => (p?.name ? p.name : p)),
@@ -700,6 +732,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
             key={wp.id}
             wp={wp}
             pkgStatuses={form.workPackageStatuses?.[wp.id] || {}}
+            prevPkgStatuses={prevReport?.workPackageStatuses?.[wp.id] ?? null}
             onChange={(pkgStatuses) => updateWPStatuses(wp.id, pkgStatuses)}
           />
         ))}
