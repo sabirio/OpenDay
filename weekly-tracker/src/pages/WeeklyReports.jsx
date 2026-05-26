@@ -174,10 +174,11 @@ const OLD_TO_WP_WEEKLY = {
 
 function mapOldToWPStatus(s) {
   if (!s) return null;
-  if (s === "Completed") return "Completed";
-  if (s === "In Progress") return "In Progress";
-  if (s === "Delayed") return "Delayed";
-  return null; // Not Started / Not Applicable → omit (no meaningful data)
+  const v = String(s).toLowerCase().trim();
+  if (v === "completed" || v === "done" || v === "complete") return "Completed";
+  if (v.includes("progress") || v === "started" || v === "active") return "In Progress";
+  if (v === "delayed" || v === "blocked" || v === "behind") return "Delayed";
+  return null; // Not Started / Not Applicable → omit
 }
 
 function deriveWPStatusesFromOldReport(report) {
@@ -212,8 +213,8 @@ function deriveOverallStatus(statuses) {
   return "Not Started";
 }
 
-// One card per WP phase — collapsible task rows, overall status badge, delayed-risk count
-function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, showOnlyReported }) {
+// One card per WP phase — always rendered, collapsible task rows
+function WPPhaseCard({ wp, wpStatuses, wpCumStatuses }) {
   const [expanded, setExpanded] = useState(false);
 
   const taskStatuses    = wpStatuses?.[wp.id]    || {};
@@ -224,14 +225,9 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, showOnlyReported }) {
     wp.id
   );
 
-  const tasksToShow = showOnlyReported
-    ? wp.tasks.filter((t) => taskStatuses[t.name]?.status || cumTaskStatuses[t.name]?.status)
-    : wp.tasks;
-
-  if (showOnlyReported && !tasksToShow.length) return null;
-
-  const resolvedStatuses = tasksToShow.map((t) => {
-    const e = taskStatuses[t.name] || {};
+  const tasks = wp.tasks;
+  const resolvedStatuses = tasks.map((t) => {
+    const e = taskStatuses[t.name]    || {};
     const c = cumTaskStatuses[t.name] || {};
     return e.status || c.status || "Not Started";
   });
@@ -243,7 +239,6 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, showOnlyReported }) {
 
   return (
     <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, borderTop: `3px solid ${wp.color}`, overflow: "hidden" }}>
-      {/* Clickable header */}
       <button type="button" onClick={() => setExpanded((e) => !e)}
         style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "16px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -256,9 +251,7 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, showOnlyReported }) {
               {delayedCount > 0 && (
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#f87171" }}>⚠ {delayedCount} delayed</span>
               )}
-              {tasksToShow.length > 0 && (
-                <span style={{ fontSize: 10, color: "#475569" }}>{completedCount}/{tasksToShow.length} done</span>
-              )}
+              <span style={{ fontSize: 10, color: "#475569" }}>{completedCount}/{tasks.length} done</span>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -271,10 +264,9 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, showOnlyReported }) {
         </div>
       </button>
 
-      {/* Collapsible task rows */}
-      {expanded && tasksToShow.length > 0 && (
+      {expanded && (
         <div style={{ borderTop: "1px solid #334155", padding: "6px 20px 14px" }}>
-          {tasksToShow.map((task) => {
+          {tasks.map((task) => {
             const entry    = taskStatuses[task.name]    || {};
             const cumEntry = cumTaskStatuses[task.name] || {};
             const status   = entry.status || cumEntry.status || "Not Started";
@@ -580,7 +572,7 @@ function WeeklyReports({ projects, reports }) {
               </div>
             </div>
 
-            {/* 8 WP phase cards — one per phase, collapsible task rows */}
+            {/* 8 WP phase cards — always rendered, one per phase */}
             {(() => {
               const wpReport = isWPReport(selectedReport);
               const derivedStatuses = wpReport
@@ -589,7 +581,6 @@ function WeeklyReports({ projects, reports }) {
               const wpCumStatuses = wpReport
                 ? computeWPCumulativeStatuses(projectReports)?.workPackageStatuses
                 : null;
-              const showOnlyReported = !wpReport;
               return (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14, marginBottom: 20 }}>
                   {WORK_PACKAGES.map((wp) => (
@@ -598,7 +589,6 @@ function WeeklyReports({ projects, reports }) {
                       wp={wp}
                       wpStatuses={derivedStatuses}
                       wpCumStatuses={wpCumStatuses}
-                      showOnlyReported={showOnlyReported}
                     />
                   ))}
                 </div>
