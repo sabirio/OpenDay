@@ -207,6 +207,23 @@ function WeeklyReports({ projects, reports }) {
 
   const riskCount = selectedReport?.risks?.filter(Boolean).length || 0;
 
+  const portfolioKpis = useMemo(() => {
+    const now = new Date();
+    const rows = projects.map(p => {
+      const pReports = reports.filter(r => String(r.projectId) === String(p.id));
+      const latest = [...pReports].sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt))[0];
+      const daysSince = latest ? Math.floor((now - new Date(latest.reportingDate || latest.submittedAt)) / 86400000) : null;
+      const isMissing = !latest || (daysSince !== null && daysSince > 7);
+      const progress = estimateProgressFromStatuses(computeCumulativeStatuses(pReports));
+      return { project: p, latestReport: latest, daysSinceReport: daysSince, isMissing, progress };
+    });
+    const missing = rows.filter(r => r.isMissing);
+    const blocked = rows.filter(r => r.latestReport?.activitiesBlocked === "Yes").length;
+    const support = rows.filter(r => r.latestReport?.supportRequired === "Yes").length;
+    const avgProgress = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.progress, 0) / rows.length) : 0;
+    return { missingCount: missing.length, missing, blocked, support, avgProgress };
+  }, [projects, reports]);
+
   const additionalWorksList = useMemo(() => {
     const sorted = [...projectReports].sort(
       (a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt)
@@ -304,6 +321,46 @@ function WeeklyReports({ projects, reports }) {
                   </div>
                 </div>
               </div>
+              <div style={{ width: 1, background: "#334155", alignSelf: "stretch", margin: "0 8px" }} />
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Avg Progress</div>
+                <span style={{ fontSize: 22, fontWeight: 800, color: "#2563eb", lineHeight: 1 }}>{portfolioKpis.avgProgress}%</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Missing Reports</div>
+                <span style={{ fontSize: 22, fontWeight: 800, color: portfolioKpis.missingCount > 0 ? "#dc2626" : "#22c55e", lineHeight: 1 }}>{portfolioKpis.missingCount}</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Blocked</div>
+                <span style={{ fontSize: 22, fontWeight: 800, color: portfolioKpis.blocked > 0 ? "#dc2626" : "#22c55e", lineHeight: 1 }}>{portfolioKpis.blocked}</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Client Support</div>
+                <span style={{ fontSize: 22, fontWeight: 800, color: portfolioKpis.support > 0 ? "#7c3aed" : "#22c55e", lineHeight: 1 }}>{portfolioKpis.support}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Missing Reports */}
+        {portfolioKpis.missingCount > 0 && (
+          <div className="dashboard-summary-card" style={{ marginBottom: 20, borderTop: "3px solid #dc2626" }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9", marginBottom: 4 }}>Missing Reports</div>
+            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>Projects with no report submitted or last report older than 7 days</div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="dashboard-table" style={{ minWidth: 600 }}>
+                <thead><tr><th>Project</th><th>Contractor</th><th>Last Report</th><th>Days Since</th><th>PM</th><th>Status</th></tr></thead>
+                <tbody>{portfolioKpis.missing.sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999)).map(({ project, latestReport, daysSinceReport }) => (
+                  <tr key={project.id}>
+                    <td><div style={{ fontWeight: 700, color: "#f1f5f9" }}>{project.storeCode}</div><div style={{ fontSize: 11, color: "#9ca3af" }}>{project.shoppingMallName}</div></td>
+                    <td style={{ fontSize: 12, color: "#e2e8f0" }}>{project.generalContractor || "—"}</td>
+                    <td style={{ fontSize: 12, color: "#94a3b8" }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: "#dc2626", fontWeight: 700 }}>Never</span>}</td>
+                    <td style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>{daysSinceReport !== null ? `${daysSinceReport}d` : "—"}</td>
+                    <td style={{ fontSize: 12, color: "#e2e8f0" }}>{project.projectManager || "—"}</td>
+                    <td>{!latestReport ? <span style={{ fontSize: 11, fontWeight: 700, color: "#fca5a5", padding: "2px 8px", borderRadius: 7, background: "#450a0a", border: "1px solid #7f1d1d" }}>Missing</span> : <span style={{ fontSize: 11, fontWeight: 700, color: "#fcd34d", padding: "2px 8px", borderRadius: 7, background: "#422006", border: "1px solid #b45309" }}>Overdue</span>}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
             </div>
           </div>
         )}

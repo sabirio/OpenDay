@@ -235,7 +235,7 @@ function ProjectDetailDrawer({ row, onClose }) {
   return (
     <>
       <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1000 }}/>
-      <div style={{ position:"fixed",top:0,right:0,bottom:0,width:560,maxWidth:"92vw",background:"#1e293b",zIndex:1001,overflowY:"auto",boxShadow:"-6px 0 32px rgba(0,0,0,0.5)",display:"flex",flexDirection:"column" }}>
+      <div style={{ position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:1100,maxWidth:"95vw",maxHeight:"90vh",background:"#1e293b",zIndex:1001,overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.7)",borderRadius:16,display:"flex",flexDirection:"column" }}>
 
         {/* Header */}
         <div style={{ padding:"18px 22px 14px",borderBottom:"1px solid #334155",borderTop:`4px solid ${color}`,flexShrink:0 }}>
@@ -329,41 +329,44 @@ function ProjectDetailDrawer({ row, onClose }) {
             <div style={{ background:"#431407",border:"1px solid #c2410c",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#fdba74" }}>No reports submitted yet.</div>
           )}
 
-          {/* Risk */}
-          {hasRisks&&(
-            <div style={{ border:"1px solid #334155",borderRadius:12,padding:"14px 18px",marginBottom:16,background:"#0f172a" }}>
-              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:12 }}>Risks & Issues</div>
-              <div style={{ display:"grid",gap:6,marginBottom:10 }}>
-                {latestReport?.risks?.filter(Boolean).length>0&&(
-                  <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                    <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Risk Type</span>
-                    <span style={{ fontSize:13,color:"#e2e8f0" }}>{latestReport.risks.filter(Boolean).join(", ")}</span>
-                  </div>
-                )}
-                {latestReport?.riskOwners?.filter(Boolean).length>0&&(
-                  <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                    <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Owner</span>
-                    <span style={{ fontSize:13,color:"#e2e8f0" }}>{latestReport.riskOwners.filter(Boolean).join(", ")}</span>
-                  </div>
-                )}
-                {latestReport?.riskScale&&(
-                  <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                    <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Scale</span>
-                    <span style={{ fontSize:13,color:"#e2e8f0" }}>{latestReport.riskScale}</span>
-                  </div>
-                )}
-              </div>
-              <TextBlock label="Description" value={latestReport?.riskDescription}/>
-            </div>
-          )}
-
-          {/* Blocker */}
-          {isBlocked&&latestReport?.delayReason&&(
-            <div style={{ border:"1px solid #334155",borderRadius:12,padding:"14px 18px",marginBottom:16,background:"#0f172a" }}>
-              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:8 }}>Active Blocker</div>
-              <TextBlock label="Delay Reason & Mitigation" value={latestReport.delayReason}/>
-            </div>
-          )}
+          {/* Risk Control */}
+          <div style={{ border:"1px solid #334155",borderRadius:12,padding:"14px 18px",marginBottom:16,background:"#0f172a" }}>
+            <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:12 }}>Risk Control</div>
+            {!hasRisks&&!isBlocked?(
+              <div style={{ fontSize:13,color:"#22c55e",fontWeight:600 }}>✓ No risks or blockers reported</div>
+            ):(
+              <>
+                <div style={{ display:"grid",gap:6,marginBottom:10 }}>
+                  {latestReport?.risks?.filter(Boolean).length>0&&(
+                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Risk Type</span>
+                      <span style={{ fontSize:13,color:"#e2e8f0" }}>{latestReport.risks.filter(Boolean).join(", ")}</span>
+                    </div>
+                  )}
+                  {latestReport?.riskOwners?.filter(Boolean).length>0&&(
+                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Owner</span>
+                      <span style={{ fontSize:13,color:"#e2e8f0" }}>{latestReport.riskOwners.filter(Boolean).join(", ")}</span>
+                    </div>
+                  )}
+                  {latestReport?.riskScale&&(
+                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Scale</span>
+                      <span style={{ fontSize:13,fontWeight:700,color:latestReport.riskScale==="High"?"#fca5a5":latestReport.riskScale==="Medium"?"#fcd34d":"#86efac" }}>{latestReport.riskScale}</span>
+                    </div>
+                  )}
+                  {isBlocked&&(
+                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Status</span>
+                      <span style={{ fontSize:13,fontWeight:700,color:"#dc2626" }}>⛔ Activities Blocked</span>
+                    </div>
+                  )}
+                </div>
+                <TextBlock label="Risk Description" value={latestReport?.riskDescription}/>
+                {isBlocked&&latestReport?.delayReason&&<TextBlock label="Delay Reason & Mitigation" value={latestReport.delayReason}/>}
+              </>
+            )}
+          </div>
 
           {/* Client Support */}
           {latestReport?.supportRequired==="Yes"&&(
@@ -503,14 +506,6 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
         list.push({sev:"HIGH",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:`${latestReport.projectScheduleStatus} + High risk scale`,detail:latestReport.riskDescription||"Review risk report",action:"Review mitigation plan"});
       if (latestReport?.projectScheduleStatus==="Delayed")
         list.push({sev:"HIGH",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:"Project delayed",detail:latestReport.riskDescription||"Schedule confirmed delayed",action:"Review recovery plan"});
-      if (latestReport?.supportRequired==="Yes") {
-        const types=(latestReport.supportTypes||[]).filter(Boolean).join(", ");
-        list.push({sev:"MEDIUM",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:"Client action required",detail:types||"See support details in report",action:"Action required from Client / PM"});
-      }
-      if (!latestReport)
-        list.push({sev:"MEDIUM",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:"No reports submitted",detail:"No weekly reports on record",action:"Contact contractor for update"});
-      else if (daysSinceReport>7)
-        list.push({sev:"MEDIUM",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:`Report overdue ${daysSinceReport}d`,detail:`Last report: ${formatDate(latestReport.reportingDate||latestReport.submittedAt)}`,action:"Request update from contractor"});
       if (riskLevel==="CRITICAL"&&latestReport&&!list.some(a=>a.pid===project.id&&a.sev==="CRITICAL"))
         list.push({sev:"CRITICAL",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:"Project classified CRITICAL",detail:`Risk Level: CRITICAL`,action:"Immediate PM review required"});
     });
@@ -702,38 +697,10 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
         <KpiCard label="Active"               value={kpis.active}        color="#2f855a"  sub={`${kpis.total-kpis.active} closed`}/>
         <KpiCard label="At Risk"              value={kpis.atRisk}        color={kpis.atRisk>0?"#d97706":"#22c55e"}  sub="schedule issues"/>
         <KpiCard label="Critical"             value={kpis.critical}      color={kpis.critical>0?"#dc2626":"#22c55e"} sub="immediate action"/>
-        <KpiCard label="Missing Reports"      value={kpis.missing}       color={kpis.missing>0?"#dc2626":"#22c55e"} sub=">7d or never"/>
-        <KpiCard label="Blocked"              value={kpis.blocked}       color={kpis.blocked>0?"#dc2626":"#22c55e"} sub="activities blocked"/>
-        <KpiCard label="Client Support"          value={kpis.support}       color={kpis.support>0?"#7c3aed":"#22c55e"} sub="action required"/>
-        <KpiCard label="Avg Progress"         value={`${kpis.avgProgress}%`} color="#2563eb" sub="portfolio weighted"/>
         <KpiCard label="Reports This Week"    value={kpis.reportsThisWeek} color="#0891b2" sub={`${reports.length} total`}/>
         <KpiCard label="Opening <30 Days"     value={kpis.openingSoon}   color={kpis.openingSoon>0?"#ea580c":"#22c55e"} sub="proximity alert"/>
       </div>
 
-      {/* ── Critical Alerts ── */}
-      {alerts.length>0&&(
-        <div style={{ marginBottom:16 }}>
-          <div style={{ fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:8 }}>Critical Alerts</div>
-          <div style={{ display:"grid",gap:6 }}>
-            {alerts.slice(0,8).map((a,i)=>{
-              const c=RL[a.sev]||RL.MEDIUM;
-              return (
-                <div key={i} onClick={()=>sel(String(a.pid))} style={{ display:"flex",alignItems:"flex-start",gap:12,padding:"10px 14px",background:c.bg,border:`1.5px solid ${c.border}`,borderRadius:10,cursor:"pointer" }}>
-                  <span style={{ fontSize:11,fontWeight:800,color:c.text,flexShrink:0,marginTop:1,padding:"2px 7px",borderRadius:6,background:"rgba(255,255,255,0.08)",border:`1px solid ${c.border}` }}>{a.sev}</span>
-                  <div style={{ flex:1,minWidth:0 }}>
-                    <span style={{ fontSize:13,fontWeight:700,color:c.text,marginRight:6 }}>{a.code}</span>
-                    <span style={{ fontSize:12,color:"#94a3b8",marginRight:8 }}>{a.mall}</span>
-                    <span style={{ fontSize:12,fontWeight:600,color:"#f1f5f9" }}>{a.reason}</span>
-                    {a.detail&&<span style={{ fontSize:11,color:"#94a3b8",marginLeft:8 }}>· {a.detail}</span>}
-                  </div>
-                  <div style={{ fontSize:11,fontWeight:600,color:c.text,flexShrink:0,whiteSpace:"nowrap" }}>{a.action}</div>
-                </div>
-              );
-            })}
-            {alerts.length>8&&<div style={{ fontSize:12,color:"#94a3b8",textAlign:"center",padding:"6px 0" }}>+{alerts.length-8} more alerts — see sections below</div>}
-          </div>
-        </div>
-      )}
 
       {/* ── Filters ── */}
       <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center" }}>
@@ -754,7 +721,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       <div className="dashboard-summary-card" style={{ marginBottom:16 }}>
         <div style={{ marginBottom:14 }}>
           <h2 style={{ fontSize:16,color:"#f1f5f9",margin:0 }}>Project Status Matrix</h2>
-          <div style={{ fontSize:12,color:"#9ca3af",marginTop:2 }}>Sorted by priority · click row to open project drawer</div>
+          <div style={{ fontSize:12,color:"#9ca3af",marginTop:2 }}>Sorted by priority · click row to open project</div>
         </div>
         <div style={{ overflowX:"auto" }}>
           <table className="dashboard-table" style={{ width:"100%",tableLayout:"fixed" }}>
@@ -762,13 +729,13 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
               <tr>
                 <th>Store Code</th>
                 <th>Current Phase</th><th>Progress</th><th>Schedule</th><th>Risk Level</th>
-                <th>Blockers</th><th>Support Required</th>
+                <th>Blockers</th><th>Support Required</th><th>Alert</th>
                 <th>Target Opening</th><th>Days Left</th><th>Latest Report</th><th>Report Status</th>
               </tr>
             </thead>
             <tbody>
               {defaultSorted.length===0?(
-                <tr><td colSpan="11" style={{ color:"#94a3b8",textAlign:"center",padding:"24px 0" }}>No matching projects.</td></tr>
+                <tr><td colSpan="12" style={{ color:"#94a3b8",textAlign:"center",padding:"24px 0" }}>No matching projects.</td></tr>
               ):defaultSorted.map((row)=>{
                 const {project,latestReport,progress,color,daysToOpening,daysSinceReport,riskLevel,missingReport}=row;
                 const phase=currentPhaseLabel(row);
@@ -798,6 +765,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
                     <td>{riskBadge(riskLevel)}</td>
                     <td>{latestReport?.activitiesBlocked?<span style={{ fontSize:12,fontWeight:700,color:latestReport.activitiesBlocked==="Yes"?"#dc2626":"#22c55e" }}>{latestReport.activitiesBlocked}</span>:<span style={{ color:"#94a3b8" }}>—</span>}</td>
                     <td>{latestReport?.supportRequired?<span style={{ fontSize:12,fontWeight:700,color:latestReport.supportRequired==="Yes"?"#d97706":"#22c55e" }}>{latestReport.supportRequired}</span>:<span style={{ color:"#94a3b8" }}>—</span>}</td>
+                    <td>{alerts.some(a=>String(a.pid)===String(project.id))?<span style={{ padding:"2px 8px",borderRadius:7,fontSize:11,fontWeight:700,background:"#450a0a",color:"#fca5a5",border:"1px solid #7f1d1d" }}>Yes</span>:<span style={{ fontSize:12,color:"#22c55e",fontWeight:600 }}>No</span>}</td>
                     <td style={{ fontSize:12,fontWeight:600,color:dToC,whiteSpace:"nowrap" }}>{project.targetOpeningDate?formatDate(project.targetOpeningDate):<span style={{ color:"#94a3b8" }}>—</span>}</td>
                     <td style={{ fontWeight:700,fontSize:12,color:dToC,whiteSpace:"nowrap" }}>
                       {daysToOpening===null?"—":daysToOpening<0?`${Math.abs(daysToOpening)}d OVR`:daysToOpening===0?"Today":`${daysToOpening}d`}
@@ -827,66 +795,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       {activeView==="overview"&&(
         <div style={{ display:"grid",gap:16 }}>
 
-          {/* Portfolio Health + Risk Control Panel — два столбца */}
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16 }}>
-
-          {/* Risk Control Panel — слева */}
-          <div className="dashboard-summary-card" style={{ margin:0 }}>
-            <div style={{ fontWeight:700,fontSize:15,color:"#f1f5f9",marginBottom:4 }}>Risk Control Panel</div>
-            <div style={{ fontSize:12,color:"#9ca3af",marginBottom:16 }}>Risk themes, ownership distribution, and high-risk project register</div>
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:20 }}>
-              <div>
-                <div style={{ fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:10 }}>Top Risk Themes</div>
-                {riskThemes.length===0?<div style={{ fontSize:13,color:"#94a3b8" }}>No risks reported</div>:riskThemes.slice(0,6).map(([theme,count])=>{
-                  const max=riskThemes[0][1]||1;
-                  return (
-                    <div key={theme} style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
-                      <div style={{ fontSize:11,color:"#e2e8f0",width:200,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{theme}</div>
-                      <div style={{ flex:1,background:"#334155",borderRadius:4,height:16,overflow:"hidden" }}><div style={{ width:`${(count/max)*100}%`,height:"100%",background:"#b45309",borderRadius:4 }}/></div>
-                      <div style={{ fontSize:12,fontWeight:700,color:"#fcd34d",width:20,textAlign:"right" }}>{count}</div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div>
-                <div style={{ fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:10 }}>Risk by Owner</div>
-                {riskOwners.length===0?<div style={{ fontSize:13,color:"#94a3b8" }}>No owners reported</div>:riskOwners.slice(0,6).map(([owner,count])=>{
-                  const max=riskOwners[0][1]||1;
-                  return (
-                    <div key={owner} style={{ display:"flex",alignItems:"center",gap:8,marginBottom:8 }}>
-                      <div style={{ fontSize:11,color:"#e2e8f0",width:200,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{owner}</div>
-                      <div style={{ flex:1,background:"#334155",borderRadius:4,height:16,overflow:"hidden" }}><div style={{ width:`${(count/max)*100}%`,height:"100%",background:"#1e3a5f",borderRadius:4 }}/></div>
-                      <div style={{ fontSize:12,fontWeight:700,color:"#93c5fd",width:20,textAlign:"right" }}>{count}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            {/* High risk projects table */}
-            {(()=>{
-              const highRisk=allRows.filter(({riskLevel})=>riskLevel==="CRITICAL"||riskLevel==="HIGH");
-              if (highRisk.length===0) return <div style={{ textAlign:"center",padding:"20px 0",fontSize:13,color:"#22c55e",fontWeight:700 }}>✓ No HIGH or CRITICAL risk projects</div>;
-              return (
-                <div style={{ overflowX:"auto" }}>
-                  <table className="dashboard-table" style={{ minWidth:700 }}>
-                    <thead><tr><th>Project</th><th>Risk Level</th><th>Risk Scale</th><th>Owner</th><th>Description</th><th>Last Report</th></tr></thead>
-                    <tbody>{highRisk.map(({project,latestReport,riskLevel,daysSinceReport})=>(
-                      <tr key={project.id} onClick={()=>sel(String(project.id))} style={{ cursor:"pointer" }}>
-                        <td><div style={{ fontWeight:700,color:"#f1f5f9" }}>{project.storeCode}</div><div style={{ fontSize:11,color:"#9ca3af" }}>{project.shoppingMallName}</div></td>
-                        <td>{riskBadge(riskLevel)}</td>
-                        <td>{latestReport?.riskScale?<span style={{ padding:"2px 8px",borderRadius:7,fontSize:11,fontWeight:700,background:latestReport.riskScale==="High"?"#fee2e2":latestReport.riskScale==="Medium"?"#fef3c7":"#dcfce7",color:latestReport.riskScale==="High"?"#991b1b":latestReport.riskScale==="Medium"?"#92400e":"#166534" }}>{latestReport.riskScale}</span>:"—"}</td>
-                        <td style={{ fontSize:12,color:"#e2e8f0" }}>{(latestReport?.riskOwners||[]).filter(Boolean).join(", ")||"—"}</td>
-                        <td style={{ fontSize:12,color:"#94a3b8",maxWidth:220 }}>{latestReport?.riskDescription||<span style={{ color:"#475569" }}>—</span>}</td>
-                        <td>{reportTag({latestReport,daysSinceReport,missingReport:!latestReport||(daysSinceReport!==null&&daysSinceReport>7)})}</td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Portfolio Health — справа */}
+          {/* Portfolio Health */}
           <div className="dashboard-summary-card" style={{ margin:0 }}>
             <div style={{ fontWeight:700,fontSize:15,color:"#f1f5f9",marginBottom:4 }}>Portfolio Health</div>
             <div style={{ fontSize:12,color:"#9ca3af",marginBottom:16 }}>Schedule status distribution</div>
@@ -915,57 +824,6 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
             </div>
           </div>
 
-          </div>{/* end 2-column grid */}
-
-          {/* PM Action Required */}
-          {pmActions.length>0&&(
-            <div className="dashboard-summary-card" style={{ margin:0,borderTop:"3px solid #7c3aed" }}>
-              <div style={{ fontWeight:700,fontSize:15,color:"#f1f5f9",marginBottom:4 }}>PM Action Required</div>
-              <div style={{ fontSize:12,color:"#9ca3af",marginBottom:16 }}>Projects requiring immediate PM decision or escalation</div>
-              <div style={{ overflowX:"auto" }}>
-                <table className="dashboard-table" style={{ minWidth:780 }}>
-                  <thead><tr><th>Project</th><th>Action Type</th><th>Description</th><th>Owner</th><th>Age</th><th>Priority</th></tr></thead>
-                  <tbody>{pmActions.map((a,i)=>(
-                    <tr key={i} onClick={()=>sel(String(a.pid))} style={{ cursor:"pointer" }}>
-                      <td><div style={{ fontWeight:700,color:"#f1f5f9" }}>{a.code}</div><div style={{ fontSize:11,color:"#9ca3af" }}>{a.mall}</div></td>
-                      <td><span style={{ padding:"2px 9px",borderRadius:8,fontSize:11,fontWeight:700,background:a.priority==="HIGH"?"#431407":"#422006",color:a.priority==="HIGH"?"#fdba74":"#fcd34d" }}>{a.type}</span></td>
-                      <td style={{ fontSize:12,color:"#e2e8f0",maxWidth:240 }}>{a.desc}</td>
-                      <td style={{ fontSize:12,color:"#e2e8f0" }}>{a.owner}</td>
-                      <td style={{ fontSize:12,color:a.age>7?"#dc2626":"#94a3b8",fontWeight:a.age>7?700:400 }}>{a.age!==null?`${a.age}d ago`:"—"}</td>
-                      <td><span style={{ padding:"2px 8px",borderRadius:7,fontSize:11,fontWeight:700,background:a.priority==="HIGH"?"#450a0a":"#422006",color:a.priority==="HIGH"?"#fca5a5":"#fcd34d" }}>{a.priority}</span></td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Missing Reports */}
-          {(()=>{
-            const missing=allRows.filter(({missingReport})=>missingReport).sort((a,b)=>(b.daysSinceReport??999)-(a.daysSinceReport??999));
-            if (missing.length===0) return <div className="dashboard-summary-card" style={{ margin:0,textAlign:"center",color:"#22c55e",fontWeight:700,fontSize:14 }}>✓ All reports submitted within 7 days</div>;
-            return (
-              <div className="dashboard-summary-card" style={{ margin:0,borderTop:"3px solid #dc2626" }}>
-                <div style={{ fontWeight:700,fontSize:15,color:"#f1f5f9",marginBottom:4 }}>Missing Reports</div>
-                <div style={{ fontSize:12,color:"#9ca3af",marginBottom:16 }}>Projects with no report submitted or last report older than 7 days</div>
-                <div style={{ overflowX:"auto" }}>
-                  <table className="dashboard-table" style={{ minWidth:600 }}>
-                    <thead><tr><th>Project</th><th>Contractor</th><th>Last Report</th><th>Days Since</th><th>PM</th><th>Status</th></tr></thead>
-                    <tbody>{missing.map(({project,latestReport,daysSinceReport})=>(
-                      <tr key={project.id} onClick={()=>sel(String(project.id))} style={{ cursor:"pointer" }}>
-                        <td><div style={{ fontWeight:700,color:"#f1f5f9" }}>{project.storeCode}</div><div style={{ fontSize:11,color:"#9ca3af" }}>{project.shoppingMallName}</div></td>
-                        <td style={{ fontSize:12,color:"#e2e8f0" }}>{project.generalContractor||"—"}</td>
-                        <td style={{ fontSize:12,color:"#94a3b8" }}>{latestReport?formatDate(latestReport.reportingDate||latestReport.submittedAt):<span style={{ color:"#dc2626",fontWeight:700 }}>Never</span>}</td>
-                        <td style={{ fontSize:13,fontWeight:700,color:"#dc2626" }}>{daysSinceReport!==null?`${daysSinceReport}d`:<span style={{ color:"#dc2626" }}>—</span>}</td>
-                        <td style={{ fontSize:12,color:"#e2e8f0" }}>{project.projectManager||"—"}</td>
-                        <td>{!latestReport?<span style={{ fontSize:11,fontWeight:700,color:"#fca5a5",padding:"2px 8px",borderRadius:7,background:"#450a0a",border:"1px solid #7f1d1d" }}>Missing</span>:<span style={{ fontSize:11,fontWeight:700,color:"#fcd34d",padding:"2px 8px",borderRadius:7,background:"#422006",border:"1px solid #b45309" }}>Overdue</span>}</td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })()}
 
           {/* Opening Countdown */}
           {(()=>{

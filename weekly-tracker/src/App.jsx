@@ -7,6 +7,7 @@ import WeeklyReports from "./pages/WeeklyReports";
 import ContractorReport from "./pages/ContractorReport";
 import SiteVisitReport from "./pages/SiteVisitReport";
 import RiskDashboard from "./pages/RiskDashboard";
+import Gantt from "./pages/Gantt";
 import AdminUsers from "./pages/AdminUsers";
 import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
@@ -171,6 +172,14 @@ function App() {
                     element={
                       <ProtectedRoute resource="weekly_reports">
                         <WeeklyReports projects={projects} reports={reports} />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/gantt"
+                    element={
+                      <ProtectedRoute resource="gantt_view">
+                        <Gantt projects={projects} reports={reports} siteVisits={siteVisits} />
                       </ProtectedRoute>
                     }
                   />
