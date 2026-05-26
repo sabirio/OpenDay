@@ -205,27 +205,49 @@ function TextAreaField({ label, value, onChange, rows = 4, placeholder = "" }) {
 
 // ── Form initialization ────────────────────────────────────────────────────
 
-function makeInitialForm(prevReport) {
-  let wpStatuses = makeEmptyWPStatuses();
-  let currentPackages = [];
-
-  if (prevReport?.workPackageStatuses) {
-    // New format: copy and ensure all packages/tasks are present
-    wpStatuses = JSON.parse(JSON.stringify(prevReport.workPackageStatuses));
+// Build cumulative best WP statuses across all project reports
+const _WP_SCORES = { 'Not Started': 0, 'In Progress': 0.5, 'Delayed': 0.3, 'Completed': 1 };
+function buildCumulativeWPStatuses(allReports) {
+  const base = makeEmptyWPStatuses();
+  for (const report of allReports) {
+    const snap = report.workPackageStatuses;
+    if (!snap) continue;
     for (const wp of WORK_PACKAGES) {
-      if (!wpStatuses[wp.id]) wpStatuses[wp.id] = {};
+      const pkgSnap = snap[wp.id] || {};
       for (const task of wp.tasks) {
-        if (!wpStatuses[wp.id][task.name]) {
-          wpStatuses[wp.id][task.name] = { status: "Not Started", progress: 0, comment: "", risk: false };
+        const s = pkgSnap[task.name];
+        if (!s) continue;
+        const cur = base[wp.id][task.name];
+        if ((_WP_SCORES[s.status] ?? -1) > (_WP_SCORES[cur.status] ?? -1) ||
+            (s.progress || 0) > (cur.progress || 0)) {
+          base[wp.id][task.name] = { ...cur, ...s };
         }
       }
     }
+  }
+  return base;
+}
+
+function makeInitialForm(prevReport, cumulativeStatuses) {
+  // Start from cumulative best statuses across all reports (not just the latest)
+  const wpStatuses = cumulativeStatuses
+    ? JSON.parse(JSON.stringify(cumulativeStatuses))
+    : makeEmptyWPStatuses();
+
+  let currentPackages = [];
+
+  if (prevReport?.workPackageStatuses) {
     currentPackages = prevReport.currentPackages || derivePackagesFromOldPhases(prevReport.currentPhases);
   } else if (prevReport) {
-    // Old format: derive active packages from old phases only (no status prefill)
+    // Old format: derive active packages from old phases
     currentPackages = derivePackagesFromOldPhases(
       Array.isArray(prevReport.currentPhases) ? prevReport.currentPhases : (prevReport.currentPhase ? [prevReport.currentPhase] : [])
     );
+  }
+
+  // Auto-select first work package if nothing is selected
+  if (!currentPackages.length) {
+    currentPackages = [WORK_PACKAGES[0].id];
   }
 
   return {
@@ -261,21 +283,31 @@ function ContractorReport({ projects, reports, onSaveReport }) {
   const { projectId } = useParams();
   const project = projects.find((p) => String(p.id) === projectId);
 
-  const prevReport = useMemo(() =>
-    [...(reports.filter((r) => String(r.projectId) === projectId))]
-      .sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt))[0] || null,
+  const projectReportsForPrefill = useMemo(() =>
+    reports.filter((r) => String(r.projectId) === projectId),
     [reports, projectId]
   );
 
-  const [form, setForm] = useState(() => makeInitialForm(null));
+  const prevReport = useMemo(() =>
+    [...projectReportsForPrefill]
+      .sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt))[0] || null,
+    [projectReportsForPrefill]
+  );
+
+  const cumulativeWPStatuses = useMemo(() =>
+    buildCumulativeWPStatuses(projectReportsForPrefill),
+    [projectReportsForPrefill]
+  );
+
+  const [form, setForm] = useState(() => makeInitialForm(null, null));
   const prefillDone = useRef(false);
 
   useEffect(() => {
-    if (prevReport && !prefillDone.current) {
+    if (!prefillDone.current) {
       prefillDone.current = true;
-      setForm(makeInitialForm(prevReport));
+      setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
     }
-  }, [prevReport]);
+  }, [prevReport, cumulativeWPStatuses]);
 
   const [validationErrors, setValidationErrors] = useState([]);
   const [submitted, setSubmitted] = useState(false);
@@ -390,7 +422,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
               type="button"
               onClick={() => {
                 prefillDone.current = false;
-                setForm(makeInitialForm(prevReport));
+                setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
                 setSubmitted(false);
               }}
               style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "#2f855a", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
