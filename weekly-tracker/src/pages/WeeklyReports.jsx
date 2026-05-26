@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { constructionWeights, testingWeights, handoverWeights } from "../reportWeights";
 import {
   formatDate,
   getStatusScore,
@@ -101,52 +100,6 @@ function parseAdditionalWorksCost(cost) {
 function formatAdditionalWorksSum(value, currency) {
   const formatted = Math.round(value).toLocaleString("en-US").replace(/,/g, " ");
   return currency ? `${formatted} ${currency}` : formatted;
-}
-
-// Карточка фазы строительства.
-// progressStatuses — кумулятивные статусы (для % прогресса на полосе).
-// statuses         — статусы конкретного отчёта (для бейджей у каждого пункта).
-// Используются взвешенные веса из reportWeights для точного % фазы.
-function PhaseCard({ title, items, statuses, progressStatuses, accentColor }) {
-  const keys = Object.keys(items || {});
-  if (!keys.length) return null;
-
-  const pSt = progressStatuses || statuses || {};
-  let wSum = 0, wTotal = 0;
-  keys.forEach((k) => {
-    const w = items[k] || 1;
-    wSum += getStatusScore(pSt[k]) * w;
-    wTotal += w;
-  });
-  const avgPct = wTotal > 0 ? Math.round((wSum / wTotal) * 100) : 0;
-
-  return (
-    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: "20px 22px", borderTop: `3px solid ${accentColor}` }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: "#f1f5f9" }}>{title}</div>
-        <span style={{ fontSize: 20, fontWeight: 800, color: accentColor }}>{avgPct}%</span>
-      </div>
-      <div style={{ background: "#334155", borderRadius: 6, height: 6, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ width: `${avgPct}%`, height: "100%", background: accentColor, borderRadius: 6, transition: "width 0.35s ease" }} />
-      </div>
-      <div style={{ display: "grid", gap: 2 }}>
-        {keys.map((key) => {
-          const reported = statuses?.[key];
-          const cumulative = pSt[key];
-          // Показываем лучший из двух статусов: кумулятивный или из текущего отчёта
-          const displayVal = getStatusScore(cumulative) >= getStatusScore(reported)
-            ? (cumulative || reported || "Not started")
-            : (reported || "Not started");
-          return (
-            <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #334155" }}>
-              <span style={{ fontSize: 12, color: "#94a3b8", flex: 1, paddingRight: 12 }}>{key}</span>
-              <StatusBadge value={displayVal} />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 // Old-format task name → WP task mapping (for reading legacy reports as WP cards)
@@ -354,17 +307,6 @@ function WeeklyReports({ projects, reports }) {
     () => estimateProgressFromStatuses(overallCumulative),
     [overallCumulative]
   );
-
-  // Кумулятивные статусы ДО даты выбранного отчёта (для % в карточках фаз).
-  // Позволяет видеть прогресс «как было на тот момент», а не по всем отчётам сразу.
-  const cumulativeUpToSelected = useMemo(() => {
-    if (!selectedReport) return null;
-    const cutoff = new Date(selectedReport.reportingDate || selectedReport.submittedAt);
-    const reportsUpTo = projectReports.filter(
-      (r) => new Date(r.reportingDate || r.submittedAt) <= cutoff
-    );
-    return computeCumulativeStatuses(reportsUpTo);
-  }, [selectedReport, projectReports]);
 
   const riskCount = selectedReport?.risks?.filter(Boolean).length || 0;
 
