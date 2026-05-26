@@ -184,12 +184,11 @@ function deriveOverallStatus(statuses) {
 }
 
 // One card per WP phase — always rendered, collapsible task rows
-function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, prevWpStatuses, defaultExpanded }) {
+function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, defaultExpanded }) {
   const [expanded, setExpanded] = useState(defaultExpanded ?? false);
 
   const taskStatuses    = wpStatuses?.[wp.id]    || {};
   const cumTaskStatuses = wpCumStatuses?.[wp.id] || {};
-  const prevTaskStatuses = prevWpStatuses?.[wp.id] || {};
 
   // Merge per-task: pick the highest-scored status between this report and cumulative
   const tasks = wp.tasks;
@@ -213,16 +212,6 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, prevWpStatuses, defaultExp
   const completedCount = resolvedStatuses.filter((s) => s === "Completed").length;
   const sc = statusColor(overallStatus);
 
-  // Check if this WP has any change vs previous report
-  const hasPrevData = Object.keys(prevTaskStatuses).length > 0;
-  const changedCount = hasPrevData
-    ? tasks.filter((t) => {
-        const cur  = mergedTaskStatuses[t.name]?.status || "Not Started";
-        const prev = prevTaskStatuses[t.name]?.status   || "Not Started";
-        return cur !== prev;
-      }).length
-    : 0;
-
   return (
     <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, borderTop: `3px solid ${wp.color}`, overflow: "hidden" }}>
       <button type="button" onClick={() => setExpanded((e) => !e)}
@@ -238,9 +227,6 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, prevWpStatuses, defaultExp
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#f87171" }}>⚠ {delayedCount} delayed</span>
               )}
               <span style={{ fontSize: 10, color: "#475569" }}>{completedCount}/{tasks.length} done</span>
-              {changedCount > 0 && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#60a5fa" }}>↕ {changedCount} changed</span>
-              )}
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -255,41 +241,120 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, prevWpStatuses, defaultExp
 
       {expanded && (
         <div style={{ borderTop: "1px solid #334155", padding: "6px 20px 14px" }}>
-          {hasPrevData && (
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, padding: "4px 0 6px", borderBottom: "1px solid #1e3a54" }}>
-              <span style={{ fontSize: 10, color: "#475569", fontWeight: 600 }}>THIS WEEK</span>
-              <span style={{ fontSize: 10, color: "#334155", fontWeight: 600 }}>PREV WEEK</span>
-            </div>
-          )}
           {tasks.map((task) => {
-            const status     = mergedTaskStatuses[task.name]?.status || "Not Started";
-            const prevStatus = prevTaskStatuses[task.name]?.status   || "Not Started";
-            const tsc        = statusColor(status);
-            const ptsc       = statusColor(prevStatus);
-            const changed    = hasPrevData && status !== prevStatus;
-            const improved   = changed && (WP_STATUS_SCORES[status] ?? 0) > (WP_STATUS_SCORES[prevStatus] ?? 0);
-            const regressed  = changed && (WP_STATUS_SCORES[status] ?? 0) < (WP_STATUS_SCORES[prevStatus] ?? 0);
+            const status = mergedTaskStatuses[task.name]?.status || "Not Started";
+            const tsc    = statusColor(status);
             return (
-              <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #2d3f54", gap: 8 }}>
-                <span style={{ fontSize: 12, color: "#94a3b8", flex: 1, lineHeight: 1.35 }}>{task.name}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                  {/* Change arrow */}
-                  {improved  && <span style={{ fontSize: 11, fontWeight: 800, color: "#22c55e" }}>↑</span>}
-                  {regressed && <span style={{ fontSize: 11, fontWeight: 800, color: "#f87171" }}>↓</span>}
-                  {/* Current status */}
-                  <span style={{ padding: "2px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: tsc + "20", color: tsc, border: `1px solid ${tsc}44`, whiteSpace: "nowrap" }}>
-                    {status}
-                  </span>
-                  {/* Previous status (only when different) */}
-                  {hasPrevData && changed && (
-                    <span style={{ padding: "2px 7px", borderRadius: 8, fontSize: 10, fontWeight: 500, background: ptsc + "10", color: ptsc + "99", border: `1px solid ${ptsc}22`, whiteSpace: "nowrap", opacity: 0.7 }}>
-                      {prevStatus}
-                    </span>
-                  )}
-                </div>
+              <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid #2d3f54" }}>
+                <span style={{ fontSize: 12, color: "#94a3b8", flex: 1, paddingRight: 12, lineHeight: 1.35 }}>{task.name}</span>
+                <span style={{ padding: "2px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: tsc + "20", color: tsc, border: `1px solid ${tsc}44`, whiteSpace: "nowrap" }}>
+                  {status}
+                </span>
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Collapsible summary of the previous report — shown above current report cards
+function PrevReportSummary({ prevReport }) {
+  const [open, setOpen] = useState(false);
+  if (!prevReport) return null;
+
+  const date = prevReport.reportingDate || formatDate(prevReport.submittedAt);
+  const wpStatuses = isWPReport(prevReport)
+    ? prevReport.workPackageStatuses
+    : deriveWPStatusesFromOldReport(prevReport);
+
+  // Collect only WPs that have at least one non-"Not Started" task
+  const activeWPs = WORK_PACKAGES.filter((wp) => {
+    const pkg = wpStatuses?.[wp.id] || {};
+    return Object.values(pkg).some((e) => e?.status && e.status !== "Not Started");
+  });
+
+  const phases = Array.isArray(prevReport.currentPackages)
+    ? prevReport.currentPackages
+    : Array.isArray(prevReport.currentPhases)
+      ? prevReport.currentPhases
+      : prevReport.currentPhase
+        ? [prevReport.currentPhase]
+        : [];
+
+  return (
+    <div style={{ marginBottom: 14, border: "1px solid #1e3a54", borderRadius: 12, overflow: "hidden", background: "#0d1f30" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            Previous Report
+          </span>
+          <span style={{ fontSize: 12, color: "#475569" }}>{date}</span>
+          {prevReport.projectScheduleStatus && (
+            <span style={{ padding: "1px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600,
+              background: prevReport.projectScheduleStatus === "On Track" ? "#14532d" : prevReport.projectScheduleStatus === "Delayed" ? "#450a0a" : "#422006",
+              color:      prevReport.projectScheduleStatus === "On Track" ? "#86efac" : prevReport.projectScheduleStatus === "Delayed" ? "#fca5a5" : "#fcd34d",
+              border:     `1px solid ${prevReport.projectScheduleStatus === "On Track" ? "#166534" : prevReport.projectScheduleStatus === "Delayed" ? "#7f1d1d" : "#b45309"}`,
+            }}>
+              {prevReport.projectScheduleStatus}
+            </span>
+          )}
+          {phases.length > 0 && (
+            <span style={{ fontSize: 11, color: "#334155" }}>
+              {phases.join(" · ")}
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: 10, color: "#334155" }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div style={{ borderTop: "1px solid #1e3a54", padding: "12px 18px 16px" }}>
+          {activeWPs.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#475569" }}>No work package statuses recorded in this report.</div>
+          ) : (
+            activeWPs.map((wp) => {
+              const pkg = wpStatuses[wp.id] || {};
+              const filledTasks = wp.tasks.filter((t) => pkg[t.name]?.status && pkg[t.name].status !== "Not Started");
+              if (!filledTasks.length) return null;
+              return (
+                <div key={wp.id} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: wp.color, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    {wp.name}
+                  </div>
+                  {filledTasks.map((task) => {
+                    const entry  = pkg[task.name];
+                    const status = entry?.status || "Not Started";
+                    const tsc    = statusColor(status);
+                    return (
+                      <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #1a2a3a" }}>
+                        <span style={{ fontSize: 12, color: "#64748b", flex: 1, paddingRight: 12, lineHeight: 1.35 }}>{task.name}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {entry?.progress != null && entry.progress > 0 && (
+                            <span style={{ fontSize: 11, color: "#475569" }}>{entry.progress}%</span>
+                          )}
+                          <span style={{ padding: "2px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: tsc + "20", color: tsc, border: `1px solid ${tsc}44`, whiteSpace: "nowrap" }}>
+                            {status}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })
+          )}
+          {prevReport.nextWeekTop3 && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e3a54" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>Top 3 planned (from that report)</div>
+              <div style={{ fontSize: 12, color: "#64748b", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{prevReport.nextWeekTop3}</div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -588,20 +653,8 @@ function WeeklyReports({ projects, reports }) {
               </div>
             </div>
 
-            {/* Previous report comparison banner */}
-            {prevReport && (
-              <div style={{ marginBottom: 12, padding: "8px 16px", background: "#0f2233", border: "1px solid #1e3a54", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700 }}>↕ COMPARING WITH PREVIOUS REPORT</span>
-                <span style={{ fontSize: 11, color: "#475569" }}>
-                  {prevReport.reportingDate || formatDate(prevReport.submittedAt)}
-                  {" — task rows show "}
-                  <span style={{ color: "#22c55e", fontWeight: 600 }}>↑ improvements</span>
-                  {" and "}
-                  <span style={{ color: "#f87171", fontWeight: 600 }}>↓ regressions</span>
-                  {" vs the previous week"}
-                </span>
-              </div>
-            )}
+            {/* Previous report — collapsible summary */}
+            <PrevReportSummary prevReport={prevReport} />
 
             {/* 8 WP phase cards — always rendered, one per phase */}
             {(() => {
@@ -621,7 +674,6 @@ function WeeklyReports({ projects, reports }) {
                       wp={wp}
                       wpStatuses={derivedStatuses}
                       wpCumStatuses={wpCumStatuses}
-                      prevWpStatuses={prevWpStatuses}
                       defaultExpanded={index === 0}
                     />
                   ))}
