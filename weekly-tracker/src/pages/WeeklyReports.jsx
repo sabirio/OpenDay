@@ -212,95 +212,69 @@ function statusColor(status) {
   return score >= 1 ? "#22c55e" : score >= 0.5 ? "#f59e0b" : score >= 0.3 ? "#be185d" : "#94a3b8";
 }
 
-// Phase group card — shows grouped WPs with expandable task rows
+// Phase group card — flat task rows with WP sub-headers (no expand/collapse)
 function PhaseGroupCard({ phase, allWPs, wpStatuses, wpCumStatuses, showOnlyReported }) {
-  const [expandedWPs, setExpandedWPs] = useState({});
-
   const wps = allWPs.filter((wp) => phase.wpIds.includes(wp.id));
 
-  // Per-WP progress
-  const wpPct = {};
-  for (const wp of wps) {
-    const statuses = wpCumStatuses?.[wp.id] || wpStatuses?.[wp.id] || {};
-    wpPct[wp.id] = computePackageProgress({ [wp.id]: statuses }, wp.id);
-  }
-
-  // Phase aggregate % — weighted by each WP's weight relative to phase total
+  // Phase aggregate % weighted by WP weights
   const phaseWeightTotal = wps.reduce((s, wp) => s + wp.weight, 0);
   const phaseProgress = phaseWeightTotal > 0
-    ? Math.round(wps.reduce((s, wp) => s + wpPct[wp.id] * wp.weight, 0) / phaseWeightTotal)
+    ? Math.round(wps.reduce((s, wp) => {
+        const statuses = wpCumStatuses?.[wp.id] || wpStatuses?.[wp.id] || {};
+        return s + computePackageProgress({ [wp.id]: statuses }, wp.id) * wp.weight;
+      }, 0) / phaseWeightTotal)
     : 0;
 
-  // For old-format reports: only show WPs that have any data
-  const wpsToShow = showOnlyReported
-    ? wps.filter((wp) => wpStatuses?.[wp.id] || wpCumStatuses?.[wp.id])
-    : wps;
+  // Collect task groups per WP (skip WPs with no data when showOnlyReported)
+  const taskGroups = wps.reduce((acc, wp) => {
+    const taskStatuses    = wpStatuses?.[wp.id]    || {};
+    const cumTaskStatuses = wpCumStatuses?.[wp.id] || {};
+    const tasks = showOnlyReported
+      ? wp.tasks.filter((t) => taskStatuses[t.name]?.status || cumTaskStatuses[t.name]?.status)
+      : wp.tasks;
+    if (tasks.length) acc.push({ wp, tasks, taskStatuses, cumTaskStatuses });
+    return acc;
+  }, []);
 
-  if (!wpsToShow.length) return null;
+  if (!taskGroups.length) return null;
 
-  function toggleWP(id) { setExpandedWPs((prev) => ({ ...prev, [id]: !prev[id] })); }
+  // Only show WP sub-headers when phase contains more than one WP with data
+  const showSubHeaders = taskGroups.length > 1;
 
   return (
     <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: "20px 22px", borderTop: `3px solid ${phase.color}` }}>
-      {/* Phase header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: "#f1f5f9", textTransform: "uppercase", letterSpacing: "0.06em" }}>{phase.label}</div>
-        <span style={{ fontSize: 22, fontWeight: 800, color: phase.color }}>{phaseProgress}%</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "#f1f5f9" }}>{phase.label}</div>
+        <span style={{ fontSize: 20, fontWeight: 800, color: phase.color }}>{phaseProgress}%</span>
       </div>
-      <div style={{ background: "#334155", borderRadius: 6, height: 6, overflow: "hidden", marginBottom: 18 }}>
+      <div style={{ background: "#334155", borderRadius: 6, height: 6, overflow: "hidden", marginBottom: 16 }}>
         <div style={{ width: `${phaseProgress}%`, height: "100%", background: phase.color, borderRadius: 6, transition: "width 0.35s ease" }} />
       </div>
 
-      {/* WP rows */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {wpsToShow.map((wp) => {
-          const pct = wpPct[wp.id];
-          const taskStatuses = wpStatuses?.[wp.id] || {};
-          const cumTaskStatuses = wpCumStatuses?.[wp.id] || {};
-          const isExpanded = expandedWPs[wp.id];
-
-          const tasksToShow = showOnlyReported
-            ? wp.tasks.filter((t) => taskStatuses[t.name]?.status || cumTaskStatuses[t.name]?.status)
-            : wp.tasks;
-
-          return (
-            <div key={wp.id}>
-              <button type="button" onClick={() => toggleWP(wp.id)}
-                style={{ width: "100%", background: "none", border: "none", cursor: tasksToShow.length ? "pointer" : "default", textAlign: "left", padding: "7px 0", borderBottom: "1px solid #2d3f54" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: wp.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: "#cbd5e1", flex: 1, lineHeight: 1.3 }}>{wp.name}</span>
-                  <div style={{ width: 56, height: 4, background: "#334155", borderRadius: 2, overflow: "hidden", flexShrink: 0 }}>
-                    <div style={{ width: `${pct}%`, height: "100%", background: wp.color, borderRadius: 2 }} />
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: wp.color, minWidth: 34, textAlign: "right" }}>{pct}%</span>
-                  {tasksToShow.length > 0 && (
-                    <span style={{ fontSize: 9, color: "#475569", flexShrink: 0 }}>{isExpanded ? "▲" : "▼"}</span>
-                  )}
+      <div style={{ display: "grid", gap: 2 }}>
+        {taskGroups.map(({ wp, tasks, taskStatuses, cumTaskStatuses }) => (
+          <React.Fragment key={wp.id}>
+            {showSubHeaders && (
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: wp.color, paddingTop: 8, paddingBottom: 3, opacity: 0.9 }}>
+                {wp.name}
+              </div>
+            )}
+            {tasks.map((task) => {
+              const entry    = taskStatuses[task.name]    || {};
+              const cumEntry = cumTaskStatuses[task.name] || {};
+              const status   = entry.status || cumEntry.status || "Not Started";
+              const sc       = statusColor(status);
+              return (
+                <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid #334155" }}>
+                  <span style={{ fontSize: 12, color: "#94a3b8", flex: 1, paddingRight: 12, lineHeight: 1.35 }}>{task.name}</span>
+                  <span style={{ padding: "2px 8px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc + "20", color: sc, border: `1px solid ${sc}44`, whiteSpace: "nowrap" }}>
+                    {status}
+                  </span>
                 </div>
-              </button>
-
-              {isExpanded && tasksToShow.length > 0 && (
-                <div style={{ paddingLeft: 18, paddingTop: 4, paddingBottom: 4, borderLeft: `2px solid ${wp.color}40`, marginLeft: 4 }}>
-                  {tasksToShow.map((task) => {
-                    const entry = taskStatuses[task.name] || {};
-                    const cumEntry = cumTaskStatuses[task.name] || {};
-                    const status = entry.status || cumEntry.status || "Not Started";
-                    const sc = statusColor(status);
-                    return (
-                      <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #1e293b" }}>
-                        <span style={{ fontSize: 10, color: "#64748b", flex: 1, paddingRight: 8, lineHeight: 1.35 }}>{task.name}</span>
-                        <span style={{ padding: "1px 6px", borderRadius: 6, fontSize: 9, fontWeight: 600, background: sc + "20", color: sc, border: `1px solid ${sc}44`, whiteSpace: "nowrap" }}>
-                          {status}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );
