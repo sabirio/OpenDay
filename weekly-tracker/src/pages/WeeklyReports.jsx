@@ -149,8 +149,59 @@ function PhaseCard({ title, items, statuses, progressStatuses, accentColor }) {
   );
 }
 
+// Old-format task name → WP task mapping (for reading legacy reports as WP cards)
+const OLD_TO_WP_WEEKLY = {
+  "Flooring installation":                                   { wpId: "finishes",      task: "Floor finishes" },
+  "Drywall partition installation":                          { wpId: "construction",  task: "Partitions & drywall" },
+  "Electrical systems installation":                         { wpId: "mep",           task: "Electrical conduits & cabling" },
+  "HVAC systems installation":                               { wpId: "mep",           task: "HVAC ducts" },
+  "Fire safety systems installation":                        { wpId: "mep",           task: "Fire suppression pipes" },
+  "Low current systems installation":                        { wpId: "mep",           task: "Low current systems" },
+  "Ceiling installation":                                    { wpId: "construction",  task: "Ceiling structures" },
+  "Lighting installation":                                   { wpId: "finishes",      task: "Lighting fixtures" },
+  "Furniture installation":                                  { wpId: "equipment",     task: "Furniture & loose items" },
+  "Sprinkler system testing and commissioning":              { wpId: "commissioning", task: "Sprinkler testing & commissioning" },
+  "Smoke detection system testing and commissioning":        { wpId: "commissioning", task: "Fire alarm testing" },
+  "Emergency announcement system testing and commissioning": { wpId: "commissioning", task: "Integrated systems testing" },
+  "HVAC system testing and commissioning":                   { wpId: "commissioning", task: "HVAC balancing & commissioning" },
+  "Electrical system testing and commissioning":             { wpId: "commissioning", task: "Electrical testing & certification" },
+  "Low current testing and commissioning":                   { wpId: "commissioning", task: "Security & access control testing" },
+  "Staff training":                                          { wpId: "handover",      task: "Staff training" },
+  "Manuals, certificates, test reports":                     { wpId: "handover",      task: "O&M manuals" },
+  "Final cleaning":                                          { wpId: "handover",      task: "Final cleaning" },
+  "Snag list resolution":                                    { wpId: "handover",      task: "Defects & snagging resolution" },
+};
+
+function mapOldToWPStatus(s) {
+  if (!s) return null;
+  if (s === "Completed") return "Completed";
+  if (s === "In Progress") return "In Progress";
+  if (s === "Delayed") return "Delayed";
+  return null; // Not Started / Not Applicable → omit (no meaningful data)
+}
+
+function deriveWPStatusesFromOldReport(report) {
+  if (!report) return {};
+  const result = {};
+  function set(wpId, taskName, rawStatus) {
+    const status = mapOldToWPStatus(rawStatus);
+    if (!status) return;
+    if (!result[wpId]) result[wpId] = {};
+    result[wpId][taskName] = { status };
+  }
+  set("demolition", "Demolition works", report.demolitionStatus);
+  for (const [oldKey, { wpId, task }] of Object.entries(OLD_TO_WP_WEEKLY)) {
+    const raw = report.constructionStatuses?.[oldKey]
+      ?? report.testingStatuses?.[oldKey]
+      ?? report.handoverStatuses?.[oldKey];
+    set(wpId, task, raw);
+  }
+  return result;
+}
+
 // WP-format phase card — shows tasks from one work package
-function WPPhaseCard({ wp, wpStatuses, cumulativeWPStatuses }) {
+// showOnlyReported: when true, skips tasks with no data (used for old-format mapped reports)
+function WPPhaseCard({ wp, wpStatuses, cumulativeWPStatuses, showOnlyReported = false }) {
   const taskStatuses = wpStatuses || {};
   const cumulativeStatuses = cumulativeWPStatuses || {};
 
@@ -159,8 +210,12 @@ function WPPhaseCard({ wp, wpStatuses, cumulativeWPStatuses }) {
     wp.id
   );
 
-  const tasks = wp.tasks;
-  if (!tasks.length) return null;
+  const allTasks = wp.tasks;
+  const tasksToShow = showOnlyReported
+    ? allTasks.filter((t) => taskStatuses[t.name]?.status || cumulativeStatuses[wp.id]?.[t.name]?.status)
+    : allTasks;
+
+  if (!tasksToShow.length) return null;
 
   return (
     <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, padding: "20px 22px", borderTop: `3px solid ${wp.color}` }}>
@@ -172,26 +227,18 @@ function WPPhaseCard({ wp, wpStatuses, cumulativeWPStatuses }) {
         <div style={{ width: `${pct}%`, height: "100%", background: wp.color, borderRadius: 6, transition: "width 0.35s ease" }} />
       </div>
       <div style={{ display: "grid", gap: 2 }}>
-        {tasks.map((task) => {
+        {tasksToShow.map((task) => {
           const entry = taskStatuses[task.name] || {};
           const cumEntry = cumulativeStatuses[wp.id]?.[task.name] || {};
           const status = entry.status || cumEntry.status || "Not Started";
-          const progress = entry.progress || 0;
-          const risk = entry.risk || false;
           const score = WP_STATUS_SCORES[status] ?? 0;
           const statusColor = score >= 1 ? "#22c55e" : score >= 0.5 ? "#f59e0b" : score >= 0.3 ? "#be185d" : "#94a3b8";
           return (
             <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid #334155" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, flex: 1, paddingRight: 8 }}>
-                {risk && <span style={{ fontSize: 9, color: "#dc2626", flexShrink: 0 }}>⚠</span>}
-                <span style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.3 }}>{task.name}</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                {progress > 0 && <span style={{ fontSize: 10, color: "#64748b" }}>{progress}%</span>}
-                <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: statusColor + "20", color: statusColor, border: `1px solid ${statusColor}44`, whiteSpace: "nowrap" }}>
-                  {status}
-                </span>
-              </div>
+              <span style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.3, flex: 1, paddingRight: 8 }}>{task.name}</span>
+              <span style={{ display: "inline-block", padding: "2px 7px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: statusColor + "20", color: statusColor, border: `1px solid ${statusColor}44`, whiteSpace: "nowrap" }}>
+                {status}
+              </span>
             </div>
           );
         })}
@@ -486,55 +533,36 @@ function WeeklyReports({ projects, reports }) {
               </div>
             </div>
 
-            {/* Карточки фаз: dual-format — WP cards for new reports, old phase cards for legacy */}
-            {isWPReport(selectedReport) ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, marginBottom: 20 }}>
-                {WORK_PACKAGES.map((wp) => {
-                  const wpStatuses = selectedReport.workPackageStatuses?.[wp.id];
-                  const wpCumStatuses = computeWPCumulativeStatuses(projectReports)?.workPackageStatuses;
-                  if (!wpStatuses && !wpCumStatuses?.[wp.id]) return null;
-                  return (
-                    <WPPhaseCard
-                      key={wp.id}
-                      wp={wp}
-                      wpStatuses={wpStatuses}
-                      cumulativeWPStatuses={wpCumStatuses}
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
-                <PhaseCard
-                  title="Demolition Works"
-                  items={{ "Demolition works": 10 }}
-                  statuses={{ "Demolition works": selectedReport.demolitionStatus }}
-                  progressStatuses={{ "Demolition works": cumulativeUpToSelected?.demolitionStatus || selectedReport.demolitionStatus }}
-                  accentColor="#8b5cf6"
-                />
-                <PhaseCard
-                  title="Construction Works"
-                  items={constructionWeights}
-                  statuses={selectedReport.constructionStatuses}
-                  progressStatuses={cumulativeUpToSelected?.constructionStatuses || selectedReport.constructionStatuses}
-                  accentColor="#3b82f6"
-                />
-                <PhaseCard
-                  title="Testing & Commissioning"
-                  items={testingWeights}
-                  statuses={selectedReport.testingStatuses}
-                  progressStatuses={cumulativeUpToSelected?.testingStatuses || selectedReport.testingStatuses}
-                  accentColor="#f59e0b"
-                />
-                <PhaseCard
-                  title="Handover"
-                  items={handoverWeights}
-                  statuses={selectedReport.handoverStatuses}
-                  progressStatuses={cumulativeUpToSelected?.handoverStatuses || selectedReport.handoverStatuses}
-                  accentColor="#22c55e"
-                />
-              </div>
-            )}
+            {/* Карточки фаз: WP cards for all reports (new format or mapped from old) */}
+            {(() => {
+              const wpReport = isWPReport(selectedReport);
+              const derivedStatuses = wpReport
+                ? selectedReport.workPackageStatuses
+                : deriveWPStatusesFromOldReport(selectedReport);
+              const wpCumStatuses = wpReport
+                ? computeWPCumulativeStatuses(projectReports)?.workPackageStatuses
+                : null;
+              const showOnlyReported = !wpReport;
+              const cards = WORK_PACKAGES.map((wp) => {
+                const wpStatuses = derivedStatuses?.[wp.id];
+                if (!wpStatuses && !wpCumStatuses?.[wp.id]) return null;
+                return (
+                  <WPPhaseCard
+                    key={wp.id}
+                    wp={wp}
+                    wpStatuses={wpStatuses}
+                    cumulativeWPStatuses={wpCumStatuses}
+                    showOnlyReported={showOnlyReported}
+                  />
+                );
+              }).filter(Boolean);
+              if (!cards.length) return null;
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16, marginBottom: 20 }}>
+                  {cards}
+                </div>
+              );
+            })()}
 
             {/* ── 4 колонки: Look Ahead / Declaration / Risk Details / Client Support ── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 16 }}>

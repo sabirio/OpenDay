@@ -110,8 +110,7 @@ const WP_STATUS_OPTS = [
 ];
 
 function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
-  const [expanded, setExpanded] = useState(false);
-  const e = entry || { observedStatus: "", progress: 0, issueFound: false, riskLevel: "None", comment: "" };
+  const e = entry || { observedStatus: "" };
   const gcStatus = gcEntry?.status || null;
   const pmStatus = e.observedStatus || null;
   const result = comparisonResult(pmStatus, gcStatus);
@@ -135,7 +134,6 @@ function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
             }}>
               {gcStatus}
             </span>
-            {gcEntry.progress > 0 && <span style={{ fontSize: 10, color: "#9ca3af" }}>{gcEntry.progress}%</span>}
           </div>
         )}
 
@@ -159,30 +157,6 @@ function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
           })}
         </div>
 
-        {/* Progress % */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-          <input
-            type="number" min={0} max={100}
-            value={e.progress}
-            onChange={(ev) => onChange({ ...e, progress: Math.max(0, Math.min(100, Number(ev.target.value) || 0)) })}
-            style={{ width: 50, height: 28, textAlign: "center", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 12, outline: "none" }}
-          />
-          <span style={{ fontSize: 11, color: "#9ca3af" }}>%</span>
-        </div>
-
-        {/* Issue found */}
-        <button type="button"
-          onClick={() => onChange({ ...e, issueFound: !e.issueFound })}
-          style={{
-            padding: "3px 9px", borderRadius: 6, fontSize: 11,
-            border: `1px solid ${e.issueFound ? "#fca5a5" : "#e5e7eb"}`,
-            background: e.issueFound ? "#fff1f2" : "white",
-            color: e.issueFound ? "#dc2626" : "#9ca3af",
-            fontWeight: e.issueFound ? 700 : 400, cursor: "pointer", flexShrink: 0,
-          }}>
-          ⚠ Issue
-        </button>
-
         {/* Comparison badge */}
         {result && result.type !== "not-assessed" && result.type !== "no-gc" && (
           <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5, flexShrink: 0,
@@ -190,33 +164,7 @@ function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
             {result.badge}
           </span>
         )}
-
-        {/* Comment toggle */}
-        <button type="button"
-          onClick={() => setExpanded(!expanded)}
-          style={{
-            padding: "3px 9px", borderRadius: 6, fontSize: 11,
-            border: `1px solid ${e.comment ? "#bbf7d0" : "#e5e7eb"}`,
-            background: e.comment ? "#f0fdf4" : "white",
-            color: e.comment ? "#16a34a" : "#9ca3af", cursor: "pointer", flexShrink: 0,
-          }}>
-          💬
-        </button>
       </div>
-
-      {expanded && (
-        <textarea
-          value={e.comment}
-          onChange={(ev) => onChange({ ...e, comment: ev.target.value })}
-          placeholder="PM observation / note..."
-          rows={2}
-          style={{
-            width: "100%", marginTop: 8, padding: "8px 12px",
-            border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12,
-            resize: "vertical", boxSizing: "border-box", fontFamily: "inherit",
-          }}
-        />
-      )}
     </div>
   );
 }

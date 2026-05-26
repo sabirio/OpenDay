@@ -82,8 +82,7 @@ const WP_STATUS_OPTS = [
 ];
 
 function WPTaskRow({ taskName, entry, onChange }) {
-  const [expanded, setExpanded] = useState(false);
-  const e = entry || { status: "Not Started", progress: 0, comment: "", risk: false };
+  const e = entry || { status: "Not Started" };
 
   return (
     <div style={{ borderBottom: "1px solid #f9fafb", padding: "9px 0" }}>
@@ -109,58 +108,7 @@ function WPTaskRow({ taskName, entry, onChange }) {
             );
           })}
         </div>
-
-        {/* Progress % */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-          <input
-            type="number" min={0} max={100}
-            value={e.progress}
-            onChange={(ev) => onChange({ ...e, progress: Math.max(0, Math.min(100, Number(ev.target.value) || 0)) })}
-            style={{ width: 50, height: 28, textAlign: "center", border: "1px solid #d1d5db", borderRadius: 6, fontSize: 12, outline: "none" }}
-          />
-          <span style={{ fontSize: 11, color: "#9ca3af" }}>%</span>
-        </div>
-
-        {/* Risk flag */}
-        <button type="button"
-          onClick={() => onChange({ ...e, risk: !e.risk })}
-          style={{
-            padding: "3px 9px", borderRadius: 6, fontSize: 11,
-            border: `1px solid ${e.risk ? "#fca5a5" : "#e5e7eb"}`,
-            background: e.risk ? "#fff1f2" : "white",
-            color: e.risk ? "#dc2626" : "#9ca3af",
-            fontWeight: e.risk ? 700 : 400, cursor: "pointer", flexShrink: 0,
-          }}>
-          ⚠ Risk
-        </button>
-
-        {/* Comment toggle */}
-        <button type="button"
-          onClick={() => setExpanded(!expanded)}
-          title="Add comment"
-          style={{
-            padding: "3px 9px", borderRadius: 6, fontSize: 11,
-            border: `1px solid ${e.comment ? "#bbf7d0" : "#e5e7eb"}`,
-            background: e.comment ? "#f0fdf4" : "white",
-            color: e.comment ? "#16a34a" : "#9ca3af", cursor: "pointer", flexShrink: 0,
-          }}>
-          💬
-        </button>
       </div>
-
-      {expanded && (
-        <textarea
-          value={e.comment}
-          onChange={(ev) => onChange({ ...e, comment: ev.target.value })}
-          placeholder="Optional comment..."
-          rows={2}
-          style={{
-            width: "100%", marginTop: 8, padding: "8px 12px",
-            border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 12,
-            resize: "vertical", boxSizing: "border-box", fontFamily: "inherit",
-          }}
-        />
-      )}
     </div>
   );
 }
