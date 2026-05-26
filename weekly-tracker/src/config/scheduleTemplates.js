@@ -84,25 +84,41 @@ const DEMO_FITOUT_TASKS = [
 // Duration scaled by WP weight relative to a 40-week baseline.
 // Each milestone maps to a WP via _wpId for status look-up.
 
+// Construction logic dependency map:
+//  preconstruction  → start
+//  demolition       → after preconstruction (FS)
+//  construction     → after demolition      (FS)
+//  mep              → concurrent with construction (SS — rough-in while walls go up)
+//  finishes         → after construction    (FS)
+//  equipment        → after finishes        (FS)
+//  commissioning    → after mep AND equipment (FS from both)
+//  handover         → after commissioning   (FS)
+const PHASE_DEPS = {
+  preconstruction: [],
+  demolition:      [{ id: "preconstruction", type: "FS", lag: 0 }],
+  construction:    [{ id: "demolition",      type: "FS", lag: 0 }],
+  mep:             [{ id: "construction",    type: "SS", lag: 0 }],
+  finishes:        [{ id: "construction",    type: "FS", lag: 0 }],
+  equipment:       [{ id: "finishes",        type: "FS", lag: 0 }],
+  commissioning:   [{ id: "mep",             type: "FS", lag: 0 }, { id: "equipment", type: "FS", lag: 0 }],
+  handover:        [{ id: "commissioning",   type: "FS", lag: 0 }],
+};
+
 function generatePhaseMilestones() {
-  return WORK_PACKAGES.map((wp, i) => {
-    const durationWeeks = Math.max(1, Math.round(wp.weight * 40));
-    const prevId = i > 0 ? WORK_PACKAGES[i - 1].id : null;
-    return {
-      id:           wp.id,
-      name:         wp.name,
-      duration:     durationWeeks,
-      dependencies: prevId ? [{ id: prevId, type: "FS", lag: 0 }] : [],
-      weight:       Math.round(wp.weight * 100),
-      reportPhase:  wp.id,
-      reportKey:    null,
-      _wpId:        wp.id,
-      status:       "Not Started",
-      progress:     0,
-      actualStart:  null,
-      actualFinish: null,
-    };
-  });
+  return WORK_PACKAGES.map((wp) => ({
+    id:           wp.id,
+    name:         wp.name,
+    duration:     Math.max(1, Math.round(wp.weight * 40)),
+    dependencies: PHASE_DEPS[wp.id] ?? [],
+    weight:       Math.round(wp.weight * 100),
+    reportPhase:  wp.id,
+    reportKey:    null,
+    _wpId:        wp.id,
+    status:       "Not Started",
+    progress:     0,
+    actualStart:  null,
+    actualFinish: null,
+  }));
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────────
