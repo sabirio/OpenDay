@@ -235,7 +235,7 @@ function ProjectDetailDrawer({ row, onClose }) {
   return (
     <>
       <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1000 }}/>
-      <div style={{ position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:1100,maxWidth:"95vw",maxHeight:"90vh",background:"#1e293b",zIndex:1001,overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.7)",borderRadius:16,display:"flex",flexDirection:"column" }}>
+      <div style={{ position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:1650,maxWidth:"98vw",maxHeight:"90vh",background:"#1e293b",zIndex:1001,overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.7)",borderRadius:16,display:"flex",flexDirection:"column" }}>
 
         {/* Header */}
         <div style={{ padding:"18px 22px 14px",borderBottom:"1px solid #334155",borderTop:`4px solid ${color}`,flexShrink:0 }}>

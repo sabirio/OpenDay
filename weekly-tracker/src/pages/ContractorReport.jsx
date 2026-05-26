@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 const constructionItems = [
   "Flooring installation",
@@ -229,10 +229,21 @@ function ContractorReport({ projects, reports, onSaveReport }) {
     .slice()
     .sort((a, b) => defaultPhases.indexOf(a) - defaultPhases.indexOf(b));
 
-  const prevReport = [...(reports.filter((r) => String(r.projectId) === projectId))]
-    .sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt))[0] || null;
+  const prevReport = useMemo(() =>
+    [...(reports.filter((r) => String(r.projectId) === projectId))]
+      .sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt))[0] || null,
+    [reports, projectId]
+  );
 
-  const [form, setForm] = useState(() => makeInitialForm(prevReport));
+  const [form, setForm] = useState(() => makeInitialForm(null));
+
+  const prefillDone = useRef(false);
+  useEffect(() => {
+    if (prevReport && !prefillDone.current) {
+      prefillDone.current = true;
+      setForm(makeInitialForm(prevReport));
+    }
+  }, [prevReport]);
 
   const [validationErrors, setValidationErrors] = useState([]);
   const [submitted, setSubmitted] = useState(false);

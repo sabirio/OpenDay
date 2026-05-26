@@ -154,6 +154,7 @@ function WeeklyReports({ projects, reports }) {
   // Храним только намерение пользователя — реальный выбор выводится ниже
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedReportId, setSelectedReportId] = useState("");
+  const [showMissingModal, setShowMissingModal] = useState(false);
 
   // ── Мемоизированные вычисления ────────────────
 
@@ -326,9 +327,13 @@ function WeeklyReports({ projects, reports }) {
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Avg Progress</div>
                 <span style={{ fontSize: 22, fontWeight: 800, color: "#2563eb", lineHeight: 1 }}>{portfolioKpis.avgProgress}%</span>
               </div>
-              <div>
+              <div
+                onClick={portfolioKpis.missingCount > 0 ? () => setShowMissingModal(true) : undefined}
+                style={{ cursor: portfolioKpis.missingCount > 0 ? "pointer" : "default" }}
+                title={portfolioKpis.missingCount > 0 ? "Click to view missing reports" : undefined}
+              >
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Missing Reports</div>
-                <span style={{ fontSize: 22, fontWeight: 800, color: portfolioKpis.missingCount > 0 ? "#dc2626" : "#22c55e", lineHeight: 1 }}>{portfolioKpis.missingCount}</span>
+                <span style={{ fontSize: 22, fontWeight: 800, color: portfolioKpis.missingCount > 0 ? "#dc2626" : "#22c55e", lineHeight: 1, textDecoration: portfolioKpis.missingCount > 0 ? "underline dotted" : "none" }}>{portfolioKpis.missingCount}</span>
               </div>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Blocked</div>
@@ -342,27 +347,35 @@ function WeeklyReports({ projects, reports }) {
           </div>
         )}
 
-        {/* Missing Reports */}
-        {portfolioKpis.missingCount > 0 && (
-          <div className="dashboard-summary-card" style={{ marginBottom: 20, borderTop: "3px solid #dc2626" }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9", marginBottom: 4 }}>Missing Reports</div>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>Projects with no report submitted or last report older than 7 days</div>
-            <div style={{ overflowX: "auto" }}>
-              <table className="dashboard-table" style={{ minWidth: 600 }}>
-                <thead><tr><th>Project</th><th>Contractor</th><th>Last Report</th><th>Days Since</th><th>PM</th><th>Status</th></tr></thead>
-                <tbody>{portfolioKpis.missing.sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999)).map(({ project, latestReport, daysSinceReport }) => (
-                  <tr key={project.id}>
-                    <td><div style={{ fontWeight: 700, color: "#f1f5f9" }}>{project.storeCode}</div><div style={{ fontSize: 11, color: "#9ca3af" }}>{project.shoppingMallName}</div></td>
-                    <td style={{ fontSize: 12, color: "#e2e8f0" }}>{project.generalContractor || "—"}</td>
-                    <td style={{ fontSize: 12, color: "#94a3b8" }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: "#dc2626", fontWeight: 700 }}>Never</span>}</td>
-                    <td style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>{daysSinceReport !== null ? `${daysSinceReport}d` : "—"}</td>
-                    <td style={{ fontSize: 12, color: "#e2e8f0" }}>{project.projectManager || "—"}</td>
-                    <td>{!latestReport ? <span style={{ fontSize: 11, fontWeight: 700, color: "#fca5a5", padding: "2px 8px", borderRadius: 7, background: "#450a0a", border: "1px solid #7f1d1d" }}>Missing</span> : <span style={{ fontSize: 11, fontWeight: 700, color: "#fcd34d", padding: "2px 8px", borderRadius: 7, background: "#422006", border: "1px solid #b45309" }}>Overdue</span>}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
+        {/* Missing Reports Modal */}
+        {showMissingModal && (
+          <>
+            <div onClick={() => setShowMissingModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000 }} />
+            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 780, maxWidth: "96vw", maxHeight: "85vh", background: "#1e293b", zIndex: 1001, borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column", borderTop: "3px solid #dc2626" }}>
+              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #334155", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#f1f5f9" }}>Missing Reports</div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>Projects with no report submitted or last report older than 7 days</div>
+                </div>
+                <button type="button" onClick={() => setShowMissingModal(false)} style={{ padding: "5px 13px", borderRadius: 8, border: "none", background: "#334155", color: "#f1f5f9", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close ×</button>
+              </div>
+              <div style={{ overflowY: "auto", padding: "16px 24px" }}>
+                <table className="dashboard-table" style={{ width: "100%" }}>
+                  <thead><tr><th>Project</th><th>Contractor</th><th>Last Report</th><th>Days Since</th><th>PM</th><th>Status</th></tr></thead>
+                  <tbody>{portfolioKpis.missing.sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999)).map(({ project, latestReport, daysSinceReport }) => (
+                    <tr key={project.id}>
+                      <td><div style={{ fontWeight: 700, color: "#f1f5f9" }}>{project.storeCode}</div><div style={{ fontSize: 11, color: "#9ca3af" }}>{project.shoppingMallName}</div></td>
+                      <td style={{ fontSize: 12, color: "#e2e8f0" }}>{project.generalContractor || "—"}</td>
+                      <td style={{ fontSize: 12, color: "#94a3b8" }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: "#dc2626", fontWeight: 700 }}>Never</span>}</td>
+                      <td style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>{daysSinceReport !== null ? `${daysSinceReport}d` : "—"}</td>
+                      <td style={{ fontSize: 12, color: "#e2e8f0" }}>{project.projectManager || "—"}</td>
+                      <td>{!latestReport ? <span style={{ fontSize: 11, fontWeight: 700, color: "#fca5a5", padding: "2px 8px", borderRadius: 7, background: "#450a0a", border: "1px solid #7f1d1d" }}>Missing</span> : <span style={{ fontSize: 11, fontWeight: 700, color: "#fcd34d", padding: "2px 8px", borderRadius: 7, background: "#422006", border: "1px solid #b45309" }}>Overdue</span>}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Заглушка когда отчётов нет */}
