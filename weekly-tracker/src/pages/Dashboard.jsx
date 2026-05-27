@@ -287,13 +287,14 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
     return ()=>window.removeEventListener("keydown",h);
   },[onClose]);
 
-  if (!row) return null;
+  const { project, progress, projReports, wpCumulativeStatuses, color } = row || {};
 
-  const { project, progress, projReports, wpCumulativeStatuses, color } = row;
+  const summary = useMemo(()=>{
+    if (!row) return null;
+    return computeProjectSummary(project, projReports, projSiteVisits, progress, wpCumulativeStatuses);
+  }, [row, project, projReports, projSiteVisits, progress, wpCumulativeStatuses]);
 
-  const summary = useMemo(()=>
-    computeProjectSummary(project, projReports, projSiteVisits, progress, wpCumulativeStatuses)
-  , [project, projReports, projSiteVisits, progress, wpCumulativeStatuses]);
+  if (!row || !summary) return null;
 
   const { contractor, pmVisit, risk, opening } = summary;
 
