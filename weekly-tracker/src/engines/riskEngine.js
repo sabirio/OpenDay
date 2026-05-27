@@ -1,4 +1,5 @@
-import { estimateProgressFromStatuses, computeCumulativeStatuses, getStatusScore } from "../reportUtils";
+import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore } from "../reportUtils";
+import { computeProjectProgressFromWP } from "../config/workPackages";
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER } from "../config/riskConfig";
 import { RISK_WEIGHTS } from "../config/riskWeights";
@@ -56,6 +57,11 @@ export function computeTrend(sortedReports) {
   if (sortedReports.length < 2) return { trend: "Insufficient data", icon: "—", color: "#94a3b8", avgDiff: 0 };
   const points = sortedReports.map((_, i) => {
     const slice = sortedReports.slice(0, i + 1);
+    // Use WP cumulative progress for new-format reports; fall back to old format
+    const wpCum = computeWPCumulativeStatuses(slice);
+    if (wpCum?.workPackageStatuses) {
+      return computeProjectProgressFromWP(wpCum.workPackageStatuses);
+    }
     return estimateProgressFromStatuses(computeCumulativeStatuses(slice));
   });
   const recent = points.slice(-Math.min(4, points.length));

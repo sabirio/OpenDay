@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { computeCumulativeStatuses, estimateProgressFromStatuses } from "../reportUtils";
+import { computeCumulativeStatuses, estimateProgressFromStatuses, computeWPCumulativeStatuses } from "../reportUtils";
+import { computeProjectProgressFromWP } from "../config/workPackages";
 import {
   RISK_COLORS, RISK_DIMENSIONS,
   computeHealthScore, computeScheduleDeviation,
@@ -71,7 +72,10 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     const sorted         = [...projReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
     const cumStatuses    = computeCumulativeStatuses(projReports) || {};
     const latestReport   = sorted[sorted.length - 1] || null;
-    const progress       = estimateProgressFromStatuses(cumStatuses);
+    const wpCumStatuses  = computeWPCumulativeStatuses(projReports);
+    const progress       = wpCumStatuses?.workPackageStatuses
+      ? computeProjectProgressFromWP(wpCumStatuses.workPackageStatuses)
+      : estimateProgressFromStatuses(cumStatuses);
     const riskScore      = computeProjectRiskScore(project, projReports, progress, projSiteVisits);
     const schedDev       = computeScheduleDeviation(project, progress);
     const trend          = computeTrend(sorted);
