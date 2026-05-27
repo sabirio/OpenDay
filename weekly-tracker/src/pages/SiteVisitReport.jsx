@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WORK_PACKAGES, WP_STATUS_SCORES, makeEmptyPMWPStatuses } from "../config/workPackages";
 
 const ACCENT = "#0891b2";
@@ -109,35 +109,46 @@ const WP_STATUS_OPTS = [
   { value: "Completed",   label: "Completed",   bg: "#dcfce7",  color: "#16a34a", border: "#86efac" },
 ];
 
-function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
+function PMTaskRow({ taskName, entry, gcEntry, showGcColumn, onChange }) {
   const e = entry || { observedStatus: "" };
   const gcStatus = gcEntry?.status || null;
   const pmStatus = e.observedStatus || null;
-  const result = comparisonResult(pmStatus, gcStatus);
+  const result   = comparisonResult(pmStatus, gcStatus);
+  const isDisc   = result?.type === "discrepancy";
 
   return (
     <div style={{
-      borderBottom: "1px solid #f9fafb", padding: "9px 0",
-      background: result?.type === "discrepancy" ? "#fff8f8" : "transparent",
+      borderBottom: "1px solid #f3f4f6", padding: "9px 0",
+      background: isDisc ? "#fff8f8" : "transparent",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ flex: "1 1 160px", fontSize: 13, color: "#374151", lineHeight: 1.35 }}>{taskName}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
 
-        {/* GC reference badge */}
-        {gcEntry && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 4px", borderRadius: 3, background: ACCENT, color: "white", letterSpacing: "0.02em" }}>GC</span>
-            <span style={{
-              fontSize: 11, padding: "2px 7px", borderRadius: 5, fontWeight: 600,
-              background: gcStatus === "Completed" ? "#dcfce7" : gcStatus === "In Progress" ? "#fef3c7" : gcStatus === "Delayed" ? "#fce7f3" : "#f3f4f6",
-              color: gcStatus === "Completed" ? "#16a34a" : gcStatus === "In Progress" ? "#d97706" : gcStatus === "Delayed" ? "#be185d" : "#6b7280",
-            }}>
-              {gcStatus}
-            </span>
+        {/* Task name */}
+        <span style={{ flex: "1 1 180px", fontSize: 13, color: "#374151", lineHeight: 1.35, minWidth: 0 }}>
+          {taskName}
+        </span>
+
+        {/* GC column — always rendered when showGcColumn, keeps layout stable */}
+        {showGcColumn && (
+          <div style={{ minWidth: 120, flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
+            {gcEntry ? (
+              <>
+                <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 3, background: ACCENT, color: "white", letterSpacing: "0.03em" }}>GC</span>
+                <span style={{
+                  fontSize: 11, padding: "2px 8px", borderRadius: 5, fontWeight: 600, whiteSpace: "nowrap",
+                  background: gcStatus === "Completed" ? "#dcfce7" : gcStatus === "In Progress" ? "#fef3c7" : gcStatus === "Delayed" ? "#fce7f3" : "#f3f4f6",
+                  color:      gcStatus === "Completed" ? "#16a34a" : gcStatus === "In Progress" ? "#d97706" : gcStatus === "Delayed" ? "#be185d" : "#6b7280",
+                }}>
+                  {gcStatus}
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: 11, color: "#d1d5db" }}>—</span>
+            )}
           </div>
         )}
 
-        {/* PM Status buttons */}
+        {/* PM status buttons */}
         <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
           {WP_STATUS_OPTS.map((opt) => {
             const sel = e.observedStatus === opt.value;
@@ -145,11 +156,11 @@ function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
               <button key={opt.value} type="button"
                 onClick={() => onChange({ ...e, observedStatus: opt.value })}
                 style={{
-                  padding: "3px 8px", borderRadius: 6, fontSize: 11,
+                  padding: "4px 9px", borderRadius: 6, fontSize: 11,
                   border: `1px solid ${sel ? opt.border : "#e5e7eb"}`,
                   background: sel ? opt.bg : "white",
                   color: sel ? opt.color : "#9ca3af",
-                  fontWeight: sel ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap",
+                  fontWeight: sel ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap", outline: "none",
                 }}>
                 {opt.label}
               </button>
@@ -157,13 +168,17 @@ function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
           })}
         </div>
 
-        {/* Comparison badge */}
+        {/* Comparison badge — only when both sides have data */}
         {result && result.type !== "not-assessed" && result.type !== "no-gc" && (
-          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5, flexShrink: 0,
-            background: result.bg, color: result.color, border: `1px solid ${result.border}` }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 5, flexShrink: 0,
+            background: result.bg, color: result.color, border: `1px solid ${result.border}`,
+            whiteSpace: "nowrap",
+          }}>
             {result.badge}
           </span>
         )}
+
       </div>
     </div>
   );
@@ -205,6 +220,16 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   const [errors, setErrors]       = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [savedVisit, setSavedVisit] = useState(null);
+
+  // Auto-select latest GC report once reports load from Supabase (async timing fix)
+  useEffect(() => {
+    if (latestReport?.id) {
+      setForm((p) => ({
+        ...p,
+        referenceReportId: p.referenceReportId || String(latestReport.id),
+      }));
+    }
+  }, [latestReport?.id]);
 
   const referenceReport = projectReports.find((r) => String(r.id) === String(form.referenceReportId));
 
@@ -518,14 +543,22 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
 
         {/* 2. Work Package Observation Sections */}
         {WORK_PACKAGES.map((wp) => (
-          <FormSection key={wp.id} title={wp.name} accentColor={wp.color}
-            note="Record actual site observation for each task. GC-reported status shown as reference badge.">
+          <FormSection key={wp.id} title={wp.name} accentColor={wp.color}>
+            {/* Column headers — only when a GC report is selected */}
+            {referenceReport && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 8, marginBottom: 4, borderBottom: "1px solid #f3f4f6" }}>
+                <span style={{ flex: "1 1 180px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d1d5db" }}>Task</span>
+                <span style={{ minWidth: 120, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: ACCENT }}>GC Reported</span>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d1d5db" }}>PM Observed</span>
+              </div>
+            )}
             {wp.tasks.map((task) => (
               <PMTaskRow
                 key={task.name}
                 taskName={task.name}
                 entry={form.pmWorkPackageStatuses?.[wp.id]?.[task.name]}
                 gcEntry={getGCTaskEntry(referenceReport, wp.id, task.name)}
+                showGcColumn={!!referenceReport}
                 onChange={(entry) => updateWPTask(wp.id, task.name, entry)}
               />
             ))}
