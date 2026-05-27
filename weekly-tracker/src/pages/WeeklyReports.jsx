@@ -213,7 +213,7 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, defaultExpanded }) {
   const sc = statusColor(overallStatus);
 
   return (
-    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, borderTop: `3px solid ${wp.color}`, overflow: "hidden" }}>
+    <div data-testid="wp-phase-card" data-wp-id={wp.id} style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, borderTop: `3px solid ${wp.color}`, overflow: "hidden" }}>
       <button type="button" onClick={() => setExpanded((e) => !e)}
         style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "16px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -490,7 +490,7 @@ function WeeklyReports({ projects, reports }) {
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <div className="dashboard-filter-group">
               <label>Project</label>
-              <select value={selectedProjectId} onChange={(e) => { setSelectedProjectId(e.target.value); setSelectedReportId(""); }}>
+              <select data-testid="project-select" value={selectedProjectId} onChange={(e) => { setSelectedProjectId(e.target.value); setSelectedReportId(""); }}>
                 {projects.map((p) => (
                   <option key={p.id} value={String(p.id)}>{p.storeCode} — {p.shoppingMallName}</option>
                 ))}
@@ -498,7 +498,7 @@ function WeeklyReports({ projects, reports }) {
             </div>
             <div className="dashboard-filter-group">
               <label>Report date</label>
-              <select value={selectedReportId} onChange={(e) => setSelectedReportId(e.target.value)} disabled={!projectReports.length}>
+              <select data-testid="report-date-select" value={selectedReportId} onChange={(e) => setSelectedReportId(e.target.value)} disabled={!projectReports.length}>
                 {projectReports.length === 0
                   ? <option value="">No reports yet</option>
                   : projectReports.map((r) => (

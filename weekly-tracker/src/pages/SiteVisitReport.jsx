@@ -111,12 +111,12 @@ const WP_STATUS_OPTS = [
   { value: "Completed",      label: "Completed",      bg: "#dcfce7", color: "#16a34a", border: "#86efac", gcBg: "#f0fdf4", gcColor: "#16a34a", gcBorder: "#bbf7d0" },
 ];
 
-function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
+function PMTaskRow({ wpId, taskName, entry, gcEntry, onChange }) {
   const e        = entry || { observedStatus: "" };
   const gcStatus = gcEntry?.status || null;
 
   return (
-    <div style={{ borderBottom: "1px solid #f3f4f6", padding: "9px 0" }}>
+    <div data-testid="pm-task-row" data-wp-id={wpId} data-task-name={taskName} style={{ borderBottom: "1px solid #f3f4f6", padding: "9px 0" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
 
         {/* Task name */}
@@ -131,6 +131,7 @@ function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
             const isGC = gcStatus === opt.value && !isPM;
             return (
               <button key={opt.value} type="button"
+                data-testid={`pm-status-btn-${opt.value}`}
                 onClick={() => onChange({ ...e, observedStatus: opt.value })}
                 style={{
                   position: "relative",
@@ -320,12 +321,12 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
               {[
-                { label: "Items Assessed",  value: totalItems,     color: ACCENT,    bg: "#e0f2fe" },
-                { label: "Matches",          value: matches,        color: "#166534", bg: "#dcfce7" },
-                { label: "Discrepancies",    value: discrepancies,  color: discrepancies > 0 ? "#991b1b" : "#166534", bg: discrepancies > 0 ? "#fee2e2" : "#dcfce7" },
-                { label: "PM Ahead",         value: pmHigher,       color: "#92400e", bg: "#fef3c7" },
-              ].map(({ label, value, color, bg }) => (
-                <div key={label} style={{ textAlign: "center", background: bg, borderRadius: 10, padding: "14px 8px" }}>
+                { label: "Items Assessed",  value: totalItems,     color: ACCENT,    bg: "#e0f2fe", testId: "summary-items-assessed" },
+                { label: "Matches",          value: matches,        color: "#166534", bg: "#dcfce7", testId: "summary-matches" },
+                { label: "Discrepancies",    value: discrepancies,  color: discrepancies > 0 ? "#991b1b" : "#166534", bg: discrepancies > 0 ? "#fee2e2" : "#dcfce7", testId: "summary-discrepancies" },
+                { label: "PM Ahead",         value: pmHigher,       color: "#92400e", bg: "#fef3c7", testId: "summary-pm-ahead" },
+              ].map(({ label, value, color, bg, testId }) => (
+                <div key={label} data-testid={testId} style={{ textAlign: "center", background: bg, borderRadius: 10, padding: "14px 8px" }}>
                   <div style={{ fontSize: 30, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
                   <div style={{ fontSize: 10, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 5 }}>{label}</div>
                 </div>
@@ -334,7 +335,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
           </div>
 
           {/* Comparison by WP */}
-          <div style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: "22px 24px", marginBottom: 14 }}>
+          <div data-testid="comparison-table" style={{ background: "white", borderRadius: 14, border: "1px solid #e5e7eb", padding: "22px 24px", marginBottom: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 }}>Comparison by Work Package</div>
             <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 18 }}>
               {refRep
@@ -346,7 +347,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
             {wpComparisons.map(({ wp, tasks }) => {
               const wpDisc = tasks.filter((t) => t.result?.type === "discrepancy").length;
               return (
-                <div key={wp.id} style={{ marginBottom: 20 }}>
+                <div key={wp.id} data-testid={`comparison-row-${wp.id}`} style={{ marginBottom: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: wp.color }}>{wp.name}</div>
                     {wpDisc > 0 && (
@@ -435,7 +436,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   // ── FORM VIEW ─────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f0f7fa", padding: "36px 20px 80px" }}>
+    <div data-testid="pm-site-visit-form" style={{ minHeight: "100vh", background: "#f0f7fa", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* Header card */}
@@ -535,6 +536,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
                 {wp.tasks.map((task) => (
               <PMTaskRow
                 key={task.name}
+                wpId={wp.id}
                 taskName={task.name}
                 entry={form.pmWorkPackageStatuses?.[wp.id]?.[task.name]}
                 gcEntry={getGCTaskEntry(referenceReport, wp.id, task.name)}
@@ -560,7 +562,9 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
               ].map(({ label, bg, color, border }) => {
                 const sel = form.pmScheduleAssessment === label;
                 return (
-                  <button key={label} type="button" onClick={() => set("pmScheduleAssessment", label)} style={{
+                  <button key={label} type="button"
+                    data-testid={`pm-schedule-btn-${label}`}
+                    onClick={() => set("pmScheduleAssessment", label)} style={{
                     padding: "9px 24px", borderRadius: 10,
                     border: `2px solid ${sel ? border : "#e5e7eb"}`,
                     background: sel ? bg : "white",
@@ -604,6 +608,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
         <FormSection title="Declaration" accentColor="#475569">
           <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer" }}>
             <div
+              data-testid="pm-declaration-checkbox"
               onClick={() => set("declarationConfirmed", !form.declarationConfirmed)}
               style={{
                 width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
@@ -621,7 +626,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
         </FormSection>
 
         {/* Submit */}
-        <button type="button" onClick={submit}
+        <button type="button" data-testid="save-site-visit-report" onClick={submit}
           style={{ width: "100%", padding: "16px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, #06b6d4 100%)`, color: "white", fontSize: 16, fontWeight: 700, cursor: "pointer", letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(8,145,178,0.35)" }}>
           Submit Site Visit Report
         </button>

@@ -168,7 +168,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map(level => {
             const c = RISK_COLORS[level];
             return (
-              <div key={level} style={{ textAlign: "center", background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
+              <div key={level} data-testid={`risk-kpi-${level.toLowerCase()}`} style={{ textAlign: "center", background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
                 <div style={{ fontSize: 24, fontWeight: 800, color: c.text, lineHeight: 1 }}>{summaryStats[level]}</div>
                 <div style={{ fontSize: 9, fontWeight: 700, color: c.text, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>{level}</div>
               </div>
@@ -220,7 +220,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       {/* ── Tab navigation ── */}
       <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "#1e293b", borderRadius: 12, padding: 4, border: "1px solid #334155", width: "fit-content" }}>
         {VIEWS.map(({ id, label }) => (
-          <button key={id} type="button" onClick={() => setActiveView(id)} style={{
+          <button key={id} type="button" data-testid="risk-view-tab" data-view-id={id} onClick={() => setActiveView(id)} style={{
             padding: "8px 18px", borderRadius: 9, border: "none",
             background: activeView === id ? "#f1f5f9" : "transparent",
             color: activeView === id ? "#0f172a" : "#94a3b8",

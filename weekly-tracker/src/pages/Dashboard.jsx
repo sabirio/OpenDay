@@ -179,7 +179,7 @@ function wpStyle(status) {
 
 function KpiCard({ label, value, sub, color="#4ade80" }) {
   return (
-    <div style={{ background:"#1e293b", borderRadius:12, border:"1px solid #334155", padding:"12px 16px", flex:1, minWidth:110, boxShadow:"0 1px 3px rgba(0,0,0,0.2)", borderTop:`3px solid ${color}` }}>
+    <div data-testid="kpi-card" style={{ background:"#1e293b", borderRadius:12, border:"1px solid #334155", padding:"12px 16px", flex:1, minWidth:110, boxShadow:"0 1px 3px rgba(0,0,0,0.2)", borderTop:`3px solid ${color}` }}>
       <div style={{ fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", color:"#94a3b8", marginBottom:7 }}>{label}</div>
       <div style={{ fontSize:28, fontWeight:800, color, lineHeight:1 }}>{value}</div>
       {sub && <div style={{ fontSize:11, color:"#64748b", marginTop:5 }}>{sub}</div>}
@@ -829,7 +829,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
                 const progColor=progress>=75?"#22c55e":progress>=40?"#3b82f6":"#f59e0b";
                 const dToC=daysToOpening===null?"#94a3b8":daysToOpening<0?"#dc2626":daysToOpening<30?"#dc2626":daysToOpening<90?"#d97706":"#16a34a";
                 return (
-                  <tr key={project.id} onClick={()=>sel(String(project.id))} style={{ cursor:"pointer",background:isOpen?"#0d2d1e":undefined,transition:"background 0.15s" }}>
+                  <tr key={project.id} data-testid="dashboard-project-row" data-project-id={String(project.id)} onClick={()=>sel(String(project.id))} style={{ cursor:"pointer",background:isOpen?"#0d2d1e":undefined,transition:"background 0.15s" }}>
                     <td>
                       <div style={{ display:"flex",alignItems:"center",gap:7 }}>
                         <div style={{ width:3,height:18,borderRadius:2,background:color,flexShrink:0 }}/>

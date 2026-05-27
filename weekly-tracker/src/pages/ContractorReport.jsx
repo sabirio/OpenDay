@@ -84,7 +84,7 @@ const WP_STATUS_OPTS = [
 
 const STATUS_SCORE = { "Not Applicable": null, "Not Started": 0, "In Progress": 0.5, "Completed": 1, "Delayed": 0.3 };
 
-function WPTaskRow({ taskName, entry, prevEntry, onChange }) {
+function WPTaskRow({ wpId, taskName, entry, prevEntry, onChange }) {
   const e          = entry || { status: "Not Started" };
   const prevStatus = prevEntry?.status ?? null;
   const curStatus  = e.status;
@@ -95,7 +95,7 @@ function WPTaskRow({ taskName, entry, prevEntry, onChange }) {
   const regressed  = changed && prevScore !== null && curScore !== null && curScore < prevScore;
 
   return (
-    <div style={{ borderBottom: "1px solid #f3f4f6", padding: "10px 0" }}>
+    <div data-testid="task-row" data-wp-id={wpId} data-task-name={taskName} style={{ borderBottom: "1px solid #f3f4f6", padding: "10px 0" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
 
         {/* Task name */}
@@ -129,6 +129,7 @@ function WPTaskRow({ taskName, entry, prevEntry, onChange }) {
             const sel = curStatus === opt.value;
             return (
               <button key={opt.value} type="button"
+                data-testid={`status-btn-${opt.value}`}
                 onClick={() => onChange({ ...e, status: opt.value })}
                 style={{
                   padding: "4px 9px", borderRadius: 6, fontSize: 11,
@@ -180,6 +181,7 @@ function WPSection({ wp, pkgStatuses, prevPkgStatuses, prevDate, onChange }) {
       {wp.tasks.map((task) => (
         <WPTaskRow
           key={task.name}
+          wpId={wp.id}
           taskName={task.name}
           entry={pkgStatuses?.[task.name]}
           prevEntry={prevPkgStatuses?.[task.name] ?? null}
@@ -190,7 +192,7 @@ function WPSection({ wp, pkgStatuses, prevPkgStatuses, prevDate, onChange }) {
   );
 }
 
-function ToggleGroup({ label, options, value, onChange, colorMap }) {
+function ToggleGroup({ name, label, options, value, onChange, colorMap }) {
   return (
     <div style={{ marginBottom: 20 }}>
       {label && <div style={{ fontSize: 13, color: "#374151", fontWeight: 500, marginBottom: 10 }}>{label}</div>}
@@ -199,7 +201,9 @@ function ToggleGroup({ label, options, value, onChange, colorMap }) {
           const sel = value === opt;
           const c = colorMap?.[opt] || {};
           return (
-            <button key={opt} type="button" onClick={() => onChange(opt)} style={{
+            <button key={opt} type="button"
+              data-testid={name ? `toggle-${name}-${opt}` : undefined}
+              onClick={() => onChange(opt)} style={{
               padding: "9px 24px", borderRadius: 10,
               border: `2px solid ${sel ? (c.border || "#2f855a") : "#e5e7eb"}`,
               background: sel ? (c.bg || "#dcfce7") : "white",
@@ -519,7 +523,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
   const activePackages = (form.currentPackages || []).map((id) => WORK_PACKAGES.find((wp) => wp.id === id)).filter(Boolean);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f0f7f2", padding: "36px 20px 80px" }}>
+    <div data-testid="contractor-report-form" style={{ minHeight: "100vh", background: "#f0f7f2", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
 
         {/* ── Header card ── */}
@@ -631,6 +635,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 8 }}>Reporting Date</div>
             <input
               type="date"
+              data-testid="reporting-date"
               value={form.reportingDate}
               onChange={(e) => updateField("reportingDate", e.target.value)}
               style={{ height: 42, padding: "0 14px", border: "1px solid #d1d5db", borderRadius: 10, fontSize: 14, color: "#1f2937", background: "white", outline: "none", width: 200 }}
@@ -644,6 +649,8 @@ function ContractorReport({ projects, reports, onSaveReport }) {
                 const sel = (form.currentPackages || []).includes(wp.id);
                 return (
                   <button key={wp.id} type="button"
+                    data-testid="wp-toggle"
+                    data-wp-id={wp.id}
                     onClick={() => togglePackage(wp.id)}
                     style={{
                       padding: "12px 14px", borderRadius: 12, textAlign: "left",
@@ -677,6 +684,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
         {/* ── 3. Schedule Status ── */}
         <FormSection title="Project Schedule Status" accentColor="#475569">
           <ToggleGroup
+            name="schedule-status"
             label="Is the project on track vs the agreed schedule?"
             options={["On Track", "At Risk", "Delayed", "Critical"]}
             value={form.projectScheduleStatus}
@@ -753,6 +761,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
         {/* ── 5. Client Support ── */}
         <FormSection title="Client Support Required" accentColor="#2563eb">
           <ToggleGroup
+            name="support-required"
             label="Is any support required from the Client Project Manager?"
             options={["No", "Yes"]}
             value={form.supportRequired}
@@ -799,6 +808,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
         {/* ── 6. Additional Works ── */}
         <FormSection title="Additional Works" accentColor="#ea580c">
           <ToggleGroup
+            name="additional-works"
             label="Are there any additional works with potential cost impact?"
             options={["No", "Yes"]}
             value={form.additionalWorks}
@@ -846,6 +856,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
             <TextAreaField label="Top 3 Activities — Week +2" value={form.weekAfterTop3} onChange={(v) => updateField("weekAfterTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
           </div>
           <ToggleGroup
+            name="activities-blocked"
             label="Any risks blocking the above activities?"
             options={["No", "Yes"]}
             value={form.activitiesBlocked}
@@ -892,6 +903,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
 
           <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer" }}>
             <div
+              data-testid="declaration-checkbox"
               onClick={() => updateField("declarationConfirmed", !form.declarationConfirmed)}
               style={{
                 width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
@@ -911,6 +923,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
         {/* ── Submit ── */}
         <button
           type="button"
+          data-testid="save-contractor-report"
           onClick={saveReport}
           style={{
             width: "100%", padding: "16px", borderRadius: 12, border: "none",
