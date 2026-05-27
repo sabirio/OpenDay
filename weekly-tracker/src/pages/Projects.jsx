@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { formatDate } from "../reportUtils";
 import { supabase } from "../lib/supabase";
-import { GANTT_TEMPLATES } from "../config/scheduleTemplates";
-
 const emptyProject = {
   storeCode: "",
   shoppingMallName: "",
@@ -24,7 +22,6 @@ const emptyProject = {
   contractorEmail: "",
   projectType: "New Opening",
   projectStatus: "Active",
-  ganttTemplate: "fitout",
   phases: [
     "Demolition works",
     "Construction works",
@@ -769,25 +766,6 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                     </div>
                   </Field>
                 </FieldRow>
-                <div style={{ marginTop: 14 }}>
-                  <Field label="Schedule Template">
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {Object.values(GANTT_TEMPLATES).map(({ id, label, description }) => (
-                        <button key={id} type="button"
-                          onClick={() => setNewProject((p) => ({ ...p, ganttTemplate: id }))}
-                          style={{
-                            flex: 1, padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease", textAlign: "left",
-                            border: `1.5px solid ${newProject.ganttTemplate === id ? "#7c3aed" : "#334155"}`,
-                            background: newProject.ganttTemplate === id ? "#2e1065" : "#0f172a",
-                            color: newProject.ganttTemplate === id ? "#c4b5fd" : "#e2e8f0",
-                          }}>
-                          <div>{label}</div>
-                          <div style={{ fontSize: 11, fontWeight: 400, color: newProject.ganttTemplate === id ? "#a78bfa" : "#64748b", marginTop: 2 }}>{description}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                </div>
               </FormSection>
 
               {/* Actions — Delete on left, Cancel + Save on right */}

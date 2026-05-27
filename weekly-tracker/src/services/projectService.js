@@ -23,7 +23,6 @@ function fromDB(row) {
     contractorEmail: row.contractor_email,
     projectType: row.project_type,
     projectStatus: row.project_status,
-    ganttTemplate: row.gantt_template || 'fitout',
     phases: row.phases || [],
   };
 }

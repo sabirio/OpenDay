@@ -1,5 +1,5 @@
 // Central Work Packages configuration — single source of truth for all progress,
-// Gantt, contractor reports, PM site visits, and risk scoring.
+// contractor reports, PM site visits, and risk scoring.
 
 export const WORK_PACKAGES = [
   {
@@ -276,73 +276,6 @@ export function mergeWPStatuses(statusSnapshots) {
   }
 
   return merged;
-}
-
-// ─── Gantt generator ──────────────────────────────────────────────────────────
-
-/**
- * Generate a flat list of Gantt tasks from WORK_PACKAGES with default linear FS dependencies.
- * Returns array compatible with scheduleTemplates task shape.
- */
-export function generateGanttTasksFromWP(projectDurationDays = 180) {
-  const tasks = [];
-  const packageDuration = Math.floor(projectDurationDays / WORK_PACKAGES.length);
-
-  let offset = 0;
-  let prevPackageLastId = null;
-
-  for (const wp of WORK_PACKAGES) {
-    const taskDuration = Math.max(
-      3,
-      Math.floor((packageDuration * wp.weight * WORK_PACKAGES.length) / 1)
-    );
-    const perTask = Math.max(2, Math.floor(taskDuration / wp.tasks.length));
-    let prevTaskId = null;
-
-    for (let i = 0; i < wp.tasks.length; i++) {
-      const task = wp.tasks[i];
-      const taskId = `${wp.id}_${i}`;
-
-      const deps = [];
-      if (i === 0 && prevPackageLastId) {
-        deps.push({ id: prevPackageLastId, type: 'FS', lag: 0 });
-      } else if (i > 0 && prevTaskId) {
-        deps.push({ id: prevTaskId, type: 'FS', lag: 0 });
-      }
-
-      tasks.push({
-        id: taskId,
-        name: task.name,
-        duration: perTask,
-        dependencies: deps,
-        reportPhase: wp.id,
-        reportKey: task.name,
-        isMilestone: false,
-        scheduleMode: 'AUTO',
-        _wpId: wp.id,
-        _wpColor: wp.color,
-      });
-
-      prevTaskId = taskId;
-    }
-
-    prevPackageLastId = `${wp.id}_${wp.tasks.length - 1}`;
-    offset += taskDuration;
-  }
-
-  // Add opening milestone at end
-  tasks.push({
-    id: 'opening_milestone',
-    name: 'Store Opening',
-    duration: 0,
-    dependencies: [{ id: prevPackageLastId, type: 'FS', lag: 0 }],
-    isMilestone: true,
-    scheduleMode: 'AUTO',
-    _wpId: null,
-    _wpColor: '#2563eb',
-  });
-
-  return tasks;
 }
 
 // ─── Discrepancy helpers (PM vs GC) ──────────────────────────────────────────
