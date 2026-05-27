@@ -56,6 +56,48 @@ function svCompare(pm, gc) {
   return       { type:"pm-higher",  badge:"↑ PM ahead",    color:"#fcd34d", bg:"#422006", border:"#b45309" };
 }
 
+// Mapping from old GC report field names → new WP task names (for GC old-format fallback)
+const SV_OLD_TO_WP = {
+  "Flooring installation":                                   { wpId:"finishes",      task:"Floor finishes" },
+  "Drywall partition installation":                          { wpId:"construction",  task:"Partitions & drywall" },
+  "Electrical systems installation":                        { wpId:"mep",           task:"Electrical conduits & cabling" },
+  "HVAC systems installation":                              { wpId:"mep",           task:"HVAC ducts" },
+  "Fire safety systems installation":                       { wpId:"mep",           task:"Fire suppression pipes" },
+  "Low current systems installation":                       { wpId:"mep",           task:"Low current systems" },
+  "Ceiling installation":                                    { wpId:"construction",  task:"Ceiling structures" },
+  "Lighting installation":                                   { wpId:"finishes",      task:"Lighting fixtures" },
+  "Furniture installation":                                  { wpId:"equipment",     task:"Furniture & loose items" },
+  "Sprinkler system testing and commissioning":             { wpId:"commissioning", task:"Sprinkler testing & commissioning" },
+  "Smoke detection system testing and commissioning":       { wpId:"commissioning", task:"Fire alarm testing" },
+  "Emergency announcement system testing and commissioning":{ wpId:"commissioning", task:"Integrated systems testing" },
+  "HVAC system testing and commissioning":                  { wpId:"commissioning", task:"HVAC balancing & commissioning" },
+  "Electrical system testing and commissioning":            { wpId:"commissioning", task:"Electrical testing & certification" },
+  "Low current testing and commissioning":                  { wpId:"commissioning", task:"Security & access control testing" },
+  "Staff training":                                          { wpId:"handover",      task:"Staff training" },
+  "Manuals, certificates, test reports":                     { wpId:"handover",      task:"O&M manuals" },
+  "Final cleaning":                                          { wpId:"handover",      task:"Final cleaning" },
+  "Snag list resolution":                                    { wpId:"handover",      task:"Defects & snagging resolution" },
+};
+
+// Get the GC-reported status for a WP task — handles both new (workPackageStatuses) and old format
+function getGCStatusForTask(gcReport, wpId, taskName) {
+  if (!gcReport) return null;
+  // New WP format
+  const newEntry = gcReport.workPackageStatuses?.[wpId]?.[taskName];
+  if (newEntry != null) return newEntry.status || null;
+  // Old format reverse-lookup
+  for (const [oldKey, mapping] of Object.entries(SV_OLD_TO_WP)) {
+    if (mapping.wpId === wpId && mapping.task === taskName) {
+      const s = gcReport.constructionStatuses?.[oldKey]
+             || gcReport.testingStatuses?.[oldKey]
+             || gcReport.handoverStatuses?.[oldKey]
+             || null;
+      return s;
+    }
+  }
+  return null;
+}
+
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 
 function computePhaseCompletions(statuses) {
@@ -632,23 +674,45 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     return siteVisits.map(visit=>{
       const project=projects.find(p=>String(p.id)===String(visit.projectId));
       const projectReports=reports.filter(r=>String(r.projectId)===String(visit.projectId));
-      const gcReport=projectReports.sort((a,b)=>new Date(b.reportingDate||b.submittedAt)-new Date(a.reportingDate||a.submittedAt))[0]||null;
+      const sortedReports=[...projectReports].sort((a,b)=>new Date(b.reportingDate||b.submittedAt)-new Date(a.reportingDate||a.submittedAt));
+      // Prefer the GC report the PM explicitly referenced; fall back to latest
+      const gcReport=(visit.referenceReportId
+        ? projectReports.find(r=>String(r.id)===String(visit.referenceReportId))
+        : null) || sortedReports[0] || null;
+
       const items=[];
-      const demoResult=svCompare(visit.demolitionStatus,gcReport?.demolitionStatus);
-      if (visit.demolitionStatus||gcReport?.demolitionStatus)
-        items.push({phase:"Demolition",label:"Demolition",pm:visit.demolitionStatus,gc:gcReport?.demolitionStatus,result:demoResult});
-      CONSTRUCTION_ITEMS.forEach(key=>{
-        const pm=visit.constructionStatuses?.[key],gc=gcReport?.constructionStatuses?.[key];
-        if (pm||gc) items.push({phase:"Construction",label:key,pm,gc,result:svCompare(pm,gc)});
-      });
-      TESTING_ITEMS.forEach(key=>{
-        const pm=visit.testingStatuses?.[key],gc=gcReport?.testingStatuses?.[key];
-        if (pm||gc) items.push({phase:"Testing",label:key,pm,gc,result:svCompare(pm,gc)});
-      });
-      HANDOVER_ITEMS.forEach(key=>{
-        const pm=visit.handoverStatuses?.[key],gc=gcReport?.handoverStatuses?.[key];
-        if (pm||gc) items.push({phase:"Handover",label:key,pm,gc,result:svCompare(pm,gc)});
-      });
+
+      if (visit.pmWorkPackageStatuses) {
+        // New WP format — iterate all work packages
+        for (const wp of WORK_PACKAGES) {
+          for (const task of wp.tasks) {
+            const pmEntry=visit.pmWorkPackageStatuses[wp.id]?.[task.name];
+            const pmStatus=pmEntry?.observedStatus||null;
+            const gcStatus=getGCStatusForTask(gcReport,wp.id,task.name);
+            if (pmStatus||gcStatus) {
+              items.push({phase:wp.name,label:task.name,pm:pmStatus,gc:gcStatus,result:svCompare(pmStatus,gcStatus)});
+            }
+          }
+        }
+      } else {
+        // Old format fallback
+        const demoResult=svCompare(visit.demolitionStatus,gcReport?.demolitionStatus);
+        if (visit.demolitionStatus||gcReport?.demolitionStatus)
+          items.push({phase:"Demolition",label:"Demolition",pm:visit.demolitionStatus,gc:gcReport?.demolitionStatus,result:demoResult});
+        CONSTRUCTION_ITEMS.forEach(key=>{
+          const pm=visit.constructionStatuses?.[key],gc=gcReport?.constructionStatuses?.[key];
+          if (pm||gc) items.push({phase:"Construction",label:key,pm,gc,result:svCompare(pm,gc)});
+        });
+        TESTING_ITEMS.forEach(key=>{
+          const pm=visit.testingStatuses?.[key],gc=gcReport?.testingStatuses?.[key];
+          if (pm||gc) items.push({phase:"Testing",label:key,pm,gc,result:svCompare(pm,gc)});
+        });
+        HANDOVER_ITEMS.forEach(key=>{
+          const pm=visit.handoverStatuses?.[key],gc=gcReport?.handoverStatuses?.[key];
+          if (pm||gc) items.push({phase:"Handover",label:key,pm,gc,result:svCompare(pm,gc)});
+        });
+      }
+
       const assessed=items.filter(i=>i.result&&i.result.type!=="not-assessed"&&i.result.type!=="no-gc");
       const matches=assessed.filter(i=>i.result?.type==="match").length;
       const discrepancies=assessed.filter(i=>i.result?.type==="discrepancy").length;
@@ -1058,8 +1122,8 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
                   const toggleId=visit.id||visit.submittedAt;
                   const isExpanded=expandedVisitId===toggleId;
                   const matchColor=matchRate===null?"#94a3b8":matchRate>=80?"#22c55e":matchRate>=60?"#d97706":"#dc2626";
-                  const phases=["Demolition","Construction","Testing","Handover"];
-                  const byPhase=phases.map(ph=>({phase:ph,items:items.filter(i=>i.phase===ph)})).filter(g=>g.items.length>0);
+                  const phaseOrder=[...new Set(items.map(i=>i.phase))];
+                  const byPhase=phaseOrder.map(ph=>({phase:ph,items:items.filter(i=>i.phase===ph)})).filter(g=>g.items.length>0);
                   return (
                     <div key={toggleId} style={{ border:"1px solid #334155",borderRadius:10,overflow:"hidden" }}>
                       {/* Summary row */}
