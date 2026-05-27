@@ -153,13 +153,13 @@ function LineChart({ points=[], width=480, height=120, color="#2f855a" }) {
   const yT=[0,50,100]; const step=Math.max(1,Math.floor(valid.length/4));
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ display:"block", overflow:"visible" }}>
-      {yT.map(v=><line key={v} x1={pad.left} y1={sy(v)} x2={pad.left+W} y2={sy(v)} stroke="#334155" strokeWidth={1}/>)}
-      {yT.map(v=><text key={v} x={pad.left-5} y={sy(v)+4} textAnchor="end" fontSize={9} fill="#9ca3af">{v}%</text>)}
-      <polygon points={`${sx(xs[0])},${sy(0)} ${poly} ${sx(xs[xs.length-1])},${sy(0)}`} fill={color+"22"}/>
-      <polyline points={poly} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round"/>
-      {valid.map((p,i)=><circle key={i} cx={sx(new Date(p.date).getTime())} cy={sy(p.value)} r={3} fill="#1e293b" stroke={color} strokeWidth={2}/>)}
+      {yT.map(v=><line key={v} x1={pad.left} y1={sy(v)} x2={pad.left+W} y2={sy(v)} stroke="#334155" strokeWidth={0.5}/>)}
+      {yT.map(v=><text key={v} x={pad.left-5} y={sy(v)+4} textAnchor="end" fontSize={10} fill="#9ca3af">{v}%</text>)}
+      <polygon points={`${sx(xs[0])},${sy(0)} ${poly} ${sx(xs[xs.length-1])},${sy(0)}`} fill={color+"18"}/>
+      <polyline points={poly} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round"/>
+      {valid.map((p,i)=><circle key={i} cx={sx(new Date(p.date).getTime())} cy={sy(p.value)} r={2} fill="#1e293b" stroke={color} strokeWidth={1.5}/>)}
       {valid.filter((_,i)=>i%step===0||i===valid.length-1).map((p,i)=>
-        <text key={i} x={sx(new Date(p.date).getTime())} y={height-4} textAnchor="middle" fontSize={9} fill="#9ca3af">
+        <text key={i} x={sx(new Date(p.date).getTime())} y={height-4} textAnchor="middle" fontSize={10} fill="#9ca3af">
           {new Date(p.date).toLocaleDateString("en-GB",{day:"2-digit",month:"short"})}
         </text>
       )}
@@ -222,7 +222,7 @@ function ProjectDetailDrawer({ row, onClose }) {
 
   if (!row) return null;
 
-  const {project,latestReport,cumulativeStatuses,progress,projReports,sorted,color,progressPoints} = row;
+  const {project,latestReport,cumulativeStatuses,wpCumulativeStatuses,progress,projReports,sorted,color,progressPoints} = row;
   const phaseCompletions = computePhaseCompletions(cumulativeStatuses);
   const now = new Date();
   const daysToOpening = project.targetOpeningDate ? Math.ceil((new Date(project.targetOpeningDate)-now)/86400000) : null;
@@ -302,22 +302,48 @@ function ProjectDetailDrawer({ row, onClose }) {
           </div>
 
           {/* Phase completion */}
-          {phaseCompletions&&(
-            <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:9 }}>Phase Completion</div>
-              {phaseCompletions.map(({label, pct, color:pc})=>(
-                <div key={label} style={{ marginBottom:9 }}>
-                  <div style={{ display:"flex",justifyContent:"space-between",marginBottom:3 }}>
-                    <span style={{ fontSize:12,color:"#cbd5e1" }}>{label}</span>
-                    <span style={{ fontSize:12,fontWeight:700,color:pct!==null?pc:"#64748b" }}>{pct!==null?`${pct}%`:"No data"}</span>
-                  </div>
-                  <div style={{ background:"#334155",borderRadius:4,height:6,overflow:"hidden" }}>
-                    <div style={{ width:`${pct??0}%`,height:"100%",background:pc,borderRadius:4,transition:"width 0.3s ease" }}/>
-                  </div>
+          {(()=>{
+            if (wpCumulativeStatuses?.workPackageStatuses) {
+              return (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:9 }}>Phase Completion</div>
+                  {WORK_PACKAGES.map(wp=>{
+                    const pct=computePackageProgress(wpCumulativeStatuses.workPackageStatuses, wp.id);
+                    return (
+                      <div key={wp.id} style={{ marginBottom:9 }}>
+                        <div style={{ display:"flex",justifyContent:"space-between",marginBottom:3 }}>
+                          <span style={{ fontSize:12,color:"#cbd5e1" }}>{wp.name}</span>
+                          <span style={{ fontSize:12,fontWeight:700,color:pct>0?wp.color:"#64748b" }}>{pct}%</span>
+                        </div>
+                        <div style={{ background:"#334155",borderRadius:4,height:6,overflow:"hidden" }}>
+                          <div style={{ width:`${pct}%`,height:"100%",background:wp.color,borderRadius:4,transition:"width 0.3s ease" }}/>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            }
+            if (phaseCompletions) {
+              return (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:9 }}>Phase Completion</div>
+                  {phaseCompletions.map(({label, pct, color:pc})=>(
+                    <div key={label} style={{ marginBottom:9 }}>
+                      <div style={{ display:"flex",justifyContent:"space-between",marginBottom:3 }}>
+                        <span style={{ fontSize:12,color:"#cbd5e1" }}>{label}</span>
+                        <span style={{ fontSize:12,fontWeight:700,color:pct!==null?pc:"#64748b" }}>{pct!==null?`${pct}%`:"No data"}</span>
+                      </div>
+                      <div style={{ background:"#334155",borderRadius:4,height:6,overflow:"hidden" }}>
+                        <div style={{ width:`${pct??0}%`,height:"100%",background:pc,borderRadius:4,transition:"width 0.3s ease" }}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {/* Latest report */}
           {latestReport?(
