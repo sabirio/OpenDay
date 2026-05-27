@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:demo-seed": "playwright test tests/e2e/22-persistent-demo-scenario.spec.js --headed"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
