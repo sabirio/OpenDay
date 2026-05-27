@@ -4,7 +4,7 @@ import {
   formatDate, getStatusScore, estimateProgressFromStatuses, computeCumulativeStatuses,
   computeWPCumulativeStatuses, estimateProgressAuto,
 } from "../reportUtils";
-import { WORK_PACKAGES, computePackageProgress } from "../config/workPackages";
+import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from "../config/workPackages";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,11 @@ function svCompare(pm, gc) {
   if (!pm && !gc) return null;
   if (!pm) return { type:"not-assessed", badge:"Not assessed", color:"#94a3b8", bg:"#1e293b", border:"#334155" };
   if (!gc) return { type:"no-gc", badge:"No GC data", color:"#94a3b8", bg:"#0f172a", border:"#334155" };
-  const ps=getStatusScore(pm), gs=getStatusScore(gc);
+  // WP_STATUS_SCORES has exact keys — avoids "Not Started".includes("started") false-positive in getStatusScore
+  const psExact=WP_STATUS_SCORES[pm], gsExact=WP_STATUS_SCORES[gc];
+  if (psExact===null||gsExact===null) return { type:"no-gc", badge:"N/A", color:"#94a3b8", bg:"#0f172a", border:"#334155" };
+  const ps=psExact!==undefined?psExact:getStatusScore(pm);
+  const gs=gsExact!==undefined?gsExact:getStatusScore(gc);
   if (ps===gs) return { type:"match",       badge:"✓ Match",       color:"#86efac", bg:"#052e16", border:"#166534" };
   if (ps<gs)   return { type:"discrepancy", badge:"⚠ Discrepancy", color:"#fca5a5", bg:"#450a0a", border:"#7f1d1d" };
   return       { type:"pm-higher",  badge:"↑ PM ahead",    color:"#fcd34d", bg:"#422006", border:"#b45309" };
