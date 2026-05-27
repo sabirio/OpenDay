@@ -63,11 +63,10 @@ export const wpPhaseWeights = {
   handover: 0.05,
 };
 
-// Status scores for the new WP format (Delayed is a first-class status)
 export const wpStatusScores = {
   'Not Started': 0,
   'In Progress': 0.5,
-  Delayed: 0.3,
   Completed: 1,
   'Not Applicable': null,
+  Delayed: 0.3, // legacy — kept for historical records only, not selectable in UI
 };

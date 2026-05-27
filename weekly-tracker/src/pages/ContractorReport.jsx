@@ -76,21 +76,23 @@ function FormSection({ title, accentColor = "#2f855a", badge, children }) {
 }
 
 const WP_STATUS_OPTS = [
-  { value: "Not Started", label: "Not Started", bg: "#f3f4f6",  color: "#6b7280", border: "#d1d5db" },
-  { value: "In Progress", label: "In Progress", bg: "#fef3c7",  color: "#d97706", border: "#fde68a" },
-  { value: "Delayed",     label: "Delayed",     bg: "#fce7f3",  color: "#be185d", border: "#fbcfe8" },
-  { value: "Completed",   label: "Completed",   bg: "#dcfce7",  color: "#16a34a", border: "#86efac" },
+  { value: "Not Applicable", label: "Not Applicable", bg: "#f5f3ff", color: "#7c3aed", border: "#ddd6fe" },
+  { value: "Not Started",    label: "Not Started",    bg: "#f3f4f6", color: "#6b7280", border: "#d1d5db" },
+  { value: "In Progress",    label: "In Progress",    bg: "#fef3c7", color: "#d97706", border: "#fde68a" },
+  { value: "Completed",      label: "Completed",      bg: "#dcfce7", color: "#16a34a", border: "#86efac" },
 ];
 
-const STATUS_SCORE = { "Not Started": 0, "In Progress": 0.5, "Delayed": 0.3, "Completed": 1 };
+const STATUS_SCORE = { "Not Applicable": null, "Not Started": 0, "In Progress": 0.5, "Completed": 1, "Delayed": 0.3 };
 
 function WPTaskRow({ taskName, entry, prevEntry, onChange }) {
   const e          = entry || { status: "Not Started" };
   const prevStatus = prevEntry?.status ?? null;
   const curStatus  = e.status;
   const changed    = prevStatus !== null && prevStatus !== curStatus;
-  const improved   = changed && (STATUS_SCORE[curStatus] ?? 0) > (STATUS_SCORE[prevStatus] ?? 0);
-  const regressed  = changed && (STATUS_SCORE[curStatus] ?? 0) < (STATUS_SCORE[prevStatus] ?? 0);
+  const curScore   = STATUS_SCORE[curStatus]  ?? null;
+  const prevScore  = STATUS_SCORE[prevStatus] ?? null;
+  const improved   = changed && prevScore !== null && curScore !== null && curScore > prevScore;
+  const regressed  = changed && prevScore !== null && curScore !== null && curScore < prevScore;
 
   return (
     <div style={{ borderBottom: "1px solid #f3f4f6", padding: "10px 0" }}>
@@ -147,10 +149,11 @@ function WPTaskRow({ taskName, entry, prevEntry, onChange }) {
 }
 
 const STATUS_STYLE = {
-  "Not Started": { color: "#6b7280", bg: "#f3f4f6" },
-  "In Progress":  { color: "#d97706", bg: "#fef3c7" },
-  "Delayed":      { color: "#be185d", bg: "#fce7f3" },
-  "Completed":    { color: "#16a34a", bg: "#dcfce7" },
+  "Not Applicable": { color: "#7c3aed", bg: "#f5f3ff" },
+  "Not Started":    { color: "#6b7280", bg: "#f3f4f6" },
+  "In Progress":    { color: "#d97706", bg: "#fef3c7" },
+  "Completed":      { color: "#16a34a", bg: "#dcfce7" },
+  "Delayed":        { color: "#be185d", bg: "#fce7f3" }, // legacy display only
 };
 
 function WPSection({ wp, pkgStatuses, prevPkgStatuses, prevDate, onChange }) {
@@ -262,7 +265,7 @@ function TextAreaField({ label, value, onChange, rows = 4, placeholder = "" }) {
 // ── Form initialization ────────────────────────────────────────────────────
 
 // Build cumulative best WP statuses across all project reports
-const _WP_SCORES = { 'Not Started': 0, 'In Progress': 0.5, 'Delayed': 0.3, 'Completed': 1 };
+const _WP_SCORES = { 'Not Applicable': null, 'Not Started': 0, 'In Progress': 0.5, 'Completed': 1, 'Delayed': 0.3 };
 function buildCumulativeWPStatuses(allReports) {
   const base = makeEmptyWPStatuses();
   for (const report of allReports) {

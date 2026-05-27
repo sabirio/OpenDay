@@ -133,11 +133,10 @@ export const WORK_PACKAGES = [
 // ─── Status scoring ───────────────────────────────────────────────────────────
 
 export const WP_STATUS_OPTIONS = [
+  'Not Applicable',
   'Not Started',
   'In Progress',
-  'Delayed',
   'Completed',
-  'Not Applicable',
 ];
 
 export const WP_STATUS_SCORES = {

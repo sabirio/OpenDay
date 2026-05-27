@@ -77,6 +77,8 @@ function getGCTaskEntry(gcReport, wpId, taskName) {
 
 function comparisonResult(pmStatus, gcStatus) {
   if (!pmStatus && !gcStatus) return null;
+  // Either side marked N/A — exclude from comparison metrics entirely
+  if (pmStatus === "Not Applicable" || gcStatus === "Not Applicable") return null;
   if (!pmStatus) return { type: "not-assessed", badge: "Not assessed", color: "#94a3b8", bg: "white",    border: "#f3f4f6" };
   if (!gcStatus) return { type: "no-gc",        badge: "No GC data",   color: "#6b7280",  bg: "#f8fafc", border: "#e5e7eb" };
   const ps = WP_STATUS_SCORES[pmStatus] ?? 0;
@@ -103,10 +105,10 @@ function FormSection({ title, accentColor = ACCENT, note, children }) {
 }
 
 const WP_STATUS_OPTS = [
-  { value: "Not Started", label: "Not Started", bg: "#f3f4f6", color: "#6b7280", border: "#d1d5db", gcBg: "#f9fafb", gcColor: "#9ca3af", gcBorder: "#e5e7eb" },
-  { value: "In Progress", label: "In Progress", bg: "#fef3c7", color: "#d97706", border: "#fde68a", gcBg: "#fefce8", gcColor: "#d97706", gcBorder: "#fde68a" },
-  { value: "Delayed",     label: "Delayed",     bg: "#fce7f3", color: "#be185d", border: "#fbcfe8", gcBg: "#fdf2f8", gcColor: "#be185d", gcBorder: "#fbcfe8" },
-  { value: "Completed",   label: "Completed",   bg: "#dcfce7", color: "#16a34a", border: "#86efac", gcBg: "#f0fdf4", gcColor: "#16a34a", gcBorder: "#bbf7d0" },
+  { value: "Not Applicable", label: "Not Applicable", bg: "#f5f3ff", color: "#7c3aed", border: "#ddd6fe", gcBg: "#faf8ff", gcColor: "#7c3aed", gcBorder: "#ede9fe" },
+  { value: "Not Started",    label: "Not Started",    bg: "#f3f4f6", color: "#6b7280", border: "#d1d5db", gcBg: "#f9fafb", gcColor: "#9ca3af", gcBorder: "#e5e7eb" },
+  { value: "In Progress",    label: "In Progress",    bg: "#fef3c7", color: "#d97706", border: "#fde68a", gcBg: "#fefce8", gcColor: "#d97706", gcBorder: "#fde68a" },
+  { value: "Completed",      label: "Completed",      bg: "#dcfce7", color: "#16a34a", border: "#86efac", gcBg: "#f0fdf4", gcColor: "#16a34a", gcBorder: "#bbf7d0" },
 ];
 
 function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
@@ -159,13 +161,19 @@ function PMTaskRow({ taskName, entry, gcEntry, onChange }) {
   );
 }
 
+const STATUS_PILL_STYLE = {
+  "Not Applicable": { bg: "#f5f3ff", color: "#7c3aed" },
+  "Not Started":    { bg: "#f3f4f6", color: "#6b7280" },
+  "In Progress":    { bg: "#fef3c7", color: "#d97706" },
+  "Completed":      { bg: "#dcfce7", color: "#16a34a" },
+  "Delayed":        { bg: "#fce7f3", color: "#be185d" }, // legacy display only
+};
+
 function StatusPill({ status }) {
   if (!status) return <span style={{ color: "#d1d5db", fontSize: 12 }}>—</span>;
-  const s = WP_STATUS_SCORES[status] ?? -1;
-  const color = s >= 1 ? "#16a34a" : s >= 0.5 ? "#d97706" : s >= 0.3 ? "#be185d" : "#6b7280";
-  const bg    = s >= 1 ? "#dcfce7" : s >= 0.5 ? "#fef3c7" : s >= 0.3 ? "#fce7f3" : "#f3f4f6";
+  const style = STATUS_PILL_STYLE[status] || { bg: "#f3f4f6", color: "#6b7280" };
   return (
-    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: bg, color }}>
+    <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600, background: style.bg, color: style.color }}>
       {status}
     </span>
   );
