@@ -11,7 +11,13 @@ function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <h2>NORYX</h2>
+      <div style={{ padding: '4px 0 8px' }}>
+        <img
+          src="/logo.png"
+          alt="Oryx"
+          style={{ width: '100%', maxWidth: 120, display: 'block', objectFit: 'contain' }}
+        />
+      </div>
 
       {/* User info */}
       {user && (
