@@ -270,7 +270,9 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
       submittedAt: new Date().toISOString(),
     };
     try {
+      console.log('[SiteVisit SAVE] Sending pmWorkPackageStatuses:', JSON.stringify(visitData.pmWorkPackageStatuses, null, 2));
       const saved = await onSaveSiteVisit(visitData);
+      console.log('[SiteVisit SAVE] Returned from DB pmWorkPackageStatuses:', JSON.stringify(saved.pmWorkPackageStatuses, null, 2));
       setSavedVisit(saved);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -295,6 +297,8 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   // ── COMPARISON RESULTS VIEW ────────────────────────────────────────────────
 
   if (submitted && savedVisit) {
+    console.log('[SiteVisit LOAD] Comparison view savedVisit.pmWorkPackageStatuses:', JSON.stringify(savedVisit?.pmWorkPackageStatuses, null, 2));
+
     const refRep = projectReports.find((r) => String(r.id) === String(savedVisit.referenceReportId));
 
     let totalItems = 0, matches = 0, discrepancies = 0, pmHigher = 0;
@@ -306,7 +310,8 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
         const gcStatus = gcEntry?.status || null;
         if (!pmStatus && !gcStatus) return null;
         const r = comparisonResult(pmStatus, gcStatus);
-        if (r) {
+        // Only count toward metrics when PM has actually assessed the task
+        if (r && r.type !== "not-assessed") {
           totalItems++;
           if (r.type === "match") matches++;
           else if (r.type === "discrepancy") discrepancies++;

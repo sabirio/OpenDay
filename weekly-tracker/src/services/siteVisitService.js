@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabase';
 
 function fromDB(row) {
-  return {
+  const sv = {
     id: row.id,
     projectId: row.project_id,
     referenceReportId: row.reference_report_id,
@@ -10,12 +10,15 @@ function fromDB(row) {
     constructionStatuses: row.construction_statuses || {},
     testingStatuses: row.testing_statuses || {},
     handoverStatuses: row.handover_statuses || {},
+    pmWorkPackageStatuses: row.pm_work_package_statuses || null,
     pmScheduleAssessment: row.pm_schedule_assessment,
     observations: row.observations,
     photos: row.photos || [],
     declarationConfirmed: row.declaration_confirmed,
     submittedAt: row.submitted_at,
   };
+  console.log('[SiteVisit LOAD] fromDB pmWorkPackageStatuses:', sv.pmWorkPackageStatuses);
+  return sv;
 }
 
 function toDB(visit) {
@@ -27,6 +30,7 @@ function toDB(visit) {
     construction_statuses: visit.constructionStatuses || {},
     testing_statuses: visit.testingStatuses || {},
     handover_statuses: visit.handoverStatuses || {},
+    pm_work_package_statuses: visit.pmWorkPackageStatuses || null,
     pm_schedule_assessment: visit.pmScheduleAssessment || null,
     observations: visit.observations || null,
     photos: visit.photos || [],

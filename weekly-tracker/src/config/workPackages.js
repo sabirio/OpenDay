@@ -185,7 +185,7 @@ export function makeEmptyPMWPStatuses() {
     result[wp.id] = {};
     for (const task of wp.tasks) {
       result[wp.id][task.name] = {
-        observedStatus: 'Not Started',
+        observedStatus: '',   // empty = not yet assessed by PM
         progress: 0,
         issueFound: false,
         riskLevel: 'None',
