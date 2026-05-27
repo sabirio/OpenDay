@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { constructionWeights, testingWeights, handoverWeights } from "../reportWeights";
+import { computeProjectSummary } from "../engines/projectSummaryEngine";
 import {
   formatDate, getStatusScore, estimateProgressFromStatuses, computeCumulativeStatuses,
   computeWPCumulativeStatuses, estimateProgressAuto,
@@ -259,7 +260,27 @@ function TextBlock({ label, value }) {
 
 // ── Project Detail Drawer ────────────────────────────────────────────────────
 
-function ProjectDetailDrawer({ row, onClose }) {
+// Sub-components used only by the drawer
+
+function ReportAgeBadge({ daysSince }) {
+  if (daysSince === null) return <span style={{ fontSize:11,fontWeight:700,color:"#ef4444" }}>Never reported</span>;
+  if (daysSince === 0)    return <span style={{ fontSize:11,color:"#22c55e" }}>Today</span>;
+  if (daysSince <= 7)     return <span style={{ fontSize:11,color:"#22c55e" }}>{daysSince}d ago</span>;
+  if (daysSince <= 14)    return <span style={{ fontSize:11,color:"#f59e0b" }}>{daysSince}d ago</span>;
+  return <span style={{ fontSize:11,fontWeight:700,color:"#ef4444" }}>Overdue {daysSince}d</span>;
+}
+
+function SchedBadge({ status }) {
+  const c = status==="On Track"?"#22c55e":status==="Critical"?"#ef4444":status==="Delayed"?"#ef4444":status==="At Risk"?"#f59e0b":"#94a3b8";
+  return <span style={{ padding:"3px 9px",borderRadius:8,fontSize:11,fontWeight:700,background:c+"22",color:c,border:`1px solid ${c}44` }}>{status||"—"}</span>;
+}
+
+function StatusDot({ ok, critical }) {
+  const c = ok ? "#22c55e" : critical ? "#ef4444" : "#f59e0b";
+  return <span style={{ display:"inline-block",width:7,height:7,borderRadius:"50%",background:c,flexShrink:0 }}/>;
+}
+
+function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
   useEffect(()=>{
     const h=(e)=>{if(e.key==="Escape") onClose();};
     window.addEventListener("keydown",h);
@@ -268,35 +289,29 @@ function ProjectDetailDrawer({ row, onClose }) {
 
   if (!row) return null;
 
-  const {project,latestReport,cumulativeStatuses,wpCumulativeStatuses,progress,projReports,sorted,color,progressPoints} = row;
-  const phaseCompletions = computePhaseCompletions(cumulativeStatuses);
-  const now = new Date();
-  const daysToOpening = project.targetOpeningDate ? Math.ceil((new Date(project.targetOpeningDate)-now)/86400000) : null;
-  const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;
-  const end   = project.constructionEndDate   ? new Date(project.constructionEndDate)
-              : project.targetOpeningDate     ? new Date(project.targetOpeningDate) : null;
-  const expectedPct = start&&end&&end>start&&now>start
-    ? Math.min(100, Math.round(((Math.min(now,end)-start)/(end-start))*100)) : null;
-  const deviation = expectedPct!==null ? progress-expectedPct : null;
-  const totalDays = start&&end ? Math.ceil((end-start)/86400000) : null;
-  const predictedDelayDays = deviation!==null&&deviation<0&&totalDays ? Math.round(Math.abs(deviation)/100*totalDays) : 0;
-  const constructionWeekNum = start ? Math.max(1,Math.ceil((now-start)/(7*86400000))) : null;
-  const isBlocked = latestReport?.activitiesBlocked==="Yes";
-  const hasRisks = (latestReport?.risks?.filter(Boolean).length>0)||latestReport?.riskDescription;
-  const hasLookAhead = latestReport?.nextWeekTop3||latestReport?.weekAfterTop3;
+  const { project, progress, projReports, wpCumulativeStatuses, color } = row;
 
-  const sBadge=(s)=>{const c=s==="On Track"?"#22c55e":s==="Critical"?"#7f1d1d":s==="Delayed"?"#dc2626":s==="At Risk"?"#f59e0b":"#94a3b8"; return <span style={{ padding:"2px 8px",borderRadius:7,fontSize:11,fontWeight:700,background:c+"20",color:c,border:`1px solid ${c}44` }}>{s||"—"}</span>;};
+  const summary = useMemo(()=>
+    computeProjectSummary(project, projReports, projSiteVisits, progress, wpCumulativeStatuses)
+  , [project, projReports, projSiteVisits, progress, wpCumulativeStatuses]);
+
+  const { contractor, pmVisit, risk, opening } = summary;
+
+  const riskStyle = RL[risk.level] || RL.UNKNOWN;
+
+  const SCHED_COLOR = { OK:"#22c55e", AT_RISK:"#f59e0b", HIGH:"#ef4444", CRITICAL:"#ef4444" };
+  const OPEN_COLOR  = { Ready:"#22c55e", "No Date":"#64748b", "At Risk":"#f59e0b", Critical:"#ef4444", Overdue:"#ef4444" };
 
   return (
     <>
       <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1000 }}/>
-      <div style={{ position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:1650,maxWidth:"98vw",maxHeight:"90vh",background:"#1e293b",zIndex:1001,overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.7)",borderRadius:16,display:"flex",flexDirection:"column" }}>
+      <div style={{ position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:920,maxWidth:"97vw",maxHeight:"90vh",background:"#1e293b",zIndex:1001,overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.7)",borderRadius:16,display:"flex",flexDirection:"column" }}>
 
         {/* Header */}
-        <div style={{ padding:"18px 22px 14px",borderBottom:"1px solid #334155",borderTop:`4px solid ${color}`,flexShrink:0 }}>
+        <div style={{ padding:"16px 22px 12px",borderBottom:"1px solid #334155",borderTop:`4px solid ${color}`,flexShrink:0 }}>
           <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
             <div>
-              <div style={{ fontSize:18,fontWeight:800,color:"#f1f5f9" }}>{project.storeCode}</div>
+              <div style={{ fontSize:20,fontWeight:800,color:"#f1f5f9" }}>{project.storeCode}</div>
               <div style={{ fontSize:13,color:"#94a3b8",marginTop:2 }}>{project.shoppingMallName}</div>
               {(project.city||project.country)&&<div style={{ fontSize:11,color:"#64748b",marginTop:1 }}>{[project.city,project.country].filter(Boolean).join(", ")}</div>}
             </div>
@@ -318,195 +333,157 @@ function ProjectDetailDrawer({ row, onClose }) {
         </div>
 
         <div style={{ padding:"18px 22px",overflowY:"auto",flex:1 }}>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14 }}>
 
-          {/* Progress Overview */}
-          <div style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 18px",marginBottom:16 }}>
-            <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:10 }}>Progress Overview</div>
-            <div style={{ display:"flex",alignItems:"center",gap:18,flexWrap:"wrap",marginBottom:12 }}>
-              <div style={{ textAlign:"center" }}>
-                <div style={{ fontSize:42,fontWeight:800,color,lineHeight:1 }}>{progress}%</div>
-                <div style={{ fontSize:11,color:"#94a3b8",marginTop:2 }}>Weighted</div>
+            {/* Block 1 — Contractor Report */}
+            <div style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
+              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b",marginBottom:10 }}>Contractor Report</div>
+              <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
+                <div style={{ fontSize:38,fontWeight:800,color,lineHeight:1 }}>{contractor.overallProgress}%</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ background:"#334155",borderRadius:4,height:6,overflow:"hidden",marginBottom:6 }}>
+                    <div style={{ width:`${contractor.overallProgress}%`,height:"100%",background:color,borderRadius:4 }}/>
+                  </div>
+                  {contractor.scheduleStatus&&<SchedBadge status={contractor.scheduleStatus}/>}
+                </div>
               </div>
-              <div style={{ flex:1,display:"grid",gap:7,minWidth:180 }}>
+              <div style={{ display:"grid",gap:6 }}>
+                <div style={{ display:"flex",justifyContent:"space-between",fontSize:12 }}>
+                  <span style={{ color:"#64748b" }}>Last report</span>
+                  <ReportAgeBadge daysSince={contractor.daysSinceReport}/>
+                </div>
+                <div style={{ display:"flex",justifyContent:"space-between",fontSize:12 }}>
+                  <span style={{ color:"#64748b" }}>Total reports</span>
+                  <span style={{ color:"#e2e8f0",fontWeight:600 }}>{contractor.reportCount}</span>
+                </div>
+                {contractor.blocked&&(
+                  <div style={{ marginTop:4,padding:"5px 10px",background:"#450a0a",border:"1px solid #7f1d1d",borderRadius:7,fontSize:12,fontWeight:700,color:"#fca5a5" }}>⛔ Activities Blocked</div>
+                )}
+              </div>
+            </div>
+
+            {/* Block 2 — PM Site Visit */}
+            <div style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
+              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b",marginBottom:10 }}>PM Site Visit</div>
+              {!pmVisit.hasVisit?(
+                <div style={{ color:"#64748b",fontSize:13,fontStyle:"italic",marginTop:22,textAlign:"center" }}>No site visits recorded</div>
+              ):(
+                <>
+                  <div style={{ display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:10 }}>
+                    <span style={{ color:"#64748b" }}>Latest visit</span>
+                    <span style={{ color:"#e2e8f0",fontWeight:600 }}>{formatDate(pmVisit.latestVisitDate)}</span>
+                  </div>
+                  <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10 }}>
+                    {[
+                      { l:"Matches",       v:pmVisit.matches,       c:"#22c55e" },
+                      { l:"Discrepancies", v:pmVisit.discrepancies,  c:pmVisit.discrepancies>0?"#ef4444":"#22c55e" },
+                      { l:"PM Ahead",      v:pmVisit.pmAhead,        c:"#f59e0b" },
+                      { l:"Not Assessed",  v:pmVisit.notAssessed,    c:"#94a3b8" },
+                    ].map(({l,v,c})=>(
+                      <div key={l} style={{ background:"#1e293b",borderRadius:8,padding:"7px 10px",textAlign:"center" }}>
+                        <div style={{ fontSize:20,fontWeight:800,color:c,lineHeight:1 }}>{v}</div>
+                        <div style={{ fontSize:9,color:"#64748b",marginTop:3,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em" }}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {pmVisit.matchRate!==null&&(
+                    <div>
+                      <div style={{ display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3 }}>
+                        <span style={{ color:"#64748b" }}>Match rate</span>
+                        <span style={{ fontWeight:700,color:pmVisit.matchRate>=80?"#22c55e":pmVisit.matchRate>=50?"#f59e0b":"#ef4444" }}>{pmVisit.matchRate}%</span>
+                      </div>
+                      <div style={{ background:"#334155",borderRadius:3,height:5,overflow:"hidden" }}>
+                        <div style={{ width:`${pmVisit.matchRate}%`,height:"100%",background:pmVisit.matchRate>=80?"#22c55e":pmVisit.matchRate>=50?"#f59e0b":"#ef4444",borderRadius:3 }}/>
+                      </div>
+                    </div>
+                  )}
+                  {pmVisit.pmScheduleAssessment&&(
+                    <div style={{ marginTop:8,fontSize:12,display:"flex",justifyContent:"space-between",alignItems:"center" }}>
+                      <span style={{ color:"#64748b" }}>PM schedule</span>
+                      <SchedBadge status={pmVisit.pmScheduleAssessment}/>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Block 3 — Risk Summary */}
+            <div style={{ background:"#0f172a",border:`1px solid ${riskStyle.border}`,borderRadius:12,padding:"14px 16px" }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+                <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b" }}>Risk Summary</div>
+                <span style={{ padding:"3px 10px",borderRadius:8,fontSize:12,fontWeight:700,background:riskStyle.bg,color:riskStyle.text,border:`1px solid ${riskStyle.border}` }}>{risk.level}</span>
+              </div>
+              <div style={{ display:"grid",gap:7 }}>
                 {[
-                  {l:"Expected",v:expectedPct!==null?`${expectedPct}%`:"—",c:"#e2e8f0"},
-                  {l:"Deviation",v:deviation!==null?(deviation>=0?`+${deviation}%`:`${deviation}%`):"—",c:deviation!==null?(deviation<-10?"#dc2626":deviation<0?"#d97706":"#22c55e"):"#94a3b8"},
-                  {l:"Pred. delay",v:predictedDelayDays>0?`+${predictedDelayDays}d`:"None",c:predictedDelayDays>0?"#dc2626":"#22c55e"},
-                  constructionWeekNum&&{l:"Construction week",v:`W${constructionWeekNum}`,c:"#e2e8f0"},
-                  daysToOpening!==null&&{l:"Days to opening",v:daysToOpening<0?`${Math.abs(daysToOpening)}d OVERDUE`:`${daysToOpening}d`,c:daysToOpening<0?"#dc2626":daysToOpening<30?"#d97706":"#e2e8f0"},
-                ].filter(Boolean).map(({l,v,c})=>(
-                  <div key={l} style={{ display:"flex",justifyContent:"space-between",gap:10 }}>
-                    <span style={{ fontSize:12,color:"#94a3b8" }}>{l}</span>
-                    <span style={{ fontSize:12,fontWeight:700,color:c }}>{v}</span>
+                  { l:"Schedule",    ok:risk.scheduleRisk==="OK",    crit:risk.scheduleRisk==="CRITICAL"||risk.scheduleRisk==="HIGH",  v:risk.scheduleRisk==="OK"?"On Track":risk.scheduleRisk==="AT_RISK"?"At Risk":risk.scheduleRisk==="HIGH"?"Delayed":"Critical" },
+                  { l:"Opening",     ok:risk.openingStatus==="Ready", crit:risk.openingStatus==="Critical"||risk.openingStatus==="Overdue", v:risk.openingStatus },
+                  { l:"PM vs GC",    ok:risk.discrepancyStatus==="OK", crit:risk.discrepancyStatus==="HAS_DISCREPANCIES", v:risk.discrepancyStatus==="OK"?"Match":risk.discrepancyStatus==="HAS_DISCREPANCIES"?"Discrepancies":risk.discrepancyStatus==="NO_VISIT"?"No Visit":"—" },
+                  { l:"Reports",     ok:!risk.missingReport,    crit:risk.missingReport,   v:risk.missingReport?"Missing/Overdue":"Up to date" },
+                  { l:"Blocked",     ok:!risk.blocked,          crit:risk.blocked,         v:risk.blocked?"Yes":"No" },
+                  { l:"Support",     ok:!risk.supportRequired,  crit:false,                v:risk.supportRequired?"Required":"None" },
+                  { l:"Add. Works",  ok:!risk.additionalWorks,  crit:false,                v:risk.additionalWorks?"Yes":"No" },
+                ].map(({l,ok,crit,v})=>(
+                  <div key={l} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12 }}>
+                    <span style={{ color:"#64748b" }}>{l}</span>
+                    <div style={{ display:"flex",alignItems:"center",gap:5 }}>
+                      <StatusDot ok={ok} critical={crit}/>
+                      <span style={{ color:ok?"#e2e8f0":crit?"#fca5a5":"#fcd34d",fontWeight:ok?400:600 }}>{v}</span>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ background:"#334155",borderRadius:5,height:7,overflow:"hidden" }}>
-              <div style={{ width:`${progress}%`,height:"100%",background:color,borderRadius:5 }}/>
-            </div>
-          </div>
 
-          {/* Phase completion */}
-          {(()=>{
-            if (wpCumulativeStatuses?.workPackageStatuses) {
-              return (
-                <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:9 }}>Phase Completion</div>
-                  {WORK_PACKAGES.map(wp=>{
-                    const pct=computePackageProgress(wpCumulativeStatuses.workPackageStatuses, wp.id);
-                    return (
-                      <div key={wp.id} style={{ marginBottom:9 }}>
-                        <div style={{ display:"flex",justifyContent:"space-between",marginBottom:3 }}>
-                          <span style={{ fontSize:12,color:"#cbd5e1" }}>{wp.name}</span>
-                          <span style={{ fontSize:12,fontWeight:700,color:pct>0?wp.color:"#64748b" }}>{pct}%</span>
-                        </div>
-                        <div style={{ background:"#334155",borderRadius:4,height:6,overflow:"hidden" }}>
-                          <div style={{ width:`${pct}%`,height:"100%",background:wp.color,borderRadius:4,transition:"width 0.3s ease" }}/>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            }
-            if (phaseCompletions) {
-              return (
-                <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:9 }}>Phase Completion</div>
-                  {phaseCompletions.map(({label, pct, color:pc})=>(
-                    <div key={label} style={{ marginBottom:9 }}>
-                      <div style={{ display:"flex",justifyContent:"space-between",marginBottom:3 }}>
-                        <span style={{ fontSize:12,color:"#cbd5e1" }}>{label}</span>
-                        <span style={{ fontSize:12,fontWeight:700,color:pct!==null?pc:"#64748b" }}>{pct!==null?`${pct}%`:"No data"}</span>
-                      </div>
-                      <div style={{ background:"#334155",borderRadius:4,height:6,overflow:"hidden" }}>
-                        <div style={{ width:`${pct??0}%`,height:"100%",background:pc,borderRadius:4,transition:"width 0.3s ease" }}/>
-                      </div>
+            {/* Block 4 — Opening Readiness */}
+            <div style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
+              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b",marginBottom:10 }}>Opening Readiness</div>
+              {opening.daysToOpening===null?(
+                <div style={{ color:"#64748b",fontSize:13,fontStyle:"italic",marginTop:22,textAlign:"center" }}>No target date set</div>
+              ):(
+                <>
+                  <div style={{ textAlign:"center",marginBottom:12 }}>
+                    <div style={{ fontSize:46,fontWeight:800,color:OPEN_COLOR[opening.status]||"#94a3b8",lineHeight:1 }}>
+                      {opening.daysToOpening<0?`${Math.abs(opening.daysToOpening)}d`:opening.daysToOpening===0?"Today":`${opening.daysToOpening}d`}
                     </div>
-                  ))}
-                </div>
-              );
-            }
-            return null;
-          })()}
-
-          {/* Latest report */}
-          {latestReport?(
-            <div style={{ border:"1px solid #334155",borderRadius:12,padding:"14px 18px",marginBottom:16 }}>
-              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:10 }}>Latest Report</div>
-              <div style={{ display:"flex",gap:18,flexWrap:"wrap",marginBottom:12 }}>
-                {[
-                  {l:"Date",n:<span style={{ fontSize:13,fontWeight:600,color:"#e2e8f0" }}>{formatDate(latestReport.reportingDate||latestReport.submittedAt)}</span>},
-                  {l:"Schedule",n:sBadge(latestReport.projectScheduleStatus)},
-                  {l:"Blocked",n:<span style={{ fontSize:13,fontWeight:700,color:isBlocked?"#dc2626":"#22c55e" }}>{latestReport.activitiesBlocked||"—"}</span>},
-                  {l:"Support",n:<span style={{ fontSize:13,fontWeight:700,color:latestReport.supportRequired==="Yes"?"#d97706":"#22c55e" }}>{latestReport.supportRequired||"—"}</span>},
-                  {l:"Phase",n:<span style={{ fontSize:12,fontWeight:600,color:"#e2e8f0" }}>{(Array.isArray(latestReport.currentPhases)?latestReport.currentPhases.join(" + "):latestReport.currentPhase)||"—"}</span>},
-                ].map(({l,n})=>(<div key={l}><div style={{ fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3 }}>{l}</div>{n}</div>))}
-              </div>
-              {projReports.length>1&&<><div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:6 }}>Progress over time</div><LineChart points={progressPoints} width={500} height={100} color={color}/></>}
-            </div>
-          ):(
-            <div style={{ background:"#431407",border:"1px solid #c2410c",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#fdba74" }}>No reports submitted yet.</div>
-          )}
-
-          {/* Risk Control */}
-          <div style={{ border:"1px solid #334155",borderRadius:12,padding:"14px 18px",marginBottom:16,background:"#0f172a" }}>
-            <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:12 }}>Risk Control</div>
-            {!hasRisks&&!isBlocked?(
-              <div style={{ fontSize:13,color:"#22c55e",fontWeight:600 }}>✓ No risks or blockers reported</div>
-            ):(
-              <>
-                <div style={{ display:"grid",gap:6,marginBottom:10 }}>
-                  {latestReport?.risks?.filter(Boolean).length>0&&(
-                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Risk Type</span>
-                      <span style={{ fontSize:13,color:"#e2e8f0" }}>{latestReport.risks.filter(Boolean).join(", ")}</span>
-                    </div>
-                  )}
-                  {latestReport?.riskOwners?.filter(Boolean).length>0&&(
-                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Owner</span>
-                      <span style={{ fontSize:13,color:"#e2e8f0" }}>{latestReport.riskOwners.filter(Boolean).join(", ")}</span>
-                    </div>
-                  )}
-                  {latestReport?.riskScale&&(
-                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Scale</span>
-                      <span style={{ fontSize:13,fontWeight:700,color:latestReport.riskScale==="High"?"#fca5a5":latestReport.riskScale==="Medium"?"#fcd34d":"#86efac" }}>{latestReport.riskScale}</span>
-                    </div>
-                  )}
-                  {isBlocked&&(
-                    <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                      <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:80,flexShrink:0 }}>Status</span>
-                      <span style={{ fontSize:13,fontWeight:700,color:"#dc2626" }}>⛔ Activities Blocked</span>
-                    </div>
-                  )}
-                </div>
-                <TextBlock label="Risk Description" value={latestReport?.riskDescription}/>
-                {isBlocked&&latestReport?.delayReason&&<TextBlock label="Delay Reason & Mitigation" value={latestReport.delayReason}/>}
-              </>
-            )}
-          </div>
-
-          {/* Client Support */}
-          {latestReport?.supportRequired==="Yes"&&(
-            <div style={{ border:"1px solid #334155",borderRadius:12,padding:"14px 18px",marginBottom:16,background:"#0f172a" }}>
-              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:12 }}>Client Support Required</div>
-              <div style={{ display:"grid",gap:6,marginBottom:latestReport.supportDescription?10:0 }}>
-                {latestReport.supportTypes?.filter(Boolean).length>0&&(
-                  <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-                    <span style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",color:"#9ca3af",width:100,flexShrink:0 }}>Support Type</span>
-                    <span style={{ fontSize:13,color:"#e2e8f0" }}>{latestReport.supportTypes.filter(Boolean).join(", ")}</span>
+                    <div style={{ fontSize:11,color:"#64748b",marginTop:3 }}>{opening.daysToOpening<0?"OVERDUE":opening.daysToOpening===0?"Opens today":"to opening"}</div>
                   </div>
-                )}
-              </div>
-              <TextBlock label="Description" value={latestReport.supportDescription}/>
-            </div>
-          )}
-
-          {/* Additional Works */}
-          {latestReport?.additionalWorks==="Yes"&&(
-            <div style={{ border:"1px solid #334155",borderRadius:12,padding:"14px 18px",marginBottom:16,background:"#0f172a" }}>
-              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#9ca3af",marginBottom:8 }}>Additional Works</div>
-              <div style={{ display:"flex",gap:16,flexWrap:"wrap",marginBottom:6 }}>
-                {latestReport.additionalWorksParty&&<div><span style={{ fontSize:11,color:"#9ca3af" }}>Party: </span><strong style={{ fontSize:12,color:"#f1f5f9" }}>{latestReport.additionalWorksParty}</strong></div>}
-                {latestReport.additionalWorksCost&&<div><span style={{ fontSize:11,color:"#9ca3af" }}>Cost: </span><strong style={{ fontSize:12,color:"#f1f5f9" }}>{latestReport.additionalWorksCost}</strong></div>}
-              </div>
-              <TextBlock label="Description" value={latestReport.additionalWorksDescription}/>
-            </div>
-          )}
-
-          {/* Look Ahead */}
-          {hasLookAhead&&(
-            <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:8 }}>Look Ahead</div>
-              <TextBlock label="TOP 3 — Next Week" value={latestReport?.nextWeekTop3}/>
-              <TextBlock label="TOP 3 — Week +2" value={latestReport?.weekAfterTop3}/>
-            </div>
-          )}
-
-          {/* Report history */}
-          {sorted.length>1&&(
-            <div>
-              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#94a3b8",marginBottom:8 }}>Report History</div>
-              <div style={{ display:"grid",gap:5 }}>
-                {[...sorted].reverse().map((r,i)=>{
-                  const sc=r.projectScheduleStatus;
-                  const sc_c=sc==="On Track"?"#22c55e":sc==="Critical"?"#7f1d1d":sc==="Delayed"?"#dc2626":sc==="At Risk"?"#f59e0b":"#94a3b8";
-                  const idx=sorted.length-1-i;
-                  const rp=estimateProgressFromStatuses(computeCumulativeStatuses(sorted.slice(0,idx+1)));
-                  return (
-                    <div key={i} style={{ display:"flex",alignItems:"center",gap:9,padding:"7px 11px",background:i===0?"#0d2d1e":"#0f172a",borderRadius:7,border:`1px solid ${i===0?"#166534":"#334155"}` }}>
-                      <div style={{ fontSize:12,fontWeight:600,color:"#e2e8f0",minWidth:68 }}>{formatDate(r.reportingDate||r.submittedAt)}</div>
-                      <div style={{ flex:1,background:"#334155",borderRadius:3,height:5,overflow:"hidden" }}><div style={{ width:`${rp}%`,height:"100%",background:color,borderRadius:3 }}/></div>
-                      <div style={{ fontSize:11,fontWeight:700,color,minWidth:30 }}>{rp}%</div>
-                      <span style={{ fontSize:10,fontWeight:700,color:sc_c,padding:"1px 6px",borderRadius:5,background:sc_c+"20" }}>{sc||"—"}</span>
-                      {r.activitiesBlocked==="Yes"&&<span style={{ fontSize:10,color:"#dc2626",fontWeight:700 }}>⛔</span>}
-                      {r.supportRequired==="Yes"&&<span style={{ fontSize:10,color:"#d97706",fontWeight:700 }}>🔔</span>}
+                  <div style={{ display:"grid",gap:7 }}>
+                    <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12 }}>
+                      <span style={{ color:"#64748b" }}>Status</span>
+                      <span style={{ padding:"2px 9px",borderRadius:7,fontSize:11,fontWeight:700,background:(OPEN_COLOR[opening.status]||"#94a3b8")+"22",color:OPEN_COLOR[opening.status]||"#94a3b8",border:`1px solid ${(OPEN_COLOR[opening.status]||"#94a3b8")}44` }}>{opening.status}</span>
                     </div>
-                  );
-                })}
+                    <div style={{ display:"flex",justifyContent:"space-between",fontSize:12 }}>
+                      <span style={{ color:"#64748b" }}>Target date</span>
+                      <span style={{ color:"#e2e8f0",fontWeight:600 }}>{formatDate(opening.targetDate)}</span>
+                    </div>
+                    {opening.blockerCount>0&&(
+                      <div style={{ display:"flex",justifyContent:"space-between",fontSize:12 }}>
+                        <span style={{ color:"#64748b" }}>Active blockers</span>
+                        <span style={{ color:"#fca5a5",fontWeight:700 }}>{opening.blockerCount}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* WP Phase progress bars */}
+          {contractor.phaseProgress.length>0&&(
+            <div style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
+              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b",marginBottom:10 }}>Work Package Progress</div>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 24px" }}>
+                {contractor.phaseProgress.map(({wpId,name,color:wpColor,pct})=>(
+                  <div key={wpId}>
+                    <div style={{ display:"flex",justifyContent:"space-between",marginBottom:3 }}>
+                      <span style={{ fontSize:11,color:"#94a3b8" }}>{name}</span>
+                      <span style={{ fontSize:11,fontWeight:700,color:pct>0?wpColor:"#475569" }}>{pct}%</span>
+                    </div>
+                    <div style={{ background:"#334155",borderRadius:3,height:5,overflow:"hidden" }}>
+                      <div style={{ width:`${pct}%`,height:"100%",background:wpColor,borderRadius:3 }}/>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -745,6 +722,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
   },[svFiltered]);
 
   const drawerRow = useMemo(()=>drawerProjectId?allRows.find(({project})=>String(project.id)===drawerProjectId)||null:null,[allRows,drawerProjectId]);
+  const drawerSiteVisits = useMemo(()=>drawerRow?siteVisits.filter(sv=>String(sv.projectId)===String(drawerRow.project.id)):[],[siteVisits,drawerRow]);
 
   // ── Helpers ──
   const currentPhaseLabel=(row)=>{
@@ -1201,7 +1179,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       )}
 
       {/* ── Project Detail Drawer ── */}
-      <ProjectDetailDrawer row={drawerRow} onClose={()=>setDrawerProjectId(null)}/>
+      <ProjectDetailDrawer row={drawerRow} projSiteVisits={drawerSiteVisits} onClose={()=>setDrawerProjectId(null)}/>
     </div>
   );
 }
