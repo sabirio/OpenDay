@@ -489,7 +489,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
             </button>
             <button
               type="button"
-              onClick={() => window.close()}
+              onClick={() => window.history.back()}
               style={{ padding: "12px 28px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#6b7280", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
             >
               Close
