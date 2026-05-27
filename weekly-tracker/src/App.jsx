@@ -12,6 +12,7 @@ import AdminUsers from "./pages/AdminUsers";
 import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
 import ContractorSelect from "./pages/ContractorSelect";
+import SiteVisitSelect from "./pages/SiteVisitSelect";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { useAuth } from "./auth/AuthContext";
@@ -172,6 +173,14 @@ function App() {
                     element={
                       <ProtectedRoute resource="weekly_reports">
                         <WeeklyReports projects={projects} reports={reports} />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/site-visit-select"
+                    element={
+                      <ProtectedRoute resource="site_visit">
+                        <SiteVisitSelect projects={projects} />
                       </ProtectedRoute>
                     }
                   />

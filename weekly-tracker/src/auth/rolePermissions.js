@@ -29,12 +29,13 @@ export const ROLE_REDIRECTS = {
 
 // Sidebar nav items with their required resource permission
 export const NAV_ITEMS = [
-  { to: '/',               label: 'Dashboard',      resource: 'dashboard' },
-  { to: '/projects',       label: 'Projects',       resource: 'projects' },
-  { to: '/weekly-reports', label: 'Weekly Reports', resource: 'weekly_reports' },
-  { to: '/gantt',          label: 'Schedule',       resource: 'gantt_view' },
-  { to: '/risk-engine',    label: 'Risk Dashboard', resource: 'risk_engine' },
-  { to: '/admin/users',    label: 'Users',          resource: 'admin_users' },
+  { to: '/',                  label: 'Dashboard',      resource: 'dashboard' },
+  { to: '/projects',          label: 'Projects',       resource: 'projects' },
+  { to: '/weekly-reports',    label: 'Weekly Reports', resource: 'weekly_reports' },
+  { to: '/site-visit-select', label: 'Site Visit',     resource: 'site_visit' },
+  { to: '/gantt',             label: 'Schedule',       resource: 'gantt_view' },
+  { to: '/risk-engine',       label: 'Risk Dashboard', resource: 'risk_engine' },
+  { to: '/admin/users',       label: 'Users',          resource: 'admin_users' },
 ];
 
 // Role badge colours shown in the Sidebar
