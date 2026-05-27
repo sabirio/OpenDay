@@ -768,7 +768,7 @@ function WeeklyReports({ projects, reports }) {
 
             {/* ── Additional Works — полная ширина ── */}
             <div className="dashboard-summary-card" style={{ marginBottom: 20, borderTop: additionalWorksList.entries.length > 0 ? "3px solid #ea580c" : undefined }}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: additionalWorksList.entries.length > 0 ? "#ea580c" : "#111827" }}>Additional Works</div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: additionalWorksList.entries.length > 0 ? "#ea580c" : "#f1f5f9" }}>Additional Works</div>
               {additionalWorksList.entries.length === 0 ? (
                 <div style={{ fontSize: 13, color: "#22c55e", fontWeight: 600 }}>✓ No additional works</div>
               ) : (
