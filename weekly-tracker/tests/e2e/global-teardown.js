@@ -128,6 +128,12 @@ ${moduleRows || '| (no results) | — | — | — |'}
 - Risk Dashboard Risk Indicators
 - Admin User Management
 - Full Data Flow (Project → GC Report → PM Visit → Dashboard → Risk)
+- Risk Logic (discrepancy counts, N/A exclusion, support-required, additional-works)
+- Opening Readiness (status badges, Critical/At Risk thresholds, countdown)
+- Executive Project Summary (drawer blocks, no deep risk detail, Escape close)
+- Persistence Stress (reload survival, logout/re-login, cross-page data consistency)
+- Role Security (direct URL blocks, session invalidation, nav visibility per role)
+- Multi-Project Scenario (4 lifecycle states, KPI cross-check, weekly-reports cycling)
 
 ---
 

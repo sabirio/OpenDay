@@ -306,7 +306,7 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
   return (
     <>
       <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1000 }}/>
-      <div style={{ position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:920,maxWidth:"97vw",maxHeight:"90vh",background:"#1e293b",zIndex:1001,overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.7)",borderRadius:16,display:"flex",flexDirection:"column" }}>
+      <div data-testid="project-detail-drawer" style={{ position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:920,maxWidth:"97vw",maxHeight:"90vh",background:"#1e293b",zIndex:1001,overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.7)",borderRadius:16,display:"flex",flexDirection:"column" }}>
 
         {/* Header */}
         <div style={{ padding:"16px 22px 12px",borderBottom:"1px solid #334155",borderTop:`4px solid ${color}`,flexShrink:0 }}>
@@ -337,7 +337,7 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14 }}>
 
             {/* Block 1 — Contractor Report */}
-            <div style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
+            <div data-testid="contractor-status-summary" style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
               <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b",marginBottom:10 }}>Contractor Report</div>
               <div style={{ display:"flex",alignItems:"center",gap:10,marginBottom:10 }}>
                 <div style={{ fontSize:38,fontWeight:800,color,lineHeight:1 }}>{contractor.overallProgress}%</div>
@@ -364,7 +364,7 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
             </div>
 
             {/* Block 2 — PM Site Visit */}
-            <div style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
+            <div data-testid="pm-site-visit-summary" style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
               <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b",marginBottom:10 }}>PM Site Visit</div>
               {!pmVisit.hasVisit?(
                 <div style={{ color:"#64748b",fontSize:13,fontStyle:"italic",marginTop:22,textAlign:"center" }}>No site visits recorded</div>
@@ -376,12 +376,12 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
                   </div>
                   <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10 }}>
                     {[
-                      { l:"Matches",       v:pmVisit.matches,       c:"#22c55e" },
-                      { l:"Discrepancies", v:pmVisit.discrepancies,  c:pmVisit.discrepancies>0?"#ef4444":"#22c55e" },
-                      { l:"PM Ahead",      v:pmVisit.pmAhead,        c:"#f59e0b" },
-                      { l:"Not Assessed",  v:pmVisit.notAssessed,    c:"#94a3b8" },
-                    ].map(({l,v,c})=>(
-                      <div key={l} style={{ background:"#1e293b",borderRadius:8,padding:"7px 10px",textAlign:"center" }}>
+                      { l:"Matches",       v:pmVisit.matches,       c:"#22c55e",                                    testId:null },
+                      { l:"Discrepancies", v:pmVisit.discrepancies,  c:pmVisit.discrepancies>0?"#ef4444":"#22c55e", testId:"discrepancy-count" },
+                      { l:"PM Ahead",      v:pmVisit.pmAhead,        c:"#f59e0b",                                    testId:null },
+                      { l:"Not Assessed",  v:pmVisit.notAssessed,    c:"#94a3b8",                                    testId:null },
+                    ].map(({l,v,c,testId})=>(
+                      <div key={l} data-testid={testId||undefined} style={{ background:"#1e293b",borderRadius:8,padding:"7px 10px",textAlign:"center" }}>
                         <div style={{ fontSize:20,fontWeight:800,color:c,lineHeight:1 }}>{v}</div>
                         <div style={{ fontSize:9,color:"#64748b",marginTop:3,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em" }}>{l}</div>
                       </div>
@@ -409,22 +409,22 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
             </div>
 
             {/* Block 3 — Risk Summary */}
-            <div style={{ background:"#0f172a",border:`1px solid ${riskStyle.border}`,borderRadius:12,padding:"14px 16px" }}>
+            <div data-testid="risk-status-summary" style={{ background:"#0f172a",border:`1px solid ${riskStyle.border}`,borderRadius:12,padding:"14px 16px" }}>
               <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
                 <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b" }}>Risk Summary</div>
-                <span style={{ padding:"3px 10px",borderRadius:8,fontSize:12,fontWeight:700,background:riskStyle.bg,color:riskStyle.text,border:`1px solid ${riskStyle.border}` }}>{risk.level}</span>
+                <span data-testid="risk-level-badge" style={{ padding:"3px 10px",borderRadius:8,fontSize:12,fontWeight:700,background:riskStyle.bg,color:riskStyle.text,border:`1px solid ${riskStyle.border}` }}>{risk.level}</span>
               </div>
               <div style={{ display:"grid",gap:7 }}>
                 {[
-                  { l:"Schedule",    ok:risk.scheduleRisk==="OK",    crit:risk.scheduleRisk==="CRITICAL"||risk.scheduleRisk==="HIGH",  v:risk.scheduleRisk==="OK"?"On Track":risk.scheduleRisk==="AT_RISK"?"At Risk":risk.scheduleRisk==="HIGH"?"Delayed":"Critical" },
-                  { l:"Opening",     ok:risk.openingStatus==="Ready", crit:risk.openingStatus==="Critical"||risk.openingStatus==="Overdue", v:risk.openingStatus },
-                  { l:"PM vs GC",    ok:risk.discrepancyStatus==="OK", crit:risk.discrepancyStatus==="HAS_DISCREPANCIES", v:risk.discrepancyStatus==="OK"?"Match":risk.discrepancyStatus==="HAS_DISCREPANCIES"?"Discrepancies":risk.discrepancyStatus==="NO_VISIT"?"No Visit":"—" },
-                  { l:"Reports",     ok:!risk.missingReport,    crit:risk.missingReport,   v:risk.missingReport?"Missing/Overdue":"Up to date" },
-                  { l:"Blocked",     ok:!risk.blocked,          crit:risk.blocked,         v:risk.blocked?"Yes":"No" },
-                  { l:"Support",     ok:!risk.supportRequired,  crit:false,                v:risk.supportRequired?"Required":"None" },
-                  { l:"Add. Works",  ok:!risk.additionalWorks,  crit:false,                v:risk.additionalWorks?"Yes":"No" },
-                ].map(({l,ok,crit,v})=>(
-                  <div key={l} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12 }}>
+                  { l:"Schedule",    ok:risk.scheduleRisk==="OK",    crit:risk.scheduleRisk==="CRITICAL"||risk.scheduleRisk==="HIGH",  v:risk.scheduleRisk==="OK"?"On Track":risk.scheduleRisk==="AT_RISK"?"At Risk":risk.scheduleRisk==="HIGH"?"Delayed":"Critical", testId:null },
+                  { l:"Opening",     ok:risk.openingStatus==="Ready", crit:risk.openingStatus==="Critical"||risk.openingStatus==="Overdue", v:risk.openingStatus, testId:null },
+                  { l:"PM vs GC",    ok:risk.discrepancyStatus==="OK", crit:risk.discrepancyStatus==="HAS_DISCREPANCIES", v:risk.discrepancyStatus==="OK"?"Match":risk.discrepancyStatus==="HAS_DISCREPANCIES"?"Discrepancies":risk.discrepancyStatus==="NO_VISIT"?"No Visit":"—", testId:null },
+                  { l:"Reports",     ok:!risk.missingReport,    crit:risk.missingReport,   v:risk.missingReport?"Missing/Overdue":"Up to date", testId:"missing-report-status" },
+                  { l:"Blocked",     ok:!risk.blocked,          crit:risk.blocked,         v:risk.blocked?"Yes":"No", testId:null },
+                  { l:"Support",     ok:!risk.supportRequired,  crit:false,                v:risk.supportRequired?"Required":"None", testId:"client-support-status" },
+                  { l:"Add. Works",  ok:!risk.additionalWorks,  crit:false,                v:risk.additionalWorks?"Yes":"No", testId:"additional-works-status" },
+                ].map(({l,ok,crit,v,testId})=>(
+                  <div key={l} data-testid={testId||undefined} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12 }}>
                     <span style={{ color:"#64748b" }}>{l}</span>
                     <div style={{ display:"flex",alignItems:"center",gap:5 }}>
                       <StatusDot ok={ok} critical={crit}/>
@@ -436,7 +436,7 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
             </div>
 
             {/* Block 4 — Opening Readiness */}
-            <div style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
+            <div data-testid="opening-readiness-status" style={{ background:"#0f172a",border:"1px solid #334155",borderRadius:12,padding:"14px 16px" }}>
               <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b",marginBottom:10 }}>Opening Readiness</div>
               {opening.daysToOpening===null?(
                 <div style={{ color:"#64748b",fontSize:13,fontStyle:"italic",marginTop:22,textAlign:"center" }}>No target date set</div>
@@ -451,7 +451,7 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
                   <div style={{ display:"grid",gap:7 }}>
                     <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12 }}>
                       <span style={{ color:"#64748b" }}>Status</span>
-                      <span style={{ padding:"2px 9px",borderRadius:7,fontSize:11,fontWeight:700,background:(OPEN_COLOR[opening.status]||"#94a3b8")+"22",color:OPEN_COLOR[opening.status]||"#94a3b8",border:`1px solid ${(OPEN_COLOR[opening.status]||"#94a3b8")}44` }}>{opening.status}</span>
+                      <span data-testid="opening-risk-badge" style={{ padding:"2px 9px",borderRadius:7,fontSize:11,fontWeight:700,background:(OPEN_COLOR[opening.status]||"#94a3b8")+"22",color:OPEN_COLOR[opening.status]||"#94a3b8",border:`1px solid ${(OPEN_COLOR[opening.status]||"#94a3b8")}44` }}>{opening.status}</span>
                     </div>
                     <div style={{ display:"flex",justifyContent:"space-between",fontSize:12 }}>
                       <span style={{ color:"#64748b" }}>Target date</span>
