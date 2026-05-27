@@ -1,5 +1,14 @@
 import { supabase } from '../lib/supabase';
 
+function validateReport(report) {
+  if (!report?.projectId) throw new Error('projectId is required');
+  if (!report?.reportingDate) throw new Error('reportingDate is required');
+  if (report.reportingDate && isNaN(Date.parse(report.reportingDate))) {
+    throw new Error(`Invalid reportingDate: ${report.reportingDate}`);
+  }
+  if (!report?.projectScheduleStatus) throw new Error('projectScheduleStatus is required');
+}
+
 function fromDB(row) {
   return {
     id: row.id,
@@ -94,6 +103,7 @@ export async function getAll() {
 }
 
 export async function create(report) {
+  validateReport(report);
   const { data, error } = await supabase
     .from('reports')
     .insert([toDB(report)])

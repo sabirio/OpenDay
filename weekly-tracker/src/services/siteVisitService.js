@@ -1,5 +1,13 @@
 import { supabase } from '../lib/supabase';
 
+function validateVisit(visit) {
+  if (!visit?.projectId) throw new Error('projectId is required');
+  if (!visit?.visitDate) throw new Error('visitDate is required');
+  if (visit.visitDate && isNaN(Date.parse(visit.visitDate))) {
+    throw new Error(`Invalid visitDate: ${visit.visitDate}`);
+  }
+}
+
 function fromDB(row) {
   const sv = {
     id: row.id,
@@ -17,7 +25,6 @@ function fromDB(row) {
     declarationConfirmed: row.declaration_confirmed,
     submittedAt: row.submitted_at,
   };
-  console.log('[SiteVisit LOAD] fromDB pmWorkPackageStatuses:', sv.pmWorkPackageStatuses);
   return sv;
 }
 
@@ -49,6 +56,7 @@ export async function getAll() {
 }
 
 export async function create(visit) {
+  validateVisit(visit);
   const { data, error } = await supabase
     .from('site_visits')
     .insert([toDB(visit)])

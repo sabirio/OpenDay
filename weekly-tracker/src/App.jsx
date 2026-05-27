@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Dashboard from "./pages/Dashboard";
@@ -20,6 +20,64 @@ import * as projectService from "./services/projectService";
 import * as reportService from "./services/reportService";
 import * as siteVisitService from "./services/siteVisitService";
 
+// ── Error boundary ────────────────────────────────────────────────────────────
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: '#0f172a', color: '#f1f5f9' }}>
+        <div style={{ fontSize: 40 }}>⚠️</div>
+        <div style={{ fontSize: 20, fontWeight: 600 }}>Something went wrong</div>
+        <div style={{ fontSize: 14, color: '#94a3b8', maxWidth: 480, textAlign: 'center' }}>
+          {this.state.error?.message || 'An unexpected error occurred.'}
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          style={{ marginTop: 8, padding: '8px 24px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+        >
+          Reload page
+        </button>
+      </div>
+    );
+  }
+}
+
+// ── Global screens ────────────────────────────────────────────────────────────
+function GlobalLoadingScreen() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0f172a', color: '#94a3b8', fontFamily: 'sans-serif', gap: 12 }}>
+      <div style={{ width: 20, height: 20, border: '3px solid #334155', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <span style={{ fontSize: 15 }}>Loading project data…</span>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  );
+}
+
+function GlobalErrorScreen({ error, onRetry }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: '#0f172a', color: '#f1f5f9' }}>
+      <div style={{ fontSize: 40 }}>🔌</div>
+      <div style={{ fontSize: 20, fontWeight: 600 }}>Failed to load data</div>
+      <div style={{ fontSize: 14, color: '#94a3b8', maxWidth: 480, textAlign: 'center' }}>
+        {error || 'Could not connect to the database. Check your network and try again.'}
+      </div>
+      <button
+        onClick={onRetry}
+        style={{ marginTop: 8, padding: '8px 24px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
 // Redirect authenticated users away from /login
 function PublicOnlyRoute({ children }) {
   const { isAuthenticated, loading, role } = useAuth();
@@ -34,15 +92,12 @@ function App() {
   const [projects, setProjects] = useState([]);
   const [reports, setReports] = useState([]);
   const [siteVisits, setSiteVisits] = useState([]);
+  const [dataState, setDataState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'error'
+  const [dataError, setDataError] = useState(null);
 
-  // Load all data from Supabase whenever the user logs in
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setProjects([]);
-      setReports([]);
-      setSiteVisits([]);
-      return;
-    }
+  function loadData() {
+    setDataState('loading');
+    setDataError(null);
     Promise.all([
       projectService.getAll(),
       reportService.getAll(),
@@ -51,7 +106,25 @@ function App() {
       setProjects(p);
       setReports(r);
       setSiteVisits(s);
-    }).catch((err) => console.error("Failed to load data from Supabase:", err));
+      setDataState('ready');
+    }).catch((err) => {
+      console.error("Failed to load data from Supabase:", err);
+      setDataError(err?.message || 'Unknown error');
+      setDataState('error');
+    });
+  }
+
+  // Load all data from Supabase whenever the user logs in
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setProjects([]);
+      setReports([]);
+      setSiteVisits([]);
+      setDataState('idle');
+      setDataError(null);
+      return;
+    }
+    loadData();
   }, [isAuthenticated]);
 
   async function handleSaveProject(project) {
@@ -83,7 +156,11 @@ function App() {
     return saved;
   }
 
+  if (isAuthenticated && dataState === 'loading') return <GlobalLoadingScreen />;
+  if (isAuthenticated && dataState === 'error') return <GlobalErrorScreen error={dataError} onRetry={loadData} />;
+
   return (
+    <ErrorBoundary>
     <BrowserRouter
       future={{
         v7_startTransition: true,
@@ -206,6 +283,7 @@ function App() {
         />
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

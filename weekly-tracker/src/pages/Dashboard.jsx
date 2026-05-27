@@ -6,6 +6,8 @@ import {
   computeWPCumulativeStatuses, estimateProgressAuto,
 } from "../reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from "../config/workPackages";
+import { RISK_LEVEL_COLORS, SCHEDULE_STATUS_COLORS, OPENING_STATUS_COLORS } from "../config/statusColors";
+import { computeConfidenceLevel } from "../engines/pmAlignmentEngine";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -14,14 +16,7 @@ const PROJECT_COLORS = [
   "#0891b2","#be185d","#059669","#92400e","#1d4ed8",
 ];
 
-
-const RL = {
-  CRITICAL:{ text:"#fca5a5", bg:"#450a0a", border:"#7f1d1d" },
-  HIGH:    { text:"#fdba74", bg:"#431407", border:"#c2410c" },
-  MEDIUM:  { text:"#fcd34d", bg:"#422006", border:"#b45309" },
-  LOW:     { text:"#86efac", bg:"#052e16", border:"#166534" },
-  UNKNOWN: { text:"#94a3b8", bg:"#1e293b", border:"#334155" },
-};
+const RL = RISK_LEVEL_COLORS;
 
 // WP_COLS: one column per work package for the heatmap tab
 const WP_COLS = WORK_PACKAGES.map((wp) => ({
@@ -300,8 +295,13 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
 
   const riskStyle = RL[risk.level] || RL.UNKNOWN;
 
-  const SCHED_COLOR = { OK:"#22c55e", AT_RISK:"#f59e0b", HIGH:"#ef4444", CRITICAL:"#ef4444" };
-  const OPEN_COLOR  = { Ready:"#22c55e", "No Date":"#64748b", "At Risk":"#f59e0b", Critical:"#ef4444", Overdue:"#ef4444" };
+  const latestReport = [...projReports].sort(
+    (a,b) => new Date(a.reportingDate||a.submittedAt) - new Date(b.reportingDate||b.submittedAt)
+  ).slice(-1)[0] || null;
+  const confidence = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
+
+  const SCHED_COLOR = { OK: SCHEDULE_STATUS_COLORS["On Track"], AT_RISK: SCHEDULE_STATUS_COLORS["At Risk"], HIGH: SCHEDULE_STATUS_COLORS["Delayed"], CRITICAL: SCHEDULE_STATUS_COLORS["Critical"] };
+  const OPEN_COLOR  = OPENING_STATUS_COLORS;
 
   return (
     <>
@@ -466,6 +466,20 @@ function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+
+          {/* Block 5 — Data Confidence */}
+          <div data-testid="data-confidence-block" style={{ background:"#0f172a",border:`1px solid ${confidence.color}44`,borderRadius:12,padding:"14px 16px",gridColumn:"span 2" }}>
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8 }}>
+              <div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.07em",color:"#64748b" }}>Data Confidence</div>
+              <span style={{ padding:"2px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:confidence.color+"22",color:confidence.color,border:`1px solid ${confidence.color}44` }}>{confidence.label}</span>
+            </div>
+            <div style={{ display:"flex",gap:8,alignItems:"center" }}>
+              {Array.from({length:confidence.maxPts}).map((_,i)=>(
+                <div key={i} style={{ flex:1,height:5,borderRadius:3,background:i<confidence.pts?confidence.color:"#334155" }}/>
+              ))}
+              <span style={{ fontSize:11,color:"#64748b",whiteSpace:"nowrap",marginLeft:4 }}>{confidence.pts}/{confidence.maxPts}</span>
             </div>
           </div>
 

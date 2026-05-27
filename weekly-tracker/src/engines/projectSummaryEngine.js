@@ -1,5 +1,6 @@
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
+import { computeOpeningReadiness } from './openingReadinessEngine';
 
 // WP task comparison (mirrors SiteVisitReport comparisonResult)
 function wpCompare(pmStatus, gcStatus) {
@@ -107,16 +108,11 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
     sched === 'At Risk'  ? 'AT_RISK'  : 'OK';
 
   // ── 4. Opening ────────────────────────────────────────────────────────────
-  const daysToOpening = project.targetOpeningDate
-    ? Math.ceil((new Date(project.targetOpeningDate) - now) / 86400000)
-    : null;
-
-  const openingStatus =
-    daysToOpening === null                            ? 'No Date'  :
-    daysToOpening < 0                                 ? 'Overdue'  :
-    daysToOpening < 30 && progress < 70               ? 'Critical' :
-    daysToOpening < 60 && progress < 85               ? 'At Risk'  :
-    'Ready';
+  const openingReadiness = computeOpeningReadiness(
+    wpCumulativeStatuses,
+    project.targetOpeningDate || null
+  );
+  const openingStatus = openingReadiness.status;
 
   const risk = {
     level: riskLevel,
@@ -133,12 +129,12 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
   };
 
   const opening = {
-    daysToOpening,
+    daysToOpening: openingReadiness.daysToOpening,
     status: openingStatus,
-    targetDate: project.targetOpeningDate || null,
-    blockerCount: riskScore.factors.filter(
-      f => f.name === 'Activities blocked' || f.name === 'Repeated blocker'
-    ).length,
+    targetDate: openingReadiness.targetDate,
+    blockerCount: openingReadiness.blockerCount,
+    criticalBlockers: openingReadiness.criticalBlockers,
+    softBlockers: openingReadiness.softBlockers,
   };
 
   return { contractor, pmVisit, risk, opening };

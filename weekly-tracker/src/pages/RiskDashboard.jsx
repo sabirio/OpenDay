@@ -13,12 +13,9 @@ import { computeRecommendedActions } from "../engines/actionEngine";
 import { RiskGauge, RiskBadge, HealthBadge, DimCell } from "../components/RiskGauge";
 import { FactorPill, MiniRiskSparkline, ScoreBar } from "../components/ScoreBar";
 import { RiskTable } from "../components/RiskTable";
+import { RISK_LEVEL_COLORS } from "../config/statusColors";
 
-const SEV_COLORS = {
-  CRITICAL: { text: "#fca5a5", bg: "#450a0a", border: "#7f1d1d" },
-  HIGH:     { text: "#fdba74", bg: "#431407", border: "#c2410c" },
-  MEDIUM:   { text: "#fcd34d", bg: "#422006", border: "#b45309" },
-};
+const SEV_COLORS = RISK_LEVEL_COLORS;
 
 const VIEWS = [
   { id: "overview",     label: "Overview" },

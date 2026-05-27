@@ -1,5 +1,18 @@
 import { supabase } from '../lib/supabase';
 
+function validateProject(project, requireId = false) {
+  if (requireId && !project?.id) throw new Error('Project ID is required');
+  if (!project?.storeCode?.trim()) throw new Error('Store code is required');
+  if (!project?.shoppingMallName?.trim()) throw new Error('Shopping mall name is required');
+  if (!project?.country?.trim()) throw new Error('Country is required');
+  const dateFields = ['constructionStartDate', 'constructionEndDate', 'targetOpeningDate'];
+  for (const f of dateFields) {
+    if (project[f] && isNaN(Date.parse(project[f]))) {
+      throw new Error(`Invalid date for ${f}: ${project[f]}`);
+    }
+  }
+}
+
 function fromDB(row) {
   return {
     id: row.id,
@@ -63,6 +76,7 @@ export async function getAll() {
 }
 
 export async function create(project) {
+  validateProject(project);
   const { data, error } = await supabase
     .from('projects')
     .insert([toDB(project)])
@@ -73,6 +87,8 @@ export async function create(project) {
 }
 
 export async function update(id, project) {
+  if (!id) throw new Error('Project ID is required for update');
+  validateProject(project);
   const { data, error } = await supabase
     .from('projects')
     .update(toDB(project))
