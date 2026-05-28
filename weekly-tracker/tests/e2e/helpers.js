@@ -39,7 +39,10 @@ export async function login(page, creds) {
  * @param {import('@playwright/test').Page} page
  */
 export async function logout(page) {
-  // Find any button with "Sign out" text regardless of class/location
-  await page.getByRole('button', { name: /sign out/i }).first().click();
+  // Press Escape first to dismiss any open drawer/modal, then force-click the
+  // Sign out button (overlay from open drawer can intercept pointer events)
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  await page.getByRole('button', { name: /sign out/i }).first().click({ force: true });
   await page.waitForURL('**/login', { timeout: 15_000 });
 }
