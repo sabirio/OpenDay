@@ -10,6 +10,11 @@ function Unauthorized() {
     navigate(getDefaultRoute(role), { replace: true });
   }
 
+  async function handleLogout() {
+    await logout();
+    navigate('/login', { replace: true });
+  }
+
   return (
     <div className="unauth-page">
       <div className="unauth-card">
@@ -22,7 +27,7 @@ function Unauthorized() {
           <button className="btn-primary" onClick={goHome}>
             Go to my dashboard
           </button>
-          <button className="btn-ghost" onClick={logout}>
+          <button className="btn-ghost" onClick={handleLogout}>
             Sign out
           </button>
         </div>

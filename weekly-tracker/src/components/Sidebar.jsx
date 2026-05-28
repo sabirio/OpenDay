@@ -1,13 +1,19 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getAllowedNavItems } from '../engines/permissionEngine';
 import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
 
 function Sidebar() {
   const { user, role, logout } = useAuth();
+  const navigate = useNavigate();
 
   const visibleNav = getAllowedNavItems(role, NAV_ITEMS);
   const badgeStyle = ROLE_BADGE_STYLES[role] ?? {};
+
+  async function handleLogout() {
+    await logout();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <aside className="sidebar">
@@ -39,7 +45,7 @@ function Sidebar() {
 
       <div style={{ marginTop: 'auto', paddingTop: 16 }}>
         {user && (
-          <button className="sidebar-logout-btn" onClick={logout}>
+          <button className="sidebar-logout-btn" onClick={handleLogout}>
             Sign out
           </button>
         )}

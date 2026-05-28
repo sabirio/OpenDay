@@ -47,9 +47,6 @@ export function AuthProvider({ children }) {
   async function logout() {
     setUser(null);
     await authService.logout();
-    // Hard redirect clears all SPA state and guarantees /login even when the
-    // current page is not wrapped in a ProtectedRoute (e.g. /unauthorized).
-    window.location.replace('/login');
   }
 
   const value = {
