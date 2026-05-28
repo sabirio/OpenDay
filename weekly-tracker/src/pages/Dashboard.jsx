@@ -808,7 +808,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
           <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search…" style={{ paddingLeft:32,paddingRight:12,height:36,borderRadius:9,border:"1.5px solid #334155",fontSize:13,color:"#e2e8f0",background:"#1e293b",outline:"none",minWidth:180 }}/>
         </div>
         <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid #334155",fontSize:13,color:"#e2e8f0",background:"#1e293b",cursor:"pointer",outline:"none" }}>
-          {[["all","All statuses"],["on-track","On Track"],["at-risk","At Risk"],["delayed","Delayed"],["critical","Critical"],["no-report","No Report"],["missing","Missing/Overdue"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+          {[["all","All statuses"],["on-track","On Track"],["at-risk","At Risk"],["critical","Critical"],["no-report","No Report"],["missing","Missing/Overdue"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
         {filtersActive&&<button type="button" onClick={clearFilters} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid #7f1d1d",background:"#450a0a",color:"#fca5a5",fontSize:13,fontWeight:600,cursor:"pointer" }}>Clear ×</button>}
         <div style={{ marginLeft:"auto",fontSize:12,color:"#64748b" }}>{filteredRows.length} / {projects.length} projects</div>

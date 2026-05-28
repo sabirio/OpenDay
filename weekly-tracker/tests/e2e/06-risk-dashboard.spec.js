@@ -4,7 +4,7 @@ import { CREDENTIALS, login, logout } from './helpers.js';
 test.describe('Risk Dashboard — Admin', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, CREDENTIALS.admin);
-    await page.goto('/risk-engine');
+    await page.goto('/risk');
     await expect(page.locator('h1')).toContainText('Risk', { timeout: 10_000 });
   });
 
@@ -34,7 +34,7 @@ test.describe('Risk Dashboard — Admin', () => {
 test.describe('Risk Dashboard — PM', () => {
   test('PM can access Risk Dashboard', async ({ page }) => {
     await login(page, CREDENTIALS.pm);
-    await page.goto('/risk-engine');
+    await page.goto('/risk');
     await expect(page.locator('h1')).toContainText('Risk', { timeout: 10_000 });
     await logout(page);
   });

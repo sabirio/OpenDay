@@ -261,7 +261,7 @@ function App() {
                     }
                   />
                   <Route
-                    path="/risk-engine"
+                    path="/risk"
                     element={
                       <ProtectedRoute resource="risk_engine">
                         <RiskDashboard projects={projects} reports={reports} siteVisits={siteVisits} />

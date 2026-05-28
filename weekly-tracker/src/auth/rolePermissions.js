@@ -33,7 +33,7 @@ export const NAV_ITEMS = [
   { to: '/projects',          label: 'Projects',       resource: 'projects' },
   { to: '/weekly-reports',    label: 'Weekly Reports', resource: 'weekly_reports' },
   { to: '/site-visit-select', label: 'Site Visit',     resource: 'site_visit' },
-  { to: '/risk-engine',       label: 'Risk Dashboard', resource: 'risk_engine' },
+  { to: '/risk',              label: 'Risk Dashboard', resource: 'risk_engine' },
   { to: '/admin/users',       label: 'Users',          resource: 'admin_users' },
 ];
 

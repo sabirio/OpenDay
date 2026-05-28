@@ -16,7 +16,6 @@ async function fetchProfile(userId) {
     console.error('[authService] fetchProfile error:', error.code, error.message);
     return null;
   }
-  console.log('[authService] profile loaded:', data);
   return data;
 }
 

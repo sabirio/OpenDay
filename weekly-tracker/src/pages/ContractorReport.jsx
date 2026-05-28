@@ -408,7 +408,6 @@ function ContractorReport({ projects, reports, onSaveReport }) {
     if (!(form.currentPackages || []).length) errors.push("Select at least one active work package.");
     if (
       form.projectScheduleStatus === "At Risk" ||
-      form.projectScheduleStatus === "Delayed" ||
       form.projectScheduleStatus === "Critical"
     ) {
       if (!form.risks.length) errors.push("Select at least one risk indication.");
@@ -686,20 +685,19 @@ function ContractorReport({ projects, reports, onSaveReport }) {
           <ToggleGroup
             name="schedule-status"
             label="Is the project on track vs the agreed schedule?"
-            options={["On Track", "At Risk", "Delayed", "Critical"]}
+            options={["On Track", "At Risk", "Critical"]}
             value={form.projectScheduleStatus}
             onChange={(v) => updateField("projectScheduleStatus", v)}
             colorMap={{
               "On Track": { bg: "#dcfce7", color: "#166534", border: "#86efac" },
               "At Risk":  { bg: "#fef3c7", color: "#92400e", border: "#fde68a" },
-              "Delayed":  { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
               "Critical": { bg: "#fff1f2", color: "#7f1d1d", border: "#f43f5e" },
             }}
           />
         </FormSection>
 
         {/* ── 4. Risks ── */}
-        {(form.projectScheduleStatus === "At Risk" || form.projectScheduleStatus === "Delayed" || form.projectScheduleStatus === "Critical") && (
+        {(form.projectScheduleStatus === "At Risk" || form.projectScheduleStatus === "Critical") && (
           <FormSection title="Risk Details" accentColor="#dc2626">
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 10 }}>Main Risk Indication</div>

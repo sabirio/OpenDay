@@ -254,9 +254,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
       submittedAt: new Date().toISOString(),
     };
     try {
-      console.log('[SiteVisit SAVE] Sending pmWorkPackageStatuses:', JSON.stringify(visitData.pmWorkPackageStatuses, null, 2));
       const saved = await onSaveSiteVisit(visitData);
-      console.log('[SiteVisit SAVE] Returned from DB pmWorkPackageStatuses:', JSON.stringify(saved.pmWorkPackageStatuses, null, 2));
       setSavedVisit(saved);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -281,7 +279,6 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   // ── COMPARISON RESULTS VIEW ────────────────────────────────────────────────
 
   if (submitted && savedVisit) {
-    console.log('[SiteVisit LOAD] Comparison view savedVisit.pmWorkPackageStatuses:', JSON.stringify(savedVisit?.pmWorkPackageStatuses, null, 2));
 
     const refRep = projectReports.find((r) => String(r.id) === String(savedVisit.referenceReportId));
 
@@ -395,8 +392,8 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
                       <div style={{ fontSize: 10, color: ACCENT, fontWeight: 700, marginBottom: 4 }}>PM Assessment</div>
                       <span style={{
                         display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                        background: savedVisit.pmScheduleAssessment === "On Track" ? "#dcfce7" : savedVisit.pmScheduleAssessment === "Critical" ? "#fff1f2" : savedVisit.pmScheduleAssessment === "Delayed" ? "#fee2e2" : "#fef3c7",
-                        color: savedVisit.pmScheduleAssessment === "On Track" ? "#166534" : savedVisit.pmScheduleAssessment === "Critical" ? "#7f1d1d" : savedVisit.pmScheduleAssessment === "Delayed" ? "#dc2626" : "#92400e",
+                        background: savedVisit.pmScheduleAssessment === "On Track" ? "#dcfce7" : savedVisit.pmScheduleAssessment === "Critical" ? "#fff1f2" : "#fef3c7",
+                        color: savedVisit.pmScheduleAssessment === "On Track" ? "#166534" : savedVisit.pmScheduleAssessment === "Critical" ? "#7f1d1d" : "#92400e",
                       }}>
                         {savedVisit.pmScheduleAssessment}
                       </span>
@@ -557,7 +554,6 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
               {[
                 { label: "On Track", bg: "#dcfce7", color: "#166534", border: "#86efac" },
                 { label: "At Risk",  bg: "#fef3c7", color: "#92400e", border: "#fde68a" },
-                { label: "Delayed",  bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
                 { label: "Critical", bg: "#fff1f2", color: "#7f1d1d", border: "#f43f5e" },
               ].map(({ label, bg, color, border }) => {
                 const sel = form.pmScheduleAssessment === label;
