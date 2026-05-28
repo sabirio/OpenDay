@@ -1,4 +1,4 @@
-import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore } from "../reportUtils";
+import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore } from "../utils/reportUtils";
 import { computeProjectProgressFromWP } from "../config/workPackages";
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER } from "../config/riskConfig";

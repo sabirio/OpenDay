@@ -1,6 +1,6 @@
-import { getStatusScore } from "../reportUtils";
+import { getStatusScore } from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
-import { constructionWeights, testingWeights, handoverWeights } from "../reportWeights";
+import { constructionWeights, testingWeights, handoverWeights } from "../config/reportWeights";
 
 // ─── Legacy key lists (old column-based format) ───────────────────────────────
 export const CONS_KEYS = Object.keys(constructionWeights || {});

@@ -1,4 +1,4 @@
-import { estimateProgressFromStatuses, computeCumulativeStatuses } from "../reportUtils";
+import { estimateProgressFromStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { computeScheduleDeviation } from "./riskEngine";
 

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { constructionWeights, testingWeights, handoverWeights } from "../reportWeights";
+import { constructionWeights, testingWeights, handoverWeights } from "../config/reportWeights";
 import { computeProjectSummary } from "../engines/projectSummaryEngine";
 import {
   formatDate, getStatusScore, estimateProgressFromStatuses, computeCumulativeStatuses,
   computeWPCumulativeStatuses, estimateProgressAuto,
-} from "../reportUtils";
+} from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from "../config/workPackages";
 import { RISK_LEVEL_COLORS, SCHEDULE_STATUS_COLORS, OPENING_STATUS_COLORS } from "../config/statusColors";
 import { computeConfidenceLevel } from "../engines/pmAlignmentEngine";

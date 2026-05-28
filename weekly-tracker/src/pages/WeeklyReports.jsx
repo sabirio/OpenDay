@@ -6,7 +6,7 @@ import {
   estimateProgressFromStatuses,
   computeWPCumulativeStatuses,
   isWPReport,
-} from "../reportUtils";
+} from "../utils/reportUtils";
 import { WORK_PACKAGES, computePackageProgress, WP_STATUS_SCORES } from "../config/workPackages";
 
 // ─────────────────────────────────────────────

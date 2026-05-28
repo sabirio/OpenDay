@@ -1,351 +1,563 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { calculateLayout } from '../engines/ganttLayout';
+import { calculateLayout } from '../engines/ganttLayout.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const LEFT_W     = 280;
-const ROW_H      = 36;
+const LEFT_W      = 280;
+const HEADER_H    = 48;
+const ROW_H       = 36;
 const PHASE_ROW_H = 32;
-const BAR_H      = 22;
-const HEADER_H   = 28;
-const LABEL_PAD  = 12;
+const BAR_H       = 22;
+
+// NORYX dark palette
+const C = {
+  bg:        '#0a0a0f',
+  bgCard:    '#1a1a24',
+  bgEl:      '#13131a',
+  border:    '#2a2a3a',
+  text:      '#e2e2e8',
+  muted:     '#6b6b80',
+  blue:      '#4F8EF7',
+  green:     '#22c55e',
+  yellow:    '#f59e0b',
+  red:       '#ef4444',
+  redCrit:   '#ff4444',
+  orange:    '#f97316',
+  white60:   'rgba(255,255,255,0.6)',
+};
 
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return (d instanceof Date ? d : new Date(d))
+    .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Controls bar ─────────────────────────────────────────────────────────────
 
-function Controls({ viewMode, onViewModeChange, showArrows, onShowArrowsToggle, collapseState, phases, onCollapseAll, onExpandAll }) {
-  const allCollapsed = phases.every(p => collapseState[p.id]);
+function Controls({ zoom, setZoom, onToday, onFitAll, showArrows, onArrowsToggle, phases, collapseState, onCollapseAll, onExpandAll }) {
+  const allCollapsed = phases.length > 0 && phases.every(p => collapseState[p.id]);
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid #334155', background: '#1e293b', flexShrink: 0, flexWrap: 'wrap' }}>
-      <span style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', marginRight: 4 }}>Gantt Chart</span>
-      <div style={{ display: 'flex', gap: 2, background: '#0f172a', borderRadius: 7, padding: 2 }}>
-        {['month','week','day'].map(m => (
-          <button key={m} onClick={() => onViewModeChange(m)}
-            style={{ padding: '4px 12px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-              background: viewMode === m ? '#3b82f6' : 'transparent',
-              color: viewMode === m ? '#fff' : '#94a3b8' }}>
-            {m.charAt(0).toUpperCase() + m.slice(1)}
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+      padding: '9px 14px', borderBottom: `1px solid ${C.border}`,
+      background: C.bgEl, flexShrink: 0,
+    }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: C.text, marginRight: 4 }}>
+        Gantt Chart
+      </span>
+
+      {/* Zoom toggle */}
+      <div style={{
+        display: 'flex', gap: 2, background: C.bg,
+        borderRadius: 7, padding: 2, border: `1px solid ${C.border}`,
+      }}>
+        {['week', 'month', 'quarter'].map(z => (
+          <button key={z} onClick={() => setZoom(z)} style={{
+            padding: '4px 12px', borderRadius: 5, border: 'none', cursor: 'pointer',
+            fontSize: 12, fontWeight: 600, transition: 'all 0.12s',
+            background: zoom === z ? C.blue : 'transparent',
+            color:      zoom === z ? '#fff' : C.muted,
+          }}>
+            {z.charAt(0).toUpperCase() + z.slice(1)}
           </button>
         ))}
       </div>
-      <button onClick={onShowArrowsToggle}
-        style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${showArrows ? '#3b82f6' : '#334155'}`, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-          background: showArrows ? '#1e3a5f' : 'transparent', color: showArrows ? '#93c5fd' : '#64748b' }}>
+
+      {/* Today / Fit All */}
+      <button onClick={onToday} style={btnStyle}>Today</button>
+      <button onClick={onFitAll} style={btnStyle}>Fit All</button>
+
+      {/* Arrows toggle */}
+      <button onClick={onArrowsToggle} style={{
+        ...btnStyle,
+        borderColor: showArrows ? C.blue : C.border,
+        color:       showArrows ? C.blue : C.muted,
+        background:  showArrows ? 'rgba(79,142,247,0.1)' : 'transparent',
+      }}>
         Arrows ↗
       </button>
-      <button onClick={allCollapsed ? onExpandAll : onCollapseAll}
-        style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #334155', cursor: 'pointer', fontSize: 12, background: 'transparent', color: '#64748b' }}>
+
+      {/* Collapse/Expand */}
+      <button onClick={allCollapsed ? onExpandAll : onCollapseAll} style={btnStyle}>
         {allCollapsed ? 'Expand All' : 'Collapse All'}
       </button>
     </div>
   );
 }
 
-function Tooltip({ tooltip, containerRect }) {
-  if (!tooltip) return null;
-  const wp = tooltip.wp;
-  const disc = wp.discrepancy;
-  const left = Math.min(tooltip.clientX + 14, (containerRect?.width || 900) - 295);
-  const top  = tooltip.clientY - (containerRect?.top || 0) + 12;
+const btnStyle = {
+  padding: '4px 12px', borderRadius: 7, cursor: 'pointer',
+  border: `1px solid ${C.border}`, background: 'transparent',
+  color: C.muted, fontSize: 12, fontWeight: 500, transition: 'all 0.12s',
+};
+
+// ─── WP Detail tooltip (click-based, fixed position) ─────────────────────────
+
+function WPTooltip({ task, onClose }) {
+  if (!task) return null;
+  const disc = task.discrepancy;
+
+  const badge = (label, color, bg) => (
+    <span style={{
+      padding: '1px 7px', borderRadius: 5, fontSize: 10, fontWeight: 700,
+      color, background: bg,
+    }}>{label}</span>
+  );
 
   return (
     <div style={{
-      position: 'absolute', left, top, zIndex: 50,
-      background: '#1e293b', border: '1px solid #475569', borderRadius: 8,
-      padding: '10px 14px', width: 280, fontSize: 12, color: '#e2e8f0',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.6)', lineHeight: 1.6, pointerEvents: 'none',
+      position: 'fixed', top: 90, right: 24, width: 268, zIndex: 200,
+      background: C.bgCard, border: `1.5px solid ${C.border}`,
+      borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.7)',
+      overflow: 'hidden', fontFamily: 'system-ui, sans-serif',
     }}>
-      <div style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9', marginBottom: 6 }}>{wp.label}</div>
-      <div style={{ color: '#94a3b8', marginBottom: 4 }}>Phase: {wp.phaseLabel}</div>
-      <div>Planned: {fmtDate(wp.earlyStart)} → {fmtDate(wp.earlyFinish)}</div>
-      <div>Duration: {wp.duration_days}d · Float: {wp.float_days}d</div>
-      <div>Progress: <strong style={{ color: '#f1f5f9' }}>{wp.actual_progress}%</strong></div>
-      {wp.status === 'delayed' && (
-        <div style={{ color: '#f97316', marginTop: 4 }}>⚠️ Status: Delayed</div>
-      )}
-      {wp.isCritical && (
-        <div style={{ color: '#ef4444', marginTop: 2 }}>🔴 On Critical Path</div>
-      )}
-      {disc && disc.status !== 'ok' && (
-        <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #334155' }}>
-          <div style={{ color: disc.status === 'critical' ? '#ef4444' : '#eab308', fontWeight: 600 }}>
-            {disc.status === 'critical' ? '🔴' : '⚠️'} Site Visit Discrepancy
-          </div>
-          <div>Contractor: {disc.contractor_progress}%</div>
-          <div>Site Visit: {disc.site_visit_progress}% · Δ {disc.delta}%</div>
-          {disc.site_visit_date && <div style={{ color: '#94a3b8' }}>Visited: {fmtDate(disc.site_visit_date)}</div>}
-          {disc.note && <div style={{ color: '#94a3b8', fontStyle: 'italic', marginTop: 2 }}>PM: {disc.note}</div>}
-        </div>
-      )}
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '11px 14px 10px', background: C.bgEl,
+        borderBottom: `1px solid ${C.border}`,
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.text, flex: 1,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>
+          {task.label || task.name || task.id}
+        </span>
+        <button onClick={onClose} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: C.muted, fontSize: 18, lineHeight: 1, padding: 0,
+        }}>×</button>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
+        <Row label="Phase"    value={task.phaseLabel} />
+        <Row label="Planned"  value={`${fmtDate(task.earlyStart)} → ${fmtDate(task.earlyFinish)}`} />
+        <Row label="Duration" value={`${task.duration_days}d`} />
+        <Row label="Progress" value={`${task.actual_progress ?? 0}%`} bold />
+        {task.actual_start && <Row label="Started" value={fmtDate(task.actual_start)} />}
+
+        {disc && disc.status !== 'ok' && (
+          <>
+            <div style={{ height: 1, background: C.border, margin: '4px 0' }} />
+            <Row label="Contractor"  value={`${disc.contractor_progress ?? 0}%`} />
+            <Row label="PM Observed" value={`${disc.site_visit_progress ?? 0}%`} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: C.muted }}>Discrepancy</span>
+              {disc.status === 'critical'
+                ? badge(`CRITICAL (${disc.delta?.toFixed(1)}%)`, '#fff', C.red)
+                : badge(`WARNING (${disc.delta?.toFixed(1)}%)`, '#000', C.yellow)}
+            </div>
+            {disc.site_visit_date && <Row label="Visited" value={fmtDate(disc.site_visit_date)} />}
+          </>
+        )}
+
+        <div style={{ height: 1, background: C.border, margin: '4px 0' }} />
+        <Row label="Is Blocker"    value={task.isBlocker  ? 'YES' : 'No'} critical={task.isBlocker} />
+        <Row label="Critical Path" value={task.isCritical ? 'YES' : 'No'} critical={task.isCritical} />
+        <Row label="Float"         value={`${task.float_days ?? 0}d`} />
+      </div>
     </div>
   );
 }
+
+function Row({ label, value, bold, critical }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+      <span style={{ color: C.muted, flexShrink: 0 }}>{label}</span>
+      <span style={{
+        color: critical ? C.redCrit : C.text,
+        fontWeight: (bold || critical) ? 700 : 500,
+        textAlign: 'right',
+      }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Legend ───────────────────────────────────────────────────────────────────
 
 function Legend() {
+  const bars = [
+    { label: 'Planned',       bg: '#3a3a4a',                  border: C.border },
+    { label: 'In Progress',   bg: C.blue,                     border: 'none' },
+    { label: 'Complete',      bg: C.green,                    border: 'none' },
+    { label: 'Critical Path', bg: 'rgba(255,100,100,0.4)',    border: C.redCrit },
+    { label: 'Warning ⚠',    bg: 'rgba(245,158,11,0.2)',     border: C.yellow },
+    { label: 'Critical Disc', bg: 'rgba(239,68,68,0.2)',      border: C.red },
+  ];
+  const lines = [
+    { label: 'Today',         color: C.white60, dashed: true },
+    { label: 'Target Open',   color: C.green,   dashed: false },
+    { label: 'Const. Done',   color: C.blue,    dashed: false },
+    { label: 'Forecast Open', color: C.yellow,  dashed: true },
+  ];
+
   return (
-    <div style={{ display: 'flex', gap: 20, padding: '8px 14px', borderTop: '1px solid #334155', background: '#0f172a', flexWrap: 'wrap', fontSize: 11, color: '#64748b', flexShrink: 0 }}>
-      <span style={{ color: '#ef4444' }}>🔴 Critical Path</span>
-      <span>⬛ Blocker</span>
-      <span style={{ color: '#eab308' }}>━━ Warning (SV)</span>
-      <span style={{ color: '#ef4444' }}>━━ Critical Discrepancy</span>
-      <span style={{ color: '#3b82f6' }}>| Target Opening</span>
-      <span style={{ color: '#10b981' }}>| Construction Complete</span>
-      <span style={{ color: '#f97316' }}>⋮ Forecast Opening</span>
-      <span style={{ color: '#ef4444' }}>⋮ Today</span>
+    <div style={{
+      display: 'flex', flexWrap: 'wrap', gap: '6px 16px',
+      padding: '8px 14px', borderTop: `1px solid ${C.border}`,
+      background: C.bgEl, flexShrink: 0,
+    }}>
+      {bars.map(({ label, bg, border }) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.muted }}>
+          <div style={{
+            width: 18, height: 9, borderRadius: 3, flexShrink: 0,
+            background: bg, border: border !== 'none' ? `1.5px solid ${border}` : 'none',
+          }} />
+          <span>{label}</span>
+        </div>
+      ))}
+      {lines.map(({ label, color, dashed }) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.muted }}>
+          <div style={{
+            width: 18, height: 0, flexShrink: 0,
+            borderTop: `2px ${dashed ? 'dashed' : 'solid'} ${color}`,
+          }} />
+          <span>{label}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
-// ─── Bar renderer ─────────────────────────────────────────────────────────────
+// ─── SVG bar per WP ───────────────────────────────────────────────────────────
 
-function WPBar({ task, onMouseEnter, onMouseLeave, onClick }) {
-  const { x, barY, width, barHeight, phaseColor, isCritical, isBlocker,
+function WPBar({ task, isSelected, onClick }) {
+  const { x, barY, width, barHeight, isCritical, isBlocker,
           status, actual_progress, discrepancy } = task;
 
-  const isDelayed    = status === 'delayed';
-  const isCompleted  = status === 'completed';
-  const isNotStarted = status === 'not_started';
+  const prog     = Math.max(0, Math.min(100, actual_progress ?? 0));
+  const complete = status === 'completed' || prog >= 100;
+  const notStarted = !complete && prog === 0;
 
-  const baseOpacity = isNotStarted ? 0.45 : 1;
-  const barFill = `${phaseColor}${isNotStarted ? '70' : 'CC'}`;
+  // Colors
+  let bgFill, progFill, strokeColor, strokeWidth, strokeDash;
 
-  // Progress overlay fill (darker shade)
-  const progressWidth = Math.max(0, Math.min(width, (actual_progress / 100) * width));
+  if (complete) {
+    bgFill     = `${C.green}33`;
+    progFill   = C.green;
+    strokeColor = `${C.green}88`;
+    strokeWidth = 1;
+    strokeDash  = 'none';
+  } else if (isCritical) {
+    bgFill     = '#3a1a1a';
+    progFill   = '#ff6b6b';
+    strokeColor = C.redCrit;
+    strokeWidth = 1.5;
+    strokeDash  = 'none';
+  } else {
+    bgFill     = notStarted ? '#2a2a3a' : '#3a3a4a';
+    progFill   = C.blue;
+    strokeColor = C.border;
+    strokeWidth = 1;
+    strokeDash  = 'none';
+  }
 
-  // Discrepancy indicator
-  const discY = barY + barHeight * 0.7;
-  const showDisc = discrepancy && discrepancy.status !== 'ok';
-  const discColor = discrepancy?.status === 'critical' ? '#ef4444' : '#eab308';
-  const discThickness = discrepancy?.status === 'critical' ? 3 : 2;
+  // Discrepancy overrides border
+  if (discrepancy?.status === 'warning') {
+    strokeColor = C.yellow;
+    strokeWidth = 1.5;
+  }
+  if (discrepancy?.status === 'critical') {
+    strokeColor = C.red;
+    strokeWidth = 2;
+  }
+
+  // Selected highlight
+  if (isSelected) {
+    strokeColor = C.blue;
+    strokeWidth = 2.5;
+  }
+
+  const progW  = Math.max(0, (prog / 100) * width);
+  const barMid = barY + barHeight / 2;
 
   return (
-    <g
-      style={{ cursor: 'pointer' }}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      onClick={onClick}
-    >
+    <g onClick={onClick} style={{ cursor: 'pointer' }}>
       {/* Critical path glow */}
       {isCritical && (
         <rect
           x={x - 2} y={barY - 2}
-          width={width + 4} height={barHeight + 4}
-          rx={6} ry={6}
-          fill="none"
-          stroke="#ef4444"
-          strokeWidth={2}
-          opacity={0.5}
-          filter="url(#glow)"
+          width={Math.max(2, width) + 4} height={barHeight + 4}
+          rx={6} fill="none"
+          stroke={C.redCrit} strokeWidth={1.5} opacity={0.3}
+          filter="url(#gantt-glow)"
         />
       )}
 
-      {/* Main bar background */}
+      {/* Bar background */}
       <rect
         x={x} y={barY}
         width={Math.max(2, width)} height={barHeight}
-        rx={4} ry={4}
-        fill={barFill}
-        stroke={isDelayed ? '#ef4444' : (isCritical ? '#ef4444' : 'none')}
-        strokeWidth={isDelayed ? 1.5 : (isCritical ? 1 : 0)}
-        strokeDasharray={isDelayed ? '4,2' : 'none'}
-        opacity={baseOpacity}
+        rx={4} fill={bgFill}
+        stroke={strokeColor} strokeWidth={strokeWidth}
+        strokeDasharray={strokeDash}
       />
 
-      {/* Progress overlay */}
-      {actual_progress > 0 && actual_progress < 100 && (
+      {/* Progress fill */}
+      {progW > 0 && (
         <rect
           x={x} y={barY}
-          width={progressWidth} height={barHeight}
-          rx={4} ry={4}
-          fill={phaseColor}
-          opacity={0.9}
-        />
-      )}
-      {isCompleted && (
-        <rect
-          x={x} y={barY}
-          width={Math.max(2, width)} height={barHeight}
-          rx={4} ry={4}
-          fill={phaseColor}
-          opacity={0.95}
+          width={progW} height={barHeight}
+          rx={4} fill={progFill}
+          opacity={complete ? 0.95 : 0.9}
+          clipPath={`inset(0 0 0 0 round 4px)`}
         />
       )}
 
-      {/* Bar label */}
-      {width > 80 && (
+      {/* Bar label (only if wide enough) */}
+      {width > 70 && (
         <text
-          x={x + width / 2} y={barY + barHeight / 2 + 1}
+          x={x + width / 2} y={barMid + 1}
           textAnchor="middle" dominantBaseline="middle"
-          fontSize={10} fill="#fff" fontWeight={600}
+          fontSize={9} fill="#fff" fontWeight={600}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
+          opacity={0.85}
         >
-          {isCompleted ? `✓ ${task.label}` : task.label}
+          {complete ? `✓ ${prog}%` : `${prog}%`}
         </text>
       )}
 
-      {/* Blocker icon */}
+      {/* Blocker lock */}
       {isBlocker && (
-        <text
-          x={x - 16} y={barY + barHeight / 2 + 1}
+        <text x={x - 14} y={barMid + 1}
           textAnchor="middle" dominantBaseline="middle"
-          fontSize={11} style={{ pointerEvents: 'none' }}
-        >🔒</text>
+          fontSize={10} style={{ pointerEvents: 'none' }}>
+          🔒
+        </text>
       )}
 
-      {/* Discrepancy indicator line */}
-      {showDisc && (
-        <>
-          <line
-            x1={x} y1={discY}
-            x2={x + width} y2={discY}
-            stroke={discColor}
-            strokeWidth={discThickness}
-            opacity={0.95}
-          />
-          {width > 40 && (
-            <text
-              x={x + width + 3} y={discY + 1}
-              fontSize={9} fill={discColor} dominantBaseline="middle"
-              style={{ pointerEvents: 'none' }}
-            >
-              SV:{discrepancy.site_visit_progress}%
-            </text>
-          )}
-        </>
+      {/* Discrepancy badges */}
+      {discrepancy?.status === 'warning' && (
+        <g>
+          <circle cx={x + width - 7} cy={barY + 6} r={6} fill={C.yellow} />
+          <text x={x + width - 7} y={barY + 7}
+            textAnchor="middle" dominantBaseline="middle"
+            fontSize={8} fill="#000" fontWeight={800}
+            style={{ pointerEvents: 'none' }}>⚠</text>
+        </g>
+      )}
+      {discrepancy?.status === 'critical' && (
+        <g>
+          <circle cx={x + width - 7} cy={barY + 6} r={6} fill={C.red} />
+          <text x={x + width - 7} y={barY + 7}
+            textAnchor="middle" dominantBaseline="middle"
+            fontSize={9} fill="#fff" fontWeight={800}
+            style={{ pointerEvents: 'none' }}>!</text>
+        </g>
+      )}
+
+      {/* Delayed forecast: dashed red right extension */}
+      {status === 'delayed' && (
+        <rect
+          x={x + width} y={barY}
+          width={Math.max(12, width * 0.15)} height={barHeight}
+          rx={0} fill="none"
+          stroke={C.red} strokeWidth={1.5} strokeDasharray="4,2" opacity={0.7}
+        />
       )}
     </g>
   );
 }
 
-// ─── Main GanttChart component ────────────────────────────────────────────────
+// ─── Key date line ─────────────────────────────────────────────────────────────
+
+function KeyDateLine({ kd, height }) {
+  const dash = kd.style === 'dashed' ? '8,4' : 'none';
+  const isForecastDelayed = kd.type === 'forecast_opening' && kd.color === C.red;
+  const label = isForecastDelayed ? 'DELAYED FORECAST' : kd.label.toUpperCase();
+
+  return (
+    <g>
+      <line
+        x1={kd.x} y1={0} x2={kd.x} y2={height}
+        stroke={kd.color}
+        strokeWidth={kd.style === 'dashed' ? 1.5 : 2}
+        strokeDasharray={dash}
+        opacity={0.9}
+      />
+      {/* Diamond marker */}
+      <polygon
+        points={`${kd.x},4 ${kd.x + 5},11 ${kd.x},18 ${kd.x - 5},11`}
+        fill={kd.color}
+        opacity={0.9}
+      />
+      {/* Label */}
+      <text
+        x={kd.x + 6} y={7}
+        fontSize={9} fill={kd.color} fontWeight={700}
+        style={{ userSelect: 'none' }}
+        opacity={0.9}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function GanttChart({
-  ganttData,
+  project,
+  tasks: tasksProp,
+  ganttData,           // legacy alias
   layout: layoutProp,
   keyDates = {},
   discrepancies = [],
   onWPClick,
-  viewMode = 'month',
-  onViewModeChange,
-  showArrows = true,
-  onShowArrowsToggle,
+  defaultZoom = 'month',
   readOnly = false,
 }) {
-  const [collapseState, setCollapseState]   = useState({});
-  const [tooltip, setTooltip]               = useState(null);
-  const containerRef                        = useRef(null);
-  const rightPanelRef                       = useRef(null);
+  const tasks = tasksProp || ganttData || [];
 
-  // Calculate container width for layout
-  const [containerWidth, setContainerWidth] = useState(900);
+  const [zoom,         setZoom]         = useState(defaultZoom);
+  const [showArrows,   setShowArrows]   = useState(true);
+  const [collapseState, setCollapseState] = useState({});
+  const [selectedTask, setSelectedTask]  = useState(null);
+  const [containerW,   setContainerW]    = useState(900);
+
+  const containerRef = useRef(null);
+  const rightRef     = useRef(null);
+
+  // Measure chart pane width
   useEffect(() => {
-    const el = rightPanelRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect?.width;
-      if (w) setContainerWidth(Math.max(600, w));
+    if (!rightRef.current) return;
+    const obs = new ResizeObserver(([e]) => {
+      setContainerW(Math.max(600, e.contentRect.width));
     });
-    obs.observe(el);
+    obs.observe(rightRef.current);
     return () => obs.disconnect();
   }, []);
 
+  // Build layout
   const layout = useMemo(() => {
     if (layoutProp) return layoutProp;
-    if (!ganttData || ganttData.length === 0) return null;
-    return calculateLayout(ganttData, viewMode, containerWidth, keyDates, discrepancies, collapseState);
-  }, [layoutProp, ganttData, viewMode, containerWidth, keyDates, discrepancies, collapseState]);
+    if (!tasks.length) return null;
+    return calculateLayout(tasks, zoom, containerW, keyDates, discrepancies, collapseState);
+  }, [layoutProp, tasks, zoom, containerW, keyDates, discrepancies, collapseState]);
 
-  const phases = useMemo(() => layout?.phases || [], [layout]);
+  // Scroll to today on mount / zoom change
+  useEffect(() => {
+    if (!layout || !rightRef.current) return;
+    const today = layout.keyDateLines.find(l => l.type === 'today');
+    if (today) {
+      rightRef.current.scrollLeft = Math.max(0, today.x - containerW / 3);
+    }
+  }, [layout?.chartWidth, zoom]);
 
-  const handleCollapseToggle = useCallback((phaseId) => {
-    setCollapseState(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
+  const scrollToToday = useCallback(() => {
+    if (!layout || !rightRef.current) return;
+    const today = layout.keyDateLines.find(l => l.type === 'today');
+    if (today) rightRef.current.scrollLeft = Math.max(0, today.x - containerW / 3);
+  }, [layout, containerW]);
+
+  const fitAll = useCallback(() => {
+    if (rightRef.current) rightRef.current.scrollLeft = 0;
   }, []);
 
-  const handleCollapseAll = useCallback(() => {
-    const state = {};
-    for (const p of phases) state[p.id] = true;
-    setCollapseState(state);
-  }, [phases]);
+  const togglePhase  = useCallback(id => setCollapseState(p => ({ ...p, [id]: !p[id] })), []);
+  const collapseAll  = useCallback(() => {
+    const s = {};
+    for (const p of (layout?.phases || [])) s[p.id] = true;
+    setCollapseState(s);
+  }, [layout]);
+  const expandAll    = useCallback(() => setCollapseState({}), []);
 
-  const handleExpandAll = useCallback(() => {
-    setCollapseState({});
-  }, []);
+  const handleBarClick = useCallback((task) => {
+    setSelectedTask(prev => prev?.id === task.id ? null : task);
+    onWPClick?.(task.id);
+  }, [onWPClick]);
 
-  if (!layout) {
+  // ── Empty / loading ──────────────────────────────────────────────────────────
+  if (!tasks.length) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: 240, background: '#1e293b', borderRadius: 12, color: '#64748b', fontSize: 14 }}>
-        Generating Gantt chart…
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: 240, background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
+        color: C.muted, gap: 8, fontFamily: 'system-ui, sans-serif',
+      }}>
+        <div style={{ fontSize: 36 }}>📊</div>
+        <div style={{ fontSize: 14 }}>No schedule data</div>
+        <div style={{ fontSize: 12 }}>Build the project schedule to view the Gantt chart.</div>
       </div>
     );
   }
+  if (!layout) return null;
 
-  const { tasks, arrows, timelineHeaders, keyDateLines, chartWidth, totalHeight, ROW_HEIGHT } = layout;
+  const { phases, tasks: layoutTasks, arrows, timelineHeaders, keyDateLines, chartWidth, totalHeight } = layout;
 
-  const fullSvgHeight = totalHeight + HEADER_H;
-
-  // ── Left panel rows ────────────────────────────────────────────────────────
+  // ── Left panel rows ──────────────────────────────────────────────────────────
   const leftRows = [];
   for (const phase of phases) {
-    // Phase header
+    const isCollapsed = !!collapseState[phase.id];
     leftRows.push(
       <div key={`ph-${phase.id}`}
-        onClick={() => handleCollapseToggle(phase.id)}
+        onClick={() => togglePhase(phase.id)}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           height: PHASE_ROW_H, padding: '0 10px',
-          cursor: 'pointer', background: '#162032', borderBottom: '1px solid #334155',
-          flexShrink: 0,
-        }}
-        onMouseEnter={e => e.currentTarget.style.background = '#1e3a5f'}
-        onMouseLeave={e => e.currentTarget.style.background = '#162032'}
-      >
-        <span style={{ fontSize: 10, color: '#64748b', width: 14, flexShrink: 0 }}>
-          {collapseState[phase.id] ? '▶' : '▼'}
+          cursor: 'pointer', background: C.bgCard,
+          borderBottom: `1px solid ${C.border}`, flexShrink: 0,
+          userSelect: 'none',
+        }}>
+        <span style={{ fontSize: 9, color: C.muted, width: 14, flexShrink: 0 }}>
+          {isCollapsed ? '▶' : '▼'}
         </span>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: phase.color, flexShrink: 0 }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', overflow: 'hidden',
-          whiteSpace: 'nowrap', textOverflow: 'ellipsis', flex: 1 }}>
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: phase.color, flexShrink: 0 }} />
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: C.text, textTransform: 'uppercase',
+          letterSpacing: '0.04em', flex: 1,
+          overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+        }}>
           {phase.label}
         </span>
-        <span style={{ fontSize: 10, color: '#475569', flexShrink: 0 }}>
-          ({phase.wps?.length || 0})
+        <span style={{ fontSize: 10, color: C.muted, flexShrink: 0 }}>
+          {phase.wps?.length || 0}
         </span>
       </div>
     );
 
-    // WP rows (if not collapsed)
-    if (!collapseState[phase.id]) {
+    if (!isCollapsed) {
       for (const wp of (phase.wps || [])) {
-        const task = tasks.find(t => t.id === wp.id);
-        const prog = task?.actual_progress ?? 0;
+        const t    = layoutTasks.find(lt => lt.id === wp.id);
+        const prog = t?.actual_progress ?? 0;
+        const disc = t?.discrepancy;
         leftRows.push(
           <div key={`wp-${wp.id}`}
-            onClick={() => !readOnly && onWPClick?.(wp.id)}
+            onClick={() => !readOnly && handleBarClick(t || wp)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              height: ROW_HEIGHT, padding: `0 10px 0 ${LABEL_PAD + 14}px`,
+              display: 'flex', alignItems: 'center', gap: 5,
+              height: ROW_H, padding: '0 10px 0 24px',
               cursor: readOnly ? 'default' : 'pointer',
-              background: task?.isCritical ? '#1a0a0a' : 'transparent',
-              borderBottom: '1px solid #1e293b', flexShrink: 0,
-            }}
-            onMouseEnter={e => { if (!readOnly) e.currentTarget.style.background = '#162032'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = task?.isCritical ? '#1a0a0a' : 'transparent'; }}
-          >
-            {task?.isBlocker && <span style={{ fontSize: 10 }}>🔒</span>}
-            <span style={{ fontSize: 12, color: '#cbd5e1', flex: 1, overflow: 'hidden',
-              whiteSpace: 'nowrap', textOverflow: 'ellipsis', lineHeight: 1.3 }}>
-              {wp.label}
-            </span>
+              borderBottom: `1px solid ${C.border}22`,
+              borderLeft: `3px solid ${
+                selectedTask?.id === wp.id ? C.blue
+                : t?.isCritical ? `${C.redCrit}88`
+                : disc?.status === 'critical' ? C.red
+                : disc?.status === 'warning'  ? C.yellow
+                : 'transparent'
+              }`,
+              background: selectedTask?.id === wp.id ? 'rgba(79,142,247,0.07)' : 'transparent',
+              flexShrink: 0,
+            }}>
+            {t?.isBlocker && <span style={{ fontSize: 9, flexShrink: 0 }}>🔒</span>}
             <span style={{
-              fontSize: 10, fontWeight: 700, flexShrink: 0,
-              color: prog === 100 ? '#22c55e' : prog > 0 ? '#f59e0b' : '#475569',
-              padding: '1px 6px', borderRadius: 4,
-              background: prog === 100 ? '#052e16' : prog > 0 ? '#422006' : '#1e293b',
+              fontSize: 12, color: C.text, flex: 1,
+              overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+            }} title={wp.label || wp.id}>
+              {wp.label || wp.id}
+            </span>
+            <div style={{
+              width: 36, height: 4, background: C.border,
+              borderRadius: 2, overflow: 'hidden', flexShrink: 0,
+            }}>
+              <div style={{
+                height: '100%', borderRadius: 2,
+                width: `${Math.min(100, prog)}%`,
+                background: prog >= 100 ? C.green : prog > 0 ? C.blue : C.muted,
+              }} />
+            </div>
+            <span style={{
+              fontSize: 10, fontWeight: 700, flexShrink: 0, width: 30, textAlign: 'right',
+              color: prog >= 100 ? C.green : prog > 0 ? C.yellow : C.muted,
             }}>
               {prog}%
             </span>
@@ -355,16 +567,20 @@ export default function GanttChart({
     }
   }
 
-  // ── Timeline header SVG row ────────────────────────────────────────────────
-  const headerSvg = (
-    <svg width={chartWidth} height={HEADER_H} style={{ flexShrink: 0, display: 'block' }}>
-      <rect width={chartWidth} height={HEADER_H} fill="#0f172a" />
+  // ── Timeline header SVG ──────────────────────────────────────────────────────
+  const tlHeader = (
+    <svg width={chartWidth} height={HEADER_H} style={{ display: 'block', flexShrink: 0 }}>
+      <rect width={chartWidth} height={HEADER_H} fill={C.bg} />
+      <line x1={0} y1={HEADER_H - 1} x2={chartWidth} y2={HEADER_H - 1} stroke={C.border} />
       {timelineHeaders.map((h, i) => (
         <g key={i}>
-          <line x1={h.x} y1={0} x2={h.x} y2={HEADER_H} stroke="#334155" strokeWidth={0.5} />
-          <text x={h.x + h.width / 2} y={HEADER_H / 2 + 1}
+          <line x1={h.x} y1={0} x2={h.x} y2={HEADER_H} stroke={C.border} strokeWidth={0.5} opacity={0.5} />
+          <text
+            x={h.x + h.width / 2} y={HEADER_H / 2 + 1}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize={11} fill="#94a3b8" fontWeight={600}>
+            fontSize={11} fill={C.muted} fontWeight={600}
+            style={{ userSelect: 'none' }}
+          >
             {h.label}
           </text>
         </g>
@@ -372,197 +588,151 @@ export default function GanttChart({
     </svg>
   );
 
-  // ── SVG definitions ────────────────────────────────────────────────────────
-  const svgDefs = (
-    <defs>
-      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-        <feMerge>
-          <feMergeNode in="coloredBlur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-      <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-        <path d="M0,0 L0,6 L6,3 Z" fill="#94a3b8" />
-      </marker>
-      <marker id="arrowhead-critical" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-        <path d="M0,0 L0,6 L6,3 Z" fill="#ef4444" />
-      </marker>
-    </defs>
-  );
+  // ── Grid alternating stripes ─────────────────────────────────────────────────
+  const stripes = timelineHeaders.map((h, i) => (
+    <rect key={`s-${i}`} x={h.x} y={0} width={h.width} height={totalHeight}
+      fill={i % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent'} />
+  ));
 
-  // ── Phase header band lines (left border per phase) ────────────────────────
-  const phaseBands = phases.map((phase, i) => {
-    if (collapseState[phase.id]) return null;
-    return (
-      <rect
-        key={`band-${phase.id}`}
-        x={0} y={phase.y + PHASE_ROW_H}
-        width={3} height={phase.height - PHASE_ROW_H}
-        fill={phase.color}
-        opacity={0.7}
-      />
-    );
-  });
+  // ── Row separator lines ──────────────────────────────────────────────────────
+  const rowLines = layoutTasks.map(t => (
+    <line key={`rl-${t.id}`} x1={0} y1={t.y + ROW_H} x2={chartWidth} y2={t.y + ROW_H}
+      stroke={C.border} strokeWidth={0.4} opacity={0.4} />
+  ));
 
-  // ── Key date vertical lines ────────────────────────────────────────────────
-  const keyLines = keyDateLines.map((kd, i) => {
-    const dash = kd.style === 'dashed' ? '8,4' : 'none';
+  // ── Phase header bands ───────────────────────────────────────────────────────
+  const phaseBands = phases.map(phase => {
+    const isCollapsed = !!collapseState[phase.id];
+
+    if (isCollapsed) {
+      // Collapsed: show summary bar across the phase row
+      const pTasks = layoutTasks.filter(t => t.phaseId === phase.id);
+      if (!pTasks.length) return null;
+      const minX = Math.min(...pTasks.map(t => t.x));
+      const maxX = Math.max(...pTasks.map(t => t.x + t.width));
+      const avg  = Math.round(pTasks.reduce((s, t) => s + (t.actual_progress ?? 0), 0) / pTasks.length);
+      const bY   = phase.y + (PHASE_ROW_H - BAR_H) / 2;
+      const w    = Math.max(4, maxX - minX);
+      return (
+        <g key={`phbar-${phase.id}`}>
+          <rect x={minX} y={bY} width={w} height={BAR_H} rx={4} fill={`${phase.color}44`} />
+          <rect x={minX} y={bY} width={w * avg / 100} height={BAR_H} rx={4} fill={phase.color} opacity={0.85} />
+          {w > 60 && (
+            <text x={minX + w / 2} y={bY + BAR_H / 2 + 1}
+              textAnchor="middle" dominantBaseline="middle"
+              fontSize={10} fill="#fff" fontWeight={600}>
+              {phase.label} — {avg}%
+            </text>
+          )}
+        </g>
+      );
+    }
+
+    // Expanded: left accent bar + background stripe
     return (
-      <g key={`kd-${kd.type}`}>
-        <line
-          x1={kd.x} y1={0}
-          x2={kd.x} y2={totalHeight}
-          stroke={kd.color}
-          strokeWidth={kd.style === 'dashed' ? 1.5 : 2}
-          strokeDasharray={dash}
-          opacity={0.9}
-        />
-        {/* Diamond marker at top */}
-        <polygon
-          points={`${kd.x},4 ${kd.x+5},10 ${kd.x},16 ${kd.x-5},10`}
-          fill={kd.color}
-        />
-        {/* Label */}
-        <text
-          x={kd.x + 4} y={6}
-          fontSize={9} fill={kd.color} fontWeight={700}
-          style={{ userSelect: 'none' }}
-        >
-          {kd.label}
-        </text>
+      <g key={`phbg-${phase.id}`}>
+        <rect x={0} y={phase.y} width={chartWidth} height={PHASE_ROW_H}
+          fill={C.bgCard} />
+        <rect x={0} y={phase.y + PHASE_ROW_H} width={3} height={phase.height - PHASE_ROW_H}
+          fill={phase.color} opacity={0.7} />
       </g>
     );
   });
 
-  // ── Dependency arrows ──────────────────────────────────────────────────────
-  const arrowEls = showArrows ? arrows.map((arrow, i) => (
-    <path
-      key={`arrow-${i}`}
-      d={arrow.path}
-      fill="none"
-      stroke={arrow.isCritical ? '#ef4444' : '#94a3b8'}
+  // ── Dependency arrows ────────────────────────────────────────────────────────
+  const arrowEls = (showArrows && zoom !== 'quarter') ? arrows.map((a, i) => (
+    <path key={`a-${i}`}
+      d={a.path} fill="none"
+      stroke={a.isCritical ? C.redCrit : C.blue}
       strokeWidth={1.5}
-      opacity={0.6}
-      markerEnd={arrow.isCritical ? 'url(#arrowhead-critical)' : 'url(#arrowhead)'}
+      opacity={0.35}
+      markerEnd={a.isCritical ? 'url(#gantt-ah-crit)' : 'url(#gantt-ah)'}
     />
   )) : [];
 
-  // ── WP bars ───────────────────────────────────────────────────────────────
-  const barEls = tasks.map(task => (
-    <WPBar
-      key={task.id}
-      task={task}
-      onMouseEnter={(e) => {
-        const rect = containerRef.current?.getBoundingClientRect();
-        setTooltip({ wp: task, clientX: e.clientX - (rect?.left || 0), clientY: e.clientY - (rect?.top || 0) });
-      }}
-      onMouseLeave={() => setTooltip(null)}
-      onClick={() => !readOnly && onWPClick?.(task.id)}
-    />
-  ));
-
-  // ── Phase rows (header bars for collapsed phases) ─────────────────────────
-  const phaseBarEls = phases.filter(p => collapseState[p.id]).map(phase => {
-    const phaseTasks = tasks.filter(t => t.phaseId === phase.id);
-    if (!phaseTasks.length) return null;
-    const minX = Math.min(...phaseTasks.map(t => t.x));
-    const maxX = Math.max(...phaseTasks.map(t => t.x + t.width));
-    const avgProgress = Math.round(
-      phaseTasks.reduce((s, t) => s + t.actual_progress, 0) / phaseTasks.length
-    );
-    const barY = phase.y + (PHASE_ROW_H - BAR_H) / 2;
-    return (
-      <g key={`phbar-${phase.id}`}>
-        <rect x={minX} y={barY} width={Math.max(2, maxX - minX)} height={BAR_H}
-          rx={4} fill={`${phase.color}55`} />
-        <rect x={minX} y={barY} width={Math.max(0, (maxX - minX) * avgProgress / 100)} height={BAR_H}
-          rx={4} fill={phase.color} opacity={0.8} />
-        {(maxX - minX) > 60 && (
-          <text x={minX + (maxX - minX) / 2} y={barY + BAR_H / 2 + 1}
-            textAnchor="middle" dominantBaseline="middle"
-            fontSize={10} fill="#fff" fontWeight={600}>
-            {phase.label} ({avgProgress}%)
-          </text>
-        )}
-      </g>
-    );
-  });
-
-  // ── Grid lines (row separators) ───────────────────────────────────────────
-  const gridLines = [];
-  for (let i = 0; i <= totalHeight / ROW_H; i++) {
-    gridLines.push(
-      <line key={`grid-${i}`} x1={0} y1={i * ROW_H} x2={chartWidth} y2={i * ROW_H}
-        stroke="#1e293b" strokeWidth={0.5} />
-    );
-  }
-
   return (
-    <div
-      ref={containerRef}
-      style={{ display: 'flex', flexDirection: 'column', background: '#0f172a',
-        borderRadius: 12, border: '1px solid #334155', overflow: 'hidden',
-        fontFamily: 'system-ui, sans-serif', position: 'relative' }}
-    >
+    <div ref={containerRef} style={{
+      display: 'flex', flexDirection: 'column',
+      background: C.bg, borderRadius: 12, border: `1px solid ${C.border}`,
+      overflow: 'hidden', fontFamily: 'system-ui, -apple-system, sans-serif',
+      position: 'relative',
+    }}>
       {/* Controls */}
       <Controls
-        viewMode={viewMode}
-        onViewModeChange={onViewModeChange || (() => {})}
-        showArrows={showArrows}
-        onShowArrowsToggle={onShowArrowsToggle || (() => {})}
-        collapseState={collapseState}
-        phases={phases}
-        onCollapseAll={handleCollapseAll}
-        onExpandAll={handleExpandAll}
+        zoom={zoom} setZoom={setZoom}
+        onToday={scrollToToday} onFitAll={fitAll}
+        showArrows={showArrows} onArrowsToggle={() => setShowArrows(v => !v)}
+        phases={phases} collapseState={collapseState}
+        onCollapseAll={collapseAll} onExpandAll={expandAll}
       />
 
-      {/* Chart body */}
+      {/* Body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 200 }}>
 
         {/* Left panel */}
-        <div style={{ width: LEFT_W, flexShrink: 0, borderRight: '1px solid #334155',
-          overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {/* Spacer for timeline header */}
-          <div style={{ height: HEADER_H, background: '#0f172a', borderBottom: '1px solid #334155', flexShrink: 0 }} />
-          {/* Rows */}
-          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{
+          width: LEFT_W, flexShrink: 0, borderRight: `1px solid ${C.border}`,
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          background: C.bgEl,
+        }}>
+          {/* Spacer aligns with timeline header */}
+          <div style={{ height: HEADER_H, borderBottom: `1px solid ${C.border}`, flexShrink: 0, background: C.bg }} />
+          {/* Scrollable rows */}
+          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'thin' }}>
             {leftRows}
           </div>
         </div>
 
-        {/* Right panel */}
-        <div ref={rightPanelRef} style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {/* Timeline header (sticky) */}
+        {/* Chart area */}
+        <div ref={rightRef} style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* Sticky timeline header */}
           <div style={{ position: 'sticky', top: 0, zIndex: 10, flexShrink: 0 }}>
-            {headerSvg}
+            {tlHeader}
           </div>
 
           {/* Main SVG */}
           <svg
             width={chartWidth}
             height={totalHeight}
-            style={{ display: 'block', background: '#0f172a' }}
+            style={{ display: 'block', background: C.bg, flexShrink: 0 }}
           >
-            {svgDefs}
+            <defs>
+              <filter id="gantt-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <marker id="gantt-ah" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 Z" fill={C.blue} opacity="0.6" />
+              </marker>
+              <marker id="gantt-ah-crit" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 Z" fill={C.redCrit} opacity="0.6" />
+              </marker>
+            </defs>
 
             {/* Grid */}
-            {gridLines}
+            {stripes}
+            {rowLines}
 
-            {/* Phase bands */}
+            {/* Phase bands / collapsed bars */}
             {phaseBands}
 
-            {/* Collapsed phase bars */}
-            {phaseBarEls}
-
-            {/* Arrows (behind bars) */}
+            {/* Arrows (below bars) */}
             {arrowEls}
 
             {/* WP bars */}
-            {barEls}
+            {layoutTasks.map(t => (
+              <WPBar
+                key={t.id}
+                task={t}
+                isSelected={selectedTask?.id === t.id}
+                onClick={() => !readOnly && handleBarClick(t)}
+              />
+            ))}
 
             {/* Key date lines (on top) */}
-            {keyLines}
+            {keyDateLines.map((kd, i) => (
+              <KeyDateLine key={`kd-${i}`} kd={kd} height={totalHeight} />
+            ))}
           </svg>
         </div>
       </div>
@@ -570,8 +740,10 @@ export default function GanttChart({
       {/* Legend */}
       <Legend />
 
-      {/* Tooltip */}
-      <Tooltip tooltip={tooltip} containerRect={containerRef.current?.getBoundingClientRect()} />
+      {/* WP Detail Tooltip */}
+      {selectedTask && (
+        <WPTooltip task={selectedTask} onClose={() => setSelectedTask(null)} />
+      )}
     </div>
   );
 }

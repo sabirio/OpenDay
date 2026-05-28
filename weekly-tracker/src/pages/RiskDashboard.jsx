@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { computeCumulativeStatuses, estimateProgressFromStatuses, computeWPCumulativeStatuses } from "../reportUtils";
+import { computeCumulativeStatuses, estimateProgressFromStatuses, computeWPCumulativeStatuses } from "../utils/reportUtils";
 import { computeProjectProgressFromWP } from "../config/workPackages";
 import {
   RISK_COLORS, RISK_DIMENSIONS,
