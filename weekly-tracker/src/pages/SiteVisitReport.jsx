@@ -1,6 +1,9 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { WORK_PACKAGES, WP_STATUS_SCORES, makeEmptyPMWPStatuses } from "../config/workPackages";
+import { getProjectGantt } from "../services/ganttService";
+import { submitSiteVisit } from "../services/siteVisitService";
+import { getLastReport as getLastContractorReport } from "../services/contractorReportService";
 
 const ACCENT = "#0891b2";
 
@@ -180,6 +183,80 @@ function StatusPill({ status }) {
   );
 }
 
+// ── Gantt-based PM observation row ────────────────────────────────────────
+
+const GANTT_STATUS_OPTS_SV = [
+  { value: 'not_started', label: 'Not Started' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed',   label: 'Completed'   },
+  { value: 'delayed',     label: 'Delayed'     },
+  { value: 'blocked',     label: 'Blocked'     },
+];
+
+function liveDiscrepancy(gcPct, pmPct) {
+  const delta = Math.round(Math.abs((pmPct ?? 0) - (gcPct ?? 0)));
+  if (delta < 10) return { label: `Δ ${delta}%`, color: '#22c55e', bg: '#052e16' };
+  if (delta < 25) return { label: `Δ ${delta}%`, color: '#f59e0b', bg: '#422006' };
+  return               { label: `Δ ${delta}%`, color: '#ef4444', bg: '#450a0a' };
+}
+
+function GanttPMTaskRow({ task, pmEntry, onChange }) {
+  const gcPct    = task.actual_progress ?? 0;
+  const pmPct    = pmEntry?.observed_progress ?? gcPct;
+  const pmStatus = pmEntry?.observed_status   ?? (task.status || 'not_started');
+  const disc     = liveDiscrepancy(gcPct, pmPct);
+
+  return (
+    <div style={{ borderBottom: '1px solid #f3f4f6', padding: '12px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{task.label}</span>
+          {task.isCritical && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>CRITICAL</span>
+          )}
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: disc.bg, color: disc.color }}>
+          {disc.label}
+        </span>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* GC column — read-only */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>GC Reported</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+              <div style={{ width: `${gcPct}%`, height: '100%', background: gcPct >= 100 ? '#22c55e' : '#9ca3af', borderRadius: 4, transition: 'width 0.2s' }} />
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#6b7280', minWidth: 36, textAlign: 'right' }}>{gcPct}%</span>
+          </div>
+        </div>
+
+        {/* PM column — editable */}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>PM Observed</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <input
+              type="range" min="0" max="100" step="5"
+              value={pmPct}
+              onChange={e => onChange({ observed_progress: parseInt(e.target.value), observed_status: pmStatus })}
+              style={{ flex: 1, cursor: 'pointer', accentColor: ACCENT }}
+            />
+            <span style={{ fontSize: 13, fontWeight: 700, color: pmPct >= 100 ? '#166534' : ACCENT, minWidth: 36, textAlign: 'right' }}>{pmPct}%</span>
+          </div>
+          <select
+            value={pmStatus}
+            onChange={e => onChange({ observed_progress: pmPct, observed_status: e.target.value })}
+            style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 12, background: 'white', cursor: 'pointer', outline: 'none' }}
+          >
+            {GANTT_STATUS_OPTS_SV.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
@@ -204,6 +281,36 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   const [errors, setErrors]       = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [savedVisit, setSavedVisit] = useState(null);
+
+  const [ganttTasks, setGanttTasks]           = useState([]);
+  const [ganttLoading, setGanttLoading]       = useState(false);
+  const [lastContractorReportId, setLastContractorReportId] = useState(null);
+  const [pmWpObservations, setPmWpObservations] = useState({});
+
+  useEffect(() => {
+    if (!project?.id) return;
+    setGanttLoading(true);
+    getProjectGantt(project.id)
+      .then(tasks => {
+        setGanttTasks(tasks);
+        // Pre-fill PM observations from current gantt progress
+        const initial = {};
+        for (const t of tasks) {
+          initial[t.id] = { observed_progress: t.actual_progress ?? 0, observed_status: t.status ?? 'not_started', pm_note: '' };
+        }
+        setPmWpObservations(initial);
+      })
+      .catch(() => setGanttTasks([]))
+      .finally(() => setGanttLoading(false));
+
+    getLastContractorReport(project.id)
+      .then(r => setLastContractorReportId(r?.id || null))
+      .catch(() => {});
+  }, [project?.id]);
+
+  function updatePMObservation(wpId, updates) {
+    setPmWpObservations(prev => ({ ...prev, [wpId]: { ...(prev[wpId] || {}), ...updates } }));
+  }
 
   // Auto-select latest GC report once reports load from Supabase (async timing fix)
   useEffect(() => {
@@ -246,16 +353,31 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
     const errs = validate();
     if (errs.length) { setErrors(errs); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
     setErrors([]);
-    const visitData = {
-      projectId,
-      referenceReportId: form.referenceReportId || null,
-      ...form,
-      photos: form.photos.map((p) => p?.name || p),
-      submittedAt: new Date().toISOString(),
-    };
     try {
-      const saved = await onSaveSiteVisit(visitData);
-      setSavedVisit(saved);
+      if (ganttTasks.length > 0) {
+        const wpObservationsArray = Object.entries(pmWpObservations).map(([wpId, v]) => ({
+          wpId,
+          observed_progress: v.observed_progress ?? 0,
+          observed_status:   v.observed_status   ?? 'not_started',
+          pm_note:           v.pm_note           ?? '',
+        }));
+        const result = await submitSiteVisit(projectId, lastContractorReportId, wpObservationsArray, {
+          visitDate:   form.visitDate,
+          visitedBy:   project.projectManager || '',
+          overallNote: form.observations || '',
+        });
+        setSavedVisit({ ...form, ...result.siteVisit, discrepancies: result.discrepancies, _ganttFormat: true });
+      } else {
+        const visitData = {
+          projectId,
+          referenceReportId: form.referenceReportId || null,
+          ...form,
+          photos: form.photos.map((p) => p?.name || p),
+          submittedAt: new Date().toISOString(),
+        };
+        const saved = await onSaveSiteVisit(visitData);
+        setSavedVisit(saved);
+      }
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -271,6 +393,48 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
           <div style={{ fontSize: 48, marginBottom: 16 }}>🏗</div>
           <h2 style={{ color: "#111827", marginBottom: 8 }}>Project not found</h2>
           <p style={{ color: "#6b7280" }}>This link is invalid or the project has been removed.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── GANTT FORMAT SUCCESS VIEW ──────────────────────────────────────────────
+
+  if (submitted && savedVisit?._ganttFormat) {
+    const discrepancies = savedVisit.discrepancies || [];
+    const critCount     = discrepancies.filter(d => d.status === 'critical').length;
+    const warnCount     = discrepancies.filter(d => d.status === 'warning').length;
+
+    return (
+      <div style={{ minHeight: '100vh', background: '#f0f7fa', padding: '36px 20px 80px' }}>
+        <div style={{ maxWidth: 600, margin: '0 auto' }}>
+          <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', padding: '32px 28px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+            <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#e0f2fe', border: '2px solid #7dd3fc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 28 }}>✓</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#0c4a6e', marginBottom: 8 }}>Site Visit Recorded</div>
+            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
+              {project.storeCode} · {project.shoppingMallName} · {form.visitDate}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
+              {[
+                { label: 'WPs Assessed',   value: discrepancies.length, color: ACCENT,    bg: '#e0f2fe' },
+                { label: 'Warnings',        value: warnCount,            color: '#d97706', bg: '#fef3c7' },
+                { label: 'Critical Gaps',   value: critCount,            color: critCount > 0 ? '#991b1b' : '#166534', bg: critCount > 0 ? '#fee2e2' : '#dcfce7' },
+              ].map(({ label, value, color, bg }) => (
+                <div key={label} style={{ background: bg, borderRadius: 10, padding: '14px 8px' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 5 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={() => { setSavedVisit(null); setSubmitted(false); }}
+              style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: `linear-gradient(135deg, ${ACCENT}, #06b6d4)`, color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginRight: 12 }}>
+              New Visit
+            </button>
+            <button type="button" onClick={() => window.history.back()}
+              style={{ padding: '12px 28px', borderRadius: 10, border: '1px solid #d1d5db', background: 'white', color: '#6b7280', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -528,20 +692,47 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
         </FormSection>
 
         {/* 2. Work Package Observation Sections */}
-        {WORK_PACKAGES.map((wp) => (
-          <FormSection key={wp.id} title={wp.name} accentColor={wp.color}>
-                {wp.tasks.map((task) => (
-              <PMTaskRow
-                key={task.name}
-                wpId={wp.id}
-                taskName={task.name}
-                entry={form.pmWorkPackageStatuses?.[wp.id]?.[task.name]}
-                gcEntry={getGCTaskEntry(referenceReport, wp.id, task.name)}
-                onChange={(entry) => updateWPTask(wp.id, task.name, entry)}
-              />
-            ))}
+        {ganttLoading ? (
+          <FormSection title="Work Package Observations" accentColor={ACCENT}>
+            <div style={{ textAlign: 'center', padding: '20px', color: '#9ca3af', fontSize: 13 }}>Loading schedule…</div>
           </FormSection>
-        ))}
+        ) : ganttTasks.length > 0 ? (
+          (() => {
+            const byPhase = {};
+            for (const task of ganttTasks) {
+              const key = task.phaseLabel || task.phaseId || 'Other';
+              if (!byPhase[key]) byPhase[key] = [];
+              byPhase[key].push(task);
+            }
+            return Object.entries(byPhase).map(([phase, tasks]) => (
+              <FormSection key={phase} title={phase} accentColor={ACCENT}>
+                {tasks.map(task => (
+                  <GanttPMTaskRow
+                    key={task.id}
+                    task={task}
+                    pmEntry={pmWpObservations[task.id]}
+                    onChange={updates => updatePMObservation(task.id, updates)}
+                  />
+                ))}
+              </FormSection>
+            ));
+          })()
+        ) : (
+          WORK_PACKAGES.map((wp) => (
+            <FormSection key={wp.id} title={wp.name} accentColor={wp.color}>
+              {wp.tasks.map((task) => (
+                <PMTaskRow
+                  key={task.name}
+                  wpId={wp.id}
+                  taskName={task.name}
+                  entry={form.pmWorkPackageStatuses?.[wp.id]?.[task.name]}
+                  gcEntry={getGCTaskEntry(referenceReport, wp.id, task.name)}
+                  onChange={(entry) => updateWPTask(wp.id, task.name, entry)}
+                />
+              ))}
+            </FormSection>
+          ))
+        )}
 
         {/* 3. PM Assessment */}
         <FormSection title="PM Assessment" accentColor="#475569">

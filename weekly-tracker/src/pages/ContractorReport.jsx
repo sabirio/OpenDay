@@ -1,6 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { WORK_PACKAGES, makeEmptyWPStatuses } from "../config/workPackages";
+import { getProjectGantt } from "../services/ganttService";
+import { submitReport as submitContractorReport } from "../services/contractorReportService";
 
 const riskOptions = [
   { label: "Resource Availability",          description: "Shortage of manpower, equipment, or site supervision within the next 2–3 weeks." },
@@ -266,6 +268,66 @@ function TextAreaField({ label, value, onChange, rows = 4, placeholder = "" }) {
   );
 }
 
+// ── Gantt-based WP progress row ────────────────────────────────────────────
+
+const GANTT_STATUS_OPTS = [
+  { value: 'not_started', label: 'Not Started' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'completed',   label: 'Completed'   },
+  { value: 'delayed',     label: 'Delayed'     },
+  { value: 'blocked',     label: 'Blocked'     },
+];
+
+function GanttWPRow({ task, entry, onChange }) {
+  const pct    = entry?.progress_pct ?? task.actual_progress ?? 0;
+  const status = entry?.status       ?? task.status          ?? 'not_started';
+  const pctColor = pct >= 100 ? '#16a34a' : pct >= 50 ? '#2f855a' : '#6b7280';
+
+  function setPct(val) { onChange({ progress_pct: val, status }); }
+  function setStatus(val) {
+    const auto = val === 'completed' ? 100 : pct;
+    onChange({ progress_pct: auto, status: val });
+  }
+
+  return (
+    <div style={{ padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{task.label}</span>
+          {task.isCritical && (
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>CRITICAL</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: pctColor, minWidth: 44, textAlign: 'right' }}>{pct}%</span>
+          <select
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 12, background: 'white', cursor: 'pointer', outline: 'none' }}
+          >
+            {GANTT_STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <input
+        type="range" min="0" max="100" step="5"
+        value={pct}
+        onChange={e => setPct(parseInt(e.target.value))}
+        style={{ width: '100%', cursor: 'pointer', accentColor: pctColor }}
+      />
+      {(task.earlyStart || task.earlyFinish) && (
+        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>
+          {task.earlyStart ? new Date(task.earlyStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
+          {' → '}
+          {task.earlyFinish ? new Date(task.earlyFinish).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
+          {' · '}
+          {task.duration_days}d
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Form initialization ────────────────────────────────────────────────────
 
 // Build cumulative best WP statuses across all project reports
@@ -373,6 +435,31 @@ function ContractorReport({ projects, reports, onSaveReport }) {
     }
   }, [prevReport, cumulativeWPStatuses]);
 
+  const [ganttTasks, setGanttTasks] = useState([]);
+  const [ganttLoading, setGanttLoading] = useState(false);
+  const [ganttWpProgress, setGanttWpProgress] = useState({});
+
+  useEffect(() => {
+    if (!project?.id) return;
+    setGanttLoading(true);
+    getProjectGantt(project.id)
+      .then(tasks => {
+        setGanttTasks(tasks);
+        // Pre-fill from current DB progress
+        const initial = {};
+        for (const t of tasks) {
+          initial[t.id] = { progress_pct: t.actual_progress ?? 0, status: t.status ?? 'not_started', comment: '' };
+        }
+        setGanttWpProgress(initial);
+      })
+      .catch(() => setGanttTasks([]))
+      .finally(() => setGanttLoading(false));
+  }, [project?.id]);
+
+  function updateWPProgress(wpId, updates) {
+    setGanttWpProgress(prev => ({ ...prev, [wpId]: { ...(prev[wpId] || {}), ...updates } }));
+  }
+
   const [validationErrors, setValidationErrors] = useState([]);
   const [submitted, setSubmitted] = useState(false);
 
@@ -442,17 +529,34 @@ function ContractorReport({ projects, reports, onSaveReport }) {
     }
     setValidationErrors([]);
     try {
-      await onSaveReport({
-        projectId: project.id,
-        storeCode: project.storeCode,
-        projectName: project.shoppingMallName,
-        contractor: project.generalContractor,
-        submittedAt: new Date().toISOString(),
-        previousReportId: prevReport?.id ?? null, // report chain for future risk analysis
-        ...form,
-        currentPhases: deriveOldPhasesFromPackages(form.currentPackages),
-        photos: form.photos.map((p) => (p?.name ? p.name : p)),
-      });
+      if (ganttTasks.length > 0) {
+        const wpProgressArray = Object.entries(ganttWpProgress).map(([wpId, v]) => ({
+          wpId,
+          progress_pct: v.progress_pct ?? 0,
+          status:       v.status       ?? 'not_started',
+          comment:      v.comment      ?? '',
+        }));
+        const overallProgress = wpProgressArray.length > 0
+          ? Math.round(wpProgressArray.reduce((s, wp) => s + wp.progress_pct, 0) / wpProgressArray.length)
+          : 0;
+        await submitContractorReport(project.id, wpProgressArray, {
+          reportDate:      form.reportingDate,
+          overallProgress,
+          submittedBy:     project.generalContractor || '',
+        });
+      } else {
+        await onSaveReport({
+          projectId: project.id,
+          storeCode: project.storeCode,
+          projectName: project.shoppingMallName,
+          contractor: project.generalContractor,
+          submittedAt: new Date().toISOString(),
+          previousReportId: prevReport?.id ?? null,
+          ...form,
+          currentPhases: deriveOldPhasesFromPackages(form.currentPackages),
+          photos: form.photos.map((p) => (p?.name ? p.name : p)),
+        });
+      }
       setSubmitted(true);
     } catch (err) {
       console.error("Failed to submit report:", err);
@@ -630,7 +734,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
 
         {/* ── 1. Reporting Date & Work Package Selection ── */}
         <FormSection title="Reporting Date & Active Work Packages" accentColor="#2f855a">
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: ganttTasks.length > 0 ? 0 : 24 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 8 }}>Reporting Date</div>
             <input
               type="date"
@@ -640,45 +744,74 @@ function ContractorReport({ projects, reports, onSaveReport }) {
               style={{ height: 42, padding: "0 14px", border: "1px solid #d1d5db", borderRadius: 10, fontSize: 14, color: "#1f2937", background: "white", outline: "none", width: 200 }}
             />
           </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 6 }}>Active Work Packages This Week</div>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 14 }}>Select all work packages with active works this reporting period.</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-              {WORK_PACKAGES.map((wp) => {
-                const sel = (form.currentPackages || []).includes(wp.id);
-                return (
-                  <button key={wp.id} type="button"
-                    data-testid="wp-toggle"
-                    data-wp-id={wp.id}
-                    onClick={() => togglePackage(wp.id)}
-                    style={{
-                      padding: "12px 14px", borderRadius: 12, textAlign: "left",
-                      border: `2px solid ${sel ? wp.color : "#e5e7eb"}`,
-                      background: sel ? wp.color + "14" : "white",
-                      color: sel ? wp.color : "#9ca3af",
-                      fontWeight: sel ? 700 : 500, fontSize: 13,
-                      cursor: "pointer", transition: "all 0.15s", lineHeight: 1.3,
-                    }}>
-                    {sel && <span style={{ marginRight: 6, fontSize: 11 }}>✓</span>}
-                    {wp.name}
-                  </button>
-                );
-              })}
+          {ganttTasks.length === 0 && !ganttLoading && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 6 }}>Active Work Packages This Week</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 14 }}>Select all work packages with active works this reporting period.</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                {WORK_PACKAGES.map((wp) => {
+                  const sel = (form.currentPackages || []).includes(wp.id);
+                  return (
+                    <button key={wp.id} type="button"
+                      data-testid="wp-toggle"
+                      data-wp-id={wp.id}
+                      onClick={() => togglePackage(wp.id)}
+                      style={{
+                        padding: "12px 14px", borderRadius: 12, textAlign: "left",
+                        border: `2px solid ${sel ? wp.color : "#e5e7eb"}`,
+                        background: sel ? wp.color + "14" : "white",
+                        color: sel ? wp.color : "#9ca3af",
+                        fontWeight: sel ? 700 : 500, fontSize: 13,
+                        cursor: "pointer", transition: "all 0.15s", lineHeight: 1.3,
+                      }}>
+                      {sel && <span style={{ marginRight: 6, fontSize: 11 }}>✓</span>}
+                      {wp.name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </FormSection>
 
-        {/* ── 2. Work Package Status Sections (dynamic) ── */}
-        {activePackages.map((wp) => (
-          <WPSection
-            key={wp.id}
-            wp={wp}
-            pkgStatuses={form.workPackageStatuses?.[wp.id] || {}}
-            prevPkgStatuses={prevReport?.workPackageStatuses?.[wp.id] ?? null}
-            prevDate={prevReport?.reportingDate || null}
-            onChange={(pkgStatuses) => updateWPStatuses(wp.id, pkgStatuses)}
-          />
-        ))}
+        {/* ── 2. Work Package Progress ── */}
+        {ganttLoading ? (
+          <FormSection title="Work Package Progress" accentColor="#2f855a">
+            <div style={{ textAlign: "center", padding: "20px", color: "#9ca3af", fontSize: 13 }}>Loading schedule…</div>
+          </FormSection>
+        ) : ganttTasks.length > 0 ? (
+          (() => {
+            const byPhase = {};
+            for (const task of ganttTasks) {
+              const key = task.phaseLabel || task.phaseId || 'Other';
+              if (!byPhase[key]) byPhase[key] = [];
+              byPhase[key].push(task);
+            }
+            return Object.entries(byPhase).map(([phase, tasks]) => (
+              <FormSection key={phase} title={phase} accentColor="#2f855a">
+                {tasks.map(task => (
+                  <GanttWPRow
+                    key={task.id}
+                    task={task}
+                    entry={ganttWpProgress[task.id]}
+                    onChange={updates => updateWPProgress(task.id, updates)}
+                  />
+                ))}
+              </FormSection>
+            ));
+          })()
+        ) : (
+          activePackages.map((wp) => (
+            <WPSection
+              key={wp.id}
+              wp={wp}
+              pkgStatuses={form.workPackageStatuses?.[wp.id] || {}}
+              prevPkgStatuses={prevReport?.workPackageStatuses?.[wp.id] ?? null}
+              prevDate={prevReport?.reportingDate || null}
+              onChange={(pkgStatuses) => updateWPStatuses(wp.id, pkgStatuses)}
+            />
+          ))
+        )}
 
         {/* ── 3. Schedule Status ── */}
         <FormSection title="Project Schedule Status" accentColor="#475569">

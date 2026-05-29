@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { formatDate } from "../utils/reportUtils";
 import { supabase } from "../lib/supabase";
 import GanttChart from "../components/GanttChart";
-import { buildProjectWPs, calculateGantt, calculateKeyDates } from "../engines/ganttEngine";
 import { PHASES } from "../config/masterTaskLibrary";
+import { TEMPLATES } from "../config/projectTemplates";
+import { generateAndSaveGantt, getProjectGantt } from "../services/ganttService";
 
 // phaseId → { id, label, color, bg, border }
 const PHASE_MAP = Object.fromEntries(
@@ -30,10 +31,9 @@ const emptyProject = {
   contractorEmail: "",
   projectType: "New Opening",
   projectStatus: "Active",
-  phases: [
-    'demolition','floor_prep','rough_in','floor_tiling','testing',
-    'wall_closing','finishes','end_devices','commissioning','pre_opening','handover',
-  ],
+  templateType: 'standard_with_demo',
+  storeSizeSqm: '',
+  phases: [],
 };
 
 
@@ -84,32 +84,30 @@ function DetailField({ label, value }) {
 
 function ProjectDetailModal({ project, onClose, onEdit }) {
   const [activeTab, setActiveTab] = useState('details');
+  const [ganttTasks, setGanttTasks] = useState(null);
+  const [ganttLoading, setGanttLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'gantt' || !project.id) return;
+    setGanttLoading(true);
+    getProjectGantt(project.id)
+      .then(tasks => setGanttTasks(tasks.length > 0 ? tasks : null))
+      .catch(() => setGanttTasks(null))
+      .finally(() => setGanttLoading(false));
+  }, [activeTab, project.id]);
+
+  const keyDates = {
+    construction_completion: project.constructionCompletionDate
+      ? new Date(project.constructionCompletionDate) : null,
+    projected_opening: project.forecastOpeningDate
+      ? new Date(project.forecastOpeningDate) : null,
+    target_opening: project.targetOpeningDate
+      ? new Date(project.targetOpeningDate) : null,
+  };
 
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = openingDate ? Math.ceil((openingDate - new Date()) / 86400000) : null;
   const openingColor = daysLeft === null ? "#e2e8f0" : daysLeft < 30 ? "#dc2626" : daysLeft < 90 ? "#d97706" : "#16a34a";
-
-  const ganttTasks = useMemo(() => {
-    if (!project.constructionStartDate || !project.targetOpeningDate) return null;
-    try {
-      const hasDemo = (project.phases || []).includes('demolition');
-      const templateId = hasDemo ? 'standard_with_demo' : 'standard_no_demo';
-      const wps = buildProjectWPs(templateId, project.constructionStartDate, project.targetOpeningDate, 1000);
-      return calculateGantt(wps, [], project.constructionStartDate);
-    } catch {
-      return null;
-    }
-  }, [project.constructionStartDate, project.targetOpeningDate, project.phases]);
-
-  const keyDates = useMemo(() => {
-    if (!ganttTasks) return {};
-    const { constructionCompletionDate, projectedOpeningDate } = calculateKeyDates(ganttTasks);
-    return {
-      construction_completion: constructionCompletionDate,
-      projected_opening: projectedOpeningDate,
-      target_opening: project.targetOpeningDate ? new Date(project.targetOpeningDate) : null,
-    };
-  }, [ganttTasks, project.targetOpeningDate]);
 
   const stakeholders = [
     { label: "Project Manager",   value: project.projectManager },
@@ -214,20 +212,31 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
           )}
 
           {/* Construction Phases */}
-          {(project.phases || []).length > 0 && (
+          {(project.templateType || (project.phases || []).length > 0) && (
             <FormSection title="Construction Phases" accentColor="#22c55e">
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {(project.phases || []).map((phase) => {
-                  const cfg = PHASE_MAP[phase];
-                  if (!cfg) return null;
-                  return (
-                    <span key={phase} style={{
-                      padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                      background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.border}`,
-                    }}>{cfg.label}</span>
-                  );
-                })}
-              </div>
+              {project.templateType ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>
+                    {TEMPLATES.find(t => t.id === project.templateType)?.label || project.templateType}
+                  </span>
+                  {project.storeSizeSqm && (
+                    <span style={{ fontSize: 12, color: "#64748b" }}>{project.storeSizeSqm} sqm</span>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {(project.phases || []).map((phase) => {
+                    const cfg = PHASE_MAP[phase];
+                    if (!cfg) return null;
+                    return (
+                      <span key={phase} style={{
+                        padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                        background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.border}`,
+                      }}>{cfg.label}</span>
+                    );
+                  })}
+                </div>
+              )}
             </FormSection>
           )}
 
@@ -245,7 +254,11 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
           </>)}
 
           {activeTab === 'gantt' && (
-            ganttTasks ? (
+            ganttLoading ? (
+              <div style={{ padding: "48px 24px", textAlign: "center", color: "#64748b" }}>
+                <div style={{ fontSize: 15, color: "#94a3b8" }}>Loading schedule…</div>
+              </div>
+            ) : ganttTasks && ganttTasks.length > 0 ? (
               <GanttChart
                 project={project}
                 tasks={ganttTasks}
@@ -363,7 +376,13 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   }
 
   function handleEditProject(project) {
-    setNewProject({ ...emptyProject, ...project, phases: project.phases || emptyProject.phases });
+    setNewProject({
+      ...emptyProject,
+      ...project,
+      templateType: project.templateType || 'standard_with_demo',
+      storeSizeSqm: project.storeSizeSqm || '',
+      phases: project.phases || [],
+    });
     setEditingProjectId(project.id);
     setViewingProject(null);
     setShowForm(true);
@@ -381,11 +400,27 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
 
   async function saveProject() {
     try {
-      if (editingProjectId) {
-        await onSaveProject({ ...newProject, id: editingProjectId });
-      } else {
-        await onSaveProject(newProject);
+      const payload = editingProjectId ? { ...newProject, id: editingProjectId } : newProject;
+      const savedProject = await onSaveProject(payload);
+
+      if (savedProject?.id && newProject.constructionStartDate && newProject.targetOpeningDate) {
+        try {
+          const tOptions = newProject.templateType === 'custom'
+            ? { selectedPhases: newProject.phases }
+            : {};
+          await generateAndSaveGantt(
+            savedProject.id,
+            newProject.templateType || 'standard_with_demo',
+            newProject.constructionStartDate,
+            newProject.targetOpeningDate,
+            parseFloat(newProject.storeSizeSqm) || 1000,
+            tOptions,
+          );
+        } catch (ganttErr) {
+          console.warn('[gantt] generation failed (non-fatal):', ganttErr);
+        }
       }
+
       setNewProject(emptyProject);
       setEditingProjectId(null);
       setShowForm(false);
@@ -775,30 +810,72 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                 </FieldRow>
               </FormSection>
 
-              {/* Construction Phases */}
-              <FormSection title="Construction Phases" accentColor="#22c55e">
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {PHASES.map(({ id, label }) => {
-                    const cfg = PHASE_MAP[id];
-                    const active = (newProject.phases || []).includes(id);
+              {/* Schedule Template */}
+              <FormSection title="Schedule Template" accentColor="#22c55e">
+                <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                  {TEMPLATES.map(({ id, label, icon }) => {
+                    const active = newProject.templateType === id;
                     return (
                       <button
                         key={id}
                         type="button"
-                        onClick={() => togglePhase(id)}
+                        onClick={() => setNewProject(p => ({ ...p, templateType: id }))}
                         style={{
-                          padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                          cursor: "pointer", transition: "all 0.15s ease",
-                          border: `1.5px solid ${active ? cfg.color : cfg.border}`,
-                          background: active ? cfg.bg : "#0f172a",
-                          color: cfg.color,
+                          flex: 1, padding: "12px 10px", borderRadius: 10, cursor: "pointer",
+                          border: `1.5px solid ${active ? "#22c55e" : "#334155"}`,
+                          background: active ? "#052e16" : "#0f172a",
+                          color: active ? "#4ade80" : "#94a3b8",
+                          fontSize: 12, fontWeight: 600, textAlign: "center", transition: "all 0.15s",
                         }}
                       >
-                        {label}
+                        <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
+                        <div>{label}</div>
                       </button>
                     );
                   })}
                 </div>
+
+                <Field label="Store Size (sqm)">
+                  <input
+                    type="number"
+                    name="storeSizeSqm"
+                    value={newProject.storeSizeSqm}
+                    onChange={handleChange}
+                    placeholder="e.g. 1200"
+                    style={{ ...inputStyle, maxWidth: 200 }}
+                    min="0"
+                  />
+                </Field>
+
+                {newProject.templateType === 'custom' && (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b", marginBottom: 8 }}>
+                      Select Phases
+                    </div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      {PHASES.map(({ id, label }) => {
+                        const cfg = PHASE_MAP[id];
+                        const active = (newProject.phases || []).includes(id);
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => togglePhase(id)}
+                            style={{
+                              padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                              cursor: "pointer", transition: "all 0.15s ease",
+                              border: `1.5px solid ${active ? cfg.color : cfg.border}`,
+                              background: active ? cfg.bg : "#0f172a",
+                              color: cfg.color,
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </FormSection>
 
               {/* Project */}
