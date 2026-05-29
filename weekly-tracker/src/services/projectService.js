@@ -1,5 +1,17 @@
 import { supabase } from '../lib/supabase';
 
+const LEGACY_PHASE_MAP = {
+  'Demolition works':        'demolition',
+  'Construction works':      'rough_in',
+  'Testing & Commissioning': 'commissioning',
+  'Handover':                'handover',
+};
+
+function normalizePhasesFromDB(phases) {
+  if (!Array.isArray(phases)) return [];
+  return phases.map(p => LEGACY_PHASE_MAP[p] ?? p);
+}
+
 function validateProject(project, requireId = false) {
   if (requireId && !project?.id) throw new Error('Project ID is required');
   if (!project?.storeCode?.trim()) throw new Error('Store code is required');
@@ -46,7 +58,7 @@ function fromDB(row) {
     contractorEmail: row.contractor_email,
     projectType: row.project_type,
     projectStatus: row.project_status,
-    phases: row.phases || [],
+    phases: normalizePhasesFromDB(row.phases || []),
     // ── Gantt fields (read-only, written by ganttService) ──────────────────
     templateType:               row.template_type                || null,
     storeSizeSqm:               row.store_size_sqm               || null,

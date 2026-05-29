@@ -3,6 +3,12 @@ import { formatDate } from "../utils/reportUtils";
 import { supabase } from "../lib/supabase";
 import GanttChart from "../components/GanttChart";
 import { buildProjectWPs, calculateGantt, calculateKeyDates } from "../engines/ganttEngine";
+import { PHASES } from "../config/masterTaskLibrary";
+
+// phaseId → { id, label, color, bg, border }
+const PHASE_MAP = Object.fromEntries(
+  PHASES.map(p => [p.id, { ...p, bg: p.color + '20', border: p.color + '55' }])
+);
 const emptyProject = {
   storeCode: "",
   shoppingMallName: "",
@@ -25,19 +31,11 @@ const emptyProject = {
   projectType: "New Opening",
   projectStatus: "Active",
   phases: [
-    "Demolition works",
-    "Construction works",
-    "Testing & Commissioning",
-    "Handover",
+    'demolition','floor_prep','rough_in','floor_tiling','testing',
+    'wall_closing','finishes','end_devices','commissioning','pre_opening','handover',
   ],
 };
 
-const PHASE_CONFIG = [
-  { key: "Demolition works",        color: "#c4b5fd", bg: "#2e1065", border: "#7c3aed" },
-  { key: "Construction works",      color: "#93c5fd", bg: "#1e3a5f", border: "#1d4ed8" },
-  { key: "Testing & Commissioning", color: "#fcd34d", bg: "#422006", border: "#b45309" },
-  { key: "Handover",                color: "#86efac", bg: "#052e16", border: "#166534" },
-];
 
 const inputStyle = {
   width: "100%", boxSizing: "border-box",
@@ -94,7 +92,7 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
   const ganttTasks = useMemo(() => {
     if (!project.constructionStartDate || !project.targetOpeningDate) return null;
     try {
-      const hasDemo = (project.phases || []).includes('Demolition works');
+      const hasDemo = (project.phases || []).includes('demolition');
       const templateId = hasDemo ? 'standard_with_demo' : 'standard_no_demo';
       const wps = buildProjectWPs(templateId, project.constructionStartDate, project.targetOpeningDate, 1000);
       return calculateGantt(wps, [], project.constructionStartDate);
@@ -219,12 +217,16 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
           {(project.phases || []).length > 0 && (
             <FormSection title="Construction Phases" accentColor="#22c55e">
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {PHASE_CONFIG.filter(({ key }) => (project.phases || []).includes(key)).map(({ key, color, bg, border }) => (
-                  <span key={key} style={{
-                    padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                    background: bg, color, border: `1.5px solid ${border}`,
-                  }}>{key}</span>
-                ))}
+                {(project.phases || []).map((phase) => {
+                  const cfg = PHASE_MAP[phase];
+                  if (!cfg) return null;
+                  return (
+                    <span key={phase} style={{
+                      padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                      background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.border}`,
+                    }}>{cfg.label}</span>
+                  );
+                })}
               </div>
             </FormSection>
           )}
@@ -776,22 +778,23 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
               {/* Construction Phases */}
               <FormSection title="Construction Phases" accentColor="#22c55e">
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {PHASE_CONFIG.map(({ key, color, bg, border }) => {
-                    const active = (newProject.phases || []).includes(key);
+                  {PHASES.map(({ id, label }) => {
+                    const cfg = PHASE_MAP[id];
+                    const active = (newProject.phases || []).includes(id);
                     return (
                       <button
-                        key={key}
+                        key={id}
                         type="button"
-                        onClick={() => togglePhase(key)}
+                        onClick={() => togglePhase(id)}
                         style={{
                           padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
                           cursor: "pointer", transition: "all 0.15s ease",
-                          border: `1.5px solid ${active ? color : border}`,
-                          background: active ? bg : "#0f172a",
-                          color: color,
+                          border: `1.5px solid ${active ? cfg.color : cfg.border}`,
+                          background: active ? cfg.bg : "#0f172a",
+                          color: cfg.color,
                         }}
                       >
-                        {key}
+                        {label}
                       </button>
                     );
                   })}
