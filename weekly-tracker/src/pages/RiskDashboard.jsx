@@ -10,10 +10,16 @@ import { computeContractorScores, computePortfolioContractorScores } from "../en
 import { computePmAlignmentItems, computeConfidenceLevel } from "../engines/pmAlignmentEngine";
 import { computeEscalations } from "../engines/escalationEngine";
 import { computeRecommendedActions } from "../engines/actionEngine";
+import { computeEVM } from "../engines/evmEngine";
+import { computeContractorDriftProfile } from "../engines/contractorDriftEngine";
+import { computeMonteCarloForecast } from "../engines/monteCarloEngine";
 import { RiskGauge, RiskBadge, HealthBadge, DimCell } from "../components/RiskGauge";
 import { FactorPill, MiniRiskSparkline, ScoreBar } from "../components/ScoreBar";
 import { RiskTable } from "../components/RiskTable";
 import { RISK_LEVEL_COLORS } from "../config/statusColors";
+import EvmWidget from "../components/analytics/EvmWidget";
+import MonteCarloWidget from "../components/analytics/MonteCarloWidget";
+import DriftChart from "../components/analytics/DriftChart";
 
 const SEV_COLORS = RISK_LEVEL_COLORS;
 
@@ -84,7 +90,10 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     const actions        = computeRecommendedActions(riskScore, contScore, schedDev, latestReport, projSiteVisits, project);
     const health         = computeHealthScore(riskScore, progress, contScore);
     const contractorName = project.generalContractor || latestReport?.contractor || "";
-    return { project, latestReport, progress, projReports, projSiteVisits, sorted, riskScore, schedDev, trend, contScore, escalations, dims, evolution, confidence, actions, health, contractorName };
+    const evm            = computeEVM(project, sorted, progress);
+    const driftProfile   = computeContractorDriftProfile(projects, reports, siteVisits, contractorName);
+    const monteCarlo     = computeMonteCarloForecast(project, sorted, null);
+    return { project, latestReport, progress, projReports, projSiteVisits, sorted, riskScore, schedDev, trend, contScore, escalations, dims, evolution, confidence, actions, health, contractorName, evm, driftProfile, monteCarlo };
   }), [projects, reports, siteVisits]);
 
   const sortedByRisk   = useMemo(() => [...allRows].sort((a, b) => b.riskScore.score - a.riskScore.score), [allRows]);
@@ -251,7 +260,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           )}
 
           {/* CRITICAL / HIGH detail cards */}
-          {sortedByRisk.filter(r => r.riskScore.level === "CRITICAL" || r.riskScore.level === "HIGH").map(({ project, riskScore, schedDev, trend, escalations, evolution, actions, health }) => {
+          {sortedByRisk.filter(r => r.riskScore.level === "CRITICAL" || r.riskScore.level === "HIGH").map(({ project, riskScore, schedDev, trend, escalations, evolution, actions, health, evm, driftProfile, monteCarlo }) => {
             const c = riskScore.color;
             const dTo = project.targetOpeningDate ? Math.ceil((new Date(project.targetOpeningDate) - new Date()) / 86400000) : null;
             return (
@@ -325,6 +334,12 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                       </div>
                     )}
                   </div>
+                </div>
+                {/* Analytics widgets — EVM · Monte Carlo · Drift */}
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
+                  <EvmWidget evm={evm} />
+                  <MonteCarloWidget mc={monteCarlo} />
+                  {driftProfile && <DriftChart driftProfile={driftProfile} />}
                 </div>
               </div>
             );

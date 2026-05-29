@@ -214,7 +214,27 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
     if (openPts > 0) factors.push({ name: "Opening proximity", value: daysToOpen < 0 ? `${Math.abs(daysToOpen)}d overdue` : `${daysToOpen}d remaining`, pts: openPts });
   }
 
-  // 7. Historical deterioration (last 3 reports)
+  // 7. EVM Schedule Performance Index (SPI = progress / expected %)
+  // Computed inline to avoid circular import with evmEngine.
+  {
+    const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;
+    const end   = project.constructionEndDate   ? new Date(project.constructionEndDate)
+                : project.targetOpeningDate     ? new Date(project.targetOpeningDate) : null;
+    if (start && end && end > start) {
+      const totalDays   = Math.ceil((end - start) / 86400000);
+      const elapsedDays = Math.max(0, Math.ceil((now - start) / 86400000));
+      const pv = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+      if (pv > 0) {
+        const spi = progress / pv;
+        if (spi < 0.85) {
+          score += 15;
+          factors.push({ name: "EVM SPI critical", value: `SPI ${Math.round(spi * 100) / 100}`, pts: 15 });
+        }
+      }
+    }
+  }
+
+  // 8(renumbered). Historical deterioration (last 3 reports)
   if (sorted.length >= 3) {
     const isBad    = s => s === "At Risk" || s === "Delayed" || s === "Critical";
     const isSevere = s => s === "Delayed" || s === "Critical";
@@ -278,6 +298,7 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
   // Root cause breakdown (category attribution)
   const FACTOR_CATS = {
     "Schedule deviation":        "Schedule",
+    "EVM SPI critical":          "Schedule",
     "Historical deterioration":  "Schedule",
     "Repeated blocker":          "Schedule",
     "Activities blocked":        "Schedule",
