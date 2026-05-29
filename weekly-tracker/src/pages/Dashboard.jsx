@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   estimateProgressFromStatuses, estimateProgressAuto,
   computeCumulativeStatuses, computeWPCumulativeStatuses,
@@ -17,14 +17,25 @@ import ProgressTab from "../components/dashboard/ProgressTab";
 import ContractorsTab from "../components/dashboard/ContractorsTab";
 import SiteVisitsTab from "../components/dashboard/SiteVisitsTab";
 import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
+import { loadAllGanttMetrics } from "../services/dashboardService";
+import { SPI_STATUS } from "../config/statusColors";
 
 function Dashboard({ projects, reports, siteVisits = [] }) {
-  const [activeView, setActiveView]           = useState("overview");
-  const [drawerProjectId, setDrawerProjectId] = useState(null);
-  const [filterStatus, setFilterStatus]       = useState("all");
-  const [searchQuery, setSearchQuery]         = useState("");
-  const [expandedVisitId, setExpandedVisitId] = useState(null);
-  const [svStoreFilter, setSvStoreFilter]     = useState("all");
+  const [activeView, setActiveView]               = useState("overview");
+  const [drawerProjectId, setDrawerProjectId]     = useState(null);
+  const [filterStatus, setFilterStatus]           = useState("all");
+  const [searchQuery, setSearchQuery]             = useState("");
+  const [expandedVisitId, setExpandedVisitId]     = useState(null);
+  const [svStoreFilter, setSvStoreFilter]         = useState("all");
+  const [ganttMetrics, setGanttMetrics]           = useState(new Map());
+  const [dismissedAlertIds, setDismissedAlertIds] = useState(new Set());
+
+  useEffect(() => {
+    if (!projects || projects.length === 0) return;
+    loadAllGanttMetrics(projects.map(p => p.id))
+      .then(map => setGanttMetrics(map))
+      .catch(err => console.error('[dashboard] gantt metrics error:', err));
+  }, [projects]);
 
   const allRows = useMemo(() => projects.map((project, idx) => {
     const projReports = reports.filter(r=>r.projectId===project.id);
@@ -75,6 +86,27 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     const openingSoon=allRows.filter(({daysToOpening})=>daysToOpening!==null&&daysToOpening>=0&&daysToOpening<30).length;
     return {active,total:projects.length,atRisk,critical,missing,blocked,support,avgProgress,reportsThisWeek,openingSoon};
   },[projects,reports,allRows]);
+
+  // Rows enriched with gantt SPI — passed to SummaryPanel for avgSPI card
+  const spiRows = useMemo(() => allRows.map(row => {
+    const gm = ganttMetrics.get(row.project.id);
+    return { evm: gm?.spi != null ? { SPI: gm.spi } : null, monteCarlo: null };
+  }), [allRows, ganttMetrics]);
+
+  // SPI alert list (critical first, then at_risk, undismissed)
+  const spiAlerts = useMemo(() => allRows
+    .map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
+    .filter(row => row.gantt?.spiStatus === 'critical' || row.gantt?.spiStatus === 'at_risk')
+    .filter(row => !dismissedAlertIds.has(row.project.id))
+    .sort((a, b) => (a.gantt?.spi ?? 1) - (b.gantt?.spi ?? 1))
+  , [allRows, ganttMetrics, dismissedAlertIds]);
+
+  // Projects opening within 45 days, sorted nearest first
+  const upcomingOpenings = useMemo(() => allRows
+    .filter(({ daysToOpening }) => daysToOpening !== null && daysToOpening >= 0 && daysToOpening <= 45)
+    .sort((a, b) => a.daysToOpening - b.daysToOpening)
+    .map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
+  , [allRows, ganttMetrics]);
 
   const alerts = useMemo(()=>{
     const list=[];
@@ -228,8 +260,77 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
         </div>
       </div>
 
+      {/* ── SPI Alert Banner ── */}
+      {spiAlerts.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          {spiAlerts.slice(0, 5).map(row => {
+            const st = SPI_STATUS[row.gantt.spiStatus];
+            return (
+              <div key={row.project.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px',
+                background: row.gantt.spiStatus === 'critical' ? '#450a0a' : '#422006',
+                border: `1.5px solid ${st.color}40`, borderRadius: 9, marginBottom: 5, fontSize: 12,
+              }}>
+                <span style={{ fontWeight: 700, color: st.color }}>
+                  {row.gantt.spiStatus === 'critical' ? '⛔' : '⚠'} {st.label}
+                </span>
+                <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{row.project.storeCode}</span>
+                <span style={{ color: '#94a3b8' }}>{row.project.shoppingMallName}</span>
+                <span style={{ color: st.color, fontWeight: 700 }}>SPI {row.gantt.spi?.toFixed(2) ?? '—'}</span>
+                {row.gantt.criticalHealth?.behind > 0 && (
+                  <span style={{ color: '#fca5a5' }}>{row.gantt.criticalHealth.behind} critical tasks behind</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDismissedAlertIds(prev => new Set([...prev, row.project.id]))}
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
+                >✕</button>
+              </div>
+            );
+          })}
+          {spiAlerts.length > 5 && (
+            <div style={{ fontSize: 11, color: '#64748b', paddingLeft: 6 }}>
+              +{spiAlerts.length - 5} more schedule issues
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── KPI Cards ── */}
-      <SummaryPanel kpis={kpis} reportsTotal={reports.length} />
+      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} />
+
+      {/* ── Upcoming Openings ── */}
+      {upcomingOpenings.length > 0 && (
+        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9', marginBottom: 10 }}>
+            🏁 Opening in ≤45 Days ({upcomingOpenings.length})
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {upcomingOpenings.map(row => {
+              const st = row.gantt ? SPI_STATUS[row.gantt.spiStatus] : SPI_STATUS.no_schedule;
+              return (
+                <div key={row.project.id} style={{
+                  background: '#0f172a', border: `1.5px solid ${st.color}50`,
+                  borderRadius: 9, padding: '7px 12px', minWidth: 180,
+                  display: 'flex', flexDirection: 'column', gap: 3,
+                  cursor: 'pointer',
+                }} onClick={() => sel(String(row.project.id))}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9' }}>{row.project.storeCode}</span>
+                    <span style={{ background: st.bg, color: st.color, borderRadius: 5, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>
+                      {row.gantt?.spi != null ? `SPI ${row.gantt.spi.toFixed(2)}` : 'No Gantt'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{row.project.shoppingMallName}</div>
+                  <div style={{ fontSize: 11, color: row.daysToOpening < 14 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
+                    {row.daysToOpening === 0 ? 'Opens today!' : `${row.daysToOpening}d to open`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Filters ── */}
       <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center" }}>
@@ -260,7 +361,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
       {activeView==="workpackages"&&<ProjectHeatmap rows={defaultSorted} onRowClick={sel}/>}
 
-      {activeView==="progress"&&<ProgressTab rows={filteredRows} drawerProjectId={drawerProjectId} onSelect={sel}/>}
+      {activeView==="progress"&&<ProgressTab rows={filteredRows} drawerProjectId={drawerProjectId} onSelect={sel} ganttMetrics={ganttMetrics}/>}
 
       {activeView==="contractors"&&<ContractorsTab contractorPerf={contractorPerf}/>}
 

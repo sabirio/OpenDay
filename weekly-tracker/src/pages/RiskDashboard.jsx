@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { computeCumulativeStatuses, estimateProgressFromStatuses, computeWPCumulativeStatuses } from "../utils/reportUtils";
 import { computeProjectProgressFromWP } from "../config/workPackages";
 import {
@@ -16,7 +16,8 @@ import { computeMonteCarloForecast } from "../engines/monteCarloEngine";
 import { RiskGauge, RiskBadge, HealthBadge, DimCell } from "../components/RiskGauge";
 import { FactorPill, MiniRiskSparkline, ScoreBar } from "../components/ScoreBar";
 import { RiskTable } from "../components/RiskTable";
-import { RISK_LEVEL_COLORS } from "../config/statusColors";
+import { RISK_LEVEL_COLORS, SPI_STATUS } from "../config/statusColors";
+import { loadAllGanttMetrics, getProjectTrend, getDiscrepancyHistory, getContractorReliability } from "../services/dashboardService";
 import EvmWidget from "../components/analytics/EvmWidget";
 import MonteCarloWidget from "../components/analytics/MonteCarloWidget";
 import DriftChart from "../components/analytics/DriftChart";
@@ -29,7 +30,35 @@ const VIEWS = [
   { id: "escalations",  label: "Escalations" },
   { id: "contractors",  label: "Contractors" },
   { id: "pm-align",     label: "PM Alignment" },
+  { id: "gantt-spi",    label: "Gantt SPI" },
 ];
+
+// ── SPI sparkline (SVG, no external library) ──────────────────────────────────
+
+function SPISparkline({ points, width = 140, height = 44 }) {
+  const valid = (points || []).filter(p => p.spi !== null);
+  if (valid.length < 2) return <span style={{ color: '#475569', fontSize: 11 }}>No trend</span>;
+
+  const minV  = Math.min(0.5, ...valid.map(p => p.spi));
+  const maxV  = Math.max(1.5, ...valid.map(p => p.spi));
+  const range = maxV - minV || 1;
+  const xStep = width / (valid.length - 1);
+  const toX   = i => (i * xStep).toFixed(1);
+  const toY   = v => (height - ((v - minV) / range) * height).toFixed(1);
+
+  const d     = valid.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i)},${toY(p.spi)}`).join(' ');
+  const last  = valid[valid.length - 1].spi;
+  const color = last >= 0.95 ? '#22c55e' : last >= 0.80 ? '#f59e0b' : '#ef4444';
+  const refY  = toY(1.0);
+
+  return (
+    <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }}>
+      <line x1="0" y1={refY} x2={width} y2={refY} stroke="#334155" strokeWidth="1" strokeDasharray="3,3"/>
+      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
+      <circle cx={toX(valid.length - 1)} cy={toY(last)} r="3" fill={color}/>
+    </svg>
+  );
+}
 
 // ── Filter bar sub-component ──────────────────────────────────────────────────
 
@@ -68,6 +97,32 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
   const [filterStore, setFilterStore] = useState("");
   const [filterContractor, setFilterContractor] = useState("");
   const [filterReport, setFilterReport] = useState("");
+
+  // Gantt SPI tab state (loaded lazily)
+  const [ganttMetricsMap, setGanttMetricsMap] = useState(new Map());
+  const [projectTrends,   setProjectTrends]   = useState({});    // projectId → trend[]
+  const [discHistory,     setDiscHistory]     = useState({});    // projectId → disc[]
+  const [reliabilityMap,  setReliabilityMap]  = useState(new Map());
+  const [ganttSpiLoading, setGanttSpiLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeView !== 'gantt-spi' || !projects || projects.length === 0) return;
+    if (ganttMetricsMap.size > 0) return; // already loaded
+    setGanttSpiLoading(true);
+    const ids = projects.map(p => p.id);
+    Promise.all([
+      loadAllGanttMetrics(ids),
+      getContractorReliability(ids),
+      Promise.all(ids.map(id => getProjectTrend(id, 8).then(t => [id, t]))),
+      Promise.all(ids.map(id => getDiscrepancyHistory(id, 10).then(d => [id, d]))),
+    ]).then(([metrics, reliability, trends, discs]) => {
+      setGanttMetricsMap(metrics);
+      setReliabilityMap(reliability);
+      setProjectTrends(Object.fromEntries(trends));
+      setDiscHistory(Object.fromEntries(discs));
+    }).catch(err => console.error('[risk] gantt-spi load error:', err))
+      .finally(() => setGanttSpiLoading(false));
+  }, [activeView, projects]);
 
   const allRows = useMemo(() => projects.map(project => {
     const projReports    = reports.filter(r => String(r.projectId) === String(project.id));
@@ -578,6 +633,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
             </div>
           )}
 
+          {/* eslint-disable-next-line no-unused-vars */}
           {pmAlignRows.filter(r => r.projSiteVisits.length > 0).map(({ project, projSiteVisits, sorted, contScore }) => {
             const visitsSorted = [...projSiteVisits]
               .sort((a, b) => new Date(b.visitDate || b.submittedAt) - new Date(a.visitDate || a.submittedAt))
@@ -672,6 +728,176 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           })}
         </div>
       )}
+      {/* ════════════════════════════════════════════
+          VIEW: GANTT SPI
+          ════════════════════════════════════════════ */}
+      {activeView === "gantt-spi" && (
+        <div style={{ display: "grid", gap: 16 }}>
+          {ganttSpiLoading && (
+            <div style={{ textAlign: 'center', color: '#64748b', padding: '40px 0', fontSize: 14 }}>
+              Loading Gantt SPI data…
+            </div>
+          )}
+
+          {!ganttSpiLoading && (
+            <>
+              {/* ── SPI Overview table ── */}
+              <div className="dashboard-summary-card" style={{ margin: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#f1f5f9', marginBottom: 4 }}>Schedule Performance Index (SPI) — All Projects</div>
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>SPI = actual progress ÷ planned progress · ≥0.95 On Schedule · 0.80–0.94 At Risk · &lt;0.80 Critical</div>
+                {ganttMetricsMap.size === 0 ? (
+                  <div style={{ color: '#475569', fontSize: 13 }}>No Gantt data found. Generate a Gantt for your projects to see SPI analytics.</div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #334155' }}>
+                          {['Project', 'SPI', 'Status', 'Critical Path', 'Last Visit', 'Trend (8w)'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '7px 10px', fontSize: 10, fontWeight: 700, color: '#94a3b8', whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allRows.map(({ project }) => {
+                          const m    = ganttMetricsMap.get(project.id);
+                          const st   = m ? SPI_STATUS[m.spiStatus] : SPI_STATUS.no_schedule;
+                          const ch   = m?.criticalHealth;
+                          const chColor = !ch || ch.total === 0 ? '#64748b' : ch.label === 'healthy' ? '#22c55e' : ch.label === 'warning' ? '#f59e0b' : '#ef4444';
+                          const trend = projectTrends[project.id] || [];
+                          return (
+                            <tr key={project.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                              <td style={{ padding: '8px 10px' }}>
+                                <div style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9' }}>{project.storeCode}</div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>{project.shoppingMallName}</div>
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <span style={{ fontSize: 18, fontWeight: 800, color: st.color }}>
+                                  {m?.spi != null ? m.spi.toFixed(2) : '—'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <span style={{ background: st.bg, color: st.color, borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+                                  {st.label}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                {ch && ch.total > 0 ? (
+                                  <span style={{ color: chColor, fontSize: 12, fontWeight: 600 }}>
+                                    {ch.behind === 0 ? '✓ All on track' : `${ch.behind}/${ch.total} behind`}
+                                  </span>
+                                ) : <span style={{ color: '#475569', fontSize: 12 }}>—</span>}
+                              </td>
+                              <td style={{ padding: '8px 10px', fontSize: 12, color: '#64748b' }}>
+                                {m?.lastVisitDate
+                                  ? new Date(m.lastVisitDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+                                  : '—'}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <SPISparkline points={trend} />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Discrepancy History ── */}
+              <div className="dashboard-summary-card" style={{ margin: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#f1f5f9', marginBottom: 4 }}>Discrepancy History</div>
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>PM vs GC progress gaps from site visits · latest 10 per project</div>
+                {allRows.map(({ project }) => {
+                  const discs = discHistory[project.id] || [];
+                  if (discs.length === 0) return null;
+                  const critCount = discs.filter(d => d.status === 'critical').length;
+                  const warnCount = discs.filter(d => d.status === 'warning').length;
+                  return (
+                    <div key={project.id} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: '14px 18px', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <div>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9' }}>{project.storeCode}</span>
+                          <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>{project.shoppingMallName}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          {critCount > 0 && <span style={{ color: '#ef4444', fontSize: 12, fontWeight: 700 }}>{critCount} critical</span>}
+                          {warnCount > 0 && <span style={{ color: '#f59e0b', fontSize: 12, fontWeight: 700 }}>{warnCount} warning</span>}
+                        </div>
+                      </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #334155' }}>
+                              {['WP', 'Visit Date', 'GC%', 'PM%', 'Delta', 'Status'].map(h => (
+                                <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {discs.map((d, i) => {
+                              const stColor = d.status === 'critical' ? '#ef4444' : d.status === 'warning' ? '#f59e0b' : '#22c55e';
+                              return (
+                                <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 8px', fontSize: 12, color: '#e2e8f0' }}>{d.wpId}</td>
+                                  <td style={{ padding: '5px 8px', fontSize: 12, color: '#64748b' }}>{d.visitDate ? new Date(d.visitDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}</td>
+                                  <td style={{ padding: '5px 8px', fontSize: 12, color: '#94a3b8' }}>{d.contractorPct ?? '—'}%</td>
+                                  <td style={{ padding: '5px 8px', fontSize: 12, color: '#94a3b8' }}>{d.sitePct ?? '—'}%</td>
+                                  <td style={{ padding: '5px 8px', fontSize: 13, fontWeight: 700, color: stColor }}>{d.delta != null ? `Δ${d.delta}%` : '—'}</td>
+                                  <td style={{ padding: '5px 8px' }}>
+                                    <span style={{ background: d.status === 'critical' ? '#450a0a' : d.status === 'warning' ? '#422006' : '#052e16', color: stColor, borderRadius: 5, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+                                      {d.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+                {allRows.every(({ project }) => !(discHistory[project.id]?.length > 0)) && (
+                  <div style={{ color: '#475569', fontSize: 13 }}>No discrepancy data yet. Submit PM site visits to track GC vs PM gaps.</div>
+                )}
+              </div>
+
+              {/* ── Contractor Reliability ── */}
+              <div className="dashboard-summary-card" style={{ margin: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#f1f5f9', marginBottom: 4 }}>Contractor Reliability Score</div>
+                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>Based on site_visit_discrepancies · score = 100% - (critical gaps / total assessments)</div>
+                {reliabilityMap.size === 0 ? (
+                  <div style={{ color: '#475569', fontSize: 13 }}>No discrepancy data yet.</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                    {allRows.map(({ project }) => {
+                      const rel = reliabilityMap.get(project.id);
+                      if (!rel || rel.total === 0) return null;
+                      const scoreColor = rel.score >= 80 ? '#22c55e' : rel.score >= 60 ? '#f59e0b' : '#ef4444';
+                      return (
+                        <div key={project.id} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 10, padding: '12px 16px' }}>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: '#f1f5f9', marginBottom: 2 }}>{project.storeCode}</div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>{project.generalContractor || 'No GC'}</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 28, fontWeight: 800, color: scoreColor }}>{rel.score}</span>
+                            <div style={{ fontSize: 11, color: '#64748b', textAlign: 'right' }}>
+                              <div>{rel.ok} ok</div>
+                              {rel.warning > 0 && <div style={{ color: '#f59e0b' }}>{rel.warning} warn</div>}
+                              {rel.critical > 0 && <div style={{ color: '#ef4444' }}>{rel.critical} crit</div>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
     </div>
   );
 }

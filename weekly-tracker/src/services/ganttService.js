@@ -311,3 +311,46 @@ export async function updateGanttDiscrepancy(projectId, wpId, { siteVisitProgres
     .eq('wp_id', wpId);
   if (error) throw error;
 }
+
+// ─── Refresh planned_progress column ─────────────────────────────────────────
+
+/**
+ * Compute planned_progress for every active task of a project at today's date
+ * and persist it to the planned_progress column.
+ * Requires: ALTER TABLE project_gantt_tasks ADD COLUMN IF NOT EXISTS planned_progress NUMERIC(5,2) DEFAULT 0
+ */
+export async function refreshPlannedProgress(projectId) {
+  const { data: tasks, error } = await supabase
+    .from('project_gantt_tasks')
+    .select('id,planned_start,planned_end,is_archived')
+    .eq('project_id', projectId);
+  if (error) throw error;
+  if (!tasks || tasks.length === 0) return;
+
+  const today = new Date();
+
+  const updates = tasks
+    .filter(t => !t.is_archived)
+    .map(t => {
+      const start = new Date(t.planned_start);
+      const end   = new Date(t.planned_end);
+      let pct;
+      if (isNaN(start) || isNaN(end) || end <= start) {
+        pct = 100;
+      } else if (today <= start) {
+        pct = 0;
+      } else if (today >= end) {
+        pct = 100;
+      } else {
+        pct = Math.min(100, (today - start) / (end - start) * 100);
+      }
+      return { id: t.id, planned_progress: Math.round(pct * 100) / 100 };
+    });
+
+  for (const u of updates) {
+    await supabase
+      .from('project_gantt_tasks')
+      .update({ planned_progress: u.planned_progress })
+      .eq('id', u.id);
+  }
+}

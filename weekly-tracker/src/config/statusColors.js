@@ -48,6 +48,22 @@ export const WP_STATUS_CELL_COLORS = {
   "Not Applicable": { bg: "#1e293b", text: "#475569", lbl: "–" },
 };
 
+// ─── SPI (Schedule Performance Index) status ─────────────────────────────────
+
+export const SPI_STATUS = {
+  on_schedule: { color: '#22c55e', bg: 'rgba(34,197,94,0.12)',   label: 'On Schedule' },
+  at_risk:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  label: 'At Risk'     },
+  critical:    { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   label: 'Critical'    },
+  no_schedule: { color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', label: 'No Schedule' },
+};
+
+export function getSPIStatus(spi) {
+  if (spi === null || spi === undefined) return 'no_schedule';
+  if (spi >= 0.95) return 'on_schedule';
+  if (spi >= 0.80) return 'at_risk';
+  return 'critical';
+}
+
 // ─── PM comparison cell ───────────────────────────────────────────────────────
 
 export const PM_COMPARISON_COLORS = {
