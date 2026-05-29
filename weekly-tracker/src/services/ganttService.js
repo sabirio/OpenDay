@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { updateGanttDates } from './projectService';
 import {
   buildProjectWPs,
   calculateGantt,
@@ -56,16 +57,12 @@ export async function generateAndSaveGantt(
   if (upsertErr) throw upsertErr;
 
   // 5. Update project with key dates
-  const { error: projErr } = await supabase
-    .from('projects')
-    .update({
-      template_type:                 templateId,
-      gantt_generated_at:            new Date().toISOString(),
-      construction_completion_date:  constructionCompletionDate?.toISOString().split('T')[0] || null,
-      forecast_opening_date:         projectedOpeningDate?.toISOString().split('T')[0] || null,
-    })
-    .eq('id', projectId);
-  if (projErr) throw projErr;
+  await updateGanttDates(projectId, {
+    templateType:               templateId,
+    ganttGeneratedAt:           new Date().toISOString(),
+    constructionCompletionDate: constructionCompletionDate?.toISOString().split('T')[0] || null,
+    forecastOpeningDate:        projectedOpeningDate?.toISOString().split('T')[0] || null,
+  });
 
   return { ganttResult, constructionCompletionDate, projectedOpeningDate };
 }
@@ -246,10 +243,10 @@ export async function regenerateGantt(projectId) {
     .upsert(rows, { onConflict: 'project_id,wp_id' });
   if (error) throw error;
 
-  await supabase.from('projects').update({
-    construction_completion_date: constructionCompletionDate?.toISOString().split('T')[0] || null,
-    gantt_generated_at:           new Date().toISOString(),
-  }).eq('id', projectId);
+  await updateGanttDates(projectId, {
+    constructionCompletionDate: constructionCompletionDate?.toISOString().split('T')[0] || null,
+    ganttGeneratedAt:           new Date().toISOString(),
+  });
 
   return ganttResult;
 }
@@ -263,11 +260,9 @@ export async function updateForecast(projectId) {
   const { forecastOpeningDate } = calculateForecastOpening(tasks, new Date());
   if (!forecastOpeningDate) return;
 
-  const { error } = await supabase
-    .from('projects')
-    .update({ forecast_opening_date: forecastOpeningDate.toISOString().split('T')[0] })
-    .eq('id', projectId);
-  if (error) throw error;
+  await updateGanttDates(projectId, {
+    forecastOpeningDate: forecastOpeningDate.toISOString().split('T')[0],
+  });
 
   return forecastOpeningDate;
 }

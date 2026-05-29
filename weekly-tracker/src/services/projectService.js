@@ -11,8 +11,18 @@ function validateProject(project, requireId = false) {
       throw new Error(`Invalid date for ${f}: ${project[f]}`);
     }
   }
+  if (project.storeSizeSqm !== undefined && project.storeSizeSqm !== null) {
+    const sqm = Number(project.storeSizeSqm);
+    if (isNaN(sqm) || sqm <= 0) throw new Error('store_size_sqm must be a positive number');
+  }
 }
 
+/**
+ * fromDB maps every DB column → camelCase JS field.
+ * Includes Gantt-computed fields (read-only — written only by ganttService).
+ * toDB is the inverse but intentionally OMITS those computed fields so a
+ * normal UI update() can never overwrite ganttService's calculations.
+ */
 function fromDB(row) {
   return {
     id: row.id,
@@ -37,6 +47,12 @@ function fromDB(row) {
     projectType: row.project_type,
     projectStatus: row.project_status,
     phases: row.phases || [],
+    // ── Gantt fields (read-only, written by ganttService) ──────────────────
+    templateType:               row.template_type                || null,
+    storeSizeSqm:               row.store_size_sqm               || null,
+    ganttGeneratedAt:           row.gantt_generated_at           || null,
+    constructionCompletionDate: row.construction_completion_date || null,
+    forecastOpeningDate:        row.forecast_opening_date        || null,
   };
 }
 
@@ -63,6 +79,11 @@ function toDB(project) {
     project_type: project.projectType || 'New Opening',
     project_status: project.projectStatus || 'Active',
     phases: project.phases || [],
+    // ── Gantt setup fields (PM-editable) ───────────────────────────────────
+    template_type:  project.templateType  || null,
+    store_size_sqm: project.storeSizeSqm  || null,
+    // NOTE: gantt_generated_at, construction_completion_date, forecast_opening_date
+    // are intentionally excluded — they are owned by ganttService only.
   };
 }
 
@@ -101,5 +122,22 @@ export async function update(id, project) {
 
 export async function remove(id) {
   const { error } = await supabase.from('projects').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Called exclusively by ganttService after Gantt calculation.
+ * Updates computed date fields only — never called from UI directly.
+ */
+export async function updateGanttDates(id, { templateType, ganttGeneratedAt, constructionCompletionDate, forecastOpeningDate }) {
+  const { error } = await supabase
+    .from('projects')
+    .update({
+      template_type:                templateType               || null,
+      gantt_generated_at:           ganttGeneratedAt           || null,
+      construction_completion_date: constructionCompletionDate || null,
+      forecast_opening_date:        forecastOpeningDate        || null,
+    })
+    .eq('id', id);
   if (error) throw error;
 }
