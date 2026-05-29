@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { formatDate } from "../utils/reportUtils";
 import { supabase } from "../lib/supabase";
+import GanttChart from "../components/GanttChart";
+import { buildProjectWPs, calculateGantt, calculateKeyDates } from "../engines/ganttEngine";
 const emptyProject = {
   storeCode: "",
   shoppingMallName: "",
@@ -83,9 +85,33 @@ function DetailField({ label, value }) {
 // ── Project Detail Modal (read-only) ────────────────────────────────────────
 
 function ProjectDetailModal({ project, onClose, onEdit }) {
+  const [activeTab, setActiveTab] = useState('details');
+
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = openingDate ? Math.ceil((openingDate - new Date()) / 86400000) : null;
   const openingColor = daysLeft === null ? "#e2e8f0" : daysLeft < 30 ? "#dc2626" : daysLeft < 90 ? "#d97706" : "#16a34a";
+
+  const ganttTasks = useMemo(() => {
+    if (!project.constructionStartDate || !project.targetOpeningDate) return null;
+    try {
+      const hasDemo = (project.phases || []).includes('Demolition works');
+      const templateId = hasDemo ? 'standard_with_demo' : 'standard_no_demo';
+      const wps = buildProjectWPs(templateId, project.constructionStartDate, project.targetOpeningDate, 1000);
+      return calculateGantt(wps, [], project.constructionStartDate);
+    } catch {
+      return null;
+    }
+  }, [project.constructionStartDate, project.targetOpeningDate, project.phases]);
+
+  const keyDates = useMemo(() => {
+    if (!ganttTasks) return {};
+    const { constructionCompletionDate, projectedOpeningDate } = calculateKeyDates(ganttTasks);
+    return {
+      construction_completion: constructionCompletionDate,
+      projected_opening: projectedOpeningDate,
+      target_opening: project.targetOpeningDate ? new Date(project.targetOpeningDate) : null,
+    };
+  }, [ganttTasks, project.targetOpeningDate]);
 
   const stakeholders = [
     { label: "Project Manager",   value: project.projectManager },
@@ -97,9 +123,11 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
     { label: "Supply Manager",    value: project.supplyManager },
   ].filter((s) => s.value);
 
+  const isGantt = activeTab === 'gantt';
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720, width: "95vw" }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: isGantt ? "96vw" : 720, width: isGantt ? "96vw" : "95vw", transition: "max-width 0.2s" }}>
 
         {/* Header */}
         <div className="modal-header">
@@ -125,9 +153,24 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
           </div>
         </div>
 
-        {/* Body */}
-        <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 72px)", padding: "20px 24px" }}>
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #334155", background: "#0f172a" }}>
+          {['details', 'gantt'].map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              padding: "10px 22px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
+              background: "transparent", transition: "all 0.12s",
+              color: activeTab === tab ? "#f1f5f9" : "#64748b",
+              borderBottom: activeTab === tab ? "2px solid #3b82f6" : "2px solid transparent",
+            }}>
+              {tab === 'details' ? 'Details' : 'Gantt Chart'}
+            </button>
+          ))}
+        </div>
 
+        {/* Body */}
+        <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 110px)", padding: isGantt ? "16px" : "20px 24px" }}>
+
+          {activeTab === 'details' && (<>
           {/* Address */}
           <FormSection title="Address" accentColor="#3b82f6">
             <FieldRow>
@@ -197,6 +240,27 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
               alert("Link copied.");
             }}>Copy</button>
           </div>
+          </>)}
+
+          {activeTab === 'gantt' && (
+            ganttTasks ? (
+              <GanttChart
+                project={project}
+                tasks={ganttTasks}
+                keyDates={keyDates}
+                defaultZoom="month"
+                readOnly
+              />
+            ) : (
+              <div style={{ padding: "48px 24px", textAlign: "center", color: "#64748b" }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>📅</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#94a3b8", marginBottom: 8 }}>Gantt chart unavailable</div>
+                <div style={{ fontSize: 13 }}>
+                  Set a <strong style={{ color: "#e2e8f0" }}>Construction Start Date</strong> and <strong style={{ color: "#e2e8f0" }}>Target Opening Date</strong> to generate the project schedule.
+                </div>
+              </div>
+            )
+          )}
 
         </div>
       </div>
