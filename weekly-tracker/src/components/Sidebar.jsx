@@ -17,11 +17,11 @@ function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div style={{ padding: '4px 0 8px' }}>
+      <div style={{ padding: '12px 0 8px' }}>
         <img
-          src="/logo.png"
-          alt="Oryx"
-          style={{ width: '100%', maxWidth: 120, display: 'block', objectFit: 'contain' }}
+          src="/noryx-logo.png"
+          alt="NORYX"
+          style={{ width: '100%', maxWidth: 140, display: 'block', objectFit: 'contain' }}
         />
       </div>
 
