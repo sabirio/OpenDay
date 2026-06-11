@@ -164,15 +164,17 @@ export async function getAll() {
   return data || [];
 }
 
-// Legacy compatibility — used by SiteVisitReport.jsx until it migrates to submitSiteVisit
+// Legacy compatibility — used by SiteVisitReport.jsx when no Gantt tasks are loaded.
+// referenceReportId here is from the `reports` table (old weekly format), which is a
+// different table from `contractor_reports` that site_visits.contractor_report_id references.
+// Passing it would cause a FK violation, so we omit the FK field in this path.
 export async function create(visit) {
   const { data, error } = await supabase
     .from('site_visits')
     .insert([{
-      project_id:            visit.projectId,
-      contractor_report_id:  visit.referenceReportId || null,
-      visit_date:            visit.visitDate || new Date().toISOString().split('T')[0],
-      overall_note:          visit.overallNote || null,
+      project_id:   visit.projectId,
+      visit_date:   visit.visitDate || new Date().toISOString().split('T')[0],
+      overall_note: visit.overallNote || null,
     }])
     .select()
     .single();
