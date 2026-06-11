@@ -32,10 +32,10 @@ class ErrorBoundary extends Component {
   render() {
     if (!this.state.hasError) return this.props.children;
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: '#0f172a', color: '#f1f5f9' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: '#f5f6fa', color: '#111827' }}>
         <div style={{ fontSize: 40 }}>⚠️</div>
         <div style={{ fontSize: 20, fontWeight: 600 }}>Something went wrong</div>
-        <div style={{ fontSize: 14, color: '#94a3b8', maxWidth: 480, textAlign: 'center' }}>
+        <div style={{ fontSize: 14, color: '#6b7280', maxWidth: 480, textAlign: 'center' }}>
           {this.state.error?.message || 'An unexpected error occurred.'}
         </div>
         <button
@@ -52,8 +52,8 @@ class ErrorBoundary extends Component {
 // ── Global screens ────────────────────────────────────────────────────────────
 function GlobalLoadingScreen() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0f172a', color: '#94a3b8', fontFamily: 'sans-serif', gap: 12 }}>
-      <div style={{ width: 20, height: 20, border: '3px solid #334155', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f5f6fa', color: '#6b7280', fontFamily: 'sans-serif', gap: 12 }}>
+      <div style={{ width: 20, height: 20, border: '3px solid #e5e7eb', borderTopColor: '#f97316', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <span style={{ fontSize: 15 }}>Loading project data…</span>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
@@ -62,10 +62,10 @@ function GlobalLoadingScreen() {
 
 function GlobalErrorScreen({ error, onRetry }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: '#0f172a', color: '#f1f5f9' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: '#f5f6fa', color: '#111827' }}>
       <div style={{ fontSize: 40 }}>🔌</div>
       <div style={{ fontSize: 20, fontWeight: 600 }}>Failed to load data</div>
-      <div style={{ fontSize: 14, color: '#94a3b8', maxWidth: 480, textAlign: 'center' }}>
+      <div style={{ fontSize: 14, color: '#6b7280', maxWidth: 480, textAlign: 'center' }}>
         {error || 'Could not connect to the database. Check your network and try again.'}
       </div>
       <button

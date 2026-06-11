@@ -9,21 +9,21 @@ const ROW_H       = 36;
 const PHASE_ROW_H = 32;
 const BAR_H       = 22;
 
-// NORYX dark palette
+// NORYX light palette
 const C = {
-  bg:        '#0a0a0f',
-  bgCard:    '#1a1a24',
-  bgEl:      '#13131a',
-  border:    '#2a2a3a',
-  text:      '#e2e2e8',
-  muted:     '#6b6b80',
+  bg:        '#ffffff',
+  bgCard:    '#f9fafb',
+  bgEl:      '#f9fafb',
+  border:    '#e5e7eb',
+  text:      '#111827',
+  muted:     '#6b7280',
   blue:      '#4F8EF7',
   green:     '#22c55e',
   yellow:    '#f59e0b',
   red:       '#ef4444',
-  redCrit:   '#ff4444',
+  redCrit:   '#dc2626',
   orange:    '#f97316',
-  white60:   'rgba(255,255,255,0.6)',
+  white60:   'rgba(0,0,0,0.45)',
 };
 
 function fmtDate(d) {
@@ -176,7 +176,7 @@ function Row({ label, value, bold, critical }) {
 
 function Legend() {
   const bars = [
-    { label: 'Planned',       bg: '#3a3a4a',                  border: C.border },
+    { label: 'Planned',       bg: '#e5e7eb',                  border: C.border },
     { label: 'In Progress',   bg: C.blue,                     border: 'none' },
     { label: 'Complete',      bg: C.green,                    border: 'none' },
     { label: 'Critical Path', bg: 'rgba(255,100,100,0.4)',    border: C.redCrit },
@@ -238,13 +238,13 @@ function WPBar({ task, isSelected, onClick }) {
     strokeWidth = 1;
     strokeDash  = 'none';
   } else if (isCritical) {
-    bgFill     = '#3a1a1a';
-    progFill   = '#ff6b6b';
+    bgFill     = '#fef2f2';
+    progFill   = '#ef4444';
     strokeColor = C.redCrit;
     strokeWidth = 1.5;
     strokeDash  = 'none';
   } else {
-    bgFill     = notStarted ? '#2a2a3a' : '#3a3a4a';
+    bgFill     = notStarted ? '#f3f4f6' : '#e5e7eb';
     progFill   = C.blue;
     strokeColor = C.border;
     strokeWidth = 1;
@@ -591,7 +591,7 @@ export default function GanttChart({
   // ── Grid alternating stripes ─────────────────────────────────────────────────
   const stripes = timelineHeaders.map((h, i) => (
     <rect key={`s-${i}`} x={h.x} y={0} width={h.width} height={totalHeight}
-      fill={i % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent'} />
+      fill={i % 2 === 0 ? 'rgba(0,0,0,0.018)' : 'transparent'} />
   ));
 
   // ── Row separator lines ──────────────────────────────────────────────────────

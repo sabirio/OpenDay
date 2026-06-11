@@ -37,8 +37,8 @@ class ErrorBoundary extends React.Component {
 
 // Цветной бейдж статуса (Completed / In progress / Not started)
 function StatusBadge({ value }) {
-  if (!value || value === "-") return <span style={{ color: "#94a3b8" }}>—</span>;
-  const scheduleColor = value === "On Track" ? "#22c55e" : value === "Critical" ? "#7f1d1d" : value === "Delayed" ? "#dc2626" : value === "At Risk" ? "#f59e0b" : null;
+  if (!value || value === "-") return <span style={{ color: "#9ca3af" }}>—</span>;
+  const scheduleColor = value === "On Track" ? "#22c55e" : value === "Critical" ? "#dc2626" : value === "Delayed" ? "#ef4444" : value === "At Risk" ? "#f59e0b" : null;
   const score = getStatusScore(value);
   const color = scheduleColor ?? (score >= 1 ? "#22c55e" : score >= 0.5 ? "#f59e0b" : score > 0 ? "#60a5fa" : "#94a3b8");
   return (
@@ -52,8 +52,8 @@ function StatusBadge({ value }) {
 function InfoLabel({ label, children }) {
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>{label}</div>
-      <div style={{ fontSize: 14, color: "#e2e8f0", fontWeight: 500 }}>{children || "—"}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 5 }}>{label}</div>
+      <div style={{ fontSize: 14, color: "#374151", fontWeight: 500 }}>{children || "—"}</div>
     </div>
   );
 }
@@ -63,8 +63,8 @@ function TextBlock({ label, value }) {
   if (!value) return null;
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 8 }}>{label}</div>
-      <div style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: "12px 16px", fontSize: 14, color: "#cbd5e1", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 8 }}>{label}</div>
+      <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8, padding: "12px 16px", fontSize: 14, color: "#374151", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>{value}</div>
     </div>
   );
 }
@@ -213,12 +213,12 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, defaultExpanded }) {
   const sc = statusColor(overallStatus);
 
   return (
-    <div data-testid="wp-phase-card" data-wp-id={wp.id} style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, borderTop: `3px solid ${wp.color}`, overflow: "hidden" }}>
+    <div data-testid="wp-phase-card" data-wp-id={wp.id} style={{ background: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 14, borderTop: `3px solid ${wp.color}`, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
       <button type="button" onClick={() => setExpanded((e) => !e)}
         style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "16px 20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: "#f1f5f9", lineHeight: 1.3 }}>{wp.name}</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: "#111827", lineHeight: 1.3 }}>{wp.name}</span>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <span style={{ padding: "2px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: sc + "20", color: sc, border: `1px solid ${sc}44` }}>
                 {overallStatus}
@@ -226,27 +226,27 @@ function WPPhaseCard({ wp, wpStatuses, wpCumStatuses, defaultExpanded }) {
               {delayedCount > 0 && (
                 <span style={{ fontSize: 10, fontWeight: 700, color: "#f87171" }}>⚠ {delayedCount} delayed</span>
               )}
-              <span style={{ fontSize: 10, color: "#475569" }}>{completedCount}/{tasks.length} done</span>
+              <span style={{ fontSize: 10, color: "#6b7280" }}>{completedCount}/{tasks.length} done</span>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <span style={{ fontSize: 22, fontWeight: 800, color: wp.color }}>{pct}%</span>
-            <span style={{ fontSize: 9, color: "#475569" }}>{expanded ? "▲" : "▼"}</span>
+            <span style={{ fontSize: 9, color: "#6b7280" }}>{expanded ? "▲" : "▼"}</span>
           </div>
         </div>
-        <div style={{ background: "#334155", borderRadius: 6, height: 5, overflow: "hidden" }}>
+        <div style={{ background: "#e5e7eb", borderRadius: 6, height: 5, overflow: "hidden" }}>
           <div style={{ width: `${pct}%`, height: "100%", background: wp.color, borderRadius: 6, transition: "width 0.35s ease" }} />
         </div>
       </button>
 
       {expanded && (
-        <div style={{ borderTop: "1px solid #334155", padding: "6px 20px 14px" }}>
+        <div style={{ borderTop: "1px solid #e5e7eb", padding: "6px 20px 14px" }}>
           {tasks.map((task) => {
             const status = mergedTaskStatuses[task.name]?.status || "Not Started";
             const tsc    = statusColor(status);
             return (
-              <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid #2d3f54" }}>
-                <span style={{ fontSize: 12, color: "#94a3b8", flex: 1, paddingRight: 12, lineHeight: 1.35 }}>{task.name}</span>
+              <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid #f3f4f6" }}>
+                <span style={{ fontSize: 12, color: "#9ca3af", flex: 1, paddingRight: 12, lineHeight: 1.35 }}>{task.name}</span>
                 <span style={{ padding: "2px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: tsc + "20", color: tsc, border: `1px solid ${tsc}44`, whiteSpace: "nowrap" }}>
                   {status}
                 </span>
@@ -284,39 +284,39 @@ function PrevReportSummary({ prevReport }) {
         : [];
 
   return (
-    <div style={{ marginBottom: 14, border: "1px solid #1e3a54", borderRadius: 12, overflow: "hidden", background: "#0d1f30" }}>
+    <div style={{ marginBottom: 14, border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#ffffff" }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: "12px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#60a5fa", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#f97316", textTransform: "uppercase", letterSpacing: "0.06em" }}>
             Previous Report
           </span>
-          <span style={{ fontSize: 12, color: "#475569" }}>{date}</span>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>{date}</span>
           {prevReport.projectScheduleStatus && (
             <span style={{ padding: "1px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600,
-              background: prevReport.projectScheduleStatus === "On Track" ? "#14532d" : prevReport.projectScheduleStatus === "Delayed" ? "#450a0a" : "#422006",
-              color:      prevReport.projectScheduleStatus === "On Track" ? "#86efac" : prevReport.projectScheduleStatus === "Delayed" ? "#fca5a5" : "#fcd34d",
-              border:     `1px solid ${prevReport.projectScheduleStatus === "On Track" ? "#166534" : prevReport.projectScheduleStatus === "Delayed" ? "#7f1d1d" : "#b45309"}`,
+              background: prevReport.projectScheduleStatus === "On Track" ? "#f0fdf4" : prevReport.projectScheduleStatus === "Delayed" ? "#fef2f2" : "#fffbeb",
+              color:      prevReport.projectScheduleStatus === "On Track" ? "#16a34a" : prevReport.projectScheduleStatus === "Delayed" ? "#dc2626" : "#d97706",
+              border:     `1px solid ${prevReport.projectScheduleStatus === "On Track" ? "#bbf7d0" : prevReport.projectScheduleStatus === "Delayed" ? "#fecaca" : "#fde68a"}`,
             }}>
               {prevReport.projectScheduleStatus}
             </span>
           )}
           {phases.length > 0 && (
-            <span style={{ fontSize: 11, color: "#334155" }}>
+            <span style={{ fontSize: 11, color: "#e5e7eb" }}>
               {phases.join(" · ")}
             </span>
           )}
         </div>
-        <span style={{ fontSize: 10, color: "#334155" }}>{open ? "▲" : "▼"}</span>
+        <span style={{ fontSize: 10, color: "#e5e7eb" }}>{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
-        <div style={{ borderTop: "1px solid #1e3a54", padding: "12px 18px 16px" }}>
+        <div style={{ borderTop: "1px solid #e5e7eb", padding: "12px 18px 16px" }}>
           {activeWPs.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#475569" }}>No work package statuses recorded in this report.</div>
+            <div style={{ fontSize: 12, color: "#6b7280" }}>No work package statuses recorded in this report.</div>
           ) : (
             activeWPs.map((wp) => {
               const pkg = wpStatuses[wp.id] || {};
@@ -332,11 +332,11 @@ function PrevReportSummary({ prevReport }) {
                     const status = entry?.status || "Not Started";
                     const tsc    = statusColor(status);
                     return (
-                      <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #1a2a3a" }}>
-                        <span style={{ fontSize: 12, color: "#64748b", flex: 1, paddingRight: 12, lineHeight: 1.35 }}>{task.name}</span>
+                      <div key={task.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", borderBottom: "1px solid #f3f4f6" }}>
+                        <span style={{ fontSize: 12, color: "#6b7280", flex: 1, paddingRight: 12, lineHeight: 1.35 }}>{task.name}</span>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           {entry?.progress != null && entry.progress > 0 && (
-                            <span style={{ fontSize: 11, color: "#475569" }}>{entry.progress}%</span>
+                            <span style={{ fontSize: 11, color: "#6b7280" }}>{entry.progress}%</span>
                           )}
                           <span style={{ padding: "2px 8px", borderRadius: 8, fontSize: 10, fontWeight: 600, background: tsc + "20", color: tsc, border: `1px solid ${tsc}44`, whiteSpace: "nowrap" }}>
                             {status}
@@ -350,9 +350,9 @@ function PrevReportSummary({ prevReport }) {
             })
           )}
           {prevReport.nextWeekTop3 && (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #1e3a54" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>Top 3 planned (from that report)</div>
-              <div style={{ fontSize: 12, color: "#64748b", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{prevReport.nextWeekTop3}</div>
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #e5e7eb" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>Top 3 planned (from that report)</div>
+              <div style={{ fontSize: 12, color: "#6b7280", whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{prevReport.nextWeekTop3}</div>
             </div>
           )}
         </div>
@@ -518,7 +518,7 @@ function WeeklyReports({ projects, reports }) {
               <div className="metric-pill"><span>Country</span><strong>{selectedProject.country || "—"}</strong></div>
               <div className="metric-pill"><span>PM</span><strong>{selectedProject.projectManager || "—"}</strong></div>
               <div className="metric-pill"><span>Type</span><strong>{selectedProject.projectType || "—"}</strong></div>
-              <div className="metric-pill" style={selectedProject.projectStatus !== "Active" ? { background: "#1e293b", color: "#94a3b8", borderColor: "#475569" } : {}}>
+              <div className="metric-pill" style={selectedProject.projectStatus !== "Active" ? { background: "#f9fafb", color: "#9ca3af", borderColor: "#e5e7eb" } : {}}>
                 <span>Status</span><strong>{selectedProject.projectStatus || "—"}</strong>
               </div>
             </div>
@@ -532,20 +532,20 @@ function WeeklyReports({ projects, reports }) {
               <InfoLabel label="Construction Start">{selectedProject.constructionStartDate || "—"}</InfoLabel>
               <InfoLabel label="Construction End">{selectedProject.constructionEndDate || "—"}</InfoLabel>
               <InfoLabel label="Target Opening">
-                <span style={{ color: "#60a5fa", fontWeight: 700 }}>{selectedProject.targetOpeningDate || "—"}</span>
+                <span style={{ color: "#f97316", fontWeight: 700 }}>{selectedProject.targetOpeningDate || "—"}</span>
               </InfoLabel>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Overall Progress</div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 5 }}>Overall Progress</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 22, fontWeight: 800, color: "#22c55e", lineHeight: 1 }}>{overallProgress}%</span>
-                  <div style={{ width: 80, background: "#1a3a29", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                  <div style={{ width: 80, background: "#d1fae5", borderRadius: 4, height: 6, overflow: "hidden" }}>
                     <div style={{ width: `${overallProgress}%`, height: "100%", background: "#2f855a", borderRadius: 4 }} />
                   </div>
                 </div>
               </div>
-              <div style={{ width: 1, background: "#334155", alignSelf: "stretch", margin: "0 8px" }} />
+              <div style={{ width: 1, background: "#e5e7eb", alignSelf: "stretch", margin: "0 8px" }} />
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Avg Progress</div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 5 }}>Avg Progress</div>
                 <span style={{ fontSize: 22, fontWeight: 800, color: "#2563eb", lineHeight: 1 }}>{portfolioKpis.avgProgress}%</span>
               </div>
               <div
@@ -553,15 +553,15 @@ function WeeklyReports({ projects, reports }) {
                 style={{ cursor: portfolioKpis.missingCount > 0 ? "pointer" : "default" }}
                 title={portfolioKpis.missingCount > 0 ? "Click to view missing reports" : undefined}
               >
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Missing Reports</div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 5 }}>Missing Reports</div>
                 <span style={{ fontSize: 22, fontWeight: 800, color: portfolioKpis.missingCount > 0 ? "#dc2626" : "#22c55e", lineHeight: 1, textDecoration: portfolioKpis.missingCount > 0 ? "underline dotted" : "none" }}>{portfolioKpis.missingCount}</span>
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Blocked</div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 5 }}>Blocked</div>
                 <span style={{ fontSize: 22, fontWeight: 800, color: portfolioKpis.blocked > 0 ? "#dc2626" : "#22c55e", lineHeight: 1 }}>{portfolioKpis.blocked}</span>
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Client Support</div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 5 }}>Client Support</div>
                 <span style={{ fontSize: 22, fontWeight: 800, color: portfolioKpis.support > 0 ? "#7c3aed" : "#22c55e", lineHeight: 1 }}>{portfolioKpis.support}</span>
               </div>
             </div>
@@ -572,25 +572,25 @@ function WeeklyReports({ projects, reports }) {
         {showMissingModal && (
           <>
             <div onClick={() => setShowMissingModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000 }} />
-            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 780, maxWidth: "96vw", maxHeight: "85vh", background: "#1e293b", zIndex: 1001, borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column", borderTop: "3px solid #dc2626" }}>
-              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #334155", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 780, maxWidth: "96vw", maxHeight: "85vh", background: "#ffffff", zIndex: 1001, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", borderTop: "3px solid #dc2626", border: "1px solid #e5e7eb" }}>
+              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #e5e7eb", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "#f1f5f9" }}>Missing Reports</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>Missing Reports</div>
                   <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>Projects with no report submitted or last report older than 7 days</div>
                 </div>
-                <button type="button" onClick={() => setShowMissingModal(false)} style={{ padding: "5px 13px", borderRadius: 8, border: "none", background: "#334155", color: "#f1f5f9", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close ×</button>
+                <button type="button" onClick={() => setShowMissingModal(false)} style={{ padding: "5px 13px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#f3f4f6", color: "#374151", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close ×</button>
               </div>
               <div style={{ overflowY: "auto", padding: "16px 24px" }}>
                 <table className="dashboard-table" style={{ width: "100%" }}>
                   <thead><tr><th>Project</th><th>Contractor</th><th>Last Report</th><th>Days Since</th><th>PM</th><th>Status</th></tr></thead>
                   <tbody>{portfolioKpis.missing.sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999)).map(({ project, latestReport, daysSinceReport }) => (
                     <tr key={project.id}>
-                      <td><div style={{ fontWeight: 700, color: "#f1f5f9" }}>{project.storeCode}</div><div style={{ fontSize: 11, color: "#9ca3af" }}>{project.shoppingMallName}</div></td>
-                      <td style={{ fontSize: 12, color: "#e2e8f0" }}>{project.generalContractor || "—"}</td>
-                      <td style={{ fontSize: 12, color: "#94a3b8" }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: "#dc2626", fontWeight: 700 }}>Never</span>}</td>
+                      <td><div style={{ fontWeight: 700, color: "#111827" }}>{project.storeCode}</div><div style={{ fontSize: 11, color: "#9ca3af" }}>{project.shoppingMallName}</div></td>
+                      <td style={{ fontSize: 12, color: "#374151" }}>{project.generalContractor || "—"}</td>
+                      <td style={{ fontSize: 12, color: "#9ca3af" }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: "#dc2626", fontWeight: 700 }}>Never</span>}</td>
                       <td style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>{daysSinceReport !== null ? `${daysSinceReport}d` : "—"}</td>
-                      <td style={{ fontSize: 12, color: "#e2e8f0" }}>{project.projectManager || "—"}</td>
-                      <td>{!latestReport ? <span style={{ fontSize: 11, fontWeight: 700, color: "#fca5a5", padding: "2px 8px", borderRadius: 7, background: "#450a0a", border: "1px solid #7f1d1d" }}>Missing</span> : <span style={{ fontSize: 11, fontWeight: 700, color: "#fcd34d", padding: "2px 8px", borderRadius: 7, background: "#422006", border: "1px solid #b45309" }}>Overdue</span>}</td>
+                      <td style={{ fontSize: 12, color: "#374151" }}>{project.projectManager || "—"}</td>
+                      <td>{!latestReport ? <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", padding: "2px 8px", borderRadius: 7, background: "#fef2f2", border: "1px solid #fecaca" }}>Missing</span> : <span style={{ fontSize: 11, fontWeight: 700, color: "#d97706", padding: "2px 8px", borderRadius: 7, background: "#fffbeb", border: "1px solid #fde68a" }}>Overdue</span>}</td>
                     </tr>
                   ))}</tbody>
                 </table>
@@ -601,7 +601,7 @@ function WeeklyReports({ projects, reports }) {
 
         {/* Заглушка когда отчётов нет */}
         {projectReports.length === 0 && selectedProject && (
-          <div className="dashboard-summary-card" style={{ color: "#94a3b8", padding: "32px 24px", textAlign: "center" }}>
+          <div className="dashboard-summary-card" style={{ color: "#9ca3af", padding: "32px 24px", textAlign: "center" }}>
             No weekly reports submitted yet for this project.
           </div>
         )}
@@ -618,7 +618,7 @@ function WeeklyReports({ projects, reports }) {
                     : selectedReport.currentPhase}
                 </InfoLabel>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 6 }}>Schedule</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 6 }}>Schedule</div>
                   <StatusBadge value={selectedReport.projectScheduleStatus} />
                 </div>
                 <InfoLabel label="Blocked">
@@ -635,17 +635,17 @@ function WeeklyReports({ projects, reports }) {
                 <InfoLabel label="Submitted">{new Date(selectedReport.submittedAt).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</InfoLabel>
                 <InfoLabel label="Total Reports">{projectReports.length}</InfoLabel>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Additional Works</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 5 }}>Additional Works</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: additionalWorksTotal === "0" || additionalWorksTotal === "" ? "#94a3b8" : "#c2410c" }}>
                     {additionalWorksTotal || "—"}
                   </div>
                 </div>
                 {riskCount > 0 && (
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 8 }}>Active Risks</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 8 }}>Active Risks</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {(selectedReport.risks || []).filter(Boolean).map((r, i) => (
-                        <span key={i} style={{ padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600, background: "#422006", color: "#fcd34d", border: "1px solid #b45309" }}>{r}</span>
+                        <span key={i} style={{ padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 600, background: "#fffbeb", color: "#d97706", border: "1px solid #fde68a" }}>{r}</span>
                       ))}
                     </div>
                   </div>
@@ -686,7 +686,7 @@ function WeeklyReports({ projects, reports }) {
 
               {/* Look Ahead */}
               <div className="dashboard-summary-card" style={{ margin: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#f1f5f9" }}>Look Ahead</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#111827" }}>Look Ahead</div>
                 {(selectedReport.nextWeekTop3 || selectedReport.weekAfterTop3 || selectedReport.delayReason) ? (
                   <>
                     <TextBlock label="Top 3 — Next Week" value={selectedReport.nextWeekTop3} />
@@ -696,41 +696,41 @@ function WeeklyReports({ projects, reports }) {
                     )}
                   </>
                 ) : (
-                  <div style={{ fontSize: 13, color: "#94a3b8" }}>No look-ahead submitted</div>
+                  <div style={{ fontSize: 13, color: "#9ca3af" }}>No look-ahead submitted</div>
                 )}
               </div>
 
               {/* Declaration & Comments */}
               <div className="dashboard-summary-card" style={{ margin: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#f1f5f9" }}>Declaration</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#111827" }}>Declaration</div>
                 {(selectedReport.pendingIssues || selectedReport.finalComments) ? (
                   <>
                     <TextBlock label="Pending Issues" value={selectedReport.pendingIssues} />
                     <TextBlock label="Final Comments" value={selectedReport.finalComments} />
                   </>
                 ) : (
-                  <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 12 }}>No comments</div>
+                  <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 12 }}>No comments</div>
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                  <div style={{ width: 14, height: 14, borderRadius: 3, background: selectedReport.declarationConfirmed ? "#22c55e" : "#334155", border: `1px solid ${selectedReport.declarationConfirmed ? "#22c55e" : "#475569"}`, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: "#94a3b8" }}>Confirmed by contractor</span>
+                  <div style={{ width: 14, height: 14, borderRadius: 3, background: selectedReport.declarationConfirmed ? "#22c55e" : "#f3f4f6", border: `1px solid ${selectedReport.declarationConfirmed ? "#22c55e" : "#e5e7eb"}`, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: "#9ca3af" }}>Confirmed by contractor</span>
                 </div>
               </div>
 
               {/* Risk Details */}
               <div className="dashboard-summary-card" style={{ margin: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#f1f5f9" }}>Risk Details</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#111827" }}>Risk Details</div>
                 {(selectedReport.riskDescription || selectedReport.riskScale || selectedReport.riskOwners?.filter(Boolean).length > 0) ? (
                   <>
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
                       {selectedReport.riskScale && (
                         <div>
-                          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 5 }}>Scale</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af", marginBottom: 5 }}>Scale</div>
                           <span style={{
                             display: "inline-block", padding: "3px 12px", borderRadius: 10, fontSize: 12, fontWeight: 700,
-                            background: selectedReport.riskScale === "High" ? "#450a0a" : selectedReport.riskScale === "Medium" ? "#422006" : "#052e16",
-                            color: selectedReport.riskScale === "High" ? "#fca5a5" : selectedReport.riskScale === "Medium" ? "#fcd34d" : "#86efac",
-                            border: `1px solid ${selectedReport.riskScale === "High" ? "#7f1d1d" : selectedReport.riskScale === "Medium" ? "#b45309" : "#166534"}`,
+                            background: selectedReport.riskScale === "High" ? "#fef2f2" : selectedReport.riskScale === "Medium" ? "#fffbeb" : "#f0fdf4",
+                            color: selectedReport.riskScale === "High" ? "#dc2626" : selectedReport.riskScale === "Medium" ? "#d97706" : "#16a34a",
+                            border: `1px solid ${selectedReport.riskScale === "High" ? "#fecaca" : selectedReport.riskScale === "Medium" ? "#fde68a" : "#bbf7d0"}`,
                           }}>{selectedReport.riskScale}</span>
                         </div>
                       )}
@@ -747,13 +747,13 @@ function WeeklyReports({ projects, reports }) {
 
               {/* Client Support */}
               <div className="dashboard-summary-card" style={{ margin: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#f1f5f9" }}>Client Support</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#111827" }}>Client Support</div>
                 {selectedReport.supportRequired === "Yes" ? (
                   <>
                     {selectedReport.supportTypes?.filter(Boolean).length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
                         {selectedReport.supportTypes.filter(Boolean).map((t, i) => (
-                          <span key={i} style={{ padding: "2px 9px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: "#1e3a5f", color: "#93c5fd", border: "1px solid #1d4ed8" }}>{t}</span>
+                          <span key={i} style={{ padding: "2px 9px", borderRadius: 10, fontSize: 11, fontWeight: 600, background: "#eff6ff", color: "#3b82f6", border: "1px solid #bfdbfe" }}>{t}</span>
                         ))}
                       </div>
                     )}
@@ -768,24 +768,24 @@ function WeeklyReports({ projects, reports }) {
 
             {/* ── Additional Works — полная ширина ── */}
             <div className="dashboard-summary-card" style={{ marginBottom: 20, borderTop: additionalWorksList.entries.length > 0 ? "3px solid #ea580c" : undefined }}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: additionalWorksList.entries.length > 0 ? "#ea580c" : "#f1f5f9" }}>Additional Works</div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: additionalWorksList.entries.length > 0 ? "#ea580c" : "#111827" }}>Additional Works</div>
               {additionalWorksList.entries.length === 0 ? (
                 <div style={{ fontSize: 13, color: "#22c55e", fontWeight: 600 }}>✓ No additional works</div>
               ) : (
                 <>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 8, marginBottom: 12 }}>
                     {additionalWorksList.entries.map((e, i) => (
-                      <div key={i} style={{ background: "#1c1007", border: "1px solid #c2410c", borderRadius: 8, padding: "10px 14px" }}>
+                      <div key={i} style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "10px 14px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: e.description ? 5 : 0 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>Report #{e.num} · {e.date}{e.party ? ` · ${e.party}` : ""}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af" }}>Report #{e.num} · {e.date}{e.party ? ` · ${e.party}` : ""}</span>
                           <span style={{ fontSize: 13, fontWeight: 700, color: "#fdba74", whiteSpace: "nowrap" }}>{e.cost}</span>
                         </div>
-                        {e.description && <div style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.5 }}>{e.description}</div>}
+                        {e.description && <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{e.description}</div>}
                       </div>
                     ))}
                   </div>
-                  <div style={{ paddingTop: 10, borderTop: "1px solid #c2410c", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8" }}>Total Additional Works Cost</span>
+                  <div style={{ paddingTop: 10, borderTop: "1px solid #fed7aa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9ca3af" }}>Total Additional Works Cost</span>
                     <span style={{ fontSize: 18, fontWeight: 800, color: "#c2410c" }}>{additionalWorksList.total}</span>
                   </div>
                 </>
@@ -795,10 +795,10 @@ function WeeklyReports({ projects, reports }) {
             {/* Фотографии с объекта */}
             {selectedReport.photos?.length > 0 && (
               <div className="dashboard-summary-card" style={{ marginBottom: 20 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#f1f5f9" }}>Site Photos</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#111827" }}>Site Photos</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {selectedReport.photos.map((photo, i) => (
-                    <span key={i} style={{ padding: "4px 12px", borderRadius: 8, fontSize: 13, background: "#1e293b", border: "1px solid #334155", color: "#cbd5e1" }}>
+                    <span key={i} style={{ padding: "4px 12px", borderRadius: 8, fontSize: 13, background: "#f0f2ff", border: "1px solid #e0e7ff", color: "#374151" }}>
                       {typeof photo === "string" ? photo : photo?.name || `Photo ${i + 1}`}
                     </span>
                   ))}

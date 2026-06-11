@@ -14,7 +14,7 @@ const PATTERN_COLORS = {
   accurate:                 '#22c55e',
 };
 
-const CONFIDENCE_COLORS = { high: '#22c55e', medium: '#f59e0b', low: '#94a3b8' };
+const CONFIDENCE_COLORS = { high: '#22c55e', medium: '#f59e0b', low: '#9ca3af' };
 
 function DriftSparkline({ timeline }) {
   if (!timeline || timeline.length < 2) return null;
@@ -33,13 +33,10 @@ function DriftSparkline({ timeline }) {
 
   return (
     <svg width={W} height={H} style={{ display: 'block', overflow: 'visible' }}>
-      {/* Zero reference line */}
-      <line x1={0} y1={zeroY} x2={W} y2={zeroY} stroke="#334155" strokeWidth={1} strokeDasharray="3,2" />
-      {/* Positive fill above zero */}
+      <line x1={0} y1={zeroY} x2={W} y2={zeroY} stroke="#e5e7eb" strokeWidth={1} strokeDasharray="3,2" />
       <polyline points={pts} fill="none" stroke="#3b82f6" strokeWidth={2} strokeLinejoin="round" />
-      {/* Data dots */}
       {diffs.map((d, i) => (
-        <circle key={i} cx={toX(i)} cy={toY(d)} r={3} fill={d > 0.15 ? '#ef4444' : d < -0.15 ? '#22c55e' : '#94a3b8'} />
+        <circle key={i} cx={toX(i)} cy={toY(d)} r={3} fill={d > 0.15 ? '#ef4444' : d < -0.15 ? '#22c55e' : '#9ca3af'} />
       ))}
     </svg>
   );
@@ -54,24 +51,20 @@ export default function DriftChart({ driftProfile }) {
   if (!driftProfile) return null;
 
   const { pattern, avgHistoricalDrift, correctionFactor, reliabilityScore, worstProject } = driftProfile;
-  const patternColor  = PATTERN_COLORS[pattern.pattern]  || '#94a3b8';
+  const patternColor  = PATTERN_COLORS[pattern.pattern]  || '#9ca3af';
   const patternLabel  = PATTERN_LABELS[pattern.pattern]  || pattern.pattern;
-  const confColor     = CONFIDENCE_COLORS[pattern.confidence] || '#94a3b8';
-
-  const allTimeline = driftProfile.worstProject ? [] : []; // placeholder; full timeline passed separately
-  // The full cross-project timeline is embedded in driftProfile.pattern.avgOverallDrift
-  // For per-project use, pass timeline directly if available
+  const confColor     = CONFIDENCE_COLORS[pattern.confidence] || '#9ca3af';
 
   return (
-    <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 10, padding: '12px 14px', minWidth: 220 }}>
+    <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px 14px', minWidth: 220 }}>
       {/* Header */}
-      <div style={{ fontSize: 9, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
         Contractor Drift Analysis
       </div>
 
       {/* Pattern badge + confidence */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: patternColor + '22', color: patternColor, border: `1px solid ${patternColor}44` }}>
+        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: patternColor + '18', color: patternColor, border: `1px solid ${patternColor}44` }}>
           {patternLabel}
         </span>
         <span style={{ fontSize: 9, color: confColor, fontWeight: 600 }}>{pattern.confidence}</span>
@@ -79,23 +72,23 @@ export default function DriftChart({ driftProfile }) {
 
       {/* Key metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-        <div style={{ background: '#1e293b', borderRadius: 7, padding: '7px 9px' }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: avgHistoricalDrift > 0.1 ? '#ef4444' : avgHistoricalDrift < -0.1 ? '#22c55e' : '#94a3b8', lineHeight: 1 }}>
+        <div style={{ background: '#ffffff', borderRadius: 7, padding: '7px 9px', border: '1px solid #f3f4f6' }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: avgHistoricalDrift > 0.1 ? '#ef4444' : avgHistoricalDrift < -0.1 ? '#22c55e' : '#9ca3af', lineHeight: 1 }}>
             {avgHistoricalDrift > 0 ? '+' : ''}{Math.round(avgHistoricalDrift * 100)}%
           </div>
-          <div style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>Avg drift</div>
+          <div style={{ fontSize: 9, color: '#6b7280', marginTop: 2 }}>Avg drift</div>
         </div>
-        <div style={{ background: '#1e293b', borderRadius: 7, padding: '7px 9px' }}>
+        <div style={{ background: '#ffffff', borderRadius: 7, padding: '7px 9px', border: '1px solid #f3f4f6' }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: reliabilityScore >= 80 ? '#22c55e' : reliabilityScore >= 60 ? '#f59e0b' : '#ef4444', lineHeight: 1 }}>
             {reliabilityScore}
           </div>
-          <div style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>Reliability</div>
+          <div style={{ fontSize: 9, color: '#6b7280', marginTop: 2 }}>Reliability</div>
         </div>
       </div>
 
       {/* Correction factor description */}
       {Math.abs(avgHistoricalDrift) >= 0.05 && (
-        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, lineHeight: 1.4 }}>
           Historically {avgHistoricalDrift > 0 ? 'overstates' : 'understates'} by{' '}
           <strong style={{ color: patternColor }}>{Math.abs(Math.round(avgHistoricalDrift * 100))}%</strong>
           {' '}(correction ×{correctionFactor.toFixed(2)})
@@ -104,8 +97,8 @@ export default function DriftChart({ driftProfile }) {
 
       {/* Worst project */}
       {worstProject && Math.abs(worstProject.avgDrift) > 0.05 && (
-        <div style={{ fontSize: 10, color: '#64748b' }}>
-          Worst: <span style={{ color: '#e2e8f0' }}>{worstProject.storeCode}</span>
+        <div style={{ fontSize: 10, color: '#6b7280' }}>
+          Worst: <span style={{ color: '#374151' }}>{worstProject.storeCode}</span>
           {' '}(avg {worstProject.avgDrift > 0 ? '+' : ''}{Math.round(worstProject.avgDrift * 100)}%)
         </div>
       )}
@@ -121,23 +114,23 @@ export default function DriftChart({ driftProfile }) {
 export function DriftChartExpanded({ timeline, pattern, contractorName }) {
   if (!timeline || timeline.length === 0) {
     return (
-      <div style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>No site visits recorded for drift analysis</div>
+      <div style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>No site visits recorded for drift analysis</div>
     );
   }
 
-  const patternColor = PATTERN_COLORS[pattern?.pattern] || '#94a3b8';
+  const patternColor = PATTERN_COLORS[pattern?.pattern] || '#9ca3af';
   const patternLabel = PATTERN_LABELS[pattern?.pattern] || 'Unknown';
 
   return (
-    <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 10, padding: '14px 16px' }}>
+    <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '14px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
             Drift Timeline {contractorName ? `· ${contractorName}` : ''}
           </div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{pattern?.description}</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>{pattern?.description}</div>
         </div>
-        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: patternColor + '22', color: patternColor, border: `1px solid ${patternColor}44` }}>
+        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, background: patternColor + '18', color: patternColor, border: `1px solid ${patternColor}44` }}>
           {patternLabel}
         </span>
       </div>
@@ -147,8 +140,8 @@ export function DriftChartExpanded({ timeline, pattern, contractorName }) {
       {/* Visit legend */}
       <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
         {timeline.map(p => (
-          <div key={p.week} style={{ fontSize: 9, color: '#64748b', textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, color: p.avgDiff > 0.15 ? '#ef4444' : p.avgDiff < -0.15 ? '#22c55e' : '#94a3b8' }}>
+          <div key={p.week} style={{ fontSize: 9, color: '#6b7280', textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, color: p.avgDiff > 0.15 ? '#ef4444' : p.avgDiff < -0.15 ? '#22c55e' : '#9ca3af' }}>
               W{p.week}
             </div>
             <div>{p.avgDiff > 0 ? '+' : ''}{Math.round(p.avgDiff * 100)}%</div>

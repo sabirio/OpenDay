@@ -39,17 +39,17 @@ const emptyProject = {
 
 const inputStyle = {
   width: "100%", boxSizing: "border-box",
-  padding: "8px 12px", borderRadius: 8, border: "1px solid #475569",
-  fontSize: 13, color: "#e2e8f0", background: "#0f172a", outline: "none",
+  padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db",
+  fontSize: 13, color: "#111827", background: "#ffffff", outline: "none",
 };
 
 // ── Shared form sub-components ──────────────────────────────────────────────
 
 function FormSection({ title, accentColor, children }) {
   return (
-    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 14, marginBottom: 14, overflow: "hidden" }}>
-      <div style={{ padding: "11px 20px", borderBottom: "1px solid #334155", borderLeft: `4px solid ${accentColor}`, background: "#0f172a" }}>
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</h3>
+    <div style={{ background: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 14, marginBottom: 14, overflow: "hidden" }}>
+      <div style={{ padding: "11px 20px", borderBottom: "1px solid #e5e7eb", borderLeft: `4px solid ${accentColor}`, background: "#f9fafb" }}>
+        <h3 style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</h3>
       </div>
       <div style={{ padding: "18px 20px" }}>{children}</div>
     </div>
@@ -63,7 +63,7 @@ function FieldRow({ children }) {
 function Field({ label, children }) {
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#94a3b8", marginBottom: 5 }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#9ca3af", marginBottom: 5 }}>{label}</div>
       {children}
     </div>
   );
@@ -75,7 +75,7 @@ function DetailField({ label, value }) {
   return (
     <div>
       <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#9ca3af", marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 500 }}>{value}</div>
+      <div style={{ fontSize: 13, color: "#374151", fontWeight: 500 }}>{value}</div>
     </div>
   );
 }
@@ -107,7 +107,7 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
 
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = openingDate ? Math.ceil((openingDate - new Date()) / 86400000) : null;
-  const openingColor = daysLeft === null ? "#e2e8f0" : daysLeft < 30 ? "#dc2626" : daysLeft < 90 ? "#d97706" : "#16a34a";
+  const openingColor = daysLeft === null ? "#9ca3af" : daysLeft < 30 ? "#dc2626" : daysLeft < 90 ? "#d97706" : "#16a34a";
 
   const stakeholders = [
     { label: "Project Manager",   value: project.projectManager },
@@ -129,34 +129,34 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
         <div className="modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#f1f5f9", lineHeight: 1 }}>{project.storeCode || "—"}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 3 }}>{project.shoppingMallName}{project.city ? ` · ${project.city}` : ""}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", lineHeight: 1 }}>{project.storeCode || "—"}</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 3 }}>{project.shoppingMallName}{project.city ? ` · ${project.city}` : ""}</div>
             </div>
             <span style={{
               padding: "3px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700,
-              background: project.projectStatus === "Active" ? "#052e16" : "#1e293b",
-              color: project.projectStatus === "Active" ? "#86efac" : "#94a3b8",
-              border: `1px solid ${project.projectStatus === "Active" ? "#166534" : "#334155"}`,
+              background: project.projectStatus === "Active" ? "#f0fdf4" : "#f9fafb",
+              color: project.projectStatus === "Active" ? "#16a34a" : "#6b7280",
+              border: `1px solid ${project.projectStatus === "Active" ? "#bbf7d0" : "#e5e7eb"}`,
             }}>{project.projectStatus}</span>
-            <span style={{ padding: "3px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700, background: "#1e3a5f", color: "#93c5fd", border: "1px solid #1d4ed8" }}>
+            <span style={{ padding: "3px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700, background: "#eff6ff", color: "#3b82f6", border: "1px solid #bfdbfe" }}>
               {project.projectType}
             </span>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button className="small-button" onClick={() => window.open(`/site-visit/${project.id}`, "_blank")} style={{ fontWeight: 600, background: "#1e3a5f", color: "#38bdf8", border: "1px solid #0891b2" }}>Site Visit</button>
+            <button className="small-button" onClick={() => window.open(`/site-visit/${project.id}`, "_blank")} style={{ fontWeight: 600 }}>Site Visit</button>
             <button className="small-button" onClick={onEdit} style={{ fontWeight: 600 }}>Edit Project</button>
             <button className="close-button" onClick={onClose}>×</button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #334155", background: "#0f172a" }}>
+        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
           {['details', 'gantt'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
               padding: "10px 22px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
               background: "transparent", transition: "all 0.12s",
-              color: activeTab === tab ? "#f1f5f9" : "#64748b",
-              borderBottom: activeTab === tab ? "2px solid #3b82f6" : "2px solid transparent",
+              color: activeTab === tab ? "#f97316" : "#6b7280",
+              borderBottom: activeTab === tab ? "2px solid #f97316" : "2px solid transparent",
             }}>
               {tab === 'details' ? 'Details' : 'Gantt Chart'}
             </button>
@@ -195,7 +195,7 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
                       </div>
                     )}
                   </div>
-                ) : <div style={{ fontSize: 13, color: "#94a3b8" }}>—</div>}
+                ) : <div style={{ fontSize: 13, color: "#9ca3af" }}>—</div>}
               </div>
             </FieldRow>
           </FormSection>
@@ -216,11 +216,11 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
             <FormSection title="Construction Phases" accentColor="#22c55e">
               {project.templateType ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>
+                  <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
                     {TEMPLATES.find(t => t.id === project.templateType)?.label || project.templateType}
                   </span>
                   {project.storeSizeSqm && (
-                    <span style={{ fontSize: 12, color: "#64748b" }}>{project.storeSizeSqm} sqm</span>
+                    <span style={{ fontSize: 12, color: "#6b7280" }}>{project.storeSizeSqm} sqm</span>
                   )}
                 </div>
               ) : (
@@ -241,7 +241,7 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
           )}
 
           {/* Contractor link */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", background: "#0f172a", border: "1px solid #334155", borderRadius: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#9ca3af", marginRight: 4 }}>Contractor Link</div>
             <a href={`/contractor-report/${project.id}`} className="contractor-link" style={{ flex: 1, fontSize: 13 }}>
               {window.location.origin}/contractor-report/{project.id}
@@ -255,8 +255,8 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
 
           {activeTab === 'gantt' && (
             ganttLoading ? (
-              <div style={{ padding: "48px 24px", textAlign: "center", color: "#64748b" }}>
-                <div style={{ fontSize: 15, color: "#94a3b8" }}>Loading schedule…</div>
+              <div style={{ padding: "48px 24px", textAlign: "center", color: "#6b7280" }}>
+                <div style={{ fontSize: 15, color: "#9ca3af" }}>Loading schedule…</div>
               </div>
             ) : ganttTasks && ganttTasks.length > 0 ? (
               <GanttChart
@@ -267,11 +267,11 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
                 readOnly
               />
             ) : (
-              <div style={{ padding: "48px 24px", textAlign: "center", color: "#64748b" }}>
+              <div style={{ padding: "48px 24px", textAlign: "center", color: "#6b7280" }}>
                 <div style={{ fontSize: 32, marginBottom: 12 }}>📅</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#94a3b8", marginBottom: 8 }}>Gantt chart unavailable</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#9ca3af", marginBottom: 8 }}>Gantt chart unavailable</div>
                 <div style={{ fontSize: 13 }}>
-                  Set a <strong style={{ color: "#e2e8f0" }}>Construction Start Date</strong> and <strong style={{ color: "#e2e8f0" }}>Target Opening Date</strong> to generate the project schedule.
+                  Set a <strong style={{ color: "#374151" }}>Construction Start Date</strong> and <strong style={{ color: "#374151" }}>Target Opening Date</strong> to generate the project schedule.
                 </div>
               </div>
             )
@@ -488,7 +488,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
         <div style={{ position: "relative" }}>
           <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: 13 }}>🔍</span>
-          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search…" style={{ paddingLeft: 32, paddingRight: 12, height: 36, borderRadius: 9, border: "1.5px solid #334155", fontSize: 13, color: "#e2e8f0", background: "#1e293b", outline: "none", minWidth: 180 }} />
+          <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search…" style={{ paddingLeft: 32, paddingRight: 12, height: 36, borderRadius: 9, border: "1.5px solid #e5e7eb", fontSize: 13, color: "#374151", background: "#ffffff", outline: "none", minWidth: 180 }} />
         </div>
         {[
           { val: salesMarketFilter, set: setSalesMarketFilter, opts: salesMarketOptions, placeholder: "All markets" },
@@ -496,17 +496,17 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           { val: statusFilter,      set: setStatusFilter,      opts: statusOptions,      placeholder: "All statuses" },
           { val: typeFilter,        set: setTypeFilter,        opts: typeOptions,         placeholder: "All types" },
         ].map(({ val, set, opts, placeholder }, i) => (
-          <select key={i} value={val} onChange={e => set(e.target.value)} style={{ height: 36, padding: "0 12px", borderRadius: 9, border: "1.5px solid #334155", fontSize: 13, color: "#e2e8f0", background: "#1e293b", cursor: "pointer", outline: "none" }}>
+          <select key={i} value={val} onChange={e => set(e.target.value)} style={{ height: 36, padding: "0 12px", borderRadius: 9, border: "1.5px solid #e5e7eb", fontSize: 13, color: "#374151", background: "#ffffff", cursor: "pointer", outline: "none" }}>
             {opts.map(o => <option key={o} value={o}>{o === "All" ? placeholder : o}</option>)}
           </select>
         ))}
         {filtersActive && (
-          <button type="button" onClick={clearFilters} style={{ height: 36, padding: "0 12px", borderRadius: 9, border: "1.5px solid #7f1d1d", background: "#450a0a", color: "#fca5a5", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Clear ×</button>
+          <button type="button" onClick={clearFilters} style={{ height: 36, padding: "0 12px", borderRadius: 9, border: "1.5px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Clear ×</button>
         )}
         <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#9ca3af" }}>{filteredProjects.length} / {projects.length} projects</span>
           <div className="metric-pill"><span>Active</span><strong>{activeCount}</strong></div>
-          <div className="metric-pill" style={completedCount > 0 ? { background: "#1e293b", color: "#94a3b8", borderColor: "#475569" } : {}}><span>Completed</span><strong>{completedCount}</strong></div>
+          <div className="metric-pill" style={completedCount > 0 ? { background: "#ffffff", color: "#9ca3af", borderColor: "#6b7280" } : {}}><span>Completed</span><strong>{completedCount}</strong></div>
         </div>
       </div>
 
@@ -532,35 +532,35 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
             </thead>
             <tbody>
               {filteredProjects.length === 0 ? (
-                <tr><td colSpan="11" style={{ color: "#94a3b8", textAlign: "center", padding: 32 }}>
+                <tr><td colSpan="11" style={{ color: "#9ca3af", textAlign: "center", padding: 32 }}>
                   {projects.length === 0 ? "No projects yet. Click \"Add New Project\" to create one." : "No projects match the current filters."}
                 </td></tr>
               ) : (
                 filteredProjects.map((project) => {
                   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
                   const daysLeft = openingDate ? Math.ceil((openingDate - new Date()) / 86400000) : null;
-                  const openingColor = daysLeft === null ? "#e2e8f0" : daysLeft < 30 ? "#dc2626" : daysLeft < 90 ? "#d97706" : "#16a34a";
+                  const openingColor = daysLeft === null ? "#9ca3af" : daysLeft < 30 ? "#dc2626" : daysLeft < 90 ? "#d97706" : "#16a34a";
                   return (
                     <tr key={project.id} style={{ cursor: "pointer", transition: "background 0.15s" }}
-                      onMouseEnter={e => e.currentTarget.style.background = "#1a2740"}
+                      onMouseEnter={e => e.currentTarget.style.background = "#fff7ed"}
                       onMouseLeave={e => e.currentTarget.style.background = ""}
                     >
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                          <div style={{ width: 3, height: 18, borderRadius: 2, background: "#60a5fa", flexShrink: 0 }} />
+                          <div style={{ width: 3, height: 18, borderRadius: 2, background: "#f97316", flexShrink: 0 }} />
                           <button
                             onClick={() => setViewingProject(project)}
-                            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 700, color: "#f1f5f9", fontSize: 13 }}
+                            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 700, color: "#111827", fontSize: 13 }}
                           >
                             {project.storeCode || "—"}
                           </button>
                         </div>
                       </td>
-                      <td style={{ color: "#e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project.shoppingMallName || "—"}</td>
-                      <td style={{ color: "#94a3b8" }}>{project.city || "—"}</td>
-                      <td style={{ color: "#94a3b8" }}>{project.country || "—"}</td>
-                      <td style={{ color: "#94a3b8" }}>{project.projectManager || "—"}</td>
-                      <td style={{ color: "#94a3b8" }}>{project.projectType}</td>
+                      <td style={{ color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{project.shoppingMallName || "—"}</td>
+                      <td style={{ color: "#9ca3af" }}>{project.city || "—"}</td>
+                      <td style={{ color: "#9ca3af" }}>{project.country || "—"}</td>
+                      <td style={{ color: "#9ca3af" }}>{project.projectManager || "—"}</td>
+                      <td style={{ color: "#9ca3af" }}>{project.projectType}</td>
                       <td style={{ color: "#6b7280", whiteSpace: "nowrap" }}>{formatDate(project.constructionStartDate)}</td>
                       <td style={{ color: "#6b7280", whiteSpace: "nowrap" }}>{formatDate(project.constructionEndDate)}</td>
                       <td>
@@ -571,14 +571,14 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                               {daysLeft > 0 ? `${daysLeft}d left` : daysLeft === 0 ? "Today" : `${Math.abs(daysLeft)}d overdue`}
                             </div>
                           </div>
-                        ) : <span style={{ color: "#94a3b8" }}>—</span>}
+                        ) : <span style={{ color: "#9ca3af" }}>—</span>}
                       </td>
                       <td>
                         <span style={{
                           display: "inline-block", padding: "2px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700,
-                          background: project.projectStatus === "Active" ? "#052e16" : "#1e293b",
-                          color: project.projectStatus === "Active" ? "#86efac" : "#94a3b8",
-                          border: `1px solid ${project.projectStatus === "Active" ? "#166534" : "#334155"}`,
+                          background: project.projectStatus === "Active" ? "#f0fdf4" : "#f9fafb",
+                          color: project.projectStatus === "Active" ? "#16a34a" : "#94a3b8",
+                          border: `1px solid ${project.projectStatus === "Active" ? "#bbf7d0" : "#e5e7eb"}`,
                         }}>{project.projectStatus}</span>
                       </td>
                       <td>
@@ -588,7 +588,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                         <button
                           className="text-button"
                           onClick={e => { e.stopPropagation(); openGcModal(project); }}
-                          style={{ color: project.contractorEmail ? '#4ade80' : '#60a5fa' }}
+                          style={{ color: project.contractorEmail ? '#16a34a' : '#f97316' }}
                         >
                           {project.contractorEmail ? '✓ GC Invited' : 'GC Invite'}
                         </button>
@@ -617,22 +617,22 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460, width: '95vw', padding: 0, overflow: 'hidden' }}>
 
             {/* Header */}
-            <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid #334155' }}>
+            <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid #e5e7eb' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     GC Portal Invitation
                   </p>
-                  <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#f1f5f9' }}>
+                  <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#111827' }}>
                     {gcModal.shoppingMallName || gcModal.storeCode}
                   </h2>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
                     {gcModal.storeCode} · {gcModal.city}, {gcModal.country}
                   </p>
                 </div>
                 <button
                   onClick={() => setGcModal(null)}
-                  style={{ background: 'none', border: 'none', color: '#475569', fontSize: 18, cursor: 'pointer', padding: 4, lineHeight: 1, flexShrink: 0 }}
+                  style={{ background: 'none', border: 'none', color: '#6b7280', fontSize: 18, cursor: 'pointer', padding: 4, lineHeight: 1, flexShrink: 0 }}
                 >✕</button>
               </div>
             </div>
@@ -647,9 +647,9 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                   { label: 'Opening',    value: gcModal.targetOpeningDate  || '—' },
                   { label: 'Status',     value: gcModal.projectStatus      || '—' },
                 ].map(({ label, value }) => (
-                  <div key={label} style={{ flex: 1, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, padding: '10px 12px' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+                  <div key={label} style={{ flex: 1, background: '#f9fafb', border: '1px solid #f9fafb', borderRadius: 10, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
                   </div>
                 ))}
               </div>
@@ -670,25 +670,25 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
               </div>
 
               {/* Hint */}
-              <p style={{ fontSize: 12, color: '#475569', margin: '8px 0 20px', lineHeight: 1.5 }}>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '8px 0 20px', lineHeight: 1.5 }}>
                 The same email can be used across multiple projects — the contractor will see all assigned projects after login.
               </p>
 
               {/* Status messages */}
               {gcInviteStatus === 'sent' && (
-                <div style={{ marginBottom: 20, padding: '12px 16px', background: '#052e16', border: '1px solid #166534', borderRadius: 10, fontSize: 13, color: '#4ade80', lineHeight: 1.5 }}>
+                <div style={{ marginBottom: 20, padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, fontSize: 13, color: '#16a34a', lineHeight: 1.5 }}>
                   <strong>✓ Invite sent</strong><br />
                   Magic link sent to <strong>{gcEmail}</strong>. The contractor will be logged in directly.
                 </div>
               )}
               {gcInviteStatus === 'access_granted' && (
-                <div style={{ marginBottom: 20, padding: '12px 16px', background: '#1e3a5f', border: '1px solid #1d4ed8', borderRadius: 10, fontSize: 13, color: '#93c5fd', lineHeight: 1.5 }}>
+                <div style={{ marginBottom: 20, padding: '12px 16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, fontSize: 13, color: '#1d4ed8', lineHeight: 1.5 }}>
                   <strong>✓ Access granted</strong><br />
                   This contractor is already registered. They will see this project on their next login.
                 </div>
               )}
               {gcInviteStatus === 'error' && (
-                <div style={{ marginBottom: 20, padding: '12px 16px', background: '#450a0a', border: '1px solid #7f1d1d', borderRadius: 10, fontSize: 13, color: '#f87171', lineHeight: 1.5 }}>
+                <div style={{ marginBottom: 20, padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, fontSize: 13, color: '#dc2626', lineHeight: 1.5 }}>
                   <strong>✗ Something went wrong</strong><br />
                   Check the email address and try again.
                 </div>
@@ -822,9 +822,9 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                         onClick={() => setNewProject(p => ({ ...p, templateType: id }))}
                         style={{
                           flex: 1, padding: "12px 10px", borderRadius: 10, cursor: "pointer",
-                          border: `1.5px solid ${active ? "#22c55e" : "#334155"}`,
-                          background: active ? "#052e16" : "#0f172a",
-                          color: active ? "#4ade80" : "#94a3b8",
+                          border: `1.5px solid ${active ? "#22c55e" : "#e5e7eb"}`,
+                          background: active ? "#f0fdf4" : "#f9fafb",
+                          color: active ? "#16a34a" : "#94a3b8",
                           fontSize: 12, fontWeight: 600, textAlign: "center", transition: "all 0.15s",
                         }}
                       >
@@ -849,7 +849,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
 
                 {newProject.templateType === 'custom' && (
                   <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b", marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#6b7280", marginBottom: 8 }}>
                       Select Phases
                     </div>
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -865,7 +865,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                               padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
                               cursor: "pointer", transition: "all 0.15s ease",
                               border: `1.5px solid ${active ? cfg.color : cfg.border}`,
-                              background: active ? cfg.bg : "#0f172a",
+                              background: active ? cfg.bg : "#f9fafb",
                               color: cfg.color,
                             }}
                           >
@@ -888,9 +888,9 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                           onClick={() => setNewProject((p) => ({ ...p, projectType: opt }))}
                           style={{
                             flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease",
-                            border: `1.5px solid ${newProject.projectType === opt ? "#2f855a" : "#334155"}`,
-                            background: newProject.projectType === opt ? "#2f855a" : "#0f172a",
-                            color: newProject.projectType === opt ? "white" : "#e2e8f0",
+                            border: `1.5px solid ${newProject.projectType === opt ? "#2f855a" : "#e5e7eb"}`,
+                            background: newProject.projectType === opt ? "#2f855a" : "#f9fafb",
+                            color: newProject.projectType === opt ? "white" : "#374151",
                           }}>{opt}</button>
                       ))}
                     </div>
@@ -902,9 +902,9 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                           onClick={() => setNewProject((p) => ({ ...p, projectStatus: label }))}
                           style={{
                             flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease",
-                            border: `1.5px solid ${newProject.projectStatus === label ? bg : "#334155"}`,
-                            background: newProject.projectStatus === label ? bg : "#0f172a",
-                            color: newProject.projectStatus === label ? "white" : "#e2e8f0",
+                            border: `1.5px solid ${newProject.projectStatus === label ? bg : "#e5e7eb"}`,
+                            background: newProject.projectStatus === label ? bg : "#f9fafb",
+                            color: newProject.projectStatus === label ? "white" : "#374151",
                           }}>{label}</button>
                       ))}
                     </div>
@@ -921,7 +921,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                       onClick={deleteProject}
                       style={{
                         padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                        border: "1.5px solid #7f1d1d", background: "#450a0a", color: "#fca5a5",
+                        border: "1.5px solid #fecaca", background: "#fef2f2", color: "#dc2626",
                         transition: "all 0.15s ease",
                       }}
                     >

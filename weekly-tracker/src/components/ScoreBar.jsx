@@ -3,10 +3,10 @@ export function ScoreBar({ label, pts, max, color }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-        <span style={{ color: "#94a3b8" }}>{label}</span>
-        <span style={{ fontWeight: 700, color: "#e2e8f0" }}>{pts} / {max}</span>
+        <span style={{ color: "#6b7280" }}>{label}</span>
+        <span style={{ fontWeight: 700, color: "#374151" }}>{pts} / {max}</span>
       </div>
-      <div style={{ background: "#334155", borderRadius: 4, height: 6, overflow: "hidden" }}>
+      <div style={{ background: "#e5e7eb", borderRadius: 4, height: 6, overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.4s ease" }} />
       </div>
     </div>
@@ -17,10 +17,10 @@ export function FactorPill({ f }) {
   const neg = f.pts < 0;
   const sev = neg ? "low" : f.pts >= 12 ? "crit" : f.pts >= 6 ? "high" : "med";
   const styles = {
-    crit: { bg: "#450a0a", text: "#fca5a5", border: "#7f1d1d" },
-    high: { bg: "#431407", text: "#fdba74", border: "#c2410c" },
-    med:  { bg: "#422006", text: "#fcd34d", border: "#b45309" },
-    low:  { bg: "#052e16", text: "#86efac", border: "#166534" },
+    crit: { bg: "#fef2f2", text: "#dc2626", border: "#fecaca" },
+    high: { bg: "#fff7ed", text: "#c2410c", border: "#fed7aa" },
+    med:  { bg: "#fffbeb", text: "#d97706", border: "#fde68a" },
+    low:  { bg: "#f0fdf4", text: "#16a34a", border: "#bbf7d0" },
   };
   const s = styles[sev];
   return (
@@ -32,7 +32,7 @@ export function FactorPill({ f }) {
 }
 
 export function MiniRiskSparkline({ points }) {
-  if (points.length < 2) return <span style={{ fontSize: 11, color: "#94a3b8" }}>—</span>;
+  if (points.length < 2) return <span style={{ fontSize: 11, color: "#9ca3af" }}>—</span>;
   const w = 84, h = 30;
   const xs = points.map((_, i) => (i / (points.length - 1)) * w);
   const sy = v => h - (v / 100) * h;

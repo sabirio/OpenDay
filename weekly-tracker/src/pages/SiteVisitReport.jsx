@@ -195,9 +195,9 @@ const GANTT_STATUS_OPTS_SV = [
 
 function liveDiscrepancy(gcPct, pmPct) {
   const delta = Math.round(Math.abs((pmPct ?? 0) - (gcPct ?? 0)));
-  if (delta < 10) return { label: `Δ ${delta}%`, color: '#22c55e', bg: '#052e16' };
-  if (delta < 25) return { label: `Δ ${delta}%`, color: '#f59e0b', bg: '#422006' };
-  return               { label: `Δ ${delta}%`, color: '#ef4444', bg: '#450a0a' };
+  if (delta < 10) return { label: `Δ ${delta}%`, color: '#16a34a', bg: '#f0fdf4' };
+  if (delta < 25) return { label: `Δ ${delta}%`, color: '#d97706', bg: '#fffbeb' };
+  return               { label: `Δ ${delta}%`, color: '#dc2626', bg: '#fef2f2' };
 }
 
 function GanttPMTaskRow({ task, pmEntry, onChange }) {
@@ -542,7 +542,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
 
             {/* Schedule assessment */}
             {(savedVisit.pmScheduleAssessment || refRep?.projectScheduleStatus) && (
-              <div style={{ marginTop: 4, padding: "14px 16px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e2e8f0" }}>
+              <div style={{ marginTop: 4, padding: "14px 16px", background: "#f8fafc", borderRadius: 10, border: "1px solid #e5e7eb" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#94a3b8", marginBottom: 10 }}>Schedule Assessment</div>
                 <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
                   {refRep?.projectScheduleStatus && (

@@ -34,16 +34,16 @@ export const HANDOVER_ITEMS = [
 
 export function svCompare(pm, gc) {
   if (!pm && !gc) return null;
-  if (!pm) return { type:"not-assessed", badge:"Not assessed", color:"#94a3b8", bg:"#1e293b", border:"#334155" };
-  if (!gc) return { type:"no-gc", badge:"No GC data", color:"#94a3b8", bg:"#0f172a", border:"#334155" };
+  if (!pm) return { type:"not-assessed", badge:"Not assessed", color:"#6b7280", bg:"#f9fafb", border:"#e5e7eb" };
+  if (!gc) return { type:"no-gc", badge:"No GC data", color:"#6b7280", bg:"#f9fafb", border:"#e5e7eb" };
   // WP_STATUS_SCORES has exact keys — avoids "Not Started".includes("started") false-positive in getStatusScore
   const psExact=WP_STATUS_SCORES[pm], gsExact=WP_STATUS_SCORES[gc];
-  if (psExact===null||gsExact===null) return { type:"no-gc", badge:"N/A", color:"#94a3b8", bg:"#0f172a", border:"#334155" };
+  if (psExact===null||gsExact===null) return { type:"no-gc", badge:"N/A", color:"#6b7280", bg:"#f9fafb", border:"#e5e7eb" };
   const ps=psExact!==undefined?psExact:getStatusScore(pm);
   const gs=gsExact!==undefined?gsExact:getStatusScore(gc);
-  if (ps===gs) return { type:"match",       badge:"✓ Match",       color:"#86efac", bg:"#052e16", border:"#166534" };
-  if (ps<gs)   return { type:"discrepancy", badge:"⚠ Discrepancy", color:"#fca5a5", bg:"#450a0a", border:"#7f1d1d" };
-  return       { type:"pm-higher",  badge:"↑ PM ahead",    color:"#fcd34d", bg:"#422006", border:"#b45309" };
+  if (ps===gs) return { type:"match",       badge:"✓ Match",       color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" };
+  if (ps<gs)   return { type:"discrepancy", badge:"⚠ Discrepancy", color:"#dc2626", bg:"#fef2f2", border:"#fecaca" };
+  return       { type:"pm-higher",  badge:"↑ PM ahead",    color:"#d97706", bg:"#fffbeb", border:"#fde68a" };
 }
 
 // Mapping from old GC report field names → new WP task names (for GC old-format fallback)
@@ -149,11 +149,11 @@ export function getWpProgress(wpCs, col) {
 }
 
 export function wpStyle(status) {
-  if (!status) return { bg:"#1e293b", text:"#475569", lbl:"–" };
+  if (!status) return { bg:"#f9fafb", text:"#9ca3af", lbl:"–" };
   const s = status.toLowerCase();
-  if (s.includes("complet") || s.includes("ready"))   return { bg:"#052e16", text:"#86efac", lbl:"✓" };
-  if (s.includes("progress") || s.includes("started")) return { bg:"#1e3a5f", text:"#93c5fd", lbl:"▶" };
-  if (s.includes("planned") || s.includes("scheduled")) return { bg:"#422006", text:"#fcd34d", lbl:"S" };
-  if (s.includes("not start"))                          return { bg:"#1e293b", text:"#475569", lbl:"·" };
-  return { bg:"#1e293b", text:"#64748b", lbl:"?" };
+  if (s.includes("complet") || s.includes("ready"))    return { bg:"#f0fdf4", text:"#16a34a", lbl:"✓" };
+  if (s.includes("progress") || s.includes("started")) return { bg:"#eff6ff", text:"#3b82f6", lbl:"▶" };
+  if (s.includes("planned") || s.includes("scheduled")) return { bg:"#fffbeb", text:"#d97706", lbl:"S" };
+  if (s.includes("not start"))                          return { bg:"#f9fafb", text:"#9ca3af", lbl:"·" };
+  return { bg:"#f9fafb", text:"#6b7280", lbl:"?" };
 }

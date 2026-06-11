@@ -49,7 +49,7 @@ function Sidebar() {
             Sign out
           </button>
         )}
-        <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 12 }}>
+        <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 12 }}>
           by Sabir Khairullin
         </div>
       </div>

@@ -255,7 +255,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
           <h1>Construction Dashboard</h1>
           <p>PM Command Center — portfolio health, risks, blockers, actions, and opening readiness.</p>
         </div>
-        <div style={{ fontSize:13,color:"#64748b",alignSelf:"center" }}>
+        <div style={{ fontSize:13,color:"#6b7280",alignSelf:"center" }}>
           {new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
         </div>
       </div>
@@ -268,28 +268,29 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
             return (
               <div key={row.project.id} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px',
-                background: row.gantt.spiStatus === 'critical' ? '#450a0a' : '#422006',
+                background: row.gantt.spiStatus === 'critical' ? '#fef2f2' : '#fffbeb',
                 border: `1.5px solid ${st.color}40`, borderRadius: 9, marginBottom: 5, fontSize: 12,
+                borderLeft: `4px solid ${st.color}`,
               }}>
                 <span style={{ fontWeight: 700, color: st.color }}>
                   {row.gantt.spiStatus === 'critical' ? '⛔' : '⚠'} {st.label}
                 </span>
-                <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{row.project.storeCode}</span>
-                <span style={{ color: '#94a3b8' }}>{row.project.shoppingMallName}</span>
+                <span style={{ color: '#111827', fontWeight: 600 }}>{row.project.storeCode}</span>
+                <span style={{ color: '#6b7280' }}>{row.project.shoppingMallName}</span>
                 <span style={{ color: st.color, fontWeight: 700 }}>SPI {row.gantt.spi?.toFixed(2) ?? '—'}</span>
                 {row.gantt.criticalHealth?.behind > 0 && (
-                  <span style={{ color: '#fca5a5' }}>{row.gantt.criticalHealth.behind} critical tasks behind</span>
+                  <span style={{ color: '#dc2626' }}>{row.gantt.criticalHealth.behind} critical tasks behind</span>
                 )}
                 <button
                   type="button"
                   onClick={() => setDismissedAlertIds(prev => new Set([...prev, row.project.id]))}
-                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
                 >✕</button>
               </div>
             );
           })}
           {spiAlerts.length > 5 && (
-            <div style={{ fontSize: 11, color: '#64748b', paddingLeft: 6 }}>
+            <div style={{ fontSize: 11, color: '#6b7280', paddingLeft: 6 }}>
               +{spiAlerts.length - 5} more schedule issues
             </div>
           )}
@@ -301,8 +302,8 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
       {/* ── Upcoming Openings ── */}
       {upcomingOpenings.length > 0 && (
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9', marginBottom: 10 }}>
+        <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 16px', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.06)', borderLeft: '4px solid #f97316' }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: '#111827', marginBottom: 10 }}>
             🏁 Opening in ≤45 Days ({upcomingOpenings.length})
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -310,19 +311,19 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
               const st = row.gantt ? SPI_STATUS[row.gantt.spiStatus] : SPI_STATUS.no_schedule;
               return (
                 <div key={row.project.id} style={{
-                  background: '#0f172a', border: `1.5px solid ${st.color}50`,
+                  background: '#f9fafb', border: `1.5px solid ${st.border || '#e5e7eb'}`,
                   borderRadius: 9, padding: '7px 12px', minWidth: 180,
                   display: 'flex', flexDirection: 'column', gap: 3,
                   cursor: 'pointer',
                 }} onClick={() => sel(String(row.project.id))}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: 13, color: '#f1f5f9' }}>{row.project.storeCode}</span>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: '#111827' }}>{row.project.storeCode}</span>
                     <span style={{ background: st.bg, color: st.color, borderRadius: 5, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>
                       {row.gantt?.spi != null ? `SPI ${row.gantt.spi.toFixed(2)}` : 'No Gantt'}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{row.project.shoppingMallName}</div>
-                  <div style={{ fontSize: 11, color: row.daysToOpening < 14 ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
+                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{row.project.shoppingMallName}</div>
+                  <div style={{ fontSize: 11, color: row.daysToOpening < 14 ? '#dc2626' : '#d97706', fontWeight: 600 }}>
                     {row.daysToOpening === 0 ? 'Opens today!' : `${row.daysToOpening}d to open`}
                   </div>
                 </div>
@@ -336,22 +337,22 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center" }}>
         <div style={{ position:"relative" }}>
           <span style={{ position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:"#9ca3af",fontSize:13 }}>🔍</span>
-          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search…" style={{ paddingLeft:32,paddingRight:12,height:36,borderRadius:9,border:"1.5px solid #334155",fontSize:13,color:"#e2e8f0",background:"#1e293b",outline:"none",minWidth:180 }}/>
+          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search…" style={{ paddingLeft:32,paddingRight:12,height:36,borderRadius:9,border:"1.5px solid #e5e7eb",fontSize:13,color:"#111827",background:"#ffffff",outline:"none",minWidth:180 }}/>
         </div>
-        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid #334155",fontSize:13,color:"#e2e8f0",background:"#1e293b",cursor:"pointer",outline:"none" }}>
+        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid #e5e7eb",fontSize:13,color:"#111827",background:"#ffffff",cursor:"pointer",outline:"none" }}>
           {[["all","All statuses"],["on-track","On Track"],["at-risk","At Risk"],["critical","Critical"],["no-report","No Report"],["missing","Missing/Overdue"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
-        {filtersActive&&<button type="button" onClick={clearFilters} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid #7f1d1d",background:"#450a0a",color:"#fca5a5",fontSize:13,fontWeight:600,cursor:"pointer" }}>Clear ×</button>}
-        <div style={{ marginLeft:"auto",fontSize:12,color:"#64748b" }}>{filteredRows.length} / {projects.length} projects</div>
+        {filtersActive&&<button type="button" onClick={clearFilters} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid #fecaca",background:"#fef2f2",color:"#dc2626",fontSize:13,fontWeight:600,cursor:"pointer" }}>Clear ×</button>}
+        <div style={{ marginLeft:"auto",fontSize:12,color:"#6b7280" }}>{filteredRows.length} / {projects.length} projects</div>
       </div>
 
       {/* ── Status Matrix ── */}
       <StatusMatrix rows={defaultSorted} alerts={alerts} drawerProjectId={drawerProjectId} onSelect={sel}/>
 
       {/* ── View tabs ── */}
-      <div style={{ display:"flex",gap:3,marginBottom:16,background:"#1e293b",borderRadius:12,padding:4,border:"1px solid #334155",width:"fit-content" }}>
+      <div style={{ display:"flex",gap:3,marginBottom:16,background:"#f3f4f6",borderRadius:12,padding:4,border:"1px solid #e5e7eb",width:"fit-content" }}>
         {VIEWS.map(({id,label})=>(
-          <button key={id} type="button" onClick={()=>setActiveView(id)} style={{ padding:"7px 18px",borderRadius:9,border:"none",background:activeView===id?"#f1f5f9":"transparent",color:activeView===id?"#0f172a":"#94a3b8",fontSize:13,fontWeight:activeView===id?700:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" }}>
+          <button key={id} type="button" onClick={()=>setActiveView(id)} style={{ padding:"7px 18px",borderRadius:9,border:"none",background:activeView===id?"#fff7ed":"transparent",color:activeView===id?"#f97316":"#6b7280",fontSize:13,fontWeight:activeView===id?700:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" }}>
             {label}
           </button>
         ))}
@@ -367,7 +368,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
       {activeView==="activity"&&(
         <div className="dashboard-summary-card">
-          <div style={{ fontWeight:700,fontSize:15,color:"#f1f5f9",marginBottom:4 }}>Report Activity Heatmap</div>
+          <div style={{ fontWeight:700,fontSize:15,color:"#111827",marginBottom:4 }}>Report Activity Heatmap</div>
           <div style={{ fontSize:12,color:"#9ca3af",marginBottom:18 }}>Last 16 weeks · cell = reports submitted · color = schedule status</div>
           <ActivityHeatmap projectRows={heatmapRows.filter(({project})=>filteredRows.some(({project:p})=>p.id===project.id))} weekCount={16}/>
         </div>

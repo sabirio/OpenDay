@@ -5,7 +5,6 @@ import { KpiCard } from './DashboardWidgets';
  * rows (optional) — allRows from Dashboard/RiskDashboard for analytics KPIs
  */
 export default function SummaryPanel({ kpis, reportsTotal, rows }) {
-  // Portfolio-level analytics (optional — only shown when rows are provided)
   const analytics = rows && rows.length > 0 ? (() => {
     const evmRows  = rows.filter(r => r.evm?.SPI != null);
     const avgSPI   = evmRows.length
@@ -22,19 +21,20 @@ export default function SummaryPanel({ kpis, reportsTotal, rows }) {
       {/* Monte Carlo alert — any project with pOnTime < 50% */}
       {analytics?.mcRiskyCount > 0 && (
         <div style={{
-          background: '#450a0a', border: '1.5px solid #7f1d1d', borderRadius: 10,
+          background: '#fff7ed', border: '1.5px solid #fed7aa', borderRadius: 10,
           padding: '8px 14px', marginBottom: 10,
           display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+          borderLeft: '4px solid #f97316',
         }}>
-          <span style={{ fontWeight: 700, color: '#fca5a5' }}>⚠ Monte Carlo Warning:</span>
-          <span style={{ color: '#fca5a5' }}>
+          <span style={{ fontWeight: 700, color: '#c2410c' }}>⚠ Monte Carlo Warning:</span>
+          <span style={{ color: '#92400e' }}>
             {analytics.mcRiskyCount} project{analytics.mcRiskyCount > 1 ? 's' : ''} have &lt;50% probability of opening on time
           </span>
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-        <KpiCard label="Total Projects"    value={kpis.total}           color="#475569"/>
+        <KpiCard label="Total Projects"    value={kpis.total}           color="#6b7280"/>
         <KpiCard label="Active"            value={kpis.active}          color="#2f855a"  sub={`${kpis.total - kpis.active} closed`}/>
         <KpiCard label="At Risk"           value={kpis.atRisk}          color={kpis.atRisk > 0 ? "#d97706" : "#22c55e"}   sub="schedule issues"/>
         <KpiCard label="Critical"          value={kpis.critical}        color={kpis.critical > 0 ? "#dc2626" : "#22c55e"} sub="immediate action"/>
