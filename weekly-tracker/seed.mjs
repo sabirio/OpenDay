@@ -53,7 +53,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2JrZXFvcm5rZG5nb2VneXNvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTcxNTgyNywiZXhwIjoyMDk1MjkxODI3fQ.B3pj2W84CO2ig4FFJ1FKqqTQGjYmkuGKW3Kg9SYBq60');
 
 // ── 1. Date helpers ───────────────────────────────────────────────────────────
 
