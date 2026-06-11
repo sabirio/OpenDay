@@ -23,13 +23,15 @@ export function InfoLabel({ label, children }) {
   );
 }
 
-export function TextBlock({ label, value }) {
+export function TextBlock({ label, value, plain = false }) {
   if (!value) return null;
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#9ca3af', marginBottom: 8 }}>{label}</div>
       <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 16px', fontSize: 14, color: '#374151', lineHeight: 1.65 }}>
-        <Linkified text={value} />
+        {plain
+          ? <span style={{ whiteSpace: 'pre-wrap' }}>{value}</span>
+          : <Linkified text={value} />}
       </div>
     </div>
   );

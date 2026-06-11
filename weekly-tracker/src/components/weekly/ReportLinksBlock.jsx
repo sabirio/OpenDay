@@ -14,10 +14,10 @@ export default function ReportLinksBlock({ report }) {
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#111827' }}>Look Ahead</div>
         {hasLookAhead ? (
           <>
-            <TextBlock label="Top 3 — Next Week" value={report.nextWeekTop3} />
-            <TextBlock label="Top 3 — Week +2"   value={report.weekAfterTop3} />
+            <TextBlock label="Top 3 — Next Week" value={report.nextWeekTop3}  plain />
+            <TextBlock label="Top 3 — Week +2"   value={report.weekAfterTop3} plain />
             {report.activitiesBlocked === 'Yes' && (
-              <TextBlock label="Delay Reason" value={report.delayReason} />
+              <TextBlock label="Delay Reason" value={report.delayReason} plain />
             )}
           </>
         ) : (
@@ -30,8 +30,8 @@ export default function ReportLinksBlock({ report }) {
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#111827' }}>Declaration</div>
         {hasDeclaration ? (
           <>
-            <TextBlock label="Pending Issues" value={report.pendingIssues} />
-            <TextBlock label="Final Comments"  value={report.finalComments} />
+            <TextBlock label="Pending Issues" value={report.pendingIssues} plain />
+            <TextBlock label="Final Comments"  value={report.finalComments} plain />
           </>
         ) : (
           <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 12 }}>No comments</div>
