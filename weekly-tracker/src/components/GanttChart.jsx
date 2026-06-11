@@ -9,6 +9,22 @@ const ROW_H       = 36;
 const PHASE_ROW_H = 32;
 const BAR_H       = 22;
 
+// Phase colour palette — local to Gantt only; colour not stored in config
+const PHASE_PALETTE = {
+  demolition:    '#6b7280',
+  floor_prep:    '#f97316',
+  rough_in:      '#3b82f6',
+  floor_tiling:  '#22d3ee',
+  testing:       '#8b5cf6',
+  wall_closing:  '#ec4899',
+  finishes:      '#14b8a6',
+  end_devices:   '#f59e0b',
+  commissioning: '#10b981',
+  pre_opening:   '#6366f1',
+  handover:      '#0ea5e9',
+};
+function phaseColor(id) { return PHASE_PALETTE[id] || '#6b7280'; }
+
 // NORYX light palette
 const C = {
   bg:        '#ffffff',
@@ -501,7 +517,7 @@ export default function GanttChart({
         <span style={{ fontSize: 9, color: C.muted, width: 14, flexShrink: 0 }}>
           {isCollapsed ? '▶' : '▼'}
         </span>
-        <div style={{ width: 7, height: 7, borderRadius: '50%', background: phase.color, flexShrink: 0 }} />
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: phaseColor(phase.id), flexShrink: 0 }} />
         <span style={{
           fontSize: 11, fontWeight: 700, color: C.text, textTransform: 'uppercase',
           letterSpacing: '0.04em', flex: 1,
@@ -615,8 +631,8 @@ export default function GanttChart({
       const w    = Math.max(4, maxX - minX);
       return (
         <g key={`phbar-${phase.id}`}>
-          <rect x={minX} y={bY} width={w} height={BAR_H} rx={4} fill={`${phase.color}44`} />
-          <rect x={minX} y={bY} width={w * avg / 100} height={BAR_H} rx={4} fill={phase.color} opacity={0.85} />
+          <rect x={minX} y={bY} width={w} height={BAR_H} rx={4} fill={`${phaseColor(phase.id)}44`} />
+          <rect x={minX} y={bY} width={w * avg / 100} height={BAR_H} rx={4} fill={phaseColor(phase.id)} opacity={0.85} />
           {w > 60 && (
             <text x={minX + w / 2} y={bY + BAR_H / 2 + 1}
               textAnchor="middle" dominantBaseline="middle"
@@ -634,7 +650,7 @@ export default function GanttChart({
         <rect x={0} y={phase.y} width={chartWidth} height={PHASE_ROW_H}
           fill={C.bgCard} />
         <rect x={0} y={phase.y + PHASE_ROW_H} width={3} height={phase.height - PHASE_ROW_H}
-          fill={phase.color} opacity={0.7} />
+          fill={phaseColor(phase.id)} opacity={0.7} />
       </g>
     );
   });

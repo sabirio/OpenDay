@@ -6,9 +6,9 @@ import { PHASES } from "../config/masterTaskLibrary";
 import { TEMPLATES } from "../config/projectTemplates";
 import { generateAndSaveGantt, getProjectGantt } from "../services/ganttService";
 
-// phaseId → { id, label, color, bg, border }
+// phaseId → { id, label, bg, border } — colour driven by status, not phase
 const PHASE_MAP = Object.fromEntries(
-  PHASES.map(p => [p.id, { ...p, bg: p.color + '20', border: p.color + '55' }])
+  PHASES.map(p => [p.id, { ...p, bg: '#f3f4f6', border: '#d1d5db' }])
 );
 const emptyProject = {
   storeCode: "",

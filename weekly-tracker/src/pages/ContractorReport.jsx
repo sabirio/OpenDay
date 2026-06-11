@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { WORK_PACKAGES, makeEmptyWPStatuses } from "../config/workPackages";
+import { WORK_PACKAGES, makeEmptyWPStatuses, getWPGroups } from "../config/workPackages";
 import { getProjectGantt } from "../services/ganttService";
 import { submitReport as submitContractorReport } from "../services/contractorReportService";
 
@@ -159,35 +159,72 @@ const STATUS_STYLE = {
   "Delayed":        { color: "#be185d", bg: "#fce7f3" }, // legacy display only
 };
 
+// Collapsible group row with subtasks inside
+function GroupRow({ group, wpId, pkgStatuses, prevPkgStatuses, onChange }) {
+  const [expanded, setExpanded] = useState(true);
+  const taskNames    = group.tasks;
+  const completedCnt = taskNames.filter(t => pkgStatuses?.[t]?.status === "Completed").length;
+  const inProgCnt    = taskNames.filter(t => pkgStatuses?.[t]?.status === "In Progress").length;
+  const allDone      = completedCnt === taskNames.length;
+
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "7px 0 7px 2px", background: "none", border: "none", cursor: "pointer", borderBottom: "1px solid #f3f4f6", textAlign: "left" }}
+      >
+        <span style={{ fontSize: 9, color: "#9ca3af", width: 10, flexShrink: 0 }}>{expanded ? "▼" : "▶"}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", flex: 1, lineHeight: 1.3 }}>{group.name}</span>
+        <span style={{
+          fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 6, flexShrink: 0,
+          background: allDone ? "#f0fdf4" : inProgCnt > 0 ? "#fffbeb" : "#f9fafb",
+          color:      allDone ? "#16a34a" : inProgCnt > 0 ? "#d97706" : "#9ca3af",
+          border: `1px solid ${allDone ? "#bbf7d0" : inProgCnt > 0 ? "#fde68a" : "#e5e7eb"}`,
+        }}>
+          {completedCnt}/{taskNames.length}
+        </span>
+      </button>
+      {expanded && (
+        <div style={{ paddingLeft: 18, borderLeft: "2px solid #f3f4f6" }}>
+          {taskNames.map(taskName => (
+            <WPTaskRow
+              key={taskName}
+              wpId={wpId}
+              taskName={taskName}
+              entry={pkgStatuses?.[taskName]}
+              prevEntry={prevPkgStatuses?.[taskName] ?? null}
+              onChange={entry => onChange(taskName, entry)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WPSection({ wp, pkgStatuses, prevPkgStatuses, prevDate, onChange }) {
   function handleTask(taskName, entry) {
     onChange({ ...pkgStatuses, [taskName]: entry });
   }
 
-  const badge = prevDate ? (
+  const groups = getWPGroups(wp.id);
+  const badge  = prevDate ? (
     <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 400, whiteSpace: "nowrap" }}>
       Pre-filled from {prevDate}
     </span>
   ) : null;
 
   return (
-    <FormSection title={wp.name} accentColor={wp.color} badge={badge}>
-      {/* Column header — only shown when there's prev data */}
-      {prevDate && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 8, marginBottom: 4, borderBottom: "1px solid #f3f4f6" }}>
-          <span style={{ flex: "1 1 180px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d1d5db" }}>Task</span>
-          <span style={{ minWidth: 150, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d1d5db" }}>Last week</span>
-          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#d1d5db" }}>This week</span>
-        </div>
-      )}
-      {wp.tasks.map((task) => (
-        <WPTaskRow
-          key={task.name}
+    <FormSection title={wp.name} accentColor="#f97316" badge={badge}>
+      {groups.map(group => (
+        <GroupRow
+          key={group.id}
+          group={group}
           wpId={wp.id}
-          taskName={task.name}
-          entry={pkgStatuses?.[task.name]}
-          prevEntry={prevPkgStatuses?.[task.name] ?? null}
-          onChange={(entry) => handleTask(task.name, entry)}
+          pkgStatuses={pkgStatuses}
+          prevPkgStatuses={prevPkgStatuses}
+          onChange={handleTask}
         />
       ))}
     </FormSection>
@@ -758,9 +795,9 @@ function ContractorReport({ projects, reports, onSaveReport }) {
                       onClick={() => togglePackage(wp.id)}
                       style={{
                         padding: "12px 14px", borderRadius: 12, textAlign: "left",
-                        border: `2px solid ${sel ? wp.color : "#e5e7eb"}`,
-                        background: sel ? wp.color + "14" : "white",
-                        color: sel ? wp.color : "#9ca3af",
+                        border: `2px solid ${sel ? "#f97316" : "#e5e7eb"}`,
+                        background: sel ? "#fff7ed" : "white",
+                        color: sel ? "#f97316" : "#9ca3af",
                         fontWeight: sel ? 700 : 500, fontSize: 13,
                         cursor: "pointer", transition: "all 0.15s", lineHeight: 1.3,
                       }}>

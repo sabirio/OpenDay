@@ -13,7 +13,7 @@ export const PROJECT_COLORS = [
 export const WP_COLS = WORK_PACKAGES.map((wp) => ({
   label:  wp.name.replace('Pre-construction', 'Pre-Con').replace('Demolition & Preparation', 'Demo').replace('Construction', 'Struct.').replace('MEP Rough-in', 'MEP').replace('Finishes & Final Installation', 'Finishes').replace('Fixtures & Equipment', 'Equipment').replace('Testing, Commissioning & Integration', 'T&C').replace('Snagging & Handover', 'Handover'),
   wpId:   wp.id,
-  color:  wp.color,
+  color:  '#6b7280',
   phase:  wp.id === 'demolition' ? 'demolition' : wp.id === 'commissioning' ? 'testing' : wp.id === 'handover' ? 'handover' : 'construction',
   key:    wp.id === 'demolition' ? null : wp.id === 'commissioning' ? 'Sprinkler system testing and commissioning' : wp.id === 'handover' ? 'Snag list resolution' : null,
 }));

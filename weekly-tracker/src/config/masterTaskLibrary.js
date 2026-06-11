@@ -2,17 +2,17 @@
 // Used by: GanttChart, ContractorReport, SiteVisit, Templates.
 
 export const PHASES = [
-  { id: 'demolition',   label: 'Demolition',              order: 1,   color: '#EF4444' },
-  { id: 'floor_prep',   label: 'Floor Preparation',       order: 2,   color: '#F97316' },
-  { id: 'rough_in',     label: 'Rough-In Works',          order: 3,   color: '#EAB308' },
-  { id: 'floor_tiling', label: 'Floor Tiling',            order: 3.5, color: '#84CC16' },
-  { id: 'testing',      label: 'Systems Testing',         order: 4,   color: '#06B6D4' },
-  { id: 'wall_closing', label: 'Wall Closing',            order: 5,   color: '#8B5CF6' },
-  { id: 'finishes',     label: 'Finishing Works',         order: 6,   color: '#EC4899' },
-  { id: 'end_devices',  label: 'End Devices & Furniture', order: 7,   color: '#3B82F6' },
-  { id: 'commissioning',label: 'Commissioning',           order: 8,   color: '#10B981' },
-  { id: 'pre_opening',  label: 'Pre-Opening',             order: 9,   color: '#6366F1' },
-  { id: 'handover',     label: 'Handover',                order: 10,  color: '#14B8A6' },
+  { id: 'demolition',   label: 'Demolition',              order: 1   },
+  { id: 'floor_prep',   label: 'Floor Preparation',       order: 2   },
+  { id: 'rough_in',     label: 'Installation Works',       order: 3   },
+  { id: 'floor_tiling', label: 'Floor Tiling',            order: 3.5 },
+  { id: 'testing',      label: 'Systems Testing',         order: 4   },
+  { id: 'wall_closing', label: 'Wall Closing',            order: 5   },
+  { id: 'finishes',     label: 'Finishing Works',         order: 6   },
+  { id: 'end_devices',  label: 'End Devices & Furniture', order: 7   },
+  { id: 'commissioning',label: 'Commissioning',           order: 8   },
+  { id: 'pre_opening',  label: 'Pre-Opening',             order: 9   },
+  { id: 'handover',     label: 'Handover',                order: 10  },
 ];
 
 export const WORK_PACKAGES = [

@@ -1428,6 +1428,15 @@ body {
   --status-yellow-bg:#fffbeb;
   --status-red-bg:   #fef2f2;
 
+  /* Task-status semantic tokens */
+  --status-done:   #10B981;
+  --status-active: #22D3EE;
+  --status-todo:   #4B5563;
+
+  /* Domain-specific accent tokens */
+  --accent-money:  #F97316;
+  --accent-risk:   #EF4444;
+
   --shadow-sm:  0 1px 3px rgba(0,0,0,0.08);
   --shadow-md:  0 4px 12px rgba(0,0,0,0.08);
   --shadow-lg:  0 8px 24px rgba(0,0,0,0.10);

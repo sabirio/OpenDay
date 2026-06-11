@@ -510,7 +510,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
               return (
                 <div key={wp.id} data-testid={`comparison-row-${wp.id}`} style={{ marginBottom: 20 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: wp.color }}>{wp.name}</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6b7280" }}>{wp.name}</div>
                     {wpDisc > 0 && (
                       <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }}>
                         {wpDisc} discrepanc{wpDisc === 1 ? "y" : "ies"}
@@ -719,7 +719,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
           })()
         ) : (
           WORK_PACKAGES.map((wp) => (
-            <FormSection key={wp.id} title={wp.name} accentColor={wp.color}>
+            <FormSection key={wp.id} title={wp.name} accentColor="#f97316">
               {wp.tasks.map((task) => (
                 <PMTaskRow
                   key={task.name}
