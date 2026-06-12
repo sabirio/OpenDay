@@ -121,9 +121,9 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
           continue;
         }
         const ds = wp.discrepancy_status || 'ok';
-        const ahead = wp.pm_ahead === true;
-        if (ahead) pmAhead++;
-        else if (ds !== 'ok') discrepancies++;
+        const delta = wp.discrepancy_delta ?? 0;
+        if (delta > 0) pmAhead++;           // PM sees more progress than GC reports
+        else if (ds !== 'ok') discrepancies++; // GC claims more than PM observes
         else matches++;
       }
     } else if (latestVisit.pmWorkPackageStatuses) {

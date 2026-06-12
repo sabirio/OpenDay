@@ -64,8 +64,8 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
       observed_status:     w.observed_status   || 'not_started',
       pm_note:             w.pm_note           || null,
       discrepancy_status:  disc?.status        || 'ok',
-      discrepancy_delta:   disc?.delta         ?? 0,
-      pm_ahead:            disc ? disc.site_visit_progress > disc.contractor_progress : false,
+      // Signed delta: positive = PM sees more than GC (pm ahead), negative = GC claims more
+      discrepancy_delta:   disc ? (disc.site_visit_progress - disc.contractor_progress) : 0,
     };
   });
 
