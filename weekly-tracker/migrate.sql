@@ -18,8 +18,8 @@ ALTER TABLE projects
 -- ─── 2. project_gantt_tasks ───────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS project_gantt_tasks (
-  id              BIGSERIAL PRIMARY KEY,
-  project_id      BIGINT    NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  id              UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id      UUID      NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   wp_id           TEXT      NOT NULL,
   wp_label        TEXT,
   phase_id        TEXT,
@@ -51,9 +51,9 @@ CREATE INDEX IF NOT EXISTS idx_gantt_tasks_project
 -- ─── 3. contractor_reports ────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS contractor_reports (
-  id               BIGSERIAL PRIMARY KEY,
-  project_id       BIGINT    NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  submitted_by     TEXT,
+  id               UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id       UUID      NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  submitted_by     UUID      REFERENCES auth.users(id),
   report_date      DATE      NOT NULL DEFAULT CURRENT_DATE,
   week_number      INT,
   overall_progress NUMERIC(5,2) DEFAULT 0,
@@ -67,9 +67,9 @@ CREATE INDEX IF NOT EXISTS idx_contractor_reports_project
 -- ─── 4. contractor_report_wps (line items per WP) ────────────────────────────
 
 CREATE TABLE IF NOT EXISTS contractor_report_wps (
-  id           BIGSERIAL PRIMARY KEY,
-  report_id    BIGINT    NOT NULL REFERENCES contractor_reports(id) ON DELETE CASCADE,
-  project_id   BIGINT    NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  id           UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
+  report_id    UUID      NOT NULL REFERENCES contractor_reports(id) ON DELETE CASCADE,
+  project_id   UUID      NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   wp_id        TEXT      NOT NULL,
   progress_pct NUMERIC(5,2) DEFAULT 0,
   status       TEXT      DEFAULT 'not_started',
@@ -85,16 +85,16 @@ CREATE INDEX IF NOT EXISTS idx_report_wps_report
 -- We add only the columns needed by the new Gantt-based site visit flow.
 
 ALTER TABLE site_visits
-  ADD COLUMN IF NOT EXISTS contractor_report_id BIGINT REFERENCES contractor_reports(id),
+  ADD COLUMN IF NOT EXISTS contractor_report_id UUID REFERENCES contractor_reports(id),
   ADD COLUMN IF NOT EXISTS visited_by           TEXT,
   ADD COLUMN IF NOT EXISTS overall_note         TEXT;
 
 -- ─── 6. site_visit_wps ───────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS site_visit_wps (
-  id                  BIGSERIAL PRIMARY KEY,
-  site_visit_id       BIGINT    NOT NULL REFERENCES site_visits(id) ON DELETE CASCADE,
-  project_id          BIGINT    NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  id                  UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_visit_id       UUID      NOT NULL REFERENCES site_visits(id) ON DELETE CASCADE,
+  project_id          UUID      NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   wp_id               TEXT      NOT NULL,
   observed_progress   NUMERIC(5,2) DEFAULT 0,
   observed_status     TEXT      DEFAULT 'not_started',
@@ -110,9 +110,9 @@ CREATE INDEX IF NOT EXISTS idx_site_visit_wps_visit
 -- ─── 7. site_visit_discrepancies ─────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS site_visit_discrepancies (
-  id                   BIGSERIAL PRIMARY KEY,
-  site_visit_id        BIGINT    NOT NULL REFERENCES site_visits(id) ON DELETE CASCADE,
-  project_id           BIGINT    NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  id                   UUID      PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_visit_id        UUID      NOT NULL REFERENCES site_visits(id) ON DELETE CASCADE,
+  project_id           UUID      NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   wp_id                TEXT      NOT NULL,
   contractor_progress  NUMERIC(5,2),
   site_visit_progress  NUMERIC(5,2),

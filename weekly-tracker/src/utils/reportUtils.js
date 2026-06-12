@@ -275,14 +275,3 @@ export function isMissingReport(latestReport) {
   return daysSince(latestReport.reportingDate || latestReport.submittedAt) > 7;
 }
 
-// ─── Progress history ─────────────────────────────────────────────────────────
-
-// DEPRECATED — use progressAtIndex from progressEngine.js (weighted, format-aware).
-export function progressAtIndex(sortedReports, index) {
-  const slice = sortedReports.slice(0, index + 1);
-  const wpCum = computeWPCumulativeStatuses(slice);
-  if (wpCum?.workPackageStatuses) {
-    return computeGanttWPProgress(wpCum.workPackageStatuses);
-  }
-  return estimateProgressFromStatuses(computeCumulativeStatuses(slice));
-}

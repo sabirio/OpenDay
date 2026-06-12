@@ -1,7 +1,8 @@
 // Pure portfolio-level aggregations over pre-computed project rows.
 // Each function is stateless: in → out, nothing stored.
 
-import { estimateProgressFromStatuses, computeCumulativeStatuses, DAY_MS, isMissingReport, isBadScheduleStatus } from '../utils/reportUtils';
+import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isMissingReport, isBadScheduleStatus } from '../utils/reportUtils';
+import { calculateProjectProgressResult } from './progressEngine';
 import { WORK_PACKAGES } from '../config/workPackages';
 import { svCompare, getGCStatusForTask, CONSTRUCTION_ITEMS, TESTING_ITEMS, HANDOVER_ITEMS } from '../config/dashboardConstants';
 
@@ -86,7 +87,9 @@ export function computePortfolioMissing(projects, reports) {
     const latest    = [...pReports].sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt))[0];
     const daysSince = latest ? Math.floor((now - new Date(latest.reportingDate || latest.submittedAt).getTime()) / DAY_MS) : null;
     const isMissing = isMissingReport(latest);
-    const progress  = estimateProgressFromStatuses(computeCumulativeStatuses(pReports));
+    const wpCum     = computeWPCumulativeStatuses(pReports);
+    const legCum    = computeCumulativeStatuses(pReports);
+    const progress  = calculateProjectProgressResult(wpCum, legCum).progress;
     return { project: p, latestReport: latest, daysSinceReport: daysSince, isMissing, progress };
   });
   const missing = rows.filter(r => r.isMissing);
