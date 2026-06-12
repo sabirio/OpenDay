@@ -7,6 +7,10 @@ import {
   isWPReport,
 } from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
+import {
+  PHASES as GANTT_PHASES,
+  getWPsByPhase as getGanttWPsByPhase,
+} from "../config/masterTaskLibrary";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing } from "../engines/portfolioEngine";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
@@ -32,6 +36,21 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+// ─── Gantt-path WP structure (masterTaskLibrary phases → PhaseStepper shape) ──
+const GANTT_WORK_PACKAGES = GANTT_PHASES
+  .map(phase => {
+    const wps = getGanttWPsByPhase(phase.id);
+    if (wps.length === 0) return null;
+    const taskNames = wps.map(wp => wp.label);
+    return {
+      id:     phase.id,
+      name:   phase.label,
+      tasks:  wps.map(wp => ({ name: wp.label, weight: 1 })),
+      groups: [{ id: `${phase.id}.g`, name: phase.label, tasks: taskNames }],
+    };
+  })
+  .filter(Boolean);
 
 // ─── Old-format compat helpers ────────────────────────────────────────────────
 const OLD_TO_WP_WEEKLY = {
@@ -163,8 +182,9 @@ function WeeklyReports({ projects, reports }) {
     const cumulative     = wpReport
       ? computeWPCumulativeStatuses(projectReports)?.workPackageStatuses
       : mergeOldDerivedStatuses(projectReports.map(deriveWPStatusesFromOldReport));
+    const wpsConfig = wpReport ? GANTT_WORK_PACKAGES : WORK_PACKAGES;
     const merged = {};
-    for (const wp of WORK_PACKAGES) {
+    for (const wp of wpsConfig) {
       merged[wp.id] = {};
       for (const task of wp.tasks) {
         const e = current?.[wp.id]?.[task.name]    || {};
@@ -178,6 +198,7 @@ function WeeklyReports({ projects, reports }) {
   }, [selectedReport, projectReports]);
 
   const riskCount = (selectedReport?.risks || []).filter(Boolean).length;
+  const displayWorkPackages = isWPReport(selectedReport) ? GANTT_WORK_PACKAGES : WORK_PACKAGES;
 
   return (
     <ErrorBoundary>
@@ -278,13 +299,13 @@ function WeeklyReports({ projects, reports }) {
             <PrevReportSummary
               prevReport={prevReport}
               formatDate={formatDate}
-              WORK_PACKAGES={WORK_PACKAGES}
+              WORK_PACKAGES={displayWorkPackages}
               isWPReport={isWPReport}
               deriveWPStatusesFromOldReport={deriveWPStatusesFromOldReport}
             />
 
             <PhaseStepper
-              workPackages={WORK_PACKAGES}
+              workPackages={displayWorkPackages}
               mergedStatuses={mergedStatuses}
               reportKey={effectiveReportId}
             />

@@ -1,12 +1,22 @@
 // Horizontal stepper — replaces 8 separate WP phase cards.
 // Click a phase dot/name to expand task details below the stepper.
 import { useState } from 'react';
-import { computePackageProgress, WP_STATUS_SCORES, getWPGroups } from '../../config/workPackages';
+import { WP_STATUS_SCORES, getWPGroups } from '../../config/workPackages';
 import { statusColor, deriveOverallStatus } from './sharedUtils';
 
 function wpProgress(wp, mergedStatuses) {
   const taskMap = mergedStatuses?.[wp.id] || {};
-  return computePackageProgress({ [wp.id]: taskMap }, wp.id);
+  let totalWeight = 0, weightedScore = 0;
+  for (const task of wp.tasks) {
+    const entry = taskMap[task.name];
+    if (!entry) continue;
+    const score = WP_STATUS_SCORES[entry.status];
+    if (score == null) continue;
+    const eff = entry.progress > 0 ? entry.progress / 100 : score;
+    totalWeight += task.weight ?? 1;
+    weightedScore += (task.weight ?? 1) * eff;
+  }
+  return totalWeight === 0 ? 0 : Math.round((weightedScore / totalWeight) * 100);
 }
 
 function wpOverallStatus(wp, mergedStatuses) {
@@ -78,7 +88,7 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey }
             <button type="button" onClick={() => setActiveId(null)} style={{ padding: '2px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', fontSize: 11, color: '#6b7280', cursor: 'pointer' }}>Close ×</button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-            {getWPGroups(activeWP.id).map(group => {
+            {(activeWP.groups ?? getWPGroups(activeWP.id)).map(group => {
               const groupTaskNames = group.tasks;
               return (
                 <div key={group.id}>
