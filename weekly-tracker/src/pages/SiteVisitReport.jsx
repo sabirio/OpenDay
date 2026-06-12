@@ -196,6 +196,14 @@ const GANTT_STATUS_OPTS_SV = [
 function GanttPMTaskRow({ task, pmEntry, onChange }) {
   const gcStatus = task.status || 'not_started';
   const pmStatus = pmEntry?.observed_status ?? gcStatus;
+  const curProgress = pmEntry?.observed_progress ?? task.actual_progress ?? 0;
+
+  function handleStatusClick(statusValue) {
+    const autoPct =
+      statusValue === 'completed'  ? 100 :
+      statusValue === 'not_started' ? 0  : curProgress;
+    onChange({ ...(pmEntry || {}), observed_progress: autoPct, observed_status: statusValue });
+  }
 
   return (
     <div data-testid="pm-task-row" style={{ borderBottom: '1px solid #f3f4f6', padding: '9px 0' }}>
@@ -212,7 +220,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
             const isGC = gcStatus === opt.value && !isPM;
             return (
               <button key={opt.value} type="button"
-                onClick={() => onChange({ ...(pmEntry || {}), observed_progress: pmEntry?.observed_progress ?? task.actual_progress ?? 0, observed_status: opt.value })}
+                onClick={() => handleStatusClick(opt.value)}
                 style={{
                   position: 'relative',
                   padding: '4px 9px', borderRadius: 6, fontSize: 11,

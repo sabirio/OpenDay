@@ -121,8 +121,10 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
           continue;
         }
         const ds = wp.discrepancy_status || 'ok';
-        if (ds === 'ok') matches++;
-        else discrepancies++;
+        const ahead = wp.pm_ahead === true;
+        if (ahead) pmAhead++;
+        else if (ds !== 'ok') discrepancies++;
+        else matches++;
       }
     } else if (latestVisit.pmWorkPackageStatuses) {
       // Legacy format
