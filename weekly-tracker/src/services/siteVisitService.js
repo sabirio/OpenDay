@@ -121,7 +121,7 @@ export async function getLastSiteVisit(projectId) {
     .eq('site_visit_id', visit.id);
   if (wErr) throw wErr;
 
-  return { ...visit, wps: wps || [] };
+  return mapRow({ ...visit, wps: wps || [] });
 }
 
 export async function getAllSiteVisits(projectId) {
@@ -131,7 +131,7 @@ export async function getAllSiteVisits(projectId) {
     .eq('project_id', projectId)
     .order('visit_date', { ascending: false });
   if (error) throw error;
-  return data || [];
+  return (data || []).map(mapRow);
 }
 
 export async function getSiteVisitForReport(contractorReportId) {
@@ -152,7 +152,20 @@ export async function getSiteVisitForReport(contractorReportId) {
     .eq('site_visit_id', data.id);
   if (wErr) throw wErr;
 
-  return { ...data, wps: wps || [] };
+  return mapRow({ ...data, wps: wps || [] });
+}
+
+function mapRow(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    projectId:            row.project_id,
+    visitDate:            row.visit_date,
+    submittedAt:          row.created_at,
+    contractorReportId:   row.contractor_report_id,
+    overallNote:          row.overall_note,
+    visitedBy:            row.visited_by,
+  };
 }
 
 export async function getAll() {
@@ -161,7 +174,7 @@ export async function getAll() {
     .select('*')
     .order('visit_date', { ascending: false });
   if (error) throw error;
-  return data || [];
+  return (data || []).map(mapRow);
 }
 
 // Legacy compatibility — used by SiteVisitReport.jsx when no Gantt tasks are loaded.
@@ -179,5 +192,5 @@ export async function create(visit) {
     .select()
     .single();
   if (error) throw error;
-  return data;
+  return mapRow(data);
 }
