@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { calculateDiscrepancy } from '../engines/discrepancyEngine';
 import { updateGanttDiscrepancy } from './ganttService';
 
 // ─── Submit site visit ────────────────────────────────────────────────────────
@@ -32,40 +31,36 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
   if (svErr) throw svErr;
 
   // 2. Insert site_visit_wps observations (calculate discrepancy live)
-  let contractorWPs = [];
-  if (contractorReportId) {
-    const { data: cwps } = await supabase
-      .from('contractor_report_wps')
-      .select('wp_id, progress_pct')
-      .eq('report_id', contractorReportId);
-    contractorWPs = (cwps || []).map(w => ({
-      wpId:     w.wp_id,
-      progress: w.progress_pct,
-    }));
-  }
-
-  const siteVisitWPsNorm = wpObservationsArray.map(w => ({
-    wpId:       w.wpId,
-    progress:   w.observed_progress ?? 0,
-    pm_note:    w.pm_note || null,
-    visit_date: visitDate,
-  }));
-
-  const discrepancies = calculateDiscrepancy(contractorWPs, siteVisitWPsNorm);
-  const discMap = Object.fromEntries(discrepancies.map(d => [d.wpId, d]));
-
+  // gc_progress is passed per-task from the caller (SiteVisitReport.jsx → ganttTasks.actual_progress).
+  // This avoids the ID mismatch between contractor_report_wps (WP-level IDs like 'demolition')
+  // and Gantt task-level IDs (like 'demo.strip_out', 'mep.electrical').
+  const discrepancies = [];
   const observationRows = wpObservationsArray.map(w => {
-    const disc = discMap[w.wpId] || null;
+    const gcProgress  = w.gc_progress ?? 0;
+    const pmProgress  = w.observed_progress ?? 0;
+    const signedDelta = pmProgress - gcProgress;
+    const absDelta    = Math.abs(signedDelta);
+    const discStatus  = absDelta > 25 ? 'critical' : absDelta >= 10 ? 'warning' : 'ok';
+
+    if (absDelta > 0) {
+      discrepancies.push({
+        wpId:                w.wpId,
+        contractor_progress: gcProgress,
+        site_visit_progress: pmProgress,
+        delta:               absDelta,
+        status:              discStatus,
+      });
+    }
+
     return {
-      site_visit_id:       siteVisit.id,
-      project_id:          projectId,
-      wp_id:               w.wpId,
-      observed_progress:   w.observed_progress ?? 0,
-      observed_status:     w.observed_status   || 'not_started',
-      pm_note:             w.pm_note           || null,
-      discrepancy_status:  disc?.status        || 'ok',
-      // Signed delta: positive = PM sees more than GC (pm ahead), negative = GC claims more
-      discrepancy_delta:   disc ? (disc.site_visit_progress - disc.contractor_progress) : 0,
+      site_visit_id:      siteVisit.id,
+      project_id:         projectId,
+      wp_id:              w.wpId,
+      observed_progress:  pmProgress,
+      observed_status:    w.observed_status || 'not_started',
+      pm_note:            w.pm_note         || null,
+      discrepancy_status: discStatus,
+      discrepancy_delta:  signedDelta,
     };
   });
 

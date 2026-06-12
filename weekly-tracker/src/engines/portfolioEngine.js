@@ -115,7 +115,27 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
       : null) || sortedReports[0] || null;
 
     const items = [];
-    if (visit.pmWorkPackageStatuses) {
+
+    // ── Gantt-format visit: visit.wps is the site_visit_wps rows loaded by getAll()
+    if (visit.wps && visit.wps.length > 0) {
+      for (const wp of visit.wps) {
+        const delta    = wp.discrepancy_delta ?? 0;
+        const absDelta = Math.abs(delta);
+        let resultType;
+        if      (absDelta <= 5) resultType = 'match';
+        else if (delta < 0)     resultType = 'discrepancy';   // GC claimed more than PM observed
+        else                    resultType = 'pm-higher';     // PM sees more progress than GC
+        items.push({
+          phase:  wp.phase_id || wp.wp_id || 'task',
+          label:  wp.wp_id,
+          pm:     wp.observed_status,
+          gc:     null,
+          result: { type: resultType },
+        });
+      }
+    }
+    // ── Old WP-status format (weekly reports)
+    else if (visit.pmWorkPackageStatuses) {
       for (const wp of WORK_PACKAGES) {
         for (const task of wp.tasks) {
           const pmEntry  = visit.pmWorkPackageStatuses[wp.id]?.[task.name];
@@ -125,7 +145,9 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
             items.push({ phase: wp.name, label: task.name, pm: pmStatus, gc: gcStatus, result: svCompare(pmStatus, gcStatus) });
         }
       }
-    } else {
+    }
+    // ── Oldest format (flat demolitionStatus / constructionStatuses / etc.)
+    else {
       const demoResult = svCompare(visit.demolitionStatus, gcReport?.demolitionStatus);
       if (visit.demolitionStatus || gcReport?.demolitionStatus)
         items.push({ phase: "Demolition", label: "Demolition", pm: visit.demolitionStatus, gc: gcReport?.demolitionStatus, result: demoResult });
@@ -143,7 +165,7 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
       });
     }
 
-    const assessed      = items.filter(i => i.result && i.result.type !== "not-assessed" && i.result.type !== "no-gc");
+    const assessed      = items.filter(i => i.result && i.result.type !== "no-gc");
     const matches       = assessed.filter(i => i.result?.type === "match").length;
     const discrepancies = assessed.filter(i => i.result?.type === "discrepancy").length;
     const pmAhead       = assessed.filter(i => i.result?.type === "pm-higher").length;
