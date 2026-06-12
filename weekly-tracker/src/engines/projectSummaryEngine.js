@@ -1,7 +1,36 @@
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
+import { PHASES as GANTT_PHASES, getPhasesInOrder } from '../config/masterTaskLibrary';
 import { DAY_MS, isMissingReport } from '../utils/reportUtils';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
 import { computeOpeningReadiness } from './openingReadinessEngine';
+
+const GANTT_PHASE_COLORS = [
+  '#6366f1','#0ea5e9','#10b981','#f59e0b','#8b5cf6',
+  '#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4','#a855f7',
+];
+const GANTT_PHASE_META = Object.fromEntries(
+  getPhasesInOrder().map((p, i) => [p.id, { name: p.label, color: GANTT_PHASE_COLORS[i % GANTT_PHASE_COLORS.length] }])
+);
+
+function phaseProgressFromGanttStatuses(wpStatuses) {
+  return getPhasesInOrder()
+    .map(phase => {
+      const tasks = wpStatuses[phase.id] || {};
+      const entries = Object.values(tasks);
+      if (entries.length === 0) return null;
+      const pct = Math.round(
+        entries.reduce((sum, e) => {
+          const p = typeof e?.progress === 'number' ? e.progress
+            : e?.status === 'Completed' ? 100
+            : e?.status === 'In Progress' ? 50 : 0;
+          return sum + p;
+        }, 0) / entries.length
+      );
+      const meta = GANTT_PHASE_META[phase.id] || { name: phase.label, color: '#6b7280' };
+      return { wpId: phase.id, name: meta.name, color: meta.color, pct };
+    })
+    .filter(Boolean);
+}
 
 // WP task comparison (mirrors SiteVisitReport comparisonResult)
 function wpCompare(pmStatus, gcStatus) {
@@ -38,10 +67,15 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
   const missingReport = isMissingReport(latest);
 
   const phaseProgress = wpCumulativeStatuses?.workPackageStatuses
-    ? WORK_PACKAGES.map(wp => ({
-        wpId: wp.id, name: wp.name, color: wp.color,
-        pct: computePackageProgress(wpCumulativeStatuses.workPackageStatuses, wp.id),
-      }))
+    ? (() => {
+        const gantt = phaseProgressFromGanttStatuses(wpCumulativeStatuses.workPackageStatuses);
+        // If any Gantt phase found, use Gantt data; else fall back to old WP format
+        if (gantt.length > 0) return gantt;
+        return WORK_PACKAGES.map(wp => ({
+          wpId: wp.id, name: wp.name, color: wp.color,
+          pct: computePackageProgress(wpCumulativeStatuses.workPackageStatuses, wp.id),
+        }));
+      })()
     : [];
 
   const contractor = {
