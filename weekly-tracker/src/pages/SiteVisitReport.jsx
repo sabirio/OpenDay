@@ -357,6 +357,7 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
             observed_status:   v.observed_status   ?? task.status ?? 'not_started',
             pm_note:           v.pm_note           ?? '',
             gc_progress:       task.actual_progress ?? 0,
+            gc_status:         task.status ?? 'not_started',
           };
         });
         const result = await submitSiteVisit(projectId, lastContractorReportId, wpObservationsArray, {
@@ -400,16 +401,18 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   // ── GANTT FORMAT SUCCESS VIEW ──────────────────────────────────────────────
 
   if (submitted && savedVisit?._ganttFormat) {
-    // Compare PM's observed progress against GC's Gantt task progress directly.
-    // "Not Assessed" does not exist: if PM didn't change a task, it auto-matches GC.
+    // Status-rank comparison: Delayed/Blocked below Not Started, so marking a task
+    // as Delayed when GC claimed In Progress registers as a discrepancy even if progress % didn't change.
+    const STATUS_RANK = { completed: 2, in_progress: 1, not_started: 0, delayed: -1, blocked: -2 };
     let confirmed = 0, discrepancyCount = 0, pmAheadCount = 0;
     for (const task of ganttTasks) {
-      const pmEntry    = pmWpObservations[task.id] || {};
-      const gcProgress = task.actual_progress ?? 0;
-      const pmProgress = pmEntry.observed_progress ?? gcProgress;
-      const delta      = pmProgress - gcProgress;
-      if (Math.abs(delta) <= 5) confirmed++;
-      else if (delta < 0)       discrepancyCount++;
+      const pmEntry  = pmWpObservations[task.id] || {};
+      const gcStatus = task.status ?? 'not_started';
+      const pmStatus = pmEntry.observed_status ?? gcStatus;  // auto-match if PM didn't change
+      const gcRank   = STATUS_RANK[gcStatus] ?? 0;
+      const pmRank   = STATUS_RANK[pmStatus] ?? 0;
+      if (pmRank === gcRank)    confirmed++;
+      else if (pmRank < gcRank) discrepancyCount++;
       else                      pmAheadCount++;
     }
 

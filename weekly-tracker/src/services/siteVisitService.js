@@ -31,16 +31,24 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
   if (svErr) throw svErr;
 
   // 2. Insert site_visit_wps observations (calculate discrepancy live)
-  // gc_progress is passed per-task from the caller (SiteVisitReport.jsx → ganttTasks.actual_progress).
-  // This avoids the ID mismatch between contractor_report_wps (WP-level IDs like 'demolition')
-  // and Gantt task-level IDs (like 'demo.strip_out', 'mep.electrical').
+  // gc_progress and gc_status are passed per-task from the caller (SiteVisitReport.jsx).
+  // Status-rank comparison is primary; numeric progress is the fallback.
+  const STATUS_RANK = { completed: 2, in_progress: 1, not_started: 0, delayed: -1, blocked: -2 };
   const discrepancies = [];
   const observationRows = wpObservationsArray.map(w => {
-    const gcProgress  = w.gc_progress ?? 0;
+    const gcProgress  = w.gc_progress  ?? 0;
     const pmProgress  = w.observed_progress ?? 0;
-    const signedDelta = pmProgress - gcProgress;
+    const gcStatus    = w.gc_status    ?? 'not_started';
+    const pmStatus    = w.observed_status ?? gcStatus;
+
+    const gcRank    = STATUS_RANK[gcStatus] ?? 0;
+    const pmRank    = STATUS_RANK[pmStatus] ?? 0;
+    const rankDelta = pmRank - gcRank;
+
+    // Prefer status-rank delta (×10 to give it weight); fall back to progress delta
+    const signedDelta = rankDelta !== 0 ? rankDelta * 10 : (pmProgress - gcProgress);
     const absDelta    = Math.abs(signedDelta);
-    const discStatus  = absDelta > 25 ? 'critical' : absDelta >= 10 ? 'warning' : 'ok';
+    const discStatus  = absDelta >= 20 ? 'critical' : absDelta >= 10 ? 'warning' : 'ok';
 
     if (absDelta > 0) {
       discrepancies.push({
@@ -61,6 +69,7 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
       pm_note:            w.pm_note         || null,
       discrepancy_status: discStatus,
       discrepancy_delta:  signedDelta,
+      gc_status:          gcStatus,
     };
   });
 

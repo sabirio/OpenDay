@@ -118,20 +118,21 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
 
     // ── Gantt-format visit: visit.wps is the site_visit_wps rows loaded by getAll()
     if (visit.wps && visit.wps.length > 0) {
+      const STATUS_RANK = { completed: 2, in_progress: 1, not_started: 0, delayed: -1, blocked: -2 };
       for (const wp of visit.wps) {
         const delta    = wp.discrepancy_delta ?? 0;
-        const absDelta = Math.abs(delta);
+        const pmStatus = wp.observed_status  ?? 'not_started';
+        const gcStatus = wp.gc_status        ?? 'not_started';
+        const pmRank   = STATUS_RANK[pmStatus] ?? 0;
+        const gcRank   = STATUS_RANK[gcStatus] ?? 0;
+        const rankDiff = pmRank - gcRank;
+
         let resultType;
-        if      (absDelta <= 5) resultType = 'match';
-        else if (delta < 0)     resultType = 'discrepancy';   // GC claimed more than PM observed
-        else                    resultType = 'pm-higher';     // PM sees more progress than GC
-        items.push({
-          phase:  wp.phase_id || wp.wp_id || 'task',
-          label:  wp.wp_id,
-          pm:     wp.observed_status,
-          gc:     null,
-          result: { type: resultType },
-        });
+        if      (rankDiff === 0 && Math.abs(delta) <= 5) resultType = 'match';
+        else if (rankDiff < 0 || delta < 0)              resultType = 'discrepancy';
+        else                                             resultType = 'pm-higher';
+
+        items.push({ phase: wp.phase_id || wp.wp_id || 'task', label: wp.wp_id, pm: pmStatus, gc: gcStatus, result: { type: resultType } });
       }
     }
     // ── Old WP-status format (weekly reports)
