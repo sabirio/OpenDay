@@ -169,7 +169,7 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
       });
     }
 
-    const assessed      = items.filter(i => i.result && i.result.type !== "no-gc");
+    const assessed      = items.filter(i => i.result && i.result.type !== "no-gc" && i.result.type !== "not-assessed");
     const matches       = assessed.filter(i => i.result?.type === "match").length;
     const discrepancies = assessed.filter(i => i.result?.type === "discrepancy").length;
     const pmAhead       = assessed.filter(i => i.result?.type === "pm-higher").length;

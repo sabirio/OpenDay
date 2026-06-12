@@ -120,12 +120,11 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
                     <span style={{ color:"#6b7280" }}>Latest visit</span>
                     <span style={{ color:"#374151",fontWeight:600 }}>{formatDate(pmVisit.latestVisitDate)}</span>
                   </div>
-                  <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10 }}>
+                  <div style={{ display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:6,marginBottom:10 }}>
                     {[
                       { l:"Matches",       v:pmVisit.matches,       c:"#22c55e",                                    testId:null },
                       { l:"Discrepancies", v:pmVisit.discrepancies,  c:pmVisit.discrepancies>0?"#ef4444":"#22c55e", testId:"discrepancy-count" },
                       { l:"PM Ahead",      v:pmVisit.pmAhead,        c:"#f59e0b",                                    testId:null },
-                      { l:"Not Assessed",  v:pmVisit.notAssessed,    c:"#9ca3af",                                    testId:null },
                     ].map(({l,v,c,testId})=>(
                       <div key={l} data-testid={testId||undefined} style={{ background:"#ffffff",borderRadius:8,padding:"7px 10px",textAlign:"center",border:"1px solid #f3f4f6" }}>
                         <div style={{ fontSize:20,fontWeight:800,color:c,lineHeight:1 }}>{v}</div>
