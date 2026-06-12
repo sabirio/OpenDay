@@ -346,9 +346,10 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
           pm_note:           v.pm_note           ?? '',
         }));
         const result = await submitSiteVisit(projectId, lastContractorReportId, wpObservationsArray, {
-          visitDate:   form.visitDate,
-          visitedBy:   project.projectManager || '',
-          overallNote: form.observations || '',
+          visitDate:              form.visitDate,
+          visitedBy:              project.projectManager || '',
+          overallNote:            form.observations || '',
+          pmScheduleAssessment:   form.pmScheduleAssessment || null,
         });
         setSavedVisit({ ...form, ...result.siteVisit, discrepancies: result.discrepancies, _ganttFormat: true });
       } else {

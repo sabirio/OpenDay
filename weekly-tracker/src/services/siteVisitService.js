@@ -20,11 +20,12 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
   const { data: siteVisit, error: svErr } = await supabase
     .from('site_visits')
     .insert([{
-      project_id:            projectId,
-      contractor_report_id:  contractorReportId || null,
-      visited_by:            meta.visitedBy     || null,
-      visit_date:            visitDate,
-      overall_note:          meta.overallNote   || null,
+      project_id:               projectId,
+      contractor_report_id:     contractorReportId || null,
+      visited_by:               meta.visitedBy     || null,
+      visit_date:               visitDate,
+      overall_note:             meta.overallNote   || null,
+      pm_schedule_assessment:   meta.pmScheduleAssessment || null,
     }])
     .select()
     .single();
@@ -159,22 +160,30 @@ function mapRow(row) {
   if (!row) return row;
   return {
     ...row,
-    projectId:            row.project_id,
-    visitDate:            row.visit_date,
-    submittedAt:          row.created_at,
-    contractorReportId:   row.contractor_report_id,
-    overallNote:          row.overall_note,
-    visitedBy:            row.visited_by,
+    projectId:              row.project_id,
+    visitDate:              row.visit_date,
+    submittedAt:            row.created_at,
+    contractorReportId:     row.contractor_report_id,
+    overallNote:            row.overall_note,
+    visitedBy:              row.visited_by,
+    pmScheduleAssessment:   row.pm_schedule_assessment,
   };
 }
 
 export async function getAll() {
-  const { data, error } = await supabase
-    .from('site_visits')
-    .select('*')
-    .order('visit_date', { ascending: false });
-  if (error) throw error;
-  return (data || []).map(mapRow);
+  const [visitsRes, wpsRes] = await Promise.all([
+    supabase.from('site_visits').select('*').order('visit_date', { ascending: false }),
+    supabase.from('site_visit_wps').select('*'),
+  ]);
+  if (visitsRes.error) throw visitsRes.error;
+
+  const wpsByVisit = {};
+  for (const wp of wpsRes.data || []) {
+    if (!wpsByVisit[wp.site_visit_id]) wpsByVisit[wp.site_visit_id] = [];
+    wpsByVisit[wp.site_visit_id].push(wp);
+  }
+
+  return (visitsRes.data || []).map(v => mapRow({ ...v, wps: wpsByVisit[v.id] || [] }));
 }
 
 // Legacy compatibility — used by SiteVisitReport.jsx when no Gantt tasks are loaded.

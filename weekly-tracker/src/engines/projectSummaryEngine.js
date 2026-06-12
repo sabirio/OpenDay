@@ -103,10 +103,30 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
 
   if (latestVisit) {
     const visitDate = new Date(latestVisit.visitDate || latestVisit.submittedAt);
-    const gcRef = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || latest;
 
     let assessed = 0, matches = 0, discrepancies = 0, pmAhead = 0, notAssessed = 0;
-    if (latestVisit.pmWorkPackageStatuses) {
+
+    const wps = latestVisit.wps || [];
+    if (wps.length > 0) {
+      // Gantt-format visit: compute stats from site_visit_wps rows
+      const hasLinkedReport = !!latestVisit.contractorReportId;
+      for (const wp of wps) {
+        if (!wp.observed_status || wp.observed_status === 'not_started') {
+          notAssessed++;
+          continue;
+        }
+        assessed++;
+        if (!hasLinkedReport) {
+          // No GC comparison possible — count all as assessed but no match/discrepancy
+          continue;
+        }
+        const ds = wp.discrepancy_status || 'ok';
+        if (ds === 'ok') matches++;
+        else discrepancies++;
+      }
+    } else if (latestVisit.pmWorkPackageStatuses) {
+      // Legacy format
+      const gcRef = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || latest;
       for (const wp of WORK_PACKAGES) {
         for (const task of wp.tasks) {
           const pmStatus = latestVisit.pmWorkPackageStatuses[wp.id]?.[task.name]?.observedStatus || null;
@@ -127,7 +147,7 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
       hasVisit: true, visitCount: visits.length,
       latestVisitDate: latestVisit.visitDate || latestVisit.submittedAt,
       assessed, matches, discrepancies, pmAhead, notAssessed,
-      pmScheduleAssessment: latestVisit.pmScheduleAssessment || null,
+      pmScheduleAssessment: latestVisit.pmScheduleAssessment || latestVisit.pm_schedule_assessment || null,
       matchRate: assessed > 0 ? Math.round((matches / assessed) * 100) : null,
     };
   }
