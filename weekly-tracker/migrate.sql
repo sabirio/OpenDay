@@ -160,6 +160,13 @@ DO $$ BEGIN
     ON site_visit_discrepancies FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- ─── 8. Add WP statuses + look-ahead to reports table ───────────────────────
+-- Allows the reports table to store new-format WP data alongside legacy fields.
+
+ALTER TABLE reports
+  ADD COLUMN IF NOT EXISTS work_package_statuses JSONB    DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS look_ahead_notes      TEXT     DEFAULT NULL;
+
 -- ─── Verify ───────────────────────────────────────────────────────────────────
 SELECT
   table_name,

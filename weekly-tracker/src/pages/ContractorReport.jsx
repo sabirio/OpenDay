@@ -1,3 +1,4 @@
+import { normalizeReport } from "../services/reportService";
 import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { WORK_PACKAGES, makeEmptyWPStatuses, getWPGroups } from "../config/workPackages";
@@ -477,21 +478,38 @@ function ContractorReport({ projects, reports, onSaveReport }) {
   const [ganttWpProgress, setGanttWpProgress] = useState({});
 
   useEffect(() => {
-    if (!project?.id) return;
-    setGanttLoading(true);
-    getProjectGantt(project.id)
-      .then(tasks => {
-        setGanttTasks(tasks);
-        // Pre-fill from current DB progress
-        const initial = {};
-        for (const t of tasks) {
-          initial[t.id] = { progress_pct: t.actual_progress ?? 0, status: t.status ?? 'not_started', comment: '' };
-        }
-        setGanttWpProgress(initial);
-      })
-      .catch(() => setGanttTasks([]))
-      .finally(() => setGanttLoading(false));
-  }, [project?.id]);
+  if (!project?.id) return;
+
+  let isMounted = true;
+
+  const loadGanttTasks = async () => {
+    try {
+      setGanttLoading(true);
+
+      const tasks = await getProjectGantt(project.id);
+
+      if (isMounted) {
+        setGanttTasks(tasks || []);
+      }
+    } catch (error) {
+      console.error("Failed to load Gantt tasks:", error);
+
+      if (isMounted) {
+        setGanttTasks([]);
+      }
+    } finally {
+      if (isMounted) {
+        setGanttLoading(false);
+      }
+    }
+  };
+
+  loadGanttTasks();
+
+  return () => {
+    isMounted = false;
+  };
+}, [project?.id]);
 
   function updateWPProgress(wpId, updates) {
     setGanttWpProgress(prev => ({ ...prev, [wpId]: { ...(prev[wpId] || {}), ...updates } }));
@@ -558,6 +576,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
 
   async function saveReport() {
     if (!project) return;
+
     const errors = validateReport();
     if (errors.length) {
       setValidationErrors(errors);
@@ -565,35 +584,78 @@ function ContractorReport({ projects, reports, onSaveReport }) {
       return;
     }
     setValidationErrors([]);
+
     try {
+      const currentPhases = deriveOldPhasesFromPackages(form.currentPackages);
+
+      // When Gantt path is active, synthesize workPackageStatuses from the
+      // slider inputs (ganttWpProgress) so Weekly Reports can display real progress.
+      // Without this, the saved report has all tasks at "Not Started" (0%).
+      let workPackageStatuses = form.workPackageStatuses || {};
       if (ganttTasks.length > 0) {
-        const wpProgressArray = Object.entries(ganttWpProgress).map(([wpId, v]) => ({
+        const synthesized = {};
+        for (const task of ganttTasks) {
+          const entry = ganttWpProgress[task.id] || {};
+          const pct = entry.progress_pct ?? task.actual_progress ?? 0;
+          const ganttStatus = entry.status ?? task.status ?? 'not_started';
+          const wpStatus =
+            ganttStatus === 'completed' ? 'Completed'
+            : (ganttStatus === 'in_progress' || ganttStatus === 'delayed' || ganttStatus === 'blocked') ? 'In Progress'
+            : 'Not Started';
+          const wpId = task.phaseId;
+          const taskName = task.label;
+          if (wpId && taskName) {
+            if (!synthesized[wpId]) synthesized[wpId] = {};
+            synthesized[wpId][taskName] = { status: wpStatus, progress: pct };
+          }
+        }
+        workPackageStatuses = synthesized;
+      }
+
+      const mainReportPayload = normalizeReport({
+        id: Date.now(),
+        projectId: project.id,
+        storeCode: project.storeCode,
+        projectName: project.shoppingMallName,
+        contractor: project.generalContractor,
+        submittedAt: new Date().toISOString(),
+        previousReportId: prevReport?.id ?? null,
+
+        ...form,
+
+        currentPhase: currentPhases[0] || "",
+        currentPhases,
+        currentPackages: form.currentPackages || [],
+        workPackageStatuses,
+        photos: form.photos.map((p) => (p?.name ? p.name : p)),
+      });
+
+      await onSaveReport(mainReportPayload);
+
+      if (ganttTasks.length > 0) {
+        const wpProgressArray = Object.entries(ganttWpProgress).map(([wpId, value]) => ({
           wpId,
-          progress_pct: v.progress_pct ?? 0,
-          status:       v.status       ?? 'not_started',
-          comment:      v.comment      ?? '',
+          progress_pct: value.progress_pct ?? 0,
+          status: value.status ?? "not_started",
+          comment: value.comment ?? "",
         }));
-        const overallProgress = wpProgressArray.length > 0
-          ? Math.round(wpProgressArray.reduce((s, wp) => s + wp.progress_pct, 0) / wpProgressArray.length)
-          : 0;
+
+        const overallProgress =
+          wpProgressArray.length > 0
+            ? Math.round(
+                wpProgressArray.reduce((sum, wp) => sum + wp.progress_pct, 0) /
+                  wpProgressArray.length
+              )
+            : 0;
+
         await submitContractorReport(project.id, wpProgressArray, {
-          reportDate:      form.reportingDate,
+          reportDate: mainReportPayload.reportingDate,
           overallProgress,
-          submittedBy:     project.generalContractor || '',
-        });
-      } else {
-        await onSaveReport({
-          projectId: project.id,
-          storeCode: project.storeCode,
-          projectName: project.shoppingMallName,
-          contractor: project.generalContractor,
-          submittedAt: new Date().toISOString(),
-          previousReportId: prevReport?.id ?? null,
-          ...form,
-          currentPhases: deriveOldPhasesFromPackages(form.currentPackages),
-          photos: form.photos.map((p) => (p?.name ? p.name : p)),
+          submittedBy: project.generalContractor || "",
+          masterReportId: mainReportPayload.id,
         });
       }
+
       setSubmitted(true);
     } catch (err) {
       console.error("Failed to submit report:", err);
