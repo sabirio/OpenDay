@@ -594,6 +594,17 @@ function ContractorReport({ projects, reports, onSaveReport }) {
 
       if (isMounted) {
         setGanttTasks(tasks || []);
+        // Pre-fill progress state from DB so overallProgress is correct
+        // even if the user submits without touching any slider.
+        const initial = {};
+        for (const t of tasks || []) {
+          initial[t.id] = {
+            progress_pct: t.actual_progress ?? 0,
+            status:       t.status          ?? 'not_started',
+            comment:      '',
+          };
+        }
+        setGanttWpProgress(initial);
       }
     } catch (error) {
       console.error("Failed to load Gantt tasks:", error);
