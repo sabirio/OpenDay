@@ -1,9 +1,28 @@
-// Central Work Packages configuration — single source of truth for all progress,
-// contractor reports, PM site visits, and risk scoring.
-//
-// Each WP has:
-//  - tasks[]  — flat weighted list (backward-compat with computePackageProgress + Supabase data)
-//  - groups[] — two-level UI structure; group.tasks = array of task name strings
+/**
+ * workPackages.js — Legacy Weekly Report Work Packages
+ *
+ * @legacy — used only by the old WeeklyReports / PhaseStepper flow.
+ *
+ * Currently used by:
+ *   - WeeklyReports.jsx       ← WORK_PACKAGES, WP_STATUS_SCORES
+ *   - PhaseStepper.jsx        ← WP_STATUS_SCORES, getWPGroups
+ *   - SiteVisitReport.jsx     ← WORK_PACKAGES, WP_STATUS_SCORES, makeEmptyPMWPStatuses
+ *   - ContractorReport.jsx    ← WORK_PACKAGES, makeEmptyWPStatuses, getWPGroups
+ *   - pmAlignmentEngine.js    ← WORK_PACKAGES, WP_STATUS_SCORES
+ *   - portfolioEngine.js      ← WORK_PACKAGES (legacy path only)
+ *   - projectSummaryEngine.js ← WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress
+ *   - dashboardConstants.js   ← WORK_PACKAGES, WP_STATUS_SCORES
+ *   - reportUtils.js          ← WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress
+ *
+ * DO NOT USE for new Gantt-based features.
+ * For new code, import from masterTaskLibrary.js instead.
+ *
+ * MIGRATION GOAL: Once WeeklyReports is refactored to use Gantt workPackageStatuses,
+ *   this file can be deleted. masterTaskLibrary.js will become the single source.
+ *
+ * Data shape: nested array of WPs with { id, name, weight, groups[], tasks[] }
+ *   plus WP_STATUS_SCORES, WP_STATUS_OPTIONS, computePackageProgress, etc.
+ */
 
 export const WORK_PACKAGES = [
   {

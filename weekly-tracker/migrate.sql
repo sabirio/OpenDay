@@ -1,8 +1,13 @@
--- ═══════════════════════════════════════════════════════════════════════════
--- CF Tracker — Schema Migration
--- Run this ONCE in Supabase SQL Editor BEFORE running seed.mjs
+-- ⚠️  DEPRECATED — DO NOT RUN
+-- This file has been superseded by the numbered migration sequence in src/migrations/.
+-- To set up the database, run migrations in order:
+--   src/migrations/001_initial_schema.sql
+--   src/migrations/002_gantt_system.sql
+--   src/migrations/003_task_groups.sql
+--   src/migrations/004_site_visit_pm_assessment.sql
 --
--- Safe to re-run: all statements use IF NOT EXISTS / IF EXISTS.
+-- ═══════════════════════════════════════════════════════════════════════════
+-- CF Tracker — Schema Migration (DEPRECATED)
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ─── 1. Add Gantt columns to existing projects table ─────────────────────────

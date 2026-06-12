@@ -1,5 +1,7 @@
+-- ⚠️  DEPRECATED — superseded by src/migrations/002_gantt_system.sql
+-- Do not run this file. Use the numbered migration sequence in src/migrations/ instead.
 -- ============================================================
--- Migration 001: Gantt Chart System
+-- Migration 001 (DEPRECATED): Gantt Chart System
 -- Construction & Fit-out Progress Tracker
 -- ============================================================
 

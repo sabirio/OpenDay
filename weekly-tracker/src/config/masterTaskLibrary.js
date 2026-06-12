@@ -1,5 +1,26 @@
-// Master Task Library — single source of truth for all phases and work packages.
-// Used by: GanttChart, ContractorReport, SiteVisit, Templates.
+/**
+ * masterTaskLibrary.js — Gantt Task Library
+ *
+ * THIS IS THE FUTURE SINGLE SOURCE OF TRUTH for all work packages and tasks.
+ *
+ * Currently used by:
+ *   - GanttChart.jsx
+ *   - progressEngine.js      ← calculateProjectProgress / calculatePhaseProgress
+ *   - ganttEngine.js
+ *   - projectSummaryEngine.js (Gantt path)
+ *   - ContractorReport.jsx   (Gantt-format reports)
+ *   - SiteVisitReport.jsx    (Gantt-format visits)
+ *   - projectTemplates.js
+ *
+ * NOT YET used by:
+ *   - WeeklyReports.jsx      ← still uses workPackages.js format
+ *   - PhaseStepper.jsx       ← still uses workPackages.js WP_STATUS_SCORES
+ *
+ * MIGRATION GOAL: When WeeklyReports is migrated to Gantt format,
+ *   workPackages.js can be deleted and this becomes the only task library.
+ *
+ * Data shape: flat array of tasks with { id, label, phaseId, duration_pct, isBlocker, defaultLag_days }
+ */
 
 export const PHASES = [
   { id: 'demolition',   label: 'Demolition',              order: 1   },

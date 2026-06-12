@@ -12,6 +12,20 @@ import {
   computePackageProgress,
 } from "../config/workPackages";
 
+// ─── LEGACY FORMAT SUPPORT ────────────────────────────────────────────────────
+// The functions below exist to handle the old report format where progress was
+// stored as status strings (e.g. "In Progress", "Completed") in flat fields:
+//   demolitionStatus, constructionStatuses, testingStatuses, handoverStatuses
+//
+// These functions MUST remain until all projects use the Gantt workPackageStatuses format.
+// For new code, always use: import { calculateProjectProgressResult } from '../engines/progressEngine'
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * @legacy — supports old weekly-report format (demolitionStatus / constructionStatuses / …)
+ * Keep until all projects are migrated to Gantt workPackageStatuses format.
+ * Do NOT call from new code. Use progressEngine.js → calculateProjectProgressResult() instead.
+ */
 export const PHASE_ORDER = [
   "Demolition works",
   "Construction works",
@@ -24,6 +38,11 @@ export function formatDate(value) {
   return new Date(value).toLocaleDateString("en-GB");
 }
 
+/**
+ * @legacy — supports old weekly-report format (demolitionStatus / constructionStatuses / …)
+ * Keep until all projects are migrated to Gantt workPackageStatuses format.
+ * Do NOT call from new code. Use progressEngine.js → calculateProjectProgressResult() instead.
+ */
 export function getStatusScore(value) {
   if (!value && value !== 0) return 0;
   const raw = String(value).trim();
@@ -36,6 +55,11 @@ export function getStatusScore(value) {
   return 0.25;
 }
 
+/**
+ * @legacy — supports old weekly-report format (demolitionStatus / constructionStatuses / …)
+ * Keep until all projects are migrated to Gantt workPackageStatuses format.
+ * Do NOT call from new code. Use progressEngine.js → calculateProjectProgressResult() instead.
+ */
 export function computeCumulativeStatuses(projectReports) {
   if (!projectReports || projectReports.length === 0) return null;
 
@@ -178,6 +202,11 @@ export function getPackageProgressMap(wpStatuses) {
   return map;
 }
 
+/**
+ * @legacy — supports old weekly-report format (demolitionStatus / constructionStatuses / …)
+ * Keep until all projects are migrated to Gantt workPackageStatuses format.
+ * Do NOT call from new code. Use progressEngine.js → calculateProjectProgressResult() instead.
+ */
 export function estimateProgressFromStatuses(r) {
   if (!r) return 0;
 

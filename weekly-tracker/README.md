@@ -1,3 +1,20 @@
+# CF Tracker — Construction & Fit-out Progress Tracker
+
+## Database Setup (Supabase)
+
+Run the following migrations **in order** in the Supabase SQL Editor:
+
+1. `src/migrations/001_initial_schema.sql` — Base schema reference + report_format column
+2. `src/migrations/002_gantt_system.sql` — Gantt tasks, contractor reports, site visits, RLS
+3. `src/migrations/003_task_groups.sql` — Task group structure + seed data
+4. `src/migrations/004_site_visit_pm_assessment.sql` — PM schedule assessment column
+
+All migrations use `IF NOT EXISTS` and are safe to re-run.
+
+> **Note**: `migrate.sql` in the project root is deprecated. Use the numbered sequence above.
+
+---
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
