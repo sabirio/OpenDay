@@ -120,6 +120,9 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
     if (visit.wps && visit.wps.length > 0) {
       const STATUS_RANK = { completed: 2, in_progress: 1, not_started: 0, delayed: -1, blocked: -2 };
       for (const wp of visit.wps) {
+        // Skip tasks GC hasn't filled
+        if ((wp.gc_status ?? 'not_started') === 'not_started' && Math.abs(wp.discrepancy_delta ?? 0) === 0) continue;
+
         const delta    = wp.discrepancy_delta ?? 0;
         const pmStatus = wp.observed_status  ?? 'not_started';
         const gcStatus = wp.gc_status        ?? 'not_started';

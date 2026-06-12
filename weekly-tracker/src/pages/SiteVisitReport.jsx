@@ -406,8 +406,13 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
     const STATUS_RANK = { completed: 2, in_progress: 1, not_started: 0, delayed: -1, blocked: -2 };
     let confirmed = 0, discrepancyCount = 0, pmAheadCount = 0;
     for (const task of ganttTasks) {
+      const gcStatus   = task.status ?? 'not_started';
+      const gcProgress = task.actual_progress ?? 0;
+
+      // Skip tasks GC hasn't touched at all
+      if (gcStatus === 'not_started' && gcProgress === 0) continue;
+
       const pmEntry  = pmWpObservations[task.id] || {};
-      const gcStatus = task.status ?? 'not_started';
       const pmStatus = pmEntry.observed_status ?? gcStatus;  // auto-match if PM didn't change
       const gcRank   = STATUS_RANK[gcStatus] ?? 0;
       const pmRank   = STATUS_RANK[pmStatus] ?? 0;
