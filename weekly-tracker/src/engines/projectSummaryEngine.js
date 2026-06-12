@@ -108,15 +108,28 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
           continue;
         }
         assessed++;
+
         if (!hasLinkedReport) {
-          // No GC comparison possible — count all as assessed but no match/discrepancy
+          // No GC report linked — count all PM-observed WPs as confirmed
+          matches++;
           continue;
         }
-        const ds = wp.discrepancy_status || 'ok';
+
+        // discrepancy_delta is signed: positive = PM sees more, negative = PM sees less.
+        // ±5% tolerance prevents rounding noise from registering as a discrepancy.
+        const ds    = wp.discrepancy_status || 'ok';
         const delta = wp.discrepancy_delta ?? 0;
-        if (delta > 0) pmAhead++;           // PM sees more progress than GC reports
-        else if (ds !== 'ok') discrepancies++; // GC claims more than PM observes
-        else matches++;
+
+        if (delta > 5) {
+          pmAhead++;           // PM observes meaningfully more progress than GC reported
+        } else if (delta < -5) {
+          discrepancies++;     // GC is overclaiming — PM observes less
+        } else if (ds === 'warning' || ds === 'critical') {
+          // Discrepancy engine flagged a large gap via status field
+          discrepancies++;
+        } else {
+          matches++;           // Within ±5% tolerance = confirmed
+        }
       }
     } else if (latestVisit.pmWorkPackageStatuses) {
       // Legacy format

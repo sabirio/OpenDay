@@ -394,9 +394,21 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
   // ── GANTT FORMAT SUCCESS VIEW ──────────────────────────────────────────────
 
   if (submitted && savedVisit?._ganttFormat) {
-    const discrepancies = savedVisit.discrepancies || [];
-    const critCount     = discrepancies.filter(d => d.status === 'critical').length;
-    const warnCount     = discrepancies.filter(d => d.status === 'warning').length;
+    const discrepancyMap = Object.fromEntries(
+      (savedVisit.discrepancies || []).map(d => [d.wpId, d])
+    );
+
+    let confirmed = 0, discrepancyCount = 0, pmAheadCount = 0, notAssessed = 0;
+    for (const [wpId, pmEntry] of Object.entries(pmWpObservations)) {
+      const pmStatus = pmEntry.observed_status;
+      if (!pmStatus || pmStatus === 'not_started') { notAssessed++; continue; }
+      const disc = discrepancyMap[wpId];
+      if (!disc) { confirmed++; continue; }
+      const signedDelta = disc.site_visit_progress - disc.contractor_progress;
+      if (Math.abs(signedDelta) <= 5) confirmed++;
+      else if (signedDelta < 0) discrepancyCount++;
+      else pmAheadCount++;
+    }
 
     return (
       <div style={{ minHeight: '100vh', background: '#f0f7fa', padding: '36px 20px 80px' }}>
@@ -407,11 +419,12 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
             <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
               {project.storeCode} · {project.shoppingMallName} · {form.visitDate}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 28 }}>
               {[
-                { label: 'WPs Assessed',   value: discrepancies.length, color: ACCENT,    bg: '#e0f2fe' },
-                { label: 'Warnings',        value: warnCount,            color: '#d97706', bg: '#fef3c7' },
-                { label: 'Critical Gaps',   value: critCount,            color: critCount > 0 ? '#991b1b' : '#166534', bg: critCount > 0 ? '#fee2e2' : '#dcfce7' },
+                { label: '✓ Confirmed',    value: confirmed,        color: '#16a34a', bg: '#dcfce7' },
+                { label: '⚠ Discrepancy',  value: discrepancyCount, color: '#dc2626', bg: '#fee2e2' },
+                { label: '↑ PM Ahead',     value: pmAheadCount,     color: '#d97706', bg: '#fef3c7' },
+                { label: '— Not Assessed', value: notAssessed,      color: '#6b7280', bg: '#f3f4f6' },
               ].map(({ label, value, color, bg }) => (
                 <div key={label} style={{ background: bg, borderRadius: 10, padding: '14px 8px' }}>
                   <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
