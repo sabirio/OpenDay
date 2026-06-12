@@ -117,6 +117,53 @@ export function isWPReport(report) {
 }
 
 /**
+ * Format-agnostic merge for workPackageStatuses.
+ * Works for both old (workPackages.js task names) and Gantt (masterTaskLibrary labels).
+ * Keeps the entry with the highest effective progress per task.
+ */
+function mergeGanttWPStatuses(snapshots) {
+  const merged = {};
+  for (const snapshot of snapshots) {
+    if (!snapshot) continue;
+    for (const [phaseId, tasks] of Object.entries(snapshot)) {
+      if (!merged[phaseId]) merged[phaseId] = {};
+      for (const [taskName, entry] of Object.entries(tasks || {})) {
+        if (!entry) continue;
+        const effectivePct = e =>
+          (e?.progress ?? 0) || ((WP_STATUS_SCORES[e?.status] ?? 0) * 100);
+        const cur = merged[phaseId][taskName];
+        if (!cur || effectivePct(entry) > effectivePct(cur)) {
+          merged[phaseId][taskName] = entry;
+        }
+      }
+    }
+  }
+  return merged;
+}
+
+/**
+ * Compute overall progress % from Gantt-format workPackageStatuses.
+ * Simple average of all task progress values across phases.
+ * Works for both Gantt labels and old workPackages.js task names.
+ */
+export function computeGanttWPProgress(wpStatuses) {
+  let total = 0, count = 0;
+  for (const tasks of Object.values(wpStatuses || {})) {
+    for (const entry of Object.values(tasks || {})) {
+      if (!entry) continue;
+      const pct = typeof entry.progress === 'number'
+        ? entry.progress
+        : entry.status === 'Completed'  ? 100
+        : entry.status === 'In Progress' ? 50
+        : 0;
+      total += pct;
+      count++;
+    }
+  }
+  return count === 0 ? 0 : Math.round(total / count);
+}
+
+/**
  * Compute cumulative WP statuses across all project reports that use the new format.
  * Keeps the best (highest scoring) status per task across all reports.
  */
@@ -133,7 +180,8 @@ export function computeWPCumulativeStatuses(projectReports) {
   );
 
   const snapshots = sorted.map((r) => r.workPackageStatuses);
-  const merged = mergeWPStatuses(snapshots);
+  // Use format-agnostic merge (works for both Gantt and old WP formats)
+  const merged = mergeGanttWPStatuses(snapshots);
   const latest = sorted[sorted.length - 1];
 
   return {
@@ -149,9 +197,7 @@ export function computeWPCumulativeStatuses(projectReports) {
  */
 export function estimateProgressAuto(r) {
   if (!r) return 0;
-  if (isWPReport(r)) {
-    return computeProjectProgressFromWP(r.workPackageStatuses);
-  }
+  if (isWPReport(r)) return computeGanttWPProgress(r.workPackageStatuses);
   return estimateProgressFromStatuses(r);
 }
 
@@ -243,7 +289,7 @@ export function progressAtIndex(sortedReports, index) {
   const slice = sortedReports.slice(0, index + 1);
   const wpCum = computeWPCumulativeStatuses(slice);
   if (wpCum?.workPackageStatuses) {
-    return computeProjectProgressFromWP(wpCum.workPackageStatuses);
+    return computeGanttWPProgress(wpCum.workPackageStatuses);
   }
   return estimateProgressFromStatuses(computeCumulativeStatuses(slice));
 }

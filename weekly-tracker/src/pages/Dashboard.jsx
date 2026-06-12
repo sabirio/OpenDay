@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  estimateProgressFromStatuses, estimateProgressAuto,
+  estimateProgressFromStatuses,
   computeCumulativeStatuses, computeWPCumulativeStatuses,
+  computeGanttWPProgress, progressAtIndex,
   daysSince, isMissingReport, daysUntil,
 } from "../utils/reportUtils";
 import { PROJECT_COLORS, computePriorityScore } from "../config/dashboardConstants";
@@ -47,10 +48,10 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     const wpCumulativeStatuses = computeWPCumulativeStatuses(projReports)||null;
     const latestReport = sorted[sorted.length-1]||null;
     const progress = wpCumulativeStatuses
-      ? estimateProgressAuto(latestReport)
+      ? computeGanttWPProgress(wpCumulativeStatuses.workPackageStatuses)
       : estimateProgressFromStatuses(cumulativeStatuses);
     const color = PROJECT_COLORS[idx%PROJECT_COLORS.length];
-    const progressPoints = sorted.map((r,i)=>({ date:r.reportingDate||r.submittedAt, value:estimateProgressFromStatuses(computeCumulativeStatuses(sorted.slice(0,i+1))) }));
+    const progressPoints = sorted.map((r,i)=>({ date:r.reportingDate||r.submittedAt, value:progressAtIndex(sorted,i) }));
     const daysSinceReport = latestReport ? daysSince(latestReport.reportingDate||latestReport.submittedAt) : null;
     const missingReport = isMissingReport(latestReport);
     const daysToOpening = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;

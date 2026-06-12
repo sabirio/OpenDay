@@ -4,6 +4,7 @@ import {
   computeCumulativeStatuses,
   estimateProgressFromStatuses,
   computeWPCumulativeStatuses,
+  computeGanttWPProgress,
   isWPReport,
 } from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
@@ -155,7 +156,11 @@ function WeeklyReports({ projects, reports }) {
   }, [selectedReport, projectReports, effectiveReportId]);
 
   const overallCumulative = useMemo(() => computeCumulativeStatuses(projectReports), [projectReports]);
-  const overallProgress   = useMemo(() => estimateProgressFromStatuses(overallCumulative), [overallCumulative]);
+  const overallProgress = useMemo(() => {
+    const wpCum = computeWPCumulativeStatuses(projectReports);
+    if (wpCum?.workPackageStatuses) return computeGanttWPProgress(wpCum.workPackageStatuses);
+    return estimateProgressFromStatuses(overallCumulative);
+  }, [projectReports, overallCumulative]);
 
   const portfolioKpis = useMemo(() => computePortfolioMissing(projects, reports), [projects, reports]);
 
