@@ -186,71 +186,55 @@ function StatusPill({ status }) {
 // ── Gantt-based PM observation row ────────────────────────────────────────
 
 const GANTT_STATUS_OPTS_SV = [
-  { value: 'not_started', label: 'Not Started' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed',   label: 'Completed'   },
-  { value: 'delayed',     label: 'Delayed'     },
-  { value: 'blocked',     label: 'Blocked'     },
+  { value: 'not_started', label: 'Not Started', bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
+  { value: 'in_progress', label: 'In Progress', bg: '#fef3c7', color: '#d97706', border: '#fde68a' },
+  { value: 'completed',   label: 'Completed',   bg: '#dcfce7', color: '#16a34a', border: '#86efac' },
+  { value: 'delayed',     label: 'Delayed',     bg: '#fce7f3', color: '#be185d', border: '#f9a8d4' },
+  { value: 'blocked',     label: 'Blocked',     bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
 ];
 
-function liveDiscrepancy(gcPct, pmPct) {
-  const delta = Math.round(Math.abs((pmPct ?? 0) - (gcPct ?? 0)));
-  if (delta < 10) return { label: `Δ ${delta}%`, color: '#16a34a', bg: '#f0fdf4' };
-  if (delta < 25) return { label: `Δ ${delta}%`, color: '#d97706', bg: '#fffbeb' };
-  return               { label: `Δ ${delta}%`, color: '#dc2626', bg: '#fef2f2' };
-}
-
 function GanttPMTaskRow({ task, pmEntry, onChange }) {
-  const gcPct    = task.actual_progress ?? 0;
-  const pmPct    = pmEntry?.observed_progress ?? gcPct;
-  const pmStatus = pmEntry?.observed_status   ?? (task.status || 'not_started');
-  const disc     = liveDiscrepancy(gcPct, pmPct);
+  const gcStatus = task.status || 'not_started';
+  const pmStatus = pmEntry?.observed_status ?? gcStatus;
 
   return (
-    <div style={{ borderBottom: '1px solid #f3f4f6', padding: '12px 0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{task.label}</span>
+    <div data-testid="pm-task-row" style={{ borderBottom: '1px solid #f3f4f6', padding: '9px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 180px', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.35 }}>{task.label}</span>
           {task.isCritical && (
-            <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>CRITICAL</span>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', flexShrink: 0 }}>CRITICAL</span>
           )}
         </div>
-        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: disc.bg, color: disc.color }}>
-          {disc.label}
-        </span>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* GC column — read-only */}
-        <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>GC Reported</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ flex: 1, background: '#e5e7eb', borderRadius: 4, height: 8, overflow: 'hidden' }}>
-              <div style={{ width: `${gcPct}%`, height: '100%', background: gcPct >= 100 ? '#22c55e' : '#9ca3af', borderRadius: 4, transition: 'width 0.2s' }} />
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#6b7280', minWidth: 36, textAlign: 'right' }}>{gcPct}%</span>
-          </div>
-        </div>
-
-        {/* PM column — editable */}
-        <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: ACCENT, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>PM Observed</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <input
-              type="range" min="0" max="100" step="5"
-              value={pmPct}
-              onChange={e => onChange({ observed_progress: parseInt(e.target.value), observed_status: pmStatus })}
-              style={{ flex: 1, cursor: 'pointer', accentColor: ACCENT }}
-            />
-            <span style={{ fontSize: 13, fontWeight: 700, color: pmPct >= 100 ? '#166534' : ACCENT, minWidth: 36, textAlign: 'right' }}>{pmPct}%</span>
-          </div>
-          <select
-            value={pmStatus}
-            onChange={e => onChange({ observed_progress: pmPct, observed_status: e.target.value })}
-            style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 12, background: 'white', cursor: 'pointer', outline: 'none' }}
-          >
-            {GANTT_STATUS_OPTS_SV.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+        <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+          {GANTT_STATUS_OPTS_SV.map(opt => {
+            const isPM = pmStatus === opt.value;
+            const isGC = gcStatus === opt.value && !isPM;
+            return (
+              <button key={opt.value} type="button"
+                onClick={() => onChange({ ...(pmEntry || {}), observed_progress: pmEntry?.observed_progress ?? task.actual_progress ?? 0, observed_status: opt.value })}
+                style={{
+                  position: 'relative',
+                  padding: '4px 9px', borderRadius: 6, fontSize: 11,
+                  border: isPM ? `1.5px solid ${opt.border}` : isGC ? `1px solid ${opt.border}` : '1px solid #e5e7eb',
+                  background: isPM ? opt.bg : isGC ? opt.bg + '80' : 'white',
+                  color: isPM ? opt.color : isGC ? opt.color : '#9ca3af',
+                  fontWeight: isPM ? 700 : 400,
+                  cursor: 'pointer', whiteSpace: 'nowrap', outline: 'none',
+                }}>
+                {opt.label}
+                {isGC && (
+                  <span style={{
+                    position: 'absolute', top: -6, right: -4,
+                    fontSize: 8, fontWeight: 800, lineHeight: 1.2,
+                    background: ACCENT, color: 'white',
+                    padding: '1px 3px', borderRadius: 3,
+                    letterSpacing: '0.02em', pointerEvents: 'none',
+                  }}>GC</span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
