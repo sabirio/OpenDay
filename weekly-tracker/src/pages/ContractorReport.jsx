@@ -309,11 +309,11 @@ function TextAreaField({ label, value, onChange, rows = 4, placeholder = "" }) {
 // ── Gantt-based WP progress row ────────────────────────────────────────────
 
 const GANTT_STATUS_OPTS = [
-  { value: 'not_started', label: 'Not Started' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed',   label: 'Completed'   },
-  { value: 'delayed',     label: 'Delayed'     },
-  { value: 'blocked',     label: 'Blocked'     },
+  { value: 'not_started', label: 'Not Started', bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
+  { value: 'in_progress', label: 'In Progress', bg: '#fef3c7', color: '#d97706', border: '#fde68a' },
+  { value: 'completed',   label: 'Completed',   bg: '#dcfce7', color: '#16a34a', border: '#86efac' },
+  { value: 'delayed',     label: 'Delayed',     bg: '#fce7f3', color: '#be185d', border: '#f9a8d4' },
+  { value: 'blocked',     label: 'Blocked',     bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
 ];
 
 function GanttWPRow({ task, entry, onChange }) {
@@ -321,10 +321,13 @@ function GanttWPRow({ task, entry, onChange }) {
   const status = entry?.status       ?? task.status          ?? 'not_started';
   const pctColor = pct >= 100 ? '#16a34a' : pct >= 50 ? '#2f855a' : '#6b7280';
 
-  function setPct(val) { onChange({ progress_pct: val, status }); }
+  function setPct(val) {
+    const autoStatus = val === 0 ? 'not_started' : val === 100 ? 'completed' : 'in_progress';
+    onChange({ progress_pct: val, status: autoStatus });
+  }
   function setStatus(val) {
-    const auto = val === 'completed' ? 100 : pct;
-    onChange({ progress_pct: auto, status: val });
+    const autoPct = val === 'completed' ? 100 : val === 'not_started' ? 0 : pct;
+    onChange({ progress_pct: autoPct, status: val });
   }
 
   return (
@@ -336,25 +339,35 @@ function GanttWPRow({ task, entry, onChange }) {
             <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>CRITICAL</span>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: pctColor, minWidth: 44, textAlign: 'right' }}>{pct}%</span>
-          <select
-            value={status}
-            onChange={e => setStatus(e.target.value)}
-            style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 12, background: 'white', cursor: 'pointer', outline: 'none' }}
-          >
-            {GANTT_STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
+        <span style={{ fontSize: 14, fontWeight: 700, color: pctColor, minWidth: 44, textAlign: 'right' }}>{pct}%</span>
       </div>
       <input
-        type="range" min="0" max="100" step="5"
+        type="range" min="0" max="100" step="10"
         value={pct}
         onChange={e => setPct(parseInt(e.target.value))}
-        style={{ width: '100%', cursor: 'pointer', accentColor: pctColor }}
+        style={{ width: '100%', cursor: 'pointer', accentColor: pctColor, marginBottom: 8 }}
       />
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {GANTT_STATUS_OPTS.map(opt => {
+          const sel = status === opt.value;
+          return (
+            <button key={opt.value} type="button"
+              onClick={() => setStatus(opt.value)}
+              style={{
+                padding: '3px 8px', borderRadius: 5, fontSize: 11,
+                border: `1px solid ${sel ? opt.border : '#e5e7eb'}`,
+                background: sel ? opt.bg : 'white',
+                color: sel ? opt.color : '#9ca3af',
+                fontWeight: sel ? 700 : 400,
+                cursor: 'pointer', whiteSpace: 'nowrap', outline: 'none',
+              }}>
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
       {(task.earlyStart || task.earlyFinish) && (
-        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 6 }}>
           {task.earlyStart ? new Date(task.earlyStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
           {' → '}
           {task.earlyFinish ? new Date(task.earlyFinish).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
@@ -413,8 +426,17 @@ function makeInitialForm(prevReport, cumulativeStatuses) {
     currentPackages = [WORK_PACKAGES[0].id];
   }
 
+  // Auto-advance reporting date by 7 days from the last report
+  const nextReportDate = prevReport
+    ? (() => {
+        const d = new Date(prevReport.reportingDate || prevReport.submittedAt);
+        d.setDate(d.getDate() + 7);
+        return d.toISOString().split('T')[0];
+      })()
+    : new Date().toISOString().split('T')[0];
+
   return {
-    reportingDate: "",
+    reportingDate: nextReportDate,
     currentPackages,
     workPackageStatuses: wpStatuses,
     projectScheduleStatus: prevReport?.projectScheduleStatus || "On Track",
