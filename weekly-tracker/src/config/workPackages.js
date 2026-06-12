@@ -262,44 +262,6 @@ export function computePackageProgress(wpStatuses, wpId) {
   return Math.round((weightedScore / totalWeight) * 100);
 }
 
-// DEPRECATED — uses old workPackages.js task key scheme; returns 0 for Gantt-format data.
-// Use calculateProjectProgress() from progressEngine.js instead.
-export function computeProjectProgressFromWP(wpStatuses) {
-  if (!wpStatuses) return 0;
-  let totalWeight = 0;
-  let weightedScore = 0;
-  for (const wp of WORK_PACKAGES) {
-    const pkgProgress = computePackageProgress(wpStatuses, wp.id);
-    totalWeight += wp.weight;
-    weightedScore += wp.weight * (pkgProgress / 100);
-  }
-  if (totalWeight === 0) return 0;
-  return Math.round((weightedScore / totalWeight) * 100);
-}
-
-// DEPRECATED — uses old workPackages.js task key scheme; silently drops Gantt task entries.
-// Use mergeGanttWPStatuses() from reportUtils.js instead.
-export function mergeWPStatuses(statusSnapshots) {
-  const merged = makeEmptyWPStatuses();
-  for (const snapshot of statusSnapshots) {
-    if (!snapshot) continue;
-    for (const wp of WORK_PACKAGES) {
-      const pkgSnap = snapshot[wp.id] || {};
-      for (const task of wp.tasks) {
-        const snap = pkgSnap[task.name];
-        const cur  = merged[wp.id][task.name];
-        if (!snap) continue;
-        const snapScore = WP_STATUS_SCORES[snap.status] ?? -1;
-        const curScore  = WP_STATUS_SCORES[cur.status]  ?? -1;
-        if (snapScore > curScore || snap.progress > cur.progress) {
-          merged[wp.id][task.name] = { ...cur, ...snap };
-        }
-      }
-    }
-  }
-  return merged;
-}
-
 // ─── Discrepancy helpers ──────────────────────────────────────────────────────
 
 export function getWPStatusScore(status) {

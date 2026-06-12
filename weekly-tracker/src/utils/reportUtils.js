@@ -10,7 +10,6 @@ import {
   WORK_PACKAGES,
   WP_STATUS_SCORES,
   computePackageProgress,
-  makeEmptyWPStatuses,
 } from "../config/workPackages";
 
 export const PHASE_ORDER = [
@@ -139,24 +138,6 @@ function mergeGanttWPStatuses(snapshots) {
   return merged;
 }
 
-// DEPRECATED — unweighted flat average; use calculateProjectProgress() from progressEngine.js.
-export function computeGanttWPProgress(wpStatuses) {
-  let total = 0, count = 0;
-  for (const tasks of Object.values(wpStatuses || {})) {
-    for (const entry of Object.values(tasks || {})) {
-      if (!entry) continue;
-      const pct = typeof entry.progress === 'number'
-        ? entry.progress
-        : entry.status === 'Completed'  ? 100
-        : entry.status === 'In Progress' ? 50
-        : 0;
-      total += pct;
-      count++;
-    }
-  }
-  return count === 0 ? 0 : Math.round(total / count);
-}
-
 /**
  * Compute cumulative WP statuses across all project reports that use the new format.
  * Keeps the best (highest scoring) status per task across all reports.
@@ -183,14 +164,6 @@ export function computeWPCumulativeStatuses(projectReports) {
     projectScheduleStatus: latest?.projectScheduleStatus,
     currentPhase: latest?.currentPhase || latest?.currentPhases?.[0],
   };
-}
-
-// DEPRECATED — no active callers. For per-report progress use calculateActivityProgress()
-// from progressEngine.js; for accumulated progress use calculateProjectProgress().
-export function estimateProgressAuto(r) {
-  if (!r) return 0;
-  if (isWPReport(r)) return computeGanttWPProgress(r.workPackageStatuses);
-  return estimateProgressFromStatuses(r);
 }
 
 /**

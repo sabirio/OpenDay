@@ -49,21 +49,6 @@ export const phaseWeights = {
   total: 1,
 };
 
-// ─── Work Package aligned weights (new format) ────────────────────────────────
-// DEPRECATED — not imported by any engine. Phase weights now live in WORK_PACKAGES[].weight
-// inside workPackages.js. Do not add new usages here.
-
-export const wpPhaseWeights = {
-  preconstruction: 0.05,
-  demolition: 0.05,
-  construction: 0.20,
-  mep: 0.25,
-  finishes: 0.20,
-  equipment: 0.10,
-  commissioning: 0.10,
-  handover: 0.05,
-};
-
 export const wpStatusScores = {
   'Not Started': 0,
   'In Progress': 0.5,
