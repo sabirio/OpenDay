@@ -1,6 +1,7 @@
 // Monte Carlo Engine — probabilistic opening-date forecasting.
 // Pure functions, no React, no external libraries. Uses Box-Muller for normal variates.
-import { progressAtIndex, DAY_MS } from '../utils/reportUtils';
+import { DAY_MS } from '../utils/reportUtils';
+import { progressAtIndex } from './progressEngine';
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 

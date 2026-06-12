@@ -70,6 +70,10 @@ export const RISK_WEIGHTS = {
     severityGap:          5,  // PM: Delayed / Critical  vs GC: At Risk
   },
 
+  // ── EVM Schedule Performance Index ───────────────────────────────────────
+  // Applied when SPI < 0.85 (progress / expected_pct)
+  evmSpi: 15,
+
   // ── Recovery bonus (negative points applied after capping at 100) ─────────
   recovery: { fromSevere: -10, fromAtRisk: -8, minScore: 10 },
 

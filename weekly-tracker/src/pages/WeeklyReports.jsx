@@ -4,9 +4,9 @@ import {
   computeCumulativeStatuses,
   estimateProgressFromStatuses,
   computeWPCumulativeStatuses,
-  computeGanttWPProgress,
   isWPReport,
 } from "../utils/reportUtils";
+import { calculateProjectProgress } from "../engines/progressEngine";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import {
   PHASES as GANTT_PHASES,
@@ -158,7 +158,7 @@ function WeeklyReports({ projects, reports }) {
   const overallCumulative = useMemo(() => computeCumulativeStatuses(projectReports), [projectReports]);
   const overallProgress = useMemo(() => {
     const wpCum = computeWPCumulativeStatuses(projectReports);
-    if (wpCum?.workPackageStatuses) return computeGanttWPProgress(wpCum.workPackageStatuses);
+    if (wpCum?.workPackageStatuses) return calculateProjectProgress(wpCum.workPackageStatuses);
     return estimateProgressFromStatuses(overallCumulative);
   }, [projectReports, overallCumulative]);
 

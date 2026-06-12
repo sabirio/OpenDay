@@ -1,7 +1,8 @@
 // Earned Value Management engine — pure functions, no React.
 // Normalizes BAC = 100 (progress % as the unit — no monetary budget available).
 import { computeScheduleDeviation } from './riskEngine';
-import { progressAtIndex, DAY_MS } from '../utils/reportUtils';
+import { DAY_MS } from '../utils/reportUtils';
+import { progressAtIndex } from './progressEngine';
 
 function pvAtDate(project, date) {
   const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;

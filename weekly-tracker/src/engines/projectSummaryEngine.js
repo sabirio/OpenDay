@@ -1,6 +1,7 @@
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
-import { PHASES as GANTT_PHASES, getPhasesInOrder } from '../config/masterTaskLibrary';
+import { getPhasesInOrder } from '../config/masterTaskLibrary';
 import { DAY_MS, isMissingReport } from '../utils/reportUtils';
+import { calculatePhaseProgress } from './progressEngine';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
 import { computeOpeningReadiness } from './openingReadinessEngine';
 
@@ -15,17 +16,8 @@ const GANTT_PHASE_META = Object.fromEntries(
 function phaseProgressFromGanttStatuses(wpStatuses) {
   return getPhasesInOrder()
     .map(phase => {
-      const tasks = wpStatuses[phase.id] || {};
-      const entries = Object.values(tasks);
-      if (entries.length === 0) return null;
-      const pct = Math.round(
-        entries.reduce((sum, e) => {
-          const p = typeof e?.progress === 'number' ? e.progress
-            : e?.status === 'Completed' ? 100
-            : e?.status === 'In Progress' ? 50 : 0;
-          return sum + p;
-        }, 0) / entries.length
-      );
+      const { pct, count } = calculatePhaseProgress(phase.id, wpStatuses[phase.id] || {});
+      if (count === 0) return null;
       const meta = GANTT_PHASE_META[phase.id] || { name: phase.label, color: '#6b7280' };
       return { wpId: phase.id, name: meta.name, color: meta.color, pct };
     })

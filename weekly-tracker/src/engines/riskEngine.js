@@ -1,5 +1,5 @@
 import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore, DAY_MS, daysSince, daysUntil, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
-import { computeProjectProgressFromWP } from "../config/workPackages";
+import { calculateProjectProgressResult } from "./progressEngine";
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER } from "../config/riskConfig";
 import { RISK_WEIGHTS } from "../config/riskWeights";
@@ -42,12 +42,9 @@ export function computeTrend(sortedReports) {
   if (sortedReports.length < 2) return { trend: "Insufficient data", icon: "—", color: "#94a3b8", avgDiff: 0 };
   const points = sortedReports.map((_, i) => {
     const slice = sortedReports.slice(0, i + 1);
-    // Use WP cumulative progress for new-format reports; fall back to old format
-    const wpCum = computeWPCumulativeStatuses(slice);
-    if (wpCum?.workPackageStatuses) {
-      return computeProjectProgressFromWP(wpCum.workPackageStatuses);
-    }
-    return estimateProgressFromStatuses(computeCumulativeStatuses(slice));
+    const wpCum  = computeWPCumulativeStatuses(slice);
+    const legCum = computeCumulativeStatuses(slice);
+    return calculateProjectProgressResult(wpCum, legCum).progress;
   });
   const recent = points.slice(-Math.min(4, points.length));
   const diffs  = recent.slice(1).map((v, i) => v - recent[i]);
@@ -212,8 +209,8 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
       if (pv > 0) {
         const spi = progress / pv;
         if (spi < 0.85) {
-          score += 15;
-          factors.push({ name: "EVM SPI critical", value: `SPI ${Math.round(spi * 100) / 100}`, pts: 15 });
+          score += RISK_WEIGHTS.evmSpi;
+          factors.push({ name: "EVM SPI critical", value: `SPI ${Math.round(spi * 100) / 100}`, pts: RISK_WEIGHTS.evmSpi });
         }
       }
     }
@@ -340,7 +337,7 @@ export function computeDimensionRisk(project, latestReport, riskScore, schedDev,
   if (latestReport.supportRequired === "Yes") bump("Support", "MEDIUM");
 
   if (project.targetOpeningDate) {
-    const dTo = Math.ceil((new Date(project.targetOpeningDate) - new Date()) / 86400000);
+    const dTo = daysUntil(project.targetOpeningDate);
     if (dTo < 0)  bump("Opening", "CRITICAL");
     else if (dTo < 30)  bump("Opening", riskScore.score > 60 ? "CRITICAL" : "HIGH");
     else if (dTo < 90)  bump("Opening", riskScore.score > 40 ? "HIGH" : "MEDIUM");
@@ -368,9 +365,9 @@ export function computeDimensionRisk(project, latestReport, riskScore, schedDev,
     else if (contScore.breakdown.reporting < 13) bump("Reporting", "HIGH");
     else if (contScore.breakdown.reporting < 17) bump("Reporting", "MEDIUM");
   }
-  const daysSince = Math.floor((new Date() - new Date(latestReport.reportingDate || latestReport.submittedAt)) / 86400000);
-  if (daysSince > 21)      bump("Reporting", "HIGH");
-  else if (daysSince > 14) bump("Reporting", "MEDIUM");
+  const reportAge = daysSince(latestReport.reportingDate || latestReport.submittedAt);
+  if (reportAge > 21)      bump("Reporting", "HIGH");
+  else if (reportAge > 14) bump("Reporting", "MEDIUM");
 
   if (projSiteVisits && projSiteVisits.length > 0) {
     const mismatchFactor = riskScore.factors.find(f => f.name === "PM Site Visit mismatch" || f.name === "Hidden risk (PM vs GC)");

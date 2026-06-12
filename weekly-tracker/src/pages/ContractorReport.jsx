@@ -1,3 +1,16 @@
+// ARCHITECTURE NOTE — two report formats coexist in this component:
+//
+//  Gantt (new)  — workPackageStatuses: { phaseId → { taskLabel → { progress, status } } }
+//                 Phase IDs and task labels come from masterTaskLibrary.js.
+//                 Used when project has a Gantt plan (getProjectGantt returns tasks).
+//
+//  Legacy (old) — demolitionStatus / constructionStatuses / testingStatuses / handoverStatuses
+//                 Task keys come from reportWeights.js / reportUtils.js.
+//                 Used as fallback when no Gantt plan exists.
+//
+// Progress calculation for both formats lives in progressEngine.js.
+// Do NOT add new progress logic here — extend progressEngine instead.
+
 import { normalizeReport } from "../services/reportService";
 import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";

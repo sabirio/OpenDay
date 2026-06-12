@@ -10,8 +10,6 @@ import {
   WORK_PACKAGES,
   WP_STATUS_SCORES,
   computePackageProgress,
-  computeProjectProgressFromWP,
-  mergeWPStatuses,
   makeEmptyWPStatuses,
 } from "../config/workPackages";
 
@@ -141,11 +139,7 @@ function mergeGanttWPStatuses(snapshots) {
   return merged;
 }
 
-/**
- * Compute overall progress % from Gantt-format workPackageStatuses.
- * Simple average of all task progress values across phases.
- * Works for both Gantt labels and old workPackages.js task names.
- */
+// DEPRECATED — unweighted flat average; use calculateProjectProgress() from progressEngine.js.
 export function computeGanttWPProgress(wpStatuses) {
   let total = 0, count = 0;
   for (const tasks of Object.values(wpStatuses || {})) {
@@ -191,10 +185,8 @@ export function computeWPCumulativeStatuses(projectReports) {
   };
 }
 
-/**
- * Estimate progress % from either old or new report format.
- * Tries new WP format first; falls back to old estimateProgressFromStatuses.
- */
+// DEPRECATED — no active callers. For per-report progress use calculateActivityProgress()
+// from progressEngine.js; for accumulated progress use calculateProjectProgress().
 export function estimateProgressAuto(r) {
   if (!r) return 0;
   if (isWPReport(r)) return computeGanttWPProgress(r.workPackageStatuses);
@@ -285,6 +277,7 @@ export function isMissingReport(latestReport) {
 
 // ─── Progress history ─────────────────────────────────────────────────────────
 
+// DEPRECATED — use progressAtIndex from progressEngine.js (weighted, format-aware).
 export function progressAtIndex(sortedReports, index) {
   const slice = sortedReports.slice(0, index + 1);
   const wpCum = computeWPCumulativeStatuses(slice);

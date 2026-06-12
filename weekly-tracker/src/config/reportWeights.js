@@ -50,7 +50,8 @@ export const phaseWeights = {
 };
 
 // ─── Work Package aligned weights (new format) ────────────────────────────────
-// These mirror WORK_PACKAGES task weights but kept here for engine compatibility.
+// DEPRECATED — not imported by any engine. Phase weights now live in WORK_PACKAGES[].weight
+// inside workPackages.js. Do not add new usages here.
 
 export const wpPhaseWeights = {
   preconstruction: 0.05,

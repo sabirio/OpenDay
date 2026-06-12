@@ -1,4 +1,5 @@
-import { estimateProgressFromStatuses, computeCumulativeStatuses, DAY_MS, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
+import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
+import { calculateProjectProgressResult } from "./progressEngine";
 import { computePmAlignmentItems, summarizeAlignmentItems } from "./pmAlignmentEngine";
 import { computeScheduleDeviation } from "./riskEngine";
 
@@ -48,8 +49,9 @@ export function computeContractorScores(project, projReports, projSiteVisits) {
   }
 
   // 3. Contractor-Controlled Progress (0-25): penalise only when behind expected
-  const cumStatuses = computeCumulativeStatuses(projReports) || {};
-  const gcProgress = estimateProgressFromStatuses(cumStatuses);
+  const wpCum  = computeWPCumulativeStatuses(projReports);
+  const legCum = computeCumulativeStatuses(projReports) || {};
+  const gcProgress = calculateProjectProgressResult(wpCum, legCum).progress;
   const schedDev = computeScheduleDeviation(project, gcProgress);
   let progressPts;
   if (!schedDev) {

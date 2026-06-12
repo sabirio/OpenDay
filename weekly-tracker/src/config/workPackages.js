@@ -151,14 +151,14 @@ export const WORK_PACKAGES = [
       { id: 'com.g.integrated', name: 'Integrated systems testing',   tasks: ['Integrated systems testing'] },
     ],
     tasks: [
-      { name: 'HVAC balancing & commissioning',    weight: 15 },
-      { name: 'Electrical testing & certification', weight: 15 },
-      { name: 'Sprinkler testing & commissioning',  weight: 15 },
-      { name: 'Fire alarm testing',                 weight: 12 },
-      { name: 'Security & access control testing',  weight: 10 },
-      { name: 'IT & POS integration testing',       weight: 10 },
-      { name: 'BMS commissioning',                  weight: 8 },
-      { name: 'Integrated systems testing',         weight: 15 },
+      { name: 'HVAC balancing & commissioning',    weight: 15, openingBlocker: 'critical' },
+      { name: 'Electrical testing & certification', weight: 15, openingBlocker: 'critical' },
+      { name: 'Sprinkler testing & commissioning',  weight: 15, openingBlocker: 'critical' },
+      { name: 'Fire alarm testing',                 weight: 12, openingBlocker: 'critical' },
+      { name: 'Security & access control testing',  weight: 10, openingBlocker: 'soft' },
+      { name: 'IT & POS integration testing',       weight: 10, openingBlocker: 'soft' },
+      { name: 'BMS commissioning',                  weight: 8,  openingBlocker: 'soft' },
+      { name: 'Integrated systems testing',         weight: 15, openingBlocker: 'critical' },
     ],
   },
   {
@@ -173,12 +173,12 @@ export const WORK_PACKAGES = [
       { id: 'hov.g.auth',   name: 'Authority approvals & permits', tasks: ['Authority approvals & permits'] },
     ],
     tasks: [
-      { name: 'Defects & snagging resolution', weight: 25 },
-      { name: 'Final cleaning',                weight: 15 },
-      { name: 'Staff training',                weight: 15 },
-      { name: 'O&M manuals',                   weight: 15 },
-      { name: 'Certificates & warranties',     weight: 15 },
-      { name: 'Authority approvals & permits', weight: 15 },
+      { name: 'Defects & snagging resolution', weight: 25, openingBlocker: 'critical' },
+      { name: 'Final cleaning',                weight: 15, openingBlocker: 'critical' },
+      { name: 'Staff training',                weight: 15, openingBlocker: 'soft' },
+      { name: 'O&M manuals',                   weight: 15, openingBlocker: 'soft' },
+      { name: 'Certificates & warranties',     weight: 15, openingBlocker: 'critical' },
+      { name: 'Authority approvals & permits', weight: 15, openingBlocker: 'critical' },
     ],
   },
 ];
@@ -262,6 +262,8 @@ export function computePackageProgress(wpStatuses, wpId) {
   return Math.round((weightedScore / totalWeight) * 100);
 }
 
+// DEPRECATED — uses old workPackages.js task key scheme; returns 0 for Gantt-format data.
+// Use calculateProjectProgress() from progressEngine.js instead.
 export function computeProjectProgressFromWP(wpStatuses) {
   if (!wpStatuses) return 0;
   let totalWeight = 0;
@@ -275,6 +277,8 @@ export function computeProjectProgressFromWP(wpStatuses) {
   return Math.round((weightedScore / totalWeight) * 100);
 }
 
+// DEPRECATED — uses old workPackages.js task key scheme; silently drops Gantt task entries.
+// Use mergeGanttWPStatuses() from reportUtils.js instead.
 export function mergeWPStatuses(statusSnapshots) {
   const merged = makeEmptyWPStatuses();
   for (const snapshot of statusSnapshots) {

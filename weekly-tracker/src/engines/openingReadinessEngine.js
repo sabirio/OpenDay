@@ -1,35 +1,19 @@
-import { WP_STATUS_SCORES } from "../config/workPackages";
+import { WORK_PACKAGES } from "../config/workPackages";
+import { daysUntil } from "../utils/reportUtils";
 
-// Tasks that MUST be Completed before a store can open.
-// Any of these in Not Started / In Progress / Delayed = blocker.
-const CRITICAL_BLOCKERS = {
-  commissioning: [
-    'HVAC balancing & commissioning',
-    'Electrical testing & certification',
-    'Sprinkler testing & commissioning',
-    'Fire alarm testing',
-    'Integrated systems testing',
-  ],
-  handover: [
-    'Defects & snagging resolution',
-    'Final cleaning',
-    'Certificates & warranties',
-    'Authority approvals & permits',
-  ],
-};
+// Derived from WORK_PACKAGES[].tasks[].openingBlocker — no hardcoded strings.
+// To change which tasks are blockers, update the openingBlocker flag in workPackages.js.
+function buildBlockerMap(level) {
+  const map = {};
+  for (const wp of WORK_PACKAGES) {
+    const names = wp.tasks.filter(t => t.openingBlocker === level).map(t => t.name);
+    if (names.length > 0) map[wp.id] = names;
+  }
+  return map;
+}
 
-// Tasks that should be done before opening but won't cause a hard 'Critical' on their own.
-const SOFT_BLOCKERS = {
-  commissioning: [
-    'Security & access control testing',
-    'IT & POS integration testing',
-    'BMS commissioning',
-  ],
-  handover: [
-    'Staff training',
-    'O&M manuals',
-  ],
-};
+const CRITICAL_BLOCKERS = buildBlockerMap('critical');
+const SOFT_BLOCKERS     = buildBlockerMap('soft');
 
 function getTaskStatus(wpStatuses, wpId, taskName) {
   return wpStatuses?.[wpId]?.[taskName]?.status || null;
@@ -58,9 +42,7 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate)
   const now = new Date();
   const targetDate = targetOpeningDate || null;
 
-  const daysToOpening = targetDate
-    ? Math.ceil((new Date(targetDate) - now) / 86400000)
-    : null;
+  const daysToOpening = targetDate ? daysUntil(targetDate) : null;
 
   const wpStatuses = wpCumulativeStatuses?.workPackageStatuses ?? wpCumulativeStatuses ?? null;
 

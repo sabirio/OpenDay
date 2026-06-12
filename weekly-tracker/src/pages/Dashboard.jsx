@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   estimateProgressFromStatuses,
   computeCumulativeStatuses, computeWPCumulativeStatuses,
-  computeGanttWPProgress, progressAtIndex,
   daysSince, isMissingReport, daysUntil,
 } from "../utils/reportUtils";
+import { calculateProjectProgress, progressAtIndex } from "../engines/progressEngine";
 import { PROJECT_COLORS, computePriorityScore } from "../config/dashboardConstants";
 import { computeProjectRiskScore } from "../engines/riskEngine";
 import {
@@ -20,7 +20,7 @@ import ProgressTab from "../components/dashboard/ProgressTab";
 import ContractorsTab from "../components/dashboard/ContractorsTab";
 import SiteVisitsTab from "../components/dashboard/SiteVisitsTab";
 import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
-import { loadAllGanttMetrics } from "../services/ganttService";
+import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { SPI_STATUS } from "../config/statusColors";
 
 function Dashboard({ projects, reports, siteVisits = [] }) {
@@ -30,15 +30,9 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
   const [searchQuery, setSearchQuery]             = useState("");
   const [expandedVisitId, setExpandedVisitId]     = useState(null);
   const [svStoreFilter, setSvStoreFilter]         = useState("all");
-  const [ganttMetrics, setGanttMetrics]           = useState(new Map());
   const [dismissedAlertIds, setDismissedAlertIds] = useState(new Set());
 
-  useEffect(() => {
-    if (!projects || projects.length === 0) return;
-    loadAllGanttMetrics(projects.map(p => p.id))
-      .then(map => setGanttMetrics(map))
-      .catch(err => console.error('[dashboard] gantt metrics error:', err));
-  }, [projects]);
+  const ganttMetrics = useGanttMetrics(projects);
 
   const allRows = useMemo(() => projects.map((project, idx) => {
     const projReports = reports.filter(r=>r.projectId===project.id);
@@ -48,7 +42,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     const wpCumulativeStatuses = computeWPCumulativeStatuses(projReports)||null;
     const latestReport = sorted[sorted.length-1]||null;
     const progress = wpCumulativeStatuses
-      ? computeGanttWPProgress(wpCumulativeStatuses.workPackageStatuses)
+      ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses)
       : estimateProgressFromStatuses(cumulativeStatuses);
     const color = PROJECT_COLORS[idx%PROJECT_COLORS.length];
     const progressPoints = sorted.map((r,i)=>({ date:r.reportingDate||r.submittedAt, value:progressAtIndex(sorted,i) }));
