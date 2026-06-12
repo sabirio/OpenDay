@@ -379,6 +379,88 @@ function GanttWPRow({ task, entry, onChange }) {
   );
 }
 
+// ── Collapsible phase wrapper ──────────────────────────────────────────────
+
+function PhaseSection({ phaseKey, tasks, ganttWpProgress, onUpdateProgress, projectId }) {
+  const storageKey = `gantt_phases_${projectId}`;
+
+  const [open, setOpen] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      return stored[phaseKey] ?? false;
+    } catch { return false; }
+  });
+
+  const phasePct = tasks.length === 0 ? 0 : Math.round(
+    tasks.reduce((sum, t) => {
+      const e = ganttWpProgress[t.id];
+      return sum + (e?.progress_pct ?? t.actual_progress ?? 0);
+    }, 0) / tasks.length
+  );
+  const allComplete = phasePct === 100;
+
+  // Auto-close when the last task reaches 100% (skip on first mount)
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    if (allComplete && open) toggle(false);
+  }, [allComplete]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggle(next = !open) {
+    setOpen(next);
+    try {
+      const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      stored[phaseKey] = next;
+      localStorage.setItem(storageKey, JSON.stringify(stored));
+    } catch {}
+  }
+
+  const pctColor = phasePct >= 100 ? '#16a34a' : phasePct >= 50 ? '#2f855a' : '#6b7280';
+
+  return (
+    <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 14, marginBottom: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+      {/* Header */}
+      <div
+        onClick={() => toggle()}
+        style={{
+          padding: '12px 22px',
+          borderLeft: '4px solid #2f855a',
+          borderBottom: open ? '1px solid #f3f4f6' : 'none',
+          background: '#fafafa',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          cursor: 'pointer', userSelect: 'none',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            fontSize: 10, color: '#6b7280', display: 'inline-block',
+            transition: 'transform 0.15s',
+            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+          }}>▶</span>
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: '#111827', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            {phaseKey}
+          </h3>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 700, color: pctColor }}>{phasePct}%</span>
+      </div>
+
+      {/* Tasks */}
+      {open && (
+        <div style={{ padding: '20px 22px' }}>
+          {tasks.map(task => (
+            <GanttWPRow
+              key={task.id}
+              task={task}
+              entry={ganttWpProgress[task.id]}
+              onChange={updates => onUpdateProgress(task.id, updates)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Form initialization ────────────────────────────────────────────────────
 
 // Build cumulative best WP statuses across all project reports
@@ -909,16 +991,14 @@ function ContractorReport({ projects, reports, onSaveReport }) {
               byPhase[key].push(task);
             }
             return Object.entries(byPhase).map(([phase, tasks]) => (
-              <FormSection key={phase} title={phase} accentColor="#2f855a">
-                {tasks.map(task => (
-                  <GanttWPRow
-                    key={task.id}
-                    task={task}
-                    entry={ganttWpProgress[task.id]}
-                    onChange={updates => updateWPProgress(task.id, updates)}
-                  />
-                ))}
-              </FormSection>
+              <PhaseSection
+                key={phase}
+                phaseKey={phase}
+                tasks={tasks}
+                ganttWpProgress={ganttWpProgress}
+                onUpdateProgress={updateWPProgress}
+                projectId={project.id}
+              />
             ));
           })()
         ) : (
