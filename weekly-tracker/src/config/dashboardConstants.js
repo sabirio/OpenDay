@@ -105,18 +105,6 @@ export function computePhaseCompletions(statuses) {
   ];
 }
 
-export function computeRiskLevel(latestReport, progress, daysToOpening, missingReport) {
-  if (!latestReport) return "UNKNOWN";
-  const blocked  = latestReport.activitiesBlocked === "Yes";
-  const atRisk   = latestReport.projectScheduleStatus === "At Risk" || latestReport.projectScheduleStatus === "Delayed" || latestReport.projectScheduleStatus === "Critical";
-  const highScale= latestReport.riskScale === "High";
-  if (blocked && atRisk) return "CRITICAL";
-  if (daysToOpening !== null && daysToOpening < 30 && progress < 70) return "CRITICAL";
-  if (blocked || (atRisk && highScale)) return "HIGH";
-  if (atRisk || missingReport) return "MEDIUM";
-  return "LOW";
-}
-
 export function computePriorityScore(riskLevel, daysToOpening, missingReport) {
   if (riskLevel === "CRITICAL") return 0;
   if (riskLevel === "HIGH")     return 1;

@@ -1,5 +1,6 @@
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { DIM_LEVEL_ORDER } from "./riskEngine";
+import { DAY_MS } from "../utils/reportUtils";
 
 export function computeEscalations(sortedReports, projSiteVisits) {
   const results = [];
@@ -39,7 +40,7 @@ export function computeEscalations(sortedReports, projSiteVisits) {
   // C. Support request open 14+ days
   const latestSupportR = [...sortedReports].reverse().find(r => r.supportRequired === "Yes");
   if (latestSupportR) {
-    const daysSince = Math.floor((new Date() - new Date(latestSupportR.reportingDate || latestSupportR.submittedAt)) / 86400000);
+    const daysSince = Math.floor((Date.now() - new Date(latestSupportR.reportingDate || latestSupportR.submittedAt).getTime()) / DAY_MS);
     if (daysSince >= 14) {
       results.push({
         type: "support", label: "Support request unresolved", weeks: Math.ceil(daysSince / 7),

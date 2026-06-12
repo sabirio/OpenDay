@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { updateGanttDates } from './projectService';
+import { getSPIStatus } from '../config/statusColors';
 import {
   buildProjectWPs,
   calculateGantt,
@@ -353,4 +354,161 @@ export async function refreshPlannedProgress(projectId) {
       .update({ planned_progress: u.planned_progress })
       .eq('id', u.id);
   }
+}
+
+// ─── Schedule performance (SPI) ───────────────────────────────────────────────
+
+function computePlannedPct(plannedStart, plannedEnd, referenceDate = new Date()) {
+  const start = new Date(plannedStart);
+  const end   = new Date(plannedEnd);
+  const ref   = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
+  if (isNaN(start) || isNaN(end) || end <= start) return 100;
+  if (ref <= start) return 0;
+  if (ref >= end)   return 100;
+  return Math.min(100, (ref - start) / (end - start) * 100);
+}
+
+function computeSPIFromTasks(tasks, referenceDate = new Date()) {
+  const active = tasks.filter(t => !t.is_archived);
+  if (active.length === 0) return null;
+  let sumActual = 0, sumPlanned = 0;
+  for (const t of active) {
+    sumActual  += (t.actual_progress ?? 0);
+    sumPlanned += computePlannedPct(t.planned_start, t.planned_end, referenceDate);
+  }
+  const avgPlanned = sumPlanned / active.length;
+  if (avgPlanned < 1) return null;
+  return Math.round((sumActual / sumPlanned) * 100) / 100;
+}
+
+function computeCriticalHealth(tasks, referenceDate = new Date()) {
+  const critical = tasks.filter(t => t.is_critical && !t.is_archived);
+  if (critical.length === 0) return { total: 0, behind: 0, ratio: 0 };
+  const behind = critical.filter(t => {
+    const planned = computePlannedPct(t.planned_start, t.planned_end, referenceDate);
+    return (t.actual_progress ?? 0) < planned - 5;
+  }).length;
+  return {
+    total: critical.length,
+    behind,
+    ratio: behind / critical.length,
+    label: behind === 0 ? 'healthy' : behind / critical.length <= 0.5 ? 'warning' : 'critical',
+  };
+}
+
+/**
+ * Compute SPI + critical path health for a single project.
+ * Returns { spi, spiStatus, criticalHealth, lastVisitDate, taskCount }
+ */
+export async function getProjectMetrics(projectId) {
+  const today = new Date();
+  const { data: tasks, error } = await supabase
+    .from('project_gantt_tasks')
+    .select('wp_id,planned_start,planned_end,actual_progress,is_critical,is_archived')
+    .eq('project_id', projectId);
+  if (error) throw error;
+
+  const spi            = computeSPIFromTasks(tasks || [], today);
+  const criticalHealth = computeCriticalHealth(tasks || [], today);
+
+  const { data: visits } = await supabase
+    .from('site_visits')
+    .select('visit_date')
+    .eq('project_id', projectId)
+    .order('visit_date', { ascending: false })
+    .limit(1);
+
+  return {
+    spi,
+    spiStatus:     getSPIStatus(spi),
+    criticalHealth,
+    lastVisitDate: visits?.[0]?.visit_date ?? null,
+    taskCount:     (tasks || []).filter(t => !t.is_archived).length,
+  };
+}
+
+/**
+ * Batch-fetch SPI + critical path health for a list of project IDs.
+ * Returns Map<projectId, { spi, spiStatus, criticalHealth, lastVisitDate, taskCount }>
+ */
+export async function loadAllGanttMetrics(projectIds) {
+  if (!projectIds || projectIds.length === 0) return new Map();
+  const today = new Date();
+
+  const { data: allTasks, error: tErr } = await supabase
+    .from('project_gantt_tasks')
+    .select('project_id,wp_id,planned_start,planned_end,actual_progress,is_critical,is_archived')
+    .in('project_id', projectIds);
+  if (tErr) throw tErr;
+
+  const { data: allVisits } = await supabase
+    .from('site_visits')
+    .select('project_id,visit_date')
+    .in('project_id', projectIds)
+    .order('visit_date', { ascending: false });
+
+  const lastVisitMap = new Map();
+  for (const v of allVisits || []) {
+    if (!lastVisitMap.has(v.project_id)) lastVisitMap.set(v.project_id, v.visit_date);
+  }
+
+  const tasksByProject = new Map();
+  for (const t of allTasks || []) {
+    if (!tasksByProject.has(t.project_id)) tasksByProject.set(t.project_id, []);
+    tasksByProject.get(t.project_id).push(t);
+  }
+
+  const result = new Map();
+  for (const pid of projectIds) {
+    const tasks          = tasksByProject.get(pid) || [];
+    const spi            = computeSPIFromTasks(tasks, today);
+    const criticalHealth = computeCriticalHealth(tasks, today);
+    result.set(pid, {
+      spi,
+      spiStatus:     getSPIStatus(spi),
+      criticalHealth,
+      lastVisitDate: lastVisitMap.get(pid) ?? null,
+      taskCount:     tasks.filter(t => !t.is_archived).length,
+    });
+  }
+  return result;
+}
+
+/**
+ * Weekly SPI trend for a project (up to weeksBack data points).
+ * Each point: { weekLabel, reportDate, spi, overallProgress, plannedAvg }
+ */
+export async function getProjectTrend(projectId, weeksBack = 8) {
+  const [reportsRes, tasksRes] = await Promise.all([
+    supabase
+      .from('contractor_reports')
+      .select('id,report_date,week_number,overall_progress')
+      .eq('project_id', projectId)
+      .order('report_date', { ascending: false })
+      .limit(weeksBack),
+    supabase
+      .from('project_gantt_tasks')
+      .select('wp_id,planned_start,planned_end,is_archived')
+      .eq('project_id', projectId),
+  ]);
+  if (reportsRes.error) throw reportsRes.error;
+
+  const reports = (reportsRes.data || []).reverse();
+  const tasks   = (tasksRes.data || []).filter(t => !t.is_archived);
+
+  return reports.map(r => {
+    const refDate = new Date(r.report_date);
+    const planned = tasks.length > 0
+      ? tasks.reduce((s, t) => s + computePlannedPct(t.planned_start, t.planned_end, refDate), 0) / tasks.length
+      : null;
+    const actual = r.overall_progress ?? 0;
+    const spi    = planned && planned >= 1 ? Math.round(actual / planned * 100) / 100 : null;
+    return {
+      weekLabel:       `W${r.week_number}`,
+      reportDate:      r.report_date,
+      spi,
+      overallProgress: actual,
+      plannedAvg:      planned !== null ? Math.round(planned) : null,
+    };
+  });
 }

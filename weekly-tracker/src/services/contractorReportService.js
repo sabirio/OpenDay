@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { batchUpdateWPProgress, updateForecast } from './ganttService';
+import { DAY_MS } from '../utils/reportUtils';
 
 // ─── Submit contractor report ─────────────────────────────────────────────────
 
@@ -143,5 +144,5 @@ function getISOWeekNumber(date) {
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return Math.ceil((((d - yearStart) / DAY_MS) + 1) / 7);
 }

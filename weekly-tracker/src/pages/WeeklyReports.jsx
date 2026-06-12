@@ -8,6 +8,7 @@ import {
 } from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
+import { computePortfolioMissing } from "../engines/portfolioEngine";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
 import PhaseStepper       from "../components/weekly/PhaseStepper";
@@ -137,22 +138,7 @@ function WeeklyReports({ projects, reports }) {
   const overallCumulative = useMemo(() => computeCumulativeStatuses(projectReports), [projectReports]);
   const overallProgress   = useMemo(() => estimateProgressFromStatuses(overallCumulative), [overallCumulative]);
 
-  const portfolioKpis = useMemo(() => {
-    const now = new Date();
-    const rows = projects.map(p => {
-      const pReports  = reports.filter(r => String(r.projectId) === String(p.id));
-      const latest    = [...pReports].sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt))[0];
-      const daysSince = latest ? Math.floor((now - new Date(latest.reportingDate || latest.submittedAt)) / 86400000) : null;
-      const isMissing = !latest || (daysSince !== null && daysSince > 7);
-      const progress  = estimateProgressFromStatuses(computeCumulativeStatuses(pReports));
-      return { project: p, latestReport: latest, daysSinceReport: daysSince, isMissing, progress };
-    });
-    const missing    = rows.filter(r => r.isMissing);
-    const blocked    = rows.filter(r => r.latestReport?.activitiesBlocked === "Yes").length;
-    const support    = rows.filter(r => r.latestReport?.supportRequired === "Yes").length;
-    const avgProgress = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.progress, 0) / rows.length) : 0;
-    return { missingCount: missing.length, missing, blocked, support, avgProgress };
-  }, [projects, reports]);
+  const portfolioKpis = useMemo(() => computePortfolioMissing(projects, reports), [projects, reports]);
 
   const additionalWorksList = useMemo(() => {
     const sorted = [...projectReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));

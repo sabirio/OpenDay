@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import {
   estimateProgressFromStatuses, estimateProgressAuto,
   computeCumulativeStatuses, computeWPCumulativeStatuses,
+  daysSince, isMissingReport, daysUntil,
 } from "../utils/reportUtils";
-import { WORK_PACKAGES } from "../config/workPackages";
+import { PROJECT_COLORS, computePriorityScore } from "../config/dashboardConstants";
+import { computeProjectRiskScore } from "../engines/riskEngine";
 import {
-  PROJECT_COLORS, CONSTRUCTION_ITEMS, TESTING_ITEMS, HANDOVER_ITEMS,
-  computeRiskLevel, computePriorityScore, svCompare, getGCStatusForTask,
-} from "../config/dashboardConstants";
+  computePortfolioAlerts, computeContractorPerf,
+  computePortfolioKpis, computeSiteVisitData, computeSiteVisitKpis,
+} from "../engines/portfolioEngine";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
 import SummaryPanel from "../components/dashboard/SummaryPanel";
 import StatusMatrix from "../components/dashboard/StatusMatrix";
@@ -17,7 +19,7 @@ import ProgressTab from "../components/dashboard/ProgressTab";
 import ContractorsTab from "../components/dashboard/ContractorsTab";
 import SiteVisitsTab from "../components/dashboard/SiteVisitsTab";
 import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
-import { loadAllGanttMetrics } from "../services/dashboardService";
+import { loadAllGanttMetrics } from "../services/ganttService";
 import { SPI_STATUS } from "../config/statusColors";
 
 function Dashboard({ projects, reports, siteVisits = [] }) {
@@ -39,6 +41,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
   const allRows = useMemo(() => projects.map((project, idx) => {
     const projReports = reports.filter(r=>r.projectId===project.id);
+    const projSiteVisits = siteVisits.filter(sv=>String(sv.projectId)===String(project.id));
     const sorted = [...projReports].sort((a,b)=>new Date(a.reportingDate||a.submittedAt)-new Date(b.reportingDate||b.submittedAt));
     const cumulativeStatuses = computeCumulativeStatuses(projReports)||{};
     const wpCumulativeStatuses = computeWPCumulativeStatuses(projReports)||null;
@@ -48,14 +51,13 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       : estimateProgressFromStatuses(cumulativeStatuses);
     const color = PROJECT_COLORS[idx%PROJECT_COLORS.length];
     const progressPoints = sorted.map((r,i)=>({ date:r.reportingDate||r.submittedAt, value:estimateProgressFromStatuses(computeCumulativeStatuses(sorted.slice(0,i+1))) }));
-    const now = new Date();
-    const daysSinceReport = latestReport ? Math.floor((now-new Date(latestReport.reportingDate||latestReport.submittedAt))/86400000) : null;
-    const missingReport = !latestReport||(daysSinceReport!==null&&daysSinceReport>7);
-    const daysToOpening = project.targetOpeningDate ? Math.ceil((new Date(project.targetOpeningDate)-now)/86400000) : null;
-    const riskLevel = computeRiskLevel(latestReport,progress,daysToOpening,missingReport);
+    const daysSinceReport = latestReport ? daysSince(latestReport.reportingDate||latestReport.submittedAt) : null;
+    const missingReport = isMissingReport(latestReport);
+    const daysToOpening = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
+    const riskLevel = computeProjectRiskScore(project, projReports, progress, projSiteVisits).level;
     const priorityScore = computePriorityScore(riskLevel,daysToOpening,missingReport);
     return { project,latestReport,cumulativeStatuses,wpCumulativeStatuses,progress,projReports,sorted,color,progressPoints,daysSinceReport,missingReport,daysToOpening,riskLevel,priorityScore };
-  }), [projects,reports]);
+  }), [projects,reports,siteVisits]);
 
   const filteredRows = useMemo(()=>allRows.filter(({project,latestReport,missingReport})=>{
     if (searchQuery) {
@@ -73,19 +75,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
   const defaultSorted = useMemo(()=>[...filteredRows].sort((a,b)=>a.priorityScore-b.priorityScore||a.progress-b.progress),[filteredRows]);
 
-  const kpis = useMemo(()=>{
-    const active=projects.filter(p=>p.projectStatus==="Active").length;
-    const atRisk=allRows.filter(({latestReport})=>latestReport?.projectScheduleStatus==="At Risk"||latestReport?.projectScheduleStatus==="Delayed").length;
-    const critical=allRows.filter(({riskLevel})=>riskLevel==="CRITICAL").length;
-    const missing=allRows.filter(({missingReport})=>missingReport).length;
-    const blocked=allRows.filter(({latestReport})=>latestReport?.activitiesBlocked==="Yes").length;
-    const support=allRows.filter(({latestReport})=>latestReport?.supportRequired==="Yes").length;
-    const avgProgress=allRows.length?Math.round(allRows.reduce((s,{progress})=>s+progress,0)/allRows.length):0;
-    const weekAgo=new Date(); weekAgo.setDate(weekAgo.getDate()-7);
-    const reportsThisWeek=reports.filter(r=>new Date(r.reportingDate||r.submittedAt)>=weekAgo).length;
-    const openingSoon=allRows.filter(({daysToOpening})=>daysToOpening!==null&&daysToOpening>=0&&daysToOpening<30).length;
-    return {active,total:projects.length,atRisk,critical,missing,blocked,support,avgProgress,reportsThisWeek,openingSoon};
-  },[projects,reports,allRows]);
+  const kpis = useMemo(() => computePortfolioKpis(projects, allRows, reports), [projects, allRows, reports]);
 
   // Rows enriched with gantt SPI — passed to SummaryPanel for avgSPI card
   const spiRows = useMemo(() => allRows.map(row => {
@@ -108,23 +98,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     .map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
   , [allRows, ganttMetrics]);
 
-  const alerts = useMemo(()=>{
-    const list=[];
-    allRows.forEach(({project,latestReport,progress,daysToOpening,daysSinceReport,riskLevel})=>{
-      if (daysToOpening!==null&&daysToOpening<30&&progress<80)
-        list.push({sev:"CRITICAL",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:"Opening approaching — low progress",detail:`${daysToOpening<0?"OVERDUE":daysToOpening+"d to open"} · Progress ${progress}%`,action:"Immediate escalation required"});
-      if (latestReport?.activitiesBlocked==="Yes")
-        list.push({sev:"HIGH",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:"Activities blocked",detail:latestReport.delayReason||"Reason not specified",action:"PM intervention required"});
-      if ((latestReport?.projectScheduleStatus==="At Risk"||latestReport?.projectScheduleStatus==="Delayed")&&latestReport?.riskScale==="High")
-        list.push({sev:"HIGH",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:`${latestReport.projectScheduleStatus} + High risk scale`,detail:latestReport.riskDescription||"Review risk report",action:"Review mitigation plan"});
-      if (latestReport?.projectScheduleStatus==="Delayed")
-        list.push({sev:"HIGH",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:"Project delayed",detail:latestReport.riskDescription||"Schedule confirmed delayed",action:"Review recovery plan"});
-      if (riskLevel==="CRITICAL"&&latestReport&&!list.some(a=>a.pid===project.id&&a.sev==="CRITICAL"))
-        list.push({sev:"CRITICAL",pid:project.id,code:project.storeCode,mall:project.shoppingMallName,reason:"Project classified CRITICAL",detail:`Risk Level: CRITICAL`,action:"Immediate PM review required"});
-    });
-    const ord={CRITICAL:0,HIGH:1,MEDIUM:2};
-    return list.sort((a,b)=>ord[a.sev]-ord[b.sev]);
-  },[allRows]);
+  const alerts = useMemo(() => computePortfolioAlerts(allRows), [allRows]);
 
   const heatmapRows = useMemo(()=>{
     const WEEKS=16; const now=new Date();
@@ -142,75 +116,9 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     }));
   },[allRows]);
 
-  const contractorPerf = useMemo(()=>{
-    const map={};
-    allRows.forEach(({project,latestReport,progress,projReports,missingReport})=>{
-      const name=project.generalContractor||latestReport?.contractor||"Unknown";
-      if (!map[name]) map[name]={projects:[],totalProg:0,atRisk:0,blockers:0,support:0,missing:0,reportCount:0};
-      const c=map[name];
-      c.projects.push(project.storeCode);
-      c.totalProg+=progress;
-      if (latestReport?.projectScheduleStatus==="At Risk"||latestReport?.projectScheduleStatus==="Delayed") c.atRisk++;
-      if (latestReport?.activitiesBlocked==="Yes") c.blockers++;
-      if (latestReport?.supportRequired==="Yes") c.support++;
-      if (missingReport) c.missing++;
-      c.reportCount+=projReports.length;
-    });
-    return Object.entries(map).map(([name,d])=>({
-      name,n:d.projects.length,projects:d.projects,
-      avgProg:d.projects.length?Math.round(d.totalProg/d.projects.length):0,
-      atRisk:d.atRisk,blockers:d.blockers,support:d.support,missing:d.missing,reportCount:d.reportCount,
-    })).sort((a,b)=>b.atRisk-a.atRisk||b.blockers-a.blockers||a.avgProg-b.avgProg);
-  },[allRows]);
+  const contractorPerf = useMemo(() => computeContractorPerf(allRows), [allRows]);
 
-  const svData = useMemo(()=>{
-    return siteVisits.map(visit=>{
-      const project=projects.find(p=>String(p.id)===String(visit.projectId));
-      const projectReports=reports.filter(r=>String(r.projectId)===String(visit.projectId));
-      const sortedReports=[...projectReports].sort((a,b)=>new Date(b.reportingDate||b.submittedAt)-new Date(a.reportingDate||a.submittedAt));
-      const gcReport=(visit.referenceReportId
-        ? projectReports.find(r=>String(r.id)===String(visit.referenceReportId))
-        : null) || sortedReports[0] || null;
-
-      const items=[];
-
-      if (visit.pmWorkPackageStatuses) {
-        for (const wp of WORK_PACKAGES) {
-          for (const task of wp.tasks) {
-            const pmEntry=visit.pmWorkPackageStatuses[wp.id]?.[task.name];
-            const pmStatus=pmEntry?.observedStatus||null;
-            const gcStatus=getGCStatusForTask(gcReport,wp.id,task.name);
-            if (pmStatus||gcStatus) {
-              items.push({phase:wp.name,label:task.name,pm:pmStatus,gc:gcStatus,result:svCompare(pmStatus,gcStatus)});
-            }
-          }
-        }
-      } else {
-        const demoResult=svCompare(visit.demolitionStatus,gcReport?.demolitionStatus);
-        if (visit.demolitionStatus||gcReport?.demolitionStatus)
-          items.push({phase:"Demolition",label:"Demolition",pm:visit.demolitionStatus,gc:gcReport?.demolitionStatus,result:demoResult});
-        CONSTRUCTION_ITEMS.forEach(key=>{
-          const pm=visit.constructionStatuses?.[key],gc=gcReport?.constructionStatuses?.[key];
-          if (pm||gc) items.push({phase:"Construction",label:key,pm,gc,result:svCompare(pm,gc)});
-        });
-        TESTING_ITEMS.forEach(key=>{
-          const pm=visit.testingStatuses?.[key],gc=gcReport?.testingStatuses?.[key];
-          if (pm||gc) items.push({phase:"Testing",label:key,pm,gc,result:svCompare(pm,gc)});
-        });
-        HANDOVER_ITEMS.forEach(key=>{
-          const pm=visit.handoverStatuses?.[key],gc=gcReport?.handoverStatuses?.[key];
-          if (pm||gc) items.push({phase:"Handover",label:key,pm,gc,result:svCompare(pm,gc)});
-        });
-      }
-
-      const assessed=items.filter(i=>i.result&&i.result.type!=="not-assessed"&&i.result.type!=="no-gc");
-      const matches=assessed.filter(i=>i.result?.type==="match").length;
-      const discrepancies=assessed.filter(i=>i.result?.type==="discrepancy").length;
-      const pmAhead=assessed.filter(i=>i.result?.type==="pm-higher").length;
-      const matchRate=assessed.length>0?Math.round(matches/assessed.length*100):null;
-      return {visit,project,gcReport,items,assessed:assessed.length,matches,discrepancies,pmAhead,matchRate};
-    }).sort((a,b)=>new Date(b.visit.visitDate||b.visit.submittedAt)-new Date(a.visit.visitDate||a.visit.submittedAt));
-  },[siteVisits,projects,reports]);
+  const svData = useMemo(() => computeSiteVisitData(siteVisits, projects, reports), [siteVisits, projects, reports]);
 
   const svFiltered = useMemo(()=>
     svStoreFilter==="all" ? svData : svData.filter(d=>d.project?.storeCode===svStoreFilter)
@@ -220,15 +128,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     Array.from(new Set(svData.map(d=>d.project?.storeCode).filter(Boolean))).sort()
   ,[svData]);
 
-  const svKpis = useMemo(()=>{
-    const src=svFiltered;
-    const totalAssessed=src.reduce((s,d)=>s+d.assessed,0);
-    const totalMatches=src.reduce((s,d)=>s+d.matches,0);
-    const totalDiscrepancies=src.reduce((s,d)=>s+d.discrepancies,0);
-    const totalPmAhead=src.reduce((s,d)=>s+d.pmAhead,0);
-    const overallMatchRate=totalAssessed>0?Math.round(totalMatches/totalAssessed*100):null;
-    return {totalVisits:src.length,totalAssessed,totalMatches,totalDiscrepancies,totalPmAhead,overallMatchRate};
-  },[svFiltered]);
+  const svKpis = useMemo(() => computeSiteVisitKpis(svFiltered), [svFiltered]);
 
   const drawerRow = useMemo(()=>drawerProjectId?allRows.find(({project})=>String(project.id)===drawerProjectId)||null:null,[allRows,drawerProjectId]);
   const drawerSiteVisits = useMemo(()=>drawerRow?siteVisits.filter(sv=>String(sv.projectId)===String(drawerRow.project.id)):[],[siteVisits,drawerRow]);

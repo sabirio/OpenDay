@@ -82,7 +82,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                     </div>
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 11, color: "#9ca3af" }}>Acc</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: contScore.reportingAccuracy >= 80 ? "#22c55e" : contScore.reportingAccuracy >= 60 ? "#f59e0b" : "#dc2626" }}>{contScore.reportingAccuracy}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: contScore.pmAlignmentScore >= 80 ? "#22c55e" : contScore.pmAlignmentScore >= 60 ? "#f59e0b" : "#dc2626" }}>{contScore.pmAlignmentScore}</div>
                     </div>
                   </div>
                 </td>
@@ -138,7 +138,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                       <div style={{ minWidth: 200 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Contractor Scores</div>
                         <ScoreBar label="Performance" pts={contScore.performanceScore} max={100} color={contScore.performanceScore >= 80 ? "#22c55e" : contScore.performanceScore >= 60 ? "#f59e0b" : "#dc2626"} />
-                        <ScoreBar label="Reporting Accuracy" pts={contScore.reportingAccuracy} max={100} color={contScore.reportingAccuracy >= 80 ? "#22c55e" : contScore.reportingAccuracy >= 60 ? "#f59e0b" : "#dc2626"} />
+                        <ScoreBar label="PM Alignment Score" pts={contScore.pmAlignmentScore} max={100} color={contScore.pmAlignmentScore >= 80 ? "#22c55e" : contScore.pmAlignmentScore >= 60 ? "#f59e0b" : "#dc2626"} />
                       </div>
 
                       {/* Root Cause */}

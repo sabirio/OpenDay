@@ -1,10 +1,10 @@
-import { estimateProgressFromStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
-import { computePmAlignmentItems } from "./pmAlignmentEngine";
+import { estimateProgressFromStatuses, computeCumulativeStatuses, DAY_MS, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
+import { computePmAlignmentItems, summarizeAlignmentItems } from "./pmAlignmentEngine";
 import { computeScheduleDeviation } from "./riskEngine";
 
 export function computeContractorScores(project, projReports, projSiteVisits) {
   if (!projReports.length) {
-    return { totalScore: 50, performanceScore: 50, reportingAccuracy: 50, breakdown: { reporting: 10, pmAlignment: 15, progress: 12, issues: 8, communication: 5 }, pmAlignmentDetails: [] };
+    return { totalScore: 50, performanceScore: 50, pmAlignmentScore: 50, breakdown: { reporting: 10, pmAlignment: 15, progress: 12, issues: 8, communication: 5 }, pmAlignmentDetails: [] };
   }
   const sorted = [...projReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
   const latest = sorted[sorted.length - 1];
@@ -12,7 +12,7 @@ export function computeContractorScores(project, projReports, projSiteVisits) {
   // 1. Reporting Discipline (0-20)
   let reportingPts = 20;
   const gapPenalty = sorted.slice(1).reduce((pen, r, i) => {
-    const gap = (new Date(r.reportingDate || r.submittedAt) - new Date(sorted[i].reportingDate || sorted[i].submittedAt)) / 86400000;
+    const gap = (new Date(r.reportingDate || r.submittedAt) - new Date(sorted[i].reportingDate || sorted[i].submittedAt)) / DAY_MS;
     return pen + (gap > 21 ? 6 : gap > 14 ? 3 : 0);
   }, 0);
   reportingPts -= Math.min(8, gapPenalty);
@@ -31,17 +31,14 @@ export function computeContractorScores(project, projReports, projSiteVisits) {
       const visitDate = new Date(visit.visitDate || visit.submittedAt);
       const gcAtVisit = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || sorted[sorted.length - 1];
       const items = computePmAlignmentItems(gcAtVisit, visit);
-      const total = items.length;
-      const overstatements = items.filter(i => i.overstate).length;
-      const matches = items.filter(i => i.match).length;
-      const matchRate = total > 0 ? Math.round((matches / total) * 100) : 100;
-      pmAlignmentDetails.push({ visitDate: visit.visitDate || visit.submittedAt, matchRate, overstatements, total, items });
+      const { matchRate, overstatements: overstateItems, matches: matchItems } = summarizeAlignmentItems(items);
+      pmAlignmentDetails.push({ visitDate: visit.visitDate || visit.submittedAt, matchRate, overstatements: overstateItems.length, total: items.length, items });
       items.forEach(item => {
         if (item.severity === "CRITICAL" || item.severity === "HIGH") pmAlignmentPts -= 4;
         else if (item.severity === "MEDIUM") pmAlignmentPts -= 1;
       });
-      const pmSevere = ["Delayed", "Critical"].includes(visit.pmScheduleAssessment);
-      const pmBadV   = pmSevere || visit.pmScheduleAssessment === "At Risk";
+      const pmSevere = isSevereScheduleStatus(visit.pmScheduleAssessment);
+      const pmBadV   = pmSevere || isBadScheduleStatus(visit.pmScheduleAssessment);
       const gcGoodV  = gcAtVisit.projectScheduleStatus === "On Track";
       const gcAtRiskV = gcAtVisit.projectScheduleStatus === "At Risk";
       if (pmBadV && gcGoodV) pmAlignmentPts -= pmSevere ? 7 : 5;
@@ -82,9 +79,9 @@ export function computeContractorScores(project, projReports, projSiteVisits) {
 
   const totalScore = Math.min(100, reportingPts + pmAlignmentPts + progressPts + issuePts + commPts);
   const performanceScore = Math.min(100, Math.round(((reportingPts + progressPts + issuePts + commPts) / 70) * 100));
-  const reportingAccuracy = Math.min(100, Math.round((pmAlignmentPts / 30) * 100));
+  const pmAlignmentScore = Math.min(100, Math.round((pmAlignmentPts / 30) * 100));
 
-  return { totalScore, performanceScore, reportingAccuracy, breakdown: { reporting: reportingPts, pmAlignment: pmAlignmentPts, progress: progressPts, issues: issuePts, communication: commPts }, pmAlignmentDetails };
+  return { totalScore, performanceScore, pmAlignmentScore, breakdown: { reporting: reportingPts, pmAlignment: pmAlignmentPts, progress: progressPts, issues: issuePts, communication: commPts }, pmAlignmentDetails };
 }
 
 export function computePortfolioContractorScores(allRows) {
@@ -95,7 +92,7 @@ export function computePortfolioContractorScores(allRows) {
     const c = map[name];
     c.projects.push(project.storeCode);
     c.totalPerf += contScore.performanceScore;
-    c.totalAccuracy += contScore.reportingAccuracy;
+    c.totalAccuracy += contScore.pmAlignmentScore;
     c.totalScore += contScore.totalScore;
     c.reportCount += projReports.length;
   });

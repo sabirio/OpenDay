@@ -57,7 +57,7 @@ function Login() {
               <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="#60a5fa" />
             </svg>
           </div>
-          <h1 className="login-title">Construction PM Portal</h1>
+          <h1 className="login-title">NORYX</h1>
           <p className="login-subtitle">Sign in to your account</p>
         </div>
 

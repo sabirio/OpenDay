@@ -212,3 +212,38 @@ export function estimateProgressFromStatuses(r) {
 
   return Math.round((weightedSum / totalWeight) * 100);
 }
+
+// ─── Shared constants ─────────────────────────────────────────────────────────
+
+export const DAY_MS = 86400000;
+
+// ─── Schedule status predicates ───────────────────────────────────────────────
+
+export function isBadScheduleStatus(status)    { return status === "At Risk" || status === "Delayed" || status === "Critical"; }
+export function isSevereScheduleStatus(status) { return status === "Delayed" || status === "Critical"; }
+
+// ─── Report freshness helpers ─────────────────────────────────────────────────
+
+export function daysSince(dateStr) {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / DAY_MS);
+}
+
+export function daysUntil(dateStr) {
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / DAY_MS);
+}
+
+export function isMissingReport(latestReport) {
+  if (!latestReport) return true;
+  return daysSince(latestReport.reportingDate || latestReport.submittedAt) > 7;
+}
+
+// ─── Progress history ─────────────────────────────────────────────────────────
+
+export function progressAtIndex(sortedReports, index) {
+  const slice = sortedReports.slice(0, index + 1);
+  const wpCum = computeWPCumulativeStatuses(slice);
+  if (wpCum?.workPackageStatuses) {
+    return computeProjectProgressFromWP(wpCum.workPackageStatuses);
+  }
+  return estimateProgressFromStatuses(computeCumulativeStatuses(slice));
+}

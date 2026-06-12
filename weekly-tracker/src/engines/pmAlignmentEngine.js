@@ -1,4 +1,4 @@
-import { getStatusScore } from "../utils/reportUtils";
+import { getStatusScore, DAY_MS } from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import { constructionWeights, testingWeights, handoverWeights } from "../config/reportWeights";
 
@@ -153,7 +153,7 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
   if (latestReport) {
     const daysSince = Math.floor(
       (Date.now() - new Date(latestReport.reportingDate || latestReport.submittedAt).getTime())
-      / 86400000
+      / DAY_MS
     );
     if (daysSince <= 7)       pts += 2;
     else if (daysSince <= 14) pts += 1;
@@ -168,4 +168,11 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
                          "Limited data";
 
   return { level, pts, maxPts: 8, color, label };
+}
+
+export function summarizeAlignmentItems(items) {
+  const overstatements = items.filter(i => i.overstate);
+  const matches = items.filter(i => i.match);
+  const matchRate = items.length > 0 ? Math.round((matches.length / items.length) * 100) : 100;
+  return { matchRate, overstatements, matches };
 }

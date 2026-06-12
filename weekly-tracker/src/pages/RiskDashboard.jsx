@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { computeCumulativeStatuses, estimateProgressFromStatuses, computeWPCumulativeStatuses } from "../utils/reportUtils";
+import { computeCumulativeStatuses, estimateProgressFromStatuses, computeWPCumulativeStatuses, isSevereScheduleStatus, daysUntil } from "../utils/reportUtils";
 import { computeProjectProgressFromWP } from "../config/workPackages";
 import {
   RISK_COLORS, RISK_DIMENSIONS,
-  computeHealthScore, computeScheduleDeviation,
+  computeScheduleDeviation,
   computeTrend, computeProjectRiskScore, computeDimensionRisk, computeWeeklyEvolution,
 } from "../engines/riskEngine";
+import { computeProjectHealth } from "../engines/projectHealthEngine";
 import { computeContractorScores, computePortfolioContractorScores } from "../engines/contractorEngine";
-import { computePmAlignmentItems, computeConfidenceLevel } from "../engines/pmAlignmentEngine";
+import { computePmAlignmentItems, computeConfidenceLevel, summarizeAlignmentItems } from "../engines/pmAlignmentEngine";
 import { computeEscalations } from "../engines/escalationEngine";
 import { computeRecommendedActions } from "../engines/actionEngine";
 import { computeEVM } from "../engines/evmEngine";
@@ -17,7 +18,9 @@ import { RiskGauge, RiskBadge, HealthBadge, DimCell } from "../components/RiskGa
 import { FactorPill, MiniRiskSparkline, ScoreBar } from "../components/ScoreBar";
 import { RiskTable } from "../components/RiskTable";
 import { RISK_LEVEL_COLORS, SPI_STATUS } from "../config/statusColors";
-import { loadAllGanttMetrics, getProjectTrend, getDiscrepancyHistory, getContractorReliability } from "../services/dashboardService";
+import { loadAllGanttMetrics, getProjectTrend } from "../services/ganttService";
+import { getDiscrepancyHistory, getContractorReliability } from "../services/dashboardService";
+import { computeRiskSummaryStats } from "../engines/portfolioEngine";
 import EvmWidget from "../components/analytics/EvmWidget";
 import MonteCarloWidget from "../components/analytics/MonteCarloWidget";
 import DriftChart from "../components/analytics/DriftChart";
@@ -143,7 +146,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     const evolution      = computeWeeklyEvolution(sorted, project);
     const confidence     = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
     const actions        = computeRecommendedActions(riskScore, contScore, schedDev, latestReport, projSiteVisits, project);
-    const health         = computeHealthScore(riskScore, progress, contScore);
+    const health         = computeProjectHealth(riskScore, progress, contScore);
     const contractorName = project.generalContractor || latestReport?.contractor || "";
     const evm            = computeEVM(project, sorted, progress);
     const driftProfile   = computeContractorDriftProfile(projects, reports, siteVisits, contractorName);
@@ -200,18 +203,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     return opts.sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [pmAlignRows]);
 
-  const summaryStats = useMemo(() => {
-    const c = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
-    allRows.forEach(r => c[r.riskScore.level]++);
-    const avgScore  = allRows.length ? Math.round(allRows.reduce((s, r) => s + r.riskScore.score, 0) / allRows.length) : 0;
-    const avgHealth = allRows.length ? Math.round(allRows.reduce((s, r) => s + r.health.score, 0) / allRows.length) : 0;
-    const opening30 = allRows.filter(r => {
-      const dTo = r.project.targetOpeningDate ? Math.ceil((new Date(r.project.targetOpeningDate) - new Date()) / 86400000) : null;
-      return dTo !== null && dTo >= 0 && dTo < 30;
-    }).length;
-    const pmMismatch = allRows.filter(r => r.riskScore.factors.some(f => f.name === "PM Site Visit mismatch" || f.name === "Hidden risk (PM vs GC)")).length;
-    return { ...c, avgScore, avgHealth, opening30, pmMismatch };
-  }, [allRows]);
+  const summaryStats = useMemo(() => computeRiskSummaryStats(allRows), [allRows]);
 
   return (
     <div>
@@ -263,7 +255,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {criticalRows.map(({ project, riskScore, schedDev, latestReport }) => {
-              const dTo = project.targetOpeningDate ? Math.ceil((new Date(project.targetOpeningDate) - new Date()) / 86400000) : null;
+              const dTo = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
               return (
                 <div key={project.id} style={{ background: "#ffffff", border: "1px solid #fecaca", borderRadius: 10, padding: "12px 16px", minWidth: 240 }}>
                   <div style={{ fontWeight: 800, fontSize: 14, color: "#dc2626", marginBottom: 6 }}>{project.storeCode} — {project.shoppingMallName}</div>
@@ -513,7 +505,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           <div className="dashboard-summary-card" style={{ margin: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "#111827" }}>Contractor Performance & Reporting Reliability</div>
             <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>
-              <strong>Performance</strong> = contractor-controlled items · <strong>Reporting Accuracy</strong> = PM site visit verification alignment · lowest first
+              <strong>Performance</strong> = contractor-controlled items · <strong>PM Alignment</strong> = PM site visit verification alignment · lowest first
             </div>
 
             <FilterBar
@@ -544,7 +536,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                           <div style={{ fontSize: 11, fontWeight: 600, color: c.perfColor, marginTop: 4 }}>{c.perfLevel}</div>
                         </div>
                         <div style={{ textAlign: "center", background: "#ffffff", border: "1.5px solid #e5e7eb", borderRadius: 12, padding: "12px 18px" }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Reporting Accuracy</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>PM Alignment</div>
                           <div style={{ fontSize: 36, fontWeight: 800, color: c.accColor, lineHeight: 1 }}>{c.avgAccuracy}</div>
                           <div style={{ fontSize: 11, fontWeight: 600, color: c.accColor, marginTop: 4 }}>{c.accLevel}</div>
                         </div>
@@ -649,16 +641,14 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                 <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 2 }}>{project.storeCode} — {project.shoppingMallName}</div>
                 <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>
                   {project.generalContractor && <span style={{ marginRight: 10, color: "#374151", fontWeight: 600 }}>{project.generalContractor}</span>}
-                  Reporting Accuracy: <span style={{ fontWeight: 700, color: contScore.reportingAccuracy >= 80 ? "#22c55e" : contScore.reportingAccuracy >= 60 ? "#f59e0b" : "#dc2626" }}>{contScore.reportingAccuracy} / 100</span>
+                  PM Alignment Score: <span style={{ fontWeight: 700, color: contScore.pmAlignmentScore >= 80 ? "#22c55e" : contScore.pmAlignmentScore >= 60 ? "#f59e0b" : "#dc2626" }}>{contScore.pmAlignmentScore} / 100</span>
                   {" · "}{visitsSorted.length} site visit{visitsSorted.length !== 1 ? "s" : ""}
                 </div>
                 {visitsSorted.map((visit, vi) => {
                   const visitDate = new Date(visit.visitDate || visit.submittedAt);
                   const gcAtVisit = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || sorted[sorted.length - 1];
                   const items = computePmAlignmentItems(gcAtVisit, visit);
-                  const overstatements = items.filter(i => i.overstate);
-                  const matches = items.filter(i => i.match);
-                  const matchRate = items.length > 0 ? Math.round((matches.length / items.length) * 100) : 100;
+                  const { matchRate, overstatements, matches } = summarizeAlignmentItems(items);
                   const matchColor = matchRate >= 80 ? "#22c55e" : matchRate >= 60 ? "#f59e0b" : "#dc2626";
                   return (
                     <div key={vi} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 18px", marginBottom: 12 }}>
@@ -717,7 +707,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                       )}
                       {visit.pmScheduleAssessment && (
                         <div style={{ marginTop: 10, fontSize: 12, color: "#374151" }}>
-                          PM schedule assessment: <span style={{ fontWeight: 700, color: ["Delayed", "Critical"].includes(visit.pmScheduleAssessment) ? "#dc2626" : visit.pmScheduleAssessment === "At Risk" ? "#f59e0b" : "#22c55e" }}>{visit.pmScheduleAssessment}</span>
+                          PM schedule assessment: <span style={{ fontWeight: 700, color: isSevereScheduleStatus(visit.pmScheduleAssessment) ? "#dc2626" : visit.pmScheduleAssessment === "At Risk" ? "#f59e0b" : "#22c55e" }}>{visit.pmScheduleAssessment}</span>
                         </div>
                       )}
                     </div>

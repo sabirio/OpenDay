@@ -24,11 +24,11 @@ export function RiskBadge({ level }) {
   );
 }
 
-export function HealthBadge({ score, label, color, bg }) {
+export function HealthBadge({ score, level, color, bg }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
       <div style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1 }}>{score}</div>
-      <div style={{ fontSize: 10, fontWeight: 700, color, background: bg, border: `1px solid ${color}44`, borderRadius: 8, padding: "1px 7px", textTransform: "uppercase" }}>{label}</div>
+      <div style={{ fontSize: 10, fontWeight: 700, color, background: bg, border: `1px solid ${color}44`, borderRadius: 8, padding: "1px 7px", textTransform: "uppercase" }}>{level}</div>
     </div>
   );
 }

@@ -1,11 +1,6 @@
 // Monte Carlo Engine — probabilistic opening-date forecasting.
 // Pure functions, no React, no external libraries. Uses Box-Muller for normal variates.
-import {
-  computeWPCumulativeStatuses,
-  computeCumulativeStatuses,
-  estimateProgressFromStatuses,
-} from '../utils/reportUtils';
-import { computeProjectProgressFromWP } from '../config/workPackages';
+import { progressAtIndex, DAY_MS } from '../utils/reportUtils';
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
@@ -16,16 +11,7 @@ function randomNormal() {
 }
 
 function addDays(date, days) {
-  return new Date(date.getTime() + days * 86400000);
-}
-
-function progressAtIndex(sortedReports, index) {
-  const slice = sortedReports.slice(0, index + 1);
-  const wpCum = computeWPCumulativeStatuses(slice);
-  if (wpCum?.workPackageStatuses) {
-    return computeProjectProgressFromWP(wpCum.workPackageStatuses);
-  }
-  return estimateProgressFromStatuses(computeCumulativeStatuses(slice));
+  return new Date(date.getTime() + days * DAY_MS);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -113,7 +99,7 @@ export function computeMonteCarloForecast(project, sortedReports, ganttTasks) {
   let delayCrit   = 0;
 
   for (const d of completionDates) {
-    const diffDays = Math.ceil((d - targetOpeningDate) / 86400000);
+    const diffDays = Math.ceil((d - targetOpeningDate) / DAY_MS);
     if (diffDays <= 0)        onTime++;
     else if (diffDays <= 14)  delay2Weeks++;
     else if (diffDays <= 30)  delayMonth++;

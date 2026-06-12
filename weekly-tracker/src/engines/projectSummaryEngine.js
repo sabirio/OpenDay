@@ -1,4 +1,5 @@
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
+import { DAY_MS, isMissingReport } from '../utils/reportUtils';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
 import { computeOpeningReadiness } from './openingReadinessEngine';
 
@@ -32,9 +33,9 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
   );
   const latest = sorted[sorted.length - 1] || null;
   const daysSinceReport = latest
-    ? Math.floor((now - new Date(latest.reportingDate || latest.submittedAt)) / 86400000)
+    ? Math.floor((now - new Date(latest.reportingDate || latest.submittedAt).getTime()) / DAY_MS)
     : null;
-  const missingReport = !latest || (daysSinceReport !== null && daysSinceReport > 7);
+  const missingReport = isMissingReport(latest);
 
   const phaseProgress = wpCumulativeStatuses?.workPackageStatuses
     ? WORK_PACKAGES.map(wp => ({

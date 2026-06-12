@@ -1,4 +1,4 @@
-import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore } from "../utils/reportUtils";
+import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore, DAY_MS, daysSince, daysUntil, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
 import { computeProjectProgressFromWP } from "../config/workPackages";
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER } from "../config/riskConfig";
@@ -16,21 +16,6 @@ export function getRiskLevel(score) {
   return "LOW";
 }
 
-// ── Health Score ──────────────────────────────────────────────────────────────
-
-export function computeHealthScore(riskScore, progress, contScore) {
-  const riskHealth     = (1 - riskScore.score / 100) * 30;
-  const progressHealth = (progress / 100) * 25;
-  const contHealth     = (contScore.performanceScore / 100) * 20;
-  const accHealth      = (contScore.reportingAccuracy / 100) * 15;
-  const pmHealth       = (contScore.breakdown.pmAlignment / 30) * 10;
-  const score = Math.round(riskHealth + progressHealth + contHealth + accHealth + pmHealth);
-  const label = score >= 75 ? "Healthy" : score >= 50 ? "Attention" : "Critical";
-  const color = score >= 75 ? "#16a34a" : score >= 50 ? "#d97706" : "#dc2626";
-  const bg    = score >= 75 ? "#dcfce7" : score >= 50 ? "#fef9c3" : "#fee2e2";
-  return { score, label, color, bg };
-}
-
 // ── Schedule Deviation ────────────────────────────────────────────────────────
 
 export function computeScheduleDeviation(project, progress) {
@@ -39,14 +24,14 @@ export function computeScheduleDeviation(project, progress) {
               : project.targetOpeningDate     ? new Date(project.targetOpeningDate) : null;
   const now = new Date();
   if (!start || !end || end <= start) return null;
-  const totalDays   = Math.ceil((end - start) / 86400000);
-  const elapsedDays = Math.max(0, Math.ceil((now - start) / 86400000));
+  const totalDays   = Math.ceil((end - start) / DAY_MS);
+  const elapsedDays = Math.max(0, Math.ceil((now - start) / DAY_MS));
   const expectedPct = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
   const deviationPct = Math.max(0, expectedPct - progress);
   const predictedDelayDays = deviationPct > 0 && progress < 100
     ? Math.round((deviationPct / 100) * totalDays) : 0;
   const predictedOpeningDate = project.targetOpeningDate && predictedDelayDays > 0
-    ? new Date(new Date(project.targetOpeningDate).getTime() + predictedDelayDays * 86400000)
+    ? new Date(new Date(project.targetOpeningDate).getTime() + predictedDelayDays * DAY_MS)
     : project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   return { expectedPct, actualPct: progress, deviationPct, predictedDelayDays, predictedOpeningDate, totalDays, elapsedDays };
 }
@@ -97,8 +82,8 @@ function computeNoReportsRisk(project) {
 
   // Schedule-based expected progress calculation
   if (start && schedEnd && schedEnd > start) {
-    const totalDays   = Math.ceil((schedEnd - start) / 86400000);
-    const elapsedDays = Math.max(0, Math.ceil((now - start) / 86400000));
+    const totalDays   = Math.ceil((schedEnd - start) / DAY_MS);
+    const elapsedDays = Math.max(0, Math.ceil((now - start) / DAY_MS));
     const expectedPct = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
 
     // Absence of data grows riskier as more time passes without updates
@@ -125,7 +110,7 @@ function computeNoReportsRisk(project) {
 
   // Opening proximity penalty — scales with how close the deadline is
   if (project.targetOpeningDate) {
-    const daysToOpen = Math.ceil((new Date(project.targetOpeningDate) - now) / 86400000);
+    const daysToOpen = daysUntil(project.targetOpeningDate);
     if (daysToOpen < 0) {
       score += W.openingOverdue;
       factors.push({ name: "Opening overdue — no reports", value: `${Math.abs(daysToOpen)}d overdue`, pts: W.openingOverdue });
@@ -198,15 +183,15 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
   if (riskPts > 0) factors.push({ name: "Risk indicators", value: `${riskCount} reported`, pts: riskPts });
 
   // 5. Report staleness
-  const daysSince = Math.floor((now - new Date(latest.reportingDate || latest.submittedAt)) / 86400000);
+  const staleDays = daysSince(latest.reportingDate || latest.submittedAt);
   const S = RISK_WEIGHTS.reportStaleness;
-  const stalePts = daysSince > 30 ? S.days30 : daysSince > 21 ? S.days21 : daysSince > 14 ? S.days14 : daysSince > 9 ? S.days9 : 0;
+  const stalePts = staleDays > 30 ? S.days30 : staleDays > 21 ? S.days21 : staleDays > 14 ? S.days14 : staleDays > 9 ? S.days9 : 0;
   score += stalePts;
-  if (stalePts > 0) factors.push({ name: "Report staleness", value: `${daysSince}d since last report`, pts: stalePts });
+  if (stalePts > 0) factors.push({ name: "Report staleness", value: `${staleDays}d since last report`, pts: stalePts });
 
   // 6. Opening proximity
   if (project.targetOpeningDate) {
-    const daysToOpen = Math.ceil((new Date(project.targetOpeningDate) - now) / 86400000);
+    const daysToOpen = daysUntil(project.targetOpeningDate);
     const O = RISK_WEIGHTS.openingProximity;
     let openPts = daysToOpen < 0 ? O.overdue : daysToOpen < 21 ? O.days21 : daysToOpen < 45 ? O.days45 : daysToOpen < 90 ? O.days90 : daysToOpen < 180 ? O.days180 : 0;
     if (daysToOpen < 30 && progress < 80) openPts = Math.min(O.max, openPts + O.lowProgressBonus);
@@ -221,8 +206,8 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
     const end   = project.constructionEndDate   ? new Date(project.constructionEndDate)
                 : project.targetOpeningDate     ? new Date(project.targetOpeningDate) : null;
     if (start && end && end > start) {
-      const totalDays   = Math.ceil((end - start) / 86400000);
-      const elapsedDays = Math.max(0, Math.ceil((now - start) / 86400000));
+      const totalDays   = Math.ceil((end - start) / DAY_MS);
+      const elapsedDays = Math.max(0, Math.ceil((now - start) / DAY_MS));
       const pv = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
       if (pv > 0) {
         const spi = progress / pv;
@@ -236,10 +221,8 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
 
   // 8(renumbered). Historical deterioration (last 3 reports)
   if (sorted.length >= 3) {
-    const isBad    = s => s === "At Risk" || s === "Delayed" || s === "Critical";
-    const isSevere = s => s === "Delayed" || s === "Critical";
-    const atRiskN  = sorted.slice(-3).filter(r => isBad(r.projectScheduleStatus)).length;
-    const severeN  = sorted.slice(-3).filter(r => isSevere(r.projectScheduleStatus)).length;
+    const atRiskN  = sorted.slice(-3).filter(r => isBadScheduleStatus(r.projectScheduleStatus)).length;
+    const severeN  = sorted.slice(-3).filter(r => isSevereScheduleStatus(r.projectScheduleStatus)).length;
     const HD = RISK_WEIGHTS.historicalDeterioration;
     const detPts = severeN >= 2 ? HD.severe2of3 : atRiskN === 3 ? HD.atRisk3of3 : atRiskN === 2 ? HD.atRisk2of3 : 0;
     score += detPts;
@@ -269,14 +252,14 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
       score += pts;
       factors.push({ name: "PM Site Visit mismatch", value: `${overstated} items overstated`, pts });
     }
-    const pmBad  = ["At Risk", "Delayed", "Critical"].includes(latestVisit.pmScheduleAssessment);
+    const pmBad  = isBadScheduleStatus(latestVisit.pmScheduleAssessment);
     const gcGood = latest.projectScheduleStatus === "On Track";
     const gcBad  = latest.projectScheduleStatus === "At Risk";
     if (pmBad && gcGood) {
-      const pts = ["Delayed", "Critical"].includes(latestVisit.pmScheduleAssessment) ? PM.hiddenRiskSevere : PM.hiddenRiskModerate;
+      const pts = isSevereScheduleStatus(latestVisit.pmScheduleAssessment) ? PM.hiddenRiskSevere : PM.hiddenRiskModerate;
       score += pts;
       factors.push({ name: "Hidden risk (PM vs GC)", value: `PM: ${latestVisit.pmScheduleAssessment}, GC: On Track`, pts });
-    } else if (["Delayed", "Critical"].includes(latestVisit.pmScheduleAssessment) && gcBad) {
+    } else if (isSevereScheduleStatus(latestVisit.pmScheduleAssessment) && gcBad) {
       score += PM.severityGap;
       factors.push({ name: "Severity gap (PM vs GC)", value: `PM: ${latestVisit.pmScheduleAssessment}, GC: At Risk`, pts: PM.severityGap });
     }
@@ -287,9 +270,9 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
   // Recovery bonus — project improved from At Risk / Delayed to On Track
   if (latest.projectScheduleStatus === "On Track" && sorted.length >= 2) {
     const prev = sorted[sorted.length - 2];
-    if (["At Risk", "Delayed", "Critical"].includes(prev.projectScheduleStatus)) {
+    if (isBadScheduleStatus(prev.projectScheduleStatus)) {
       const R     = RISK_WEIGHTS.recovery;
-      const bonus = ["Delayed", "Critical"].includes(prev.projectScheduleStatus) ? R.fromSevere : R.fromAtRisk;
+      const bonus = isSevereScheduleStatus(prev.projectScheduleStatus) ? R.fromSevere : R.fromAtRisk;
       score = Math.max(R.minScore, score + bonus);
       factors.push({ name: "Recovery detected", value: `${prev.projectScheduleStatus} → On Track`, pts: bonus });
     }
