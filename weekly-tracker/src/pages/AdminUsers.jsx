@@ -4,10 +4,10 @@ import { supabase } from '../lib/supabase';
 const ROLES = ['Admin', 'PM', 'Contractor', 'Viewer'];
 
 const ROLE_COLORS = {
-  Admin:      { background: '#eff6ff', color: '#2563eb' },
-  PM:         { background: '#f0fdf4', color: '#16a34a' },
-  Contractor: { background: '#fef2f2', color: '#dc2626' },
-  Viewer:     { background: '#fefce8', color: '#b45309' },
+  Admin:      { background: '#164e63', color: '#67e8f9' },
+  PM:         { background: '#064e3b', color: '#6ee7b7' },
+  Contractor: { background: '#7f1d1d', color: '#fca5a5' },
+  Viewer:     { background: '#7c2d12', color: '#fdba74' },
 };
 
 function AdminUsers({ projects = [] }) {

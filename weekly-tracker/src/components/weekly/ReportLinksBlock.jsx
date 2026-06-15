@@ -1,4 +1,3 @@
-// Look Ahead + Declaration in two columns. URLs in text are rendered as chips.
 import { TextBlock } from './shared';
 
 export default function ReportLinksBlock({ report }) {
@@ -11,7 +10,7 @@ export default function ReportLinksBlock({ report }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
       {/* Look Ahead */}
       <div className="dashboard-summary-card" style={{ margin: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#111827' }}>Look Ahead</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#f9fafb' }}>Look Ahead</div>
         {hasLookAhead ? (
           <>
             <TextBlock label="Top 3 — Next Week" value={report.nextWeekTop3}  plain />
@@ -27,7 +26,7 @@ export default function ReportLinksBlock({ report }) {
 
       {/* Declaration */}
       <div className="dashboard-summary-card" style={{ margin: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#111827' }}>Declaration</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#f9fafb' }}>Declaration</div>
         {hasDeclaration ? (
           <>
             <TextBlock label="Pending Issues" value={report.pendingIssues} plain />
@@ -39,8 +38,8 @@ export default function ReportLinksBlock({ report }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
           <div style={{
             width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-            background: report.declarationConfirmed ? '#22c55e' : '#f3f4f6',
-            border: `1px solid ${report.declarationConfirmed ? '#22c55e' : '#e5e7eb'}`,
+            background: report.declarationConfirmed ? '#10b981' : '#374151',
+            border: `1px solid ${report.declarationConfirmed ? '#10b981' : '#4b5563'}`,
           }} />
           <span style={{ fontSize: 12, color: '#9ca3af' }}>Confirmed by contractor</span>
         </div>

@@ -3,10 +3,10 @@ export function ScoreBar({ label, pts, max, color }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-        <span style={{ color: "#6b7280" }}>{label}</span>
-        <span style={{ fontWeight: 700, color: "#374151" }}>{pts} / {max}</span>
+        <span style={{ color: "#9ca3af" }}>{label}</span>
+        <span style={{ fontWeight: 700, color: "#e5e7eb" }}>{pts} / {max}</span>
       </div>
-      <div style={{ background: "#e5e7eb", borderRadius: 4, height: 6, overflow: "hidden" }}>
+      <div style={{ background: "#374151", borderRadius: 4, height: 6, overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.4s ease" }} />
       </div>
     </div>
@@ -17,10 +17,10 @@ export function FactorPill({ f }) {
   const neg = f.pts < 0;
   const sev = neg ? "low" : f.pts >= 12 ? "crit" : f.pts >= 6 ? "high" : "med";
   const styles = {
-    crit: { bg: "#fef2f2", text: "#dc2626", border: "#fecaca" },
-    high: { bg: "#fff7ed", text: "#c2410c", border: "#fed7aa" },
-    med:  { bg: "#fffbeb", text: "#d97706", border: "#fde68a" },
-    low:  { bg: "#f0fdf4", text: "#16a34a", border: "#bbf7d0" },
+    crit: { bg: "#7f1d1d", text: "#fca5a5", border: "#991b1b" },
+    high: { bg: "#7c2d12", text: "#fdba74", border: "#92400e" },
+    med:  { bg: "#7c2d12", text: "#fdba74", border: "#92400e" },
+    low:  { bg: "#064e3b", text: "#6ee7b7", border: "#065f46" },
   };
   const s = styles[sev];
   return (
@@ -39,7 +39,7 @@ export function MiniRiskSparkline({ points }) {
   const poly = points.map((p, i) => `${xs[i]},${sy(p.score)}`).join(" ");
   const last = points[points.length - 1], prev = points[points.length - 2];
   const delta = last.score - prev.score;
-  const col = delta > 5 ? "#dc2626" : delta < -5 ? "#22c55e" : "#9ca3af";
+  const col = delta > 5 ? "#ef4444" : delta < -5 ? "#10b981" : "#9ca3af";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: "visible" }}>

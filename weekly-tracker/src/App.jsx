@@ -40,7 +40,7 @@ class ErrorBoundary extends Component {
         </div>
         <button
           onClick={() => window.location.reload()}
-          style={{ marginTop: 8, padding: '8px 24px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+          style={{ marginTop: 8, padding: '8px 24px', background: '#22d3ee', color: '#111827', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
         >
           Reload page
         </button>
@@ -70,7 +70,7 @@ function GlobalErrorScreen({ error, onRetry }) {
       </div>
       <button
         onClick={onRetry}
-        style={{ marginTop: 8, padding: '8px 24px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+        style={{ marginTop: 8, padding: '8px 24px', background: '#22d3ee', color: '#111827', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
       >
         Retry
       </button>

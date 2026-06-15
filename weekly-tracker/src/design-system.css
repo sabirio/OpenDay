@@ -1,0 +1,336 @@
+/* ============================================================
+   C&F Tracker — Design System
+   Single source of truth for all visual tokens.
+   Imported at the top of index.css — do not load separately.
+   ============================================================ */
+
+
+/* ── 1. Color Tokens ─────────────────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-page:          #111827;                    /* gray-900 — page bg */
+  --bg-surface:       #1f2937;                    /* gray-800 — solid surface */
+  --bg-surface-alpha: rgba(31, 41, 55, 0.6);     /* gray-800 60% — cards */
+  --bg-elevated:      rgba(255, 255, 255, 0.04); /* subtle hover/lift */
+
+  /* Borders */
+  --border:        #374151;  /* gray-700 */
+  --border-subtle: rgba(55, 65, 81, 0.5);
+
+  /* Text */
+  --text-primary:   #f9fafb;  /* gray-50  — headings, key values */
+  --text-body:      #e5e7eb;  /* gray-200 — body / data */
+  --text-secondary: #9ca3af;  /* gray-400 — labels, metadata */
+  --text-muted:     #6b7280;  /* gray-500 — hints, timestamps */
+
+  /* Semantic accents */
+  --accent-success:  #10b981;  /* emerald-500 — completed, on-track */
+  --accent-active:   #22d3ee;  /* cyan-400    — in-progress, links, primary action */
+  --accent-warning:  #f97316;  /* orange-400  — financial, at-risk, additional works */
+  --accent-error:    #ef4444;  /* red-500     — blocked, mismatch, overdue */
+  --accent-inactive: #4b5563;  /* gray-600    — not-started, disabled */
+
+  /* Chip backgrounds (dark-tinted) */
+  --chip-bg-green:  #064e3b;  --chip-fg-green:  #6ee7b7;
+  --chip-bg-cyan:   #164e63;  --chip-fg-cyan:   #67e8f9;
+  --chip-bg-orange: #7c2d12;  --chip-fg-orange: #fdba74;
+  --chip-bg-gray:   #374151;  --chip-fg-gray:   #d1d5db;
+  --chip-bg-red:    #7f1d1d;  --chip-fg-red:    #fca5a5;
+
+  /* Elevated card shadow (only approved shadow) */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+
+  /* Spacing */
+  --space-1: 0.25rem;  --space-2: 0.5rem;  --space-3: 0.75rem;
+  --space-4: 1rem;     --space-5: 1.25rem; --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Radii */
+  --radius-sm:   0.375rem;
+  --radius-md:   0.5rem;
+  --radius-lg:   0.75rem;
+  --radius-xl:   1rem;
+  --radius-full: 9999px;
+
+  /* Typography */
+  --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+
+/* ── 2. Status Chips ─────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.chip--green  { background: var(--chip-bg-green);  color: var(--chip-fg-green);  }
+.chip--cyan   { background: var(--chip-bg-cyan);   color: var(--chip-fg-cyan);   }
+.chip--orange { background: var(--chip-bg-orange); color: var(--chip-fg-orange); }
+.chip--gray   { background: var(--chip-bg-gray);   color: var(--chip-fg-gray);   }
+.chip--red    { background: var(--chip-bg-red);    color: var(--chip-fg-red);    }
+
+
+/* ── 3. Status Dots ──────────────────────────────────────────────────────── */
+.dot {
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.dot--green  { background: var(--accent-success);  }
+.dot--cyan   { background: var(--accent-active);   }
+.dot--orange { background: var(--accent-warning);  }
+.dot--red    { background: var(--accent-error);    }
+.dot--gray   { background: var(--accent-inactive); }
+
+
+/* ── 4. Progress Bars ────────────────────────────────────────────────────── */
+.progress-track {
+  background: var(--border);
+  border-radius: var(--radius-full);
+  height: 0.375rem;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+.progress-fill--active  { background: var(--accent-active);   }
+.progress-fill--done    { background: var(--accent-success);  }
+.progress-fill--warning { background: var(--accent-warning);  }
+.progress-fill--error   { background: var(--accent-error);    }
+.progress-fill--gray    { background: var(--accent-inactive); }
+
+
+/* ── 5. Cards ────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-surface-alpha);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-card);
+}
+.card--orange { border-color: #92400e; }
+.card--red    { border-left: 3px solid var(--accent-error); }
+
+
+/* ── 6. Buttons ──────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+  font-family: var(--font-sans);
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Primary — cyan for interaction */
+.btn-primary {
+  background: var(--accent-active);
+  color: #111827;
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.85; }
+
+/* Ghost — dark surface */
+.btn-ghost {
+  background: var(--border);
+  color: var(--text-body);
+  border: none;
+}
+.btn-ghost:hover:not(:disabled) { background: #4b5563; color: var(--text-primary); }
+
+/* Ghost small */
+.btn-ghost-sm {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.375rem 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  font-family: var(--font-sans);
+}
+.btn-ghost-sm:hover { border-color: #6b7280; color: var(--text-primary); }
+
+/* Danger */
+.btn-danger { background: var(--accent-error); color: #fff; }
+.btn-danger:hover:not(:disabled) { opacity: 0.85; }
+
+
+/* ── 7. Tables ───────────────────────────────────────────────────────────── */
+.ds-table { width: 100%; border-collapse: collapse; }
+.ds-table thead th {
+  padding: 10px 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-align: left;
+  background: transparent;
+}
+.ds-table tbody td {
+  padding: 12px 14px;
+  color: var(--text-body);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.ds-table tbody tr:hover { background: var(--bg-elevated); }
+.ds-table tbody tr.row--alert { background: rgba(239, 68, 68, 0.08); }
+
+
+/* ── 8. Navigation item ──────────────────────────────────────────────────── */
+.nav-item {
+  color: var(--text-secondary);
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  text-decoration: none;
+  display: block;
+  transition: background 0.12s, color 0.12s;
+}
+.nav-item:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.nav-item.active {
+  background: rgba(34, 211, 238, 0.1);
+  color: var(--accent-active);
+  font-weight: 600;
+}
+
+
+/* ── 9. Global form inputs ───────────────────────────────────────────────── */
+/* Named .ds-* to opt in explicitly — does NOT affect excluded form pages */
+.ds-input,
+.ds-select,
+.ds-textarea {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  font-family: var(--font-sans);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+.ds-input:focus,
+.ds-select:focus,
+.ds-textarea:focus {
+  border-color: var(--accent-active);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+}
+.ds-input::placeholder,
+.ds-textarea::placeholder { color: var(--text-muted); }
+
+
+/* ── 10. Collapsible sections ────────────────────────────────────────────── */
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 10px 0;
+}
+.collapsible-toggle {
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+.collapsible--open .collapsible-toggle { transform: rotate(180deg); }
+.collapsible-body { display: none; }
+.collapsible--open .collapsible-body { display: block; }
+
+
+/* ── 11. Empty states ────────────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+.empty-state__icon  { font-size: 2.5rem; opacity: 0.35; margin-bottom: 1rem; }
+.empty-state__title { font-size: 0.938rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.375rem; }
+.empty-state__text  { font-size: 0.813rem; line-height: 1.65; }
+
+
+/* ── 12. Modal / Overlay ─────────────────────────────────────────────────── */
+.ds-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 1000;
+}
+.ds-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.ds-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.ds-modal-header h2 { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+.ds-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.ds-modal-close:hover { color: var(--text-primary); }
+
+
+/* ── 13. Typography utilities ────────────────────────────────────────────── */
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+.text-body      { color: var(--text-body); }
+.text-success   { color: var(--accent-success); }
+.text-active    { color: var(--accent-active); }
+.text-warning   { color: var(--accent-warning); }
+.text-error     { color: var(--accent-error); }
+
+.label-uppercase {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}

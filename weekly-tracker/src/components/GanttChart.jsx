@@ -13,33 +13,32 @@ const BAR_H       = 22;
 const PHASE_PALETTE = {
   demolition:    '#6b7280',
   floor_prep:    '#f97316',
-  rough_in:      '#3b82f6',
+  rough_in:      '#0891b2',
   floor_tiling:  '#22d3ee',
-  testing:       '#8b5cf6',
+  testing:       '#d97706',
   wall_closing:  '#ec4899',
   finishes:      '#14b8a6',
   end_devices:   '#f59e0b',
   commissioning: '#10b981',
-  pre_opening:   '#6366f1',
-  handover:      '#0ea5e9',
+  pre_opening:   '#475569',
+  handover:      '#84cc16',
 };
 function phaseColor(id) { return PHASE_PALETTE[id] || '#6b7280'; }
 
-// NORYX light palette
 const C = {
-  bg:        '#ffffff',
-  bgCard:    '#f9fafb',
-  bgEl:      '#f9fafb',
-  border:    '#e5e7eb',
-  text:      '#111827',
-  muted:     '#6b7280',
-  blue:      '#4F8EF7',
-  green:     '#22c55e',
-  yellow:    '#f59e0b',
+  bg:        '#111827',
+  bgCard:    '#1f2937',
+  bgEl:      'rgba(255,255,255,0.04)',
+  border:    '#374151',
+  text:      '#f9fafb',
+  muted:     '#9ca3af',
+  blue:      '#22d3ee',
+  green:     '#10b981',
+  yellow:    '#f97316',
   red:       '#ef4444',
-  redCrit:   '#dc2626',
+  redCrit:   '#ef4444',
   orange:    '#f97316',
-  white60:   'rgba(0,0,0,0.45)',
+  white60:   'rgba(255,255,255,0.45)',
 };
 
 function fmtDate(d) {
@@ -160,7 +159,7 @@ function WPTooltip({ task, onClose }) {
               <span style={{ color: C.muted }}>Discrepancy</span>
               {disc.status === 'critical'
                 ? badge(`CRITICAL (${disc.delta?.toFixed(1)}%)`, '#fff', C.red)
-                : badge(`WARNING (${disc.delta?.toFixed(1)}%)`, '#000', C.yellow)}
+                : badge(`WARNING (${disc.delta?.toFixed(1)}%)`, '#fdba74', '#7c2d12')}
             </div>
             {disc.site_visit_date && <Row label="Visited" value={fmtDate(disc.site_visit_date)} />}
           </>
@@ -254,13 +253,13 @@ function WPBar({ task, isSelected, onClick }) {
     strokeWidth = 1;
     strokeDash  = 'none';
   } else if (isCritical) {
-    bgFill     = '#fef2f2';
+    bgFill     = 'rgba(239,68,68,0.15)';
     progFill   = '#ef4444';
     strokeColor = C.redCrit;
     strokeWidth = 1.5;
     strokeDash  = 'none';
   } else {
-    bgFill     = notStarted ? '#f3f4f6' : '#e5e7eb';
+    bgFill     = notStarted ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.1)';
     progFill   = C.blue;
     strokeColor = C.border;
     strokeWidth = 1;
@@ -551,7 +550,7 @@ export default function GanttChart({
                 : disc?.status === 'warning'  ? C.yellow
                 : 'transparent'
               }`,
-              background: selectedTask?.id === wp.id ? 'rgba(79,142,247,0.07)' : 'transparent',
+              background: selectedTask?.id === wp.id ? 'rgba(34,211,238,0.07)' : 'transparent',
               flexShrink: 0,
             }}>
             {t?.isBlocker && <span style={{ fontSize: 9, flexShrink: 0 }}>🔒</span>}
@@ -607,7 +606,7 @@ export default function GanttChart({
   // ── Grid alternating stripes ─────────────────────────────────────────────────
   const stripes = timelineHeaders.map((h, i) => (
     <rect key={`s-${i}`} x={h.x} y={0} width={h.width} height={totalHeight}
-      fill={i % 2 === 0 ? 'rgba(0,0,0,0.018)' : 'transparent'} />
+      fill={i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'} />
   ));
 
   // ── Row separator lines ──────────────────────────────────────────────────────
