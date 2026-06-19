@@ -179,13 +179,28 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   // projSiteVisits filtered here; engines expect pre-filtered arrays (do not filter internally).
   const engineOutputs = useMemo(() => {
     if (!selectedProject) return null;
-    const projSiteVisits     = siteVisits.filter(v => String(v.projectId) === String(selectedProject.id));
-    const latestReport       = projectReports[0] ?? null; // projectReports sorted newest-first
-    const wpCum              = computeWPCumulativeStatuses(projectReports);
+    const projSiteVisits = siteVisits.filter(v => String(v.projectId) === String(selectedProject.id));
+    const latestReport   = projectReports[0] ?? null; // projectReports sorted newest-first
+    const wpCum          = computeWPCumulativeStatuses(projectReports);
+
+    // Select the two history rows relevant to the selected report:
+    // "current" = row whose date matches selectedReport, "previous" = the row just before it.
+    // All history rows are available (projectService no longer caps at 2).
+    const allHistory  = [...(selectedProject.progressHistory ?? [])].sort(
+      (a, b) => new Date(a.recorded_at) - new Date(b.recorded_at) // oldest → newest
+    );
+    const selectedDate  = selectedReport?.reportingDate ?? null;
+    const currentIdx    = selectedDate
+      ? allHistory.findIndex(r => r.recorded_at?.slice(0, 10) === selectedDate)
+      : allHistory.length - 1; // no report selected → use most recent
+    const currentHistRow = currentIdx >= 0 ? allHistory[currentIdx] : null;
+    const prevHistRow    = currentIdx > 0  ? allHistory[currentIdx - 1] : null;
+    const selectedHistoryRows = [prevHistRow, currentHistRow].filter(Boolean);
+
     const progressComparison = calculateProgressComparison(
       selectedProject,
       overallProgress,
-      selectedProject.progressHistory ?? [],
+      selectedHistoryRows,
       SCHEDULE_CONFIG
     );
     const risk      = computeProjectRiskScore(selectedProject, projectReports, overallProgress, projSiteVisits);
@@ -193,7 +208,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     const health    = computeProjectHealth(risk, overallProgress, contScore, latestReport);
     const readiness = computeOpeningReadiness(wpCum, selectedProject.targetOpeningDate ?? null);
     return { progressComparison, risk, contScore, health, readiness };
-  }, [selectedProject, overallProgress, projectReports, siteVisits]);
+  }, [selectedProject, selectedReport, overallProgress, projectReports, siteVisits]);
 
   const additionalWorksList = useMemo(() => {
     const sorted = [...projectReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
@@ -379,10 +394,10 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
         {/* Report detail */}
         {selectedReport && (
           <>
-            {/* DEBUG — remove before B1 */}
-            {engineOutputs && (
+            {/* DEBUG — remove once delta is confirmed correct */}
+            {engineOutputs?.progressComparison && (
               <pre style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', fontSize: 11, color: 'var(--text-secondary)', overflowX: 'auto', marginBottom: 16, lineHeight: 1.5 }}>
-                {JSON.stringify(engineOutputs, null, 2)}
+                {JSON.stringify(engineOutputs.progressComparison, null, 2)}
               </pre>
             )}
 

@@ -282,6 +282,7 @@ export async function create(report, cumulativeProgress = null) {
       week_number:      weekNumber,
       overall_progress: calculatedProgress,
       spi:              null,
+      recorded_at:      new Date(normalized.reportingDate).toISOString(),
       snapshot: {
         phases:       normalized.currentPhases,
         blockers:     normalized.activitiesBlocked,

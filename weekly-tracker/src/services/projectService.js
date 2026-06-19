@@ -117,7 +117,7 @@ export async function getAll() {
     const histByProject = {};
     for (const row of (histRows || [])) {
       if (!histByProject[row.project_id]) histByProject[row.project_id] = [];
-      if (histByProject[row.project_id].length < 2) histByProject[row.project_id].push(row);
+      histByProject[row.project_id].push(row);
     }
     return projects.map(p => ({ ...p, progressHistory: histByProject[p.id] || [] }));
   } catch {
