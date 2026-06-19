@@ -603,14 +603,16 @@ function ContractorReport({ projects, reports, onSaveReport }) {
     try {
       setGanttLoading(true);
 
-      const tasks = await getProjectGantt(project.id);
+      const rawTasks = await getProjectGantt(project.id);
+      const activeWPIds = project?.scope?.workPackages;
+      const tasks = activeWPIds ? (rawTasks || []).filter(t => activeWPIds.includes(t.id)) : (rawTasks || []);
 
       if (isMounted) {
-        setGanttTasks(tasks || []);
+        setGanttTasks(tasks);
         // Pre-fill progress state from DB so overallProgress is correct
         // even if the user submits without touching any slider.
         const initial = {};
-        for (const t of tasks || []) {
+        for (const t of tasks) {
           initial[t.id] = {
             progress_pct: t.actual_progress ?? 0,
             status:       t.status          ?? 'not_started',

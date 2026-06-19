@@ -55,6 +55,7 @@ function fromDB(row) {
     projectType: row.project_type,
     projectStatus: row.project_status,
     phases: normalizePhasesFromDB(row.phases || []),
+    scope:  row.scope || null,
     // ── Gantt fields (read-only, written by ganttService) ──────────────────
     templateType:               row.template_type                || null,
     storeSizeSqm:               row.store_size_sqm               || null,
@@ -87,6 +88,7 @@ function toDB(project) {
     project_type: project.projectType || 'New Opening',
     project_status: project.projectStatus || 'Active',
     phases: project.phases || [],
+    scope:  project.scope  || null,
     // ── Gantt setup fields (PM-editable) ───────────────────────────────────
     template_type:  project.templateType  || null,
     store_size_sqm: project.storeSizeSqm  || null,
