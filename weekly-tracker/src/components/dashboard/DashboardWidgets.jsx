@@ -47,7 +47,6 @@ export function LineChart({ points = [], width = 480, height = 120, color = 'var
     <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
       {yT.map(v => <line key={v} x1={pad.left} y1={sy(v)} x2={pad.left + W} y2={sy(v)} stroke={T.border} strokeWidth={0.5} />)}
       {yT.map(v => <text key={v} x={pad.left - 5} y={sy(v) + 4} textAnchor="end" fontSize={10} fill={T.textMuted}>{v}%</text>)}
-      <polygon points={`${sx(xs[0])},${sy(0)} ${poly} ${sx(xs[xs.length - 1])},${sy(0)}`} fill={color + '22'} />
       <polyline points={poly} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
       {valid.map((p, i) => <circle key={i} cx={sx(new Date(p.date).getTime())} cy={sy(p.value)} r={2} fill={T.bgPage} stroke={color} strokeWidth={1.5} />)}
       {valid.filter((_, i) => i % step === 0 || i === valid.length - 1).map((p, i) =>

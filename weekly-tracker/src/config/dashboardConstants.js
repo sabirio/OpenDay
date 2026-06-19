@@ -1,6 +1,8 @@
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
 import { getStatusScore } from '../utils/reportUtils';
 import { constructionWeights, testingWeights, handoverWeights } from '../config/reportWeights';
+import { getPhasesInOrder } from '../config/masterTaskLibrary';
+import { calculatePhaseProgress } from '../engines/progressEngine';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -10,13 +12,24 @@ export const PROJECT_COLORS = [
   "var(--accent)", "var(--text-muted)",
 ];
 
-// WP_COLS: one column per work package for the heatmap tab
-export const WP_COLS = WORK_PACKAGES.map((wp) => ({
-  label:  wp.name.replace('Pre-construction', 'Pre-Con').replace('Demolition & Preparation', 'Demo').replace('Construction', 'Struct.').replace('MEP Rough-in', 'MEP').replace('Finishes & Final Installation', 'Finishes').replace('Fixtures & Equipment', 'Equipment').replace('Testing, Commissioning & Integration', 'T&C').replace('Snagging & Handover', 'Handover'),
-  wpId:   wp.id,
-  color:  'var(--text-muted)',
-  phase:  wp.id === 'demolition' ? 'demolition' : wp.id === 'commissioning' ? 'testing' : wp.id === 'handover' ? 'handover' : 'construction',
-  key:    wp.id === 'demolition' ? null : wp.id === 'commissioning' ? 'Sprinkler system testing and commissioning' : wp.id === 'handover' ? 'Snag list resolution' : null,
+// WP_COLS: one column per masterTaskLibrary phase for the heatmap tab
+const PHASE_SHORT = {
+  demolition:    'Demo',
+  floor_prep:    'Floor Prep',
+  rough_in:      'Rough-In',
+  floor_tiling:  'Tiling',
+  testing:       'Sys. Test',
+  wall_closing:  'Wall Close',
+  finishes:      'Finishes',
+  end_devices:   'End Dev.',
+  commissioning: 'Commission',
+  pre_opening:   'Pre-Open',
+  handover:      'Handover',
+};
+export const WP_COLS = getPhasesInOrder().map(p => ({
+  label: PHASE_SHORT[p.id] || p.label,
+  wpId:  p.id,
+  color: 'var(--text-muted)',
 }));
 
 export const CONSTRUCTION_ITEMS = [
@@ -116,25 +129,24 @@ export function computePriorityScore(riskLevel, daysToOpening, missingReport) {
 }
 
 export function getWpStatus(cs, wpCs, col) {
-  // New WP format: return progress % as pseudo-status
   if (wpCs?.workPackageStatuses) {
-    const pct = computePackageProgress(wpCs.workPackageStatuses, col.wpId);
+    const taskMap = wpCs.workPackageStatuses[col.wpId];
+    if (!taskMap || Object.keys(taskMap).length === 0) return null;
+    const { pct, count } = calculatePhaseProgress(col.wpId, taskMap);
+    if (count === 0) return null;
     if (pct >= 100) return "Completed";
-    if (pct >= 50)  return "In Progress";
     if (pct > 0)    return "In Progress";
-    return null;
+    return "Not Started";
   }
-  // Old format fallback
-  if (col.phase === "demolition")   return cs?.demolitionStatus || null;
-  if (col.key && col.phase === "construction") return cs?.constructionStatuses?.[col.key] || null;
-  if (col.key && col.phase === "testing")      return cs?.testingStatuses?.[col.key] || null;
-  if (col.key && col.phase === "handover")     return cs?.handoverStatuses?.[col.key] || null;
   return null;
 }
 
 export function getWpProgress(wpCs, col) {
   if (!wpCs?.workPackageStatuses) return null;
-  return computePackageProgress(wpCs.workPackageStatuses, col.wpId);
+  const taskMap = wpCs.workPackageStatuses[col.wpId];
+  if (!taskMap || Object.keys(taskMap).length === 0) return null;
+  const { pct, count } = calculatePhaseProgress(col.wpId, taskMap);
+  return count > 0 ? pct : null;
 }
 
 export function wpStyle(status) {
