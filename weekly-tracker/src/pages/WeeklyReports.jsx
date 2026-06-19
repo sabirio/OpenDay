@@ -7,6 +7,7 @@ import {
   isWPReport,
 } from "../utils/reportUtils";
 import { calculateProjectProgress, calculateProgressComparison } from "../engines/progressEngine";
+import { calculateWorkPackageDeltas } from "../engines/progressDeltaEngine";
 import { computeProjectRiskScore } from "../engines/riskEngine";
 import { computeContractorScores } from "../engines/contractorEngine";
 import { computeProjectHealth } from "../engines/projectHealthEngine";
@@ -27,7 +28,6 @@ import PhaseStepper       from "../components/weekly/PhaseStepper";
 import AllClearStrip      from "../components/weekly/AllClearStrip";
 import ReportLinksBlock   from "../components/weekly/ReportLinksBlock";
 import AdditionalWorksBlock from "../components/weekly/AdditionalWorksBlock";
-import PrevReportSummary  from "../components/weekly/PrevReportSummary";
 import ProgressNarrative  from "../components/weekly/ProgressNarrative";
 
 // ─── ErrorBoundary ────────────────────────────────────────────────────────────
@@ -258,6 +258,24 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     return merged;
   }, [selectedReport, projectReports]);
 
+  // Cumulative WP statuses as of the previous report's date — used for WP delta calculation.
+  const prevMergedStatuses = useMemo(() => {
+    if (!prevReport) return null;
+    const prevCutoff = prevReport.reportingDate || prevReport.submittedAt;
+    const reportsUpToPrev = projectReports.filter(
+      r => (r.reportingDate || r.submittedAt) <= prevCutoff
+    );
+    if (isWPReport(selectedReport)) {
+      return computeWPCumulativeStatuses(reportsUpToPrev)?.workPackageStatuses ?? null;
+    }
+    return mergeOldDerivedStatuses(reportsUpToPrev.map(deriveWPStatusesFromOldReport));
+  }, [prevReport, selectedReport, projectReports]);
+
+  const wpDeltas = useMemo(
+    () => calculateWorkPackageDeltas(mergedStatuses, prevMergedStatuses),
+    [mergedStatuses, prevMergedStatuses]
+  );
+
   useEffect(() => {
     if (!showGantt || !effectiveProjectId) return;
     setGanttLoading(true);
@@ -409,18 +427,11 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
               selectedProgress={engineOutputs?.selectedProgress}
             />
 
-            <PrevReportSummary
-              prevReport={prevReport}
-              formatDate={formatDate}
-              WORK_PACKAGES={displayWorkPackages}
-              isWPReport={isWPReport}
-              deriveWPStatusesFromOldReport={deriveWPStatusesFromOldReport}
-            />
-
             <PhaseStepper
               workPackages={displayWorkPackages}
               mergedStatuses={mergedStatuses}
               reportKey={effectiveReportId}
+              wpDeltas={wpDeltas}
             />
 
             <ReportLinksBlock report={selectedReport} />

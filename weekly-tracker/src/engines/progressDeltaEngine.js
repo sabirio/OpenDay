@@ -1,3 +1,40 @@
+import { WP_STATUS_SCORES } from '../config/workPackages';
+
+// Effective % for a single task entry — mirrors PhaseStepper.wpProgress logic.
+function taskEffectivePct(entry) {
+  if (!entry) return 0;
+  if (entry.progress > 0) return entry.progress;
+  const score = WP_STATUS_SCORES[entry.status] ?? 0;
+  return score * 100;
+}
+
+/**
+ * Returns per-task delta between current and previous cumulative WP status maps.
+ *
+ * @param {object} currentStatuses  — mergedStatuses for the selected report date
+ * @param {object|null} prevStatuses — mergedStatuses for the previous report date; null = first report
+ * @returns {object|null} — { [wpId]: { [taskName]: { isNew: bool, delta: number|null } } }
+ *                          null when prevStatuses is null (nothing to compare against)
+ */
+export function calculateWorkPackageDeltas(currentStatuses, prevStatuses) {
+  if (!prevStatuses) return null;
+  const result = {};
+  for (const [wpId, tasks] of Object.entries(currentStatuses || {})) {
+    result[wpId] = {};
+    for (const taskName of Object.keys(tasks || {})) {
+      const prevEntry = prevStatuses?.[wpId]?.[taskName];
+      if (!prevEntry) {
+        result[wpId][taskName] = { isNew: true, delta: null };
+      } else {
+        const curPct  = taskEffectivePct(tasks[taskName]);
+        const prevPct = taskEffectivePct(prevEntry);
+        result[wpId][taskName] = { isNew: false, delta: Math.round(curPct - prevPct) };
+      }
+    }
+  }
+  return result;
+}
+
 // Returns delta between latest and previous week snapshot for a project
 export function calculateProgressDelta(currentProgress, historyRows) {
   if (!historyRows || historyRows.length < 2) return null;

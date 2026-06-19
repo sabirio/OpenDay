@@ -97,7 +97,15 @@ function PhaseCard({ wp, pct, isSelected, onClick }) {
   );
 }
 
-export default function PhaseStepper({ workPackages, mergedStatuses, reportKey }) {
+function DeltaIndicator({ d }) {
+  if (!d) return null;
+  if (d.isNew)    return <span style={{ fontSize: 10, color: 'var(--text-muted)',  flexShrink: 0 }}>● new</span>;
+  if (d.delta > 0) return <span style={{ fontSize: 10, color: 'var(--status-done)', flexShrink: 0, fontWeight: 600 }}>▲ +{d.delta}pp</span>;
+  if (d.delta < 0) return <span style={{ fontSize: 10, color: 'var(--status-warn)', flexShrink: 0, fontWeight: 600 }}>▼ {d.delta}pp</span>;
+  return                   <span style={{ fontSize: 10, color: 'var(--text-muted)',  flexShrink: 0 }}>—</span>;
+}
+
+export default function PhaseStepper({ workPackages, mergedStatuses, reportKey, wpDeltas }) {
   const [activeId, setActiveId] = useState(null);
   const activeWP = workPackages.find(wp => wp.id === activeId);
 
@@ -143,6 +151,7 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey }
                     const ts     = statusStyles(status);
                     const score  = WP_STATUS_SCORES[status] ?? 0;
                     const lbl    = score >= 1 ? '✓' : score >= 0.5 ? '▶' : score >= 0.3 ? '⚠' : '·';
+                    const delta  = wpDeltas?.[activeWP.id]?.[taskName];
                     return (
                       <div key={taskName} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
                         <span style={{ fontSize: 13, color: tc, fontWeight: 700, width: 14, textAlign: 'center', flexShrink: 0 }}>{lbl}</span>
@@ -150,6 +159,7 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey }
                         {entry.progress > 0 && entry.progress < 100 && (
                           <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{entry.progress}%</span>
                         )}
+                        <DeltaIndicator d={wpDeltas ? delta : null} />
                         <span style={{ padding: '2px 7px', borderRadius: 7, fontSize: 10, fontWeight: 600, background: ts.bg, color: ts.color, border: `1px solid ${ts.border}`, flexShrink: 0 }}>
                           {status}
                         </span>
