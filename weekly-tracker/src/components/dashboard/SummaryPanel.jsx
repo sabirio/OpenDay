@@ -37,15 +37,6 @@ export default function SummaryPanel({ kpis, reportsTotal, rows }) {
         <KpiCard label="At Risk"           value={kpis.atRisk}          color={kpis.atRisk > 0 ? 'var(--status-warn)' : 'var(--status-done)'}   sub="schedule issues"/>
         <KpiCard label="Critical"          value={kpis.critical}        color={kpis.critical > 0 ? 'var(--status-alert)' : 'var(--status-done)'} sub="immediate action"/>
         <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)"        sub={`${reportsTotal} total`}/>
-        <KpiCard label="Opening <30 Days"  value={kpis.openingSoon}     color={kpis.openingSoon > 0 ? 'var(--status-warn)' : 'var(--status-done)'} sub="proximity alert"/>
-        {analytics?.avgSPI != null && (
-          <KpiCard
-            label="Avg Portfolio SPI"
-            value={analytics.avgSPI.toFixed(2)}
-            color={analytics.avgSPI >= 1.0 ? 'var(--status-done)' : analytics.avgSPI >= 0.9 ? 'var(--status-warn)' : 'var(--status-alert)'}
-            sub="schedule performance"
-          />
-        )}
       </div>
     </>
   );

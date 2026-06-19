@@ -39,6 +39,9 @@
   --status-warn:       #f97316;
   --status-warn-bg:    rgba(249, 115, 22, 0.08);
 
+  /* Progress bar fill */
+  --progress-fill:     #1c1c1c;
+
   /* Shadows */
   --shadow:            0 1px 3px rgba(0, 0, 0, 0.6);
   --shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.8);
@@ -120,6 +123,7 @@
   --shadow:            0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.12);
   --focus-ring:        0 0 0 2px rgba(0, 0, 0, 0.12);
+  --progress-fill:     #525252;
 }
 
 

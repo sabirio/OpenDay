@@ -22,11 +22,11 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect }
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Sorted by priority · click row to open project</div>
       </div>
       <div style={{ overflowX: 'auto' }}>
-        <table className="dashboard-table" style={{ width: '100%', tableLayout: 'fixed' }}>
+        <table className="dashboard-table" style={{ width: '100%', tableLayout: 'auto' }}>
           <thead>
             <tr>
               <th>Store Code</th>
-              <th>Current Phase</th><th>Progress</th><th>Schedule</th><th>Risk Level</th>
+              <th style={{ minWidth: 140 }}>Current Phase</th><th>Progress</th><th>Schedule</th><th>Risk Level</th>
               <th>Blockers</th><th>Support Required</th><th>Alert</th>
               <th>Target Opening</th><th>Days Left</th><th>Latest Report</th><th>Report Status</th>
             </tr>
@@ -39,7 +39,6 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect }
               const phase      = currentPhaseLabel(row);
               const schedStatus = latestReport?.projectScheduleStatus;
               const isOpen     = drawerProjectId === String(project.id);
-              const progColor  = progress >= 75 ? 'var(--status-done)' : progress >= 40 ? 'var(--accent)' : 'var(--status-warn)';
               const dToC       = daysToOpening === null ? 'var(--text-muted)' : daysToOpening < 0 ? 'var(--status-alert)' : daysToOpening < 30 ? 'var(--status-alert)' : daysToOpening < 90 ? 'var(--status-warn)' : 'var(--status-done)';
               return (
                 <tr key={project.id} data-testid="dashboard-project-row" data-project-id={String(project.id)} onClick={() => onSelect(String(project.id))} style={{ cursor: 'pointer', background: isOpen ? 'var(--status-done-bg)' : undefined, transition: 'background 0.15s' }}>
@@ -50,11 +49,11 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect }
                       <strong style={{ color: 'var(--text-primary)' }}>{project.storeCode}</strong>
                     </div>
                   </td>
-                  <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{phase || <span style={{ color: 'var(--text-muted)' }}>No report</span>}</td>
+                  <td style={{ fontSize: 12, color: 'var(--text-secondary)', minWidth: 140, whiteSpace: 'nowrap' }}>{phase || <span style={{ color: 'var(--text-muted)' }}>No report</span>}</td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <div style={{ width: 48, background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden', flexShrink: 0 }}>
-                        <div style={{ width: `${progress}%`, height: '100%', background: progColor, borderRadius: 3 }} />
+                        <div style={{ width: `${progress}%`, height: '100%', background: 'var(--progress-fill)', borderRadius: 3 }} />
                       </div>
                       <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', minWidth: 28 }}>{progress}%</span>
                     </div>
