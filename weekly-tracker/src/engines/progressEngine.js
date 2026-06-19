@@ -278,12 +278,32 @@ export function calculateProgressComparison(project, actualPct, historyRows, con
     }
   }
 
+  const spi = expectedPct != null && expectedPct > 0
+    ? +(actualPct / expectedPct).toFixed(2)
+    : null;
+
   return {
     actualPct,
     expectedPct,
     scheduleGap,
     scheduleStatus,
+    spi,
     deltaVsLastWeek: delta?.delta ?? null,
     reasons: sortReasons(reasons),
   };
+}
+
+/**
+ * Transforms project.progressHistory into a date-ordered series for the progress chart.
+ * @param {Array} progressHistory — rows from progress_history table
+ * @returns {Array<{date: string, pct: number}>} oldest → newest
+ */
+export function computeProgressSeries(progressHistory) {
+  if (!Array.isArray(progressHistory) || progressHistory.length === 0) return [];
+  return [...progressHistory]
+    .sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at))
+    .map(row => ({
+      date: row.recorded_at?.slice(0, 10) ?? '',
+      pct:  row.overall_progress ?? 0,
+    }));
 }

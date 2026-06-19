@@ -51,6 +51,56 @@ export function computePhaseChangeFlags(wpDeltas) {
   return flags;
 }
 
+// Effective % for a single phase given its WP status map — mirrors PhaseStepper.wpProgress.
+function phasePct(wp, statuses) {
+  const taskMap = statuses?.[wp.id] || {};
+  let totalWeight = 0, weightedScore = 0;
+  for (const task of wp.tasks) {
+    const entry = taskMap[task.name];
+    if (!entry) continue;
+    const score = WP_STATUS_SCORES[entry.status];
+    if (score == null) continue;
+    const eff = entry.progress > 0 ? entry.progress / 100 : score;
+    totalWeight += task.weight ?? 1;
+    weightedScore += (task.weight ?? 1) * eff;
+  }
+  return totalWeight === 0 ? 0 : Math.round((weightedScore / totalWeight) * 100);
+}
+
+/**
+ * Classifies each phase as 'done' | 'current' | 'upcoming' and attaches a week-over-week
+ * delta if prevMergedStatuses is supplied.
+ *
+ * @param {Array}  workPackages        — WORK_PACKAGES or GANTT_WORK_PACKAGES config
+ * @param {object} mergedStatuses      — cumulative WP statuses at selected date
+ * @param {object|null} prevMergedStatuses — cumulative WP statuses at previous report date
+ * @returns {Array<{id, name, tasks, groups, pct, status, delta}>}
+ */
+export function classifyPhases(workPackages, mergedStatuses, prevMergedStatuses = null) {
+  const phases = workPackages.map(wp => {
+    const pct     = phasePct(wp, mergedStatuses);
+    const prevPct = prevMergedStatuses != null ? phasePct(wp, prevMergedStatuses) : null;
+    return { ...wp, pct, prevPct };
+  });
+
+  // Current = first phase not yet complete; fallback to last if all done.
+  let currentIdx = phases.findIndex(p => p.pct < 100);
+  if (currentIdx === -1) currentIdx = phases.length - 1;
+
+  return phases.map((p, i) => {
+    let status;
+    if (p.pct === 100)     status = 'done';
+    else if (i === currentIdx) status = 'current';
+    else                   status = 'upcoming';
+    return {
+      id: p.id, name: p.name, tasks: p.tasks, groups: p.groups,
+      pct: p.pct,
+      status,
+      delta: p.prevPct !== null ? p.pct - p.prevPct : null,
+    };
+  });
+}
+
 // Returns delta between latest and previous week snapshot for a project
 export function calculateProgressDelta(currentProgress, historyRows) {
   if (!historyRows || historyRows.length < 2) return null;

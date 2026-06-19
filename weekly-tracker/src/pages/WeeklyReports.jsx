@@ -6,8 +6,8 @@ import {
   computeWPCumulativeStatuses,
   isWPReport,
 } from "../utils/reportUtils";
-import { calculateProjectProgress, calculateProgressComparison } from "../engines/progressEngine";
-import { calculateWorkPackageDeltas, computePhaseChangeFlags } from "../engines/progressDeltaEngine";
+import { calculateProjectProgress, calculateProgressComparison, computeProgressSeries } from "../engines/progressEngine";
+import { calculateWorkPackageDeltas, computePhaseChangeFlags, classifyPhases } from "../engines/progressDeltaEngine";
 import { computeProjectRiskScore } from "../engines/riskEngine";
 import { computeContractorScores } from "../engines/contractorEngine";
 import { computeProjectHealth } from "../engines/projectHealthEngine";
@@ -24,11 +24,12 @@ import { getProjectGantt } from "../services/ganttService";
 import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
-import PhaseStepper       from "../components/weekly/PhaseStepper";
 import AllClearStrip      from "../components/weekly/AllClearStrip";
 import ReportLinksBlock   from "../components/weekly/ReportLinksBlock";
 import AdditionalWorksBlock from "../components/weekly/AdditionalWorksBlock";
 import ProgressNarrative  from "../components/weekly/ProgressNarrative";
+import ProgressChart      from "../components/weekly/ProgressChart";
+import PhaseTimeline      from "../components/weekly/PhaseTimeline";
 
 // ─── ErrorBoundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
@@ -281,6 +282,16 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     [wpDeltas]
   );
 
+  const progressSeries = useMemo(
+    () => computeProgressSeries(selectedProject?.progressHistory ?? []),
+    [selectedProject]
+  );
+
+  const phaseClassifications = useMemo(
+    () => selectedProject ? classifyPhases(displayWorkPackages, mergedStatuses, prevMergedStatuses) : [],
+    [selectedProject, displayWorkPackages, mergedStatuses, prevMergedStatuses]
+  );
+
   useEffect(() => {
     if (!showGantt || !effectiveProjectId) return;
     setGanttLoading(true);
@@ -432,10 +443,18 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
               selectedProgress={engineOutputs?.selectedProgress}
             />
 
-            <PhaseStepper
-              workPackages={displayWorkPackages}
+            <ProgressChart
+              series={progressSeries}
+              scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
+              spi={engineOutputs?.progressComparison?.spi}
+              reportCount={projectReports.length}
+              latestDate={projectReports[0]?.reportingDate}
+            />
+
+            <PhaseTimeline
+              key={effectiveReportId}
+              phases={phaseClassifications}
               mergedStatuses={mergedStatuses}
-              reportKey={effectiveReportId}
               wpDeltas={wpDeltas}
               phaseChangeFlags={phaseChangeFlags}
             />
