@@ -28,6 +28,7 @@ import AllClearStrip      from "../components/weekly/AllClearStrip";
 import ReportLinksBlock   from "../components/weekly/ReportLinksBlock";
 import AdditionalWorksBlock from "../components/weekly/AdditionalWorksBlock";
 import PrevReportSummary  from "../components/weekly/PrevReportSummary";
+import ProgressNarrative  from "../components/weekly/ProgressNarrative";
 
 // ─── ErrorBoundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
@@ -394,12 +395,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
         {/* Report detail */}
         {selectedReport && (
           <>
-            {/* DEBUG — remove once delta is confirmed correct */}
-            {engineOutputs?.progressComparison && (
-              <pre style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', fontSize: 11, color: 'var(--text-secondary)', overflowX: 'auto', marginBottom: 16, lineHeight: 1.5 }}>
-                {JSON.stringify(engineOutputs.progressComparison, null, 2)}
-              </pre>
-            )}
+            <ProgressNarrative progressComparison={engineOutputs?.progressComparison} />
 
             <PrevReportSummary
               prevReport={prevReport}
