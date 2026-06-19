@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { formatDate } from "../utils/reportUtils";
 import { supabase } from "../lib/supabase";
-import GanttChart from "../components/GanttChart";
 import { PHASES } from "../config/masterTaskLibrary";
 import { TEMPLATES } from "../config/projectTemplates";
-import { generateAndSaveGantt, getProjectGantt } from "../services/ganttService";
+import { generateAndSaveGantt } from "../services/ganttService";
+import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
 
 // phaseId → { id, label, bg, border } — colour driven by status, not phase
 const PHASE_MAP = Object.fromEntries(
@@ -83,18 +83,6 @@ function DetailField({ label, value }) {
 // ── Project Detail Modal (read-only) ────────────────────────────────────────
 
 function ProjectDetailModal({ project, onClose, onEdit }) {
-  const [activeTab, setActiveTab] = useState('details');
-  const [ganttTasks, setGanttTasks] = useState(null);
-  const [ganttLoading, setGanttLoading] = useState(false);
-
-  useEffect(() => {
-    if (activeTab !== 'gantt' || !project.id) return;
-    setGanttLoading(true);
-    getProjectGantt(project.id)
-      .then(tasks => setGanttTasks(tasks.length > 0 ? tasks : null))
-      .catch(() => setGanttTasks(null))
-      .finally(() => setGanttLoading(false));
-  }, [activeTab, project.id]);
 
   const keyDates = {
     construction_completion: project.constructionCompletionDate
@@ -119,11 +107,9 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
     { label: "Supply Manager",    value: project.supplyManager },
   ].filter((s) => s.value);
 
-  const isGantt = activeTab === 'gantt';
-
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: isGantt ? "96vw" : 720, width: isGantt ? "96vw" : "95vw", transition: "max-width 0.2s" }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720, width: "95vw" }}>
 
         {/* Header */}
         <div className="modal-header">
@@ -149,24 +135,9 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border)", background: "rgba(0,0,0,0.15)" }}>
-          {['details', 'gantt'].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              padding: "10px 22px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
-              background: "transparent", transition: "all 0.12s",
-              color: activeTab === tab ? "var(--accent)" : "var(--text-muted)",
-              borderBottom: activeTab === tab ? "2px solid var(--accent)" : "2px solid transparent",
-            }}>
-              {tab === 'details' ? 'Details' : 'Gantt Chart'}
-            </button>
-          ))}
-        </div>
-
         {/* Body */}
-        <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 110px)", padding: isGantt ? "16px" : "20px 24px" }}>
-
-          {activeTab === 'details' && (<>
+        <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 72px)", padding: "20px 24px" }}>
+          <>
           {/* Address */}
           <FormSection title="Address" accentColor="var(--accent)">
             <FieldRow>
@@ -251,31 +222,7 @@ function ProjectDetailModal({ project, onClose, onEdit }) {
               alert("Link copied.");
             }}>Copy</button>
           </div>
-          </>)}
-
-          {activeTab === 'gantt' && (
-            ganttLoading ? (
-              <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--text-muted)" }}>
-                <div style={{ fontSize: 15, color: "var(--text-secondary)" }}>Loading schedule…</div>
-              </div>
-            ) : ganttTasks && ganttTasks.length > 0 ? (
-              <GanttChart
-                project={project}
-                tasks={ganttTasks}
-                keyDates={keyDates}
-                defaultZoom="month"
-                readOnly
-              />
-            ) : (
-              <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--text-muted)" }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>📅</div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 }}>Gantt chart unavailable</div>
-                <div style={{ fontSize: 13 }}>
-                  Set a <strong style={{ color: "var(--text-secondary)" }}>Construction Start Date</strong> and <strong style={{ color: "var(--text-secondary)" }}>Target Opening Date</strong> to generate the project schedule.
-                </div>
-              </div>
-            )
-          )}
+          </>
 
         </div>
       </div>
@@ -295,8 +242,9 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const [countryFilter, setCountryFilter] = useState("All");
   const [salesMarketFilter, setSalesMarketFilter] = useState("All");
   const [searchQuery, setSearchQuery]     = useState("");
-  const [inviteStatus, setInviteStatus]   = useState({}); // { [email]: 'sending'|'sent'|'error' }
-  const [gcModal, setGcModal]             = useState(null); // project being invited
+  const [inviteStatus, setInviteStatus]       = useState({}); // { [email]: 'sending'|'sent'|'error' }
+  const [gcModal, setGcModal]                 = useState(null); // project being invited
+  const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
   const [gcEmail, setGcEmail]             = useState('');
   const [gcInviteStatus, setGcInviteStatus] = useState('idle'); // idle|sending|sent|error
 
@@ -388,15 +336,6 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     setShowForm(true);
   }
 
-  function togglePhase(phase) {
-    setNewProject((prev) => {
-      const current = prev.phases || [];
-      const next = current.includes(phase)
-        ? current.filter((p) => p !== phase)
-        : [...current, phase];
-      return { ...prev, phases: next };
-    });
-  }
 
   async function saveProject() {
     try {
@@ -810,73 +749,31 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                 </FieldRow>
               </FormSection>
 
-              {/* Schedule Template */}
-              <FormSection title="Schedule Template" accentColor="var(--status-done)">
-                <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-                  {TEMPLATES.map(({ id, label, icon }) => {
-                    const active = newProject.templateType === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setNewProject(p => ({ ...p, templateType: id }))}
-                        style={{
-                          flex: 1, padding: "12px 10px", borderRadius: 10, cursor: "pointer",
-                          border: `1.5px solid ${active ? "var(--status-done)" : "var(--border)"}`,
-                          background: active ? "var(--status-done-bg)" : "var(--accent-subtle)",
-                          color: active ? "var(--status-done)" : "var(--text-muted)",
-                          fontSize: 12, fontWeight: 600, textAlign: "center", transition: "all 0.15s",
-                        }}
-                      >
-                        <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
-                        <div>{label}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <Field label="Store Size (sqm)">
-                  <input
-                    type="number"
-                    name="storeSizeSqm"
-                    value={newProject.storeSizeSqm}
-                    onChange={handleChange}
-                    placeholder="e.g. 1200"
-                    style={{ ...inputStyle, maxWidth: 200 }}
-                    min="0"
-                  />
-                </Field>
-
-                {newProject.templateType === 'custom' && (
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 8 }}>
-                      Select Phases
-                    </div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      {PHASES.map(({ id, label }) => {
-                        const cfg = PHASE_MAP[id];
-                        const active = (newProject.phases || []).includes(id);
-                        return (
-                          <button
-                            key={id}
-                            type="button"
-                            onClick={() => togglePhase(id)}
-                            style={{
-                              padding: "9px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                              cursor: "pointer", transition: "all 0.15s ease",
-                              border: `1.5px solid ${active ? cfg.color : 'var(--border)'}`,
-                              background: active ? cfg.bg : "var(--accent-subtle)",
-                              color: cfg.color,
-                            }}
-                          >
-                            {label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+              {/* Scope Configurator */}
+              <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowScopeConfigurator(true)}
+                  style={{
+                    padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600,
+                    border: newProject.scope ? "1.5px solid var(--status-done)" : "1.5px solid var(--border)",
+                    background: newProject.scope ? "var(--status-done-bg)" : "var(--accent-subtle)",
+                    color: newProject.scope ? "var(--status-done)" : "var(--text-secondary)",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {newProject.scope ? `Scope configured (${newProject.scope.workPackages?.length ?? 0} WPs)` : "Configure Scope →"}
+                </button>
+                {newProject.scope && (
+                  <button
+                    type="button"
+                    onClick={() => setNewProject(p => ({ ...p, scope: null }))}
+                    style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}
+                  >
+                    Reset to full scope
+                  </button>
                 )}
-              </FormSection>
+              </div>
 
               {/* Project */}
               <FormSection title="Project" accentColor="var(--status-done)">
@@ -940,6 +837,18 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Scope Configurator modal */}
+      {showScopeConfigurator && (
+        <ProjectScopeConfigurator
+          initialScope={newProject.scope}
+          onSave={(scope) => {
+            setNewProject(p => ({ ...p, scope }));
+            setShowScopeConfigurator(false);
+          }}
+          onClose={() => setShowScopeConfigurator(false)}
+        />
       )}
     </div>
   );

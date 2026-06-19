@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   formatDate,
   computeCumulativeStatuses,
@@ -14,6 +14,8 @@ import {
 } from "../config/masterTaskLibrary";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing } from "../engines/portfolioEngine";
+import { getProjectGantt } from "../services/ganttService";
+import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
 import PhaseStepper       from "../components/weekly/PhaseStepper";
@@ -125,6 +127,9 @@ function WeeklyReports({ projects, reports }) {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedReportId,  setSelectedReportId]  = useState("");
   const [showMissingModal,  setShowMissingModal]  = useState(false);
+  const [showGantt,         setShowGantt]         = useState(false);
+  const [ganttTasks,        setGanttTasks]        = useState([]);
+  const [ganttLoading,      setGanttLoading]      = useState(false);
 
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId && projects.some(p => String(p.id) === selectedProjectId))
@@ -202,6 +207,15 @@ function WeeklyReports({ projects, reports }) {
     return merged;
   }, [selectedReport, projectReports]);
 
+  useEffect(() => {
+    if (!showGantt || !effectiveProjectId) return;
+    setGanttLoading(true);
+    getProjectGantt(effectiveProjectId)
+      .then(tasks => setGanttTasks(tasks || []))
+      .catch(() => setGanttTasks([]))
+      .finally(() => setGanttLoading(false));
+  }, [showGantt, effectiveProjectId]);
+
   const riskCount = (selectedReport?.risks || []).filter(Boolean).length;
   const displayWorkPackages = isWPReport(selectedReport) ? GANTT_WORK_PACKAGES : WORK_PACKAGES;
 
@@ -218,10 +232,10 @@ function WeeklyReports({ projects, reports }) {
 
         {/* Selectors toolbar */}
         <div className="dashboard-toolbar">
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", flex: 1 }}>
             <div className="dashboard-filter-group">
               <label>Project</label>
-              <select data-testid="project-select" value={selectedProjectId} onChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); }}>
+              <select data-testid="project-select" value={selectedProjectId} onChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}>
                 {projects.map(p => (
                   <option key={p.id} value={String(p.id)}>{p.storeCode} — {p.shoppingMallName}</option>
                 ))}
@@ -241,6 +255,21 @@ function WeeklyReports({ projects, reports }) {
               </select>
             </div>
           </div>
+          {selectedProject && (
+            <button
+              type="button"
+              onClick={() => setShowGantt(v => !v)}
+              style={{
+                padding: "7px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                border: `1.5px solid ${showGantt ? "var(--status-done)" : "var(--border)"}`,
+                background: showGantt ? "var(--status-done-bg)" : "var(--accent-subtle)",
+                color: showGantt ? "var(--status-done)" : "var(--text-primary)",
+                flexShrink: 0,
+              }}
+            >
+              {showGantt ? "Hide Gantt" : "View Gantt →"}
+            </button>
+          )}
         </div>
 
         {/* Project header + KPI strip */}
@@ -256,6 +285,29 @@ function WeeklyReports({ projects, reports }) {
               onMissingClick={() => setShowMissingModal(true)}
             />
           </>
+        )}
+
+        {/* Gantt chart */}
+        {showGantt && selectedProject && (
+          <div className="dashboard-summary-card" style={{ marginBottom: 16 }}>
+            {ganttLoading ? (
+              <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>Loading Gantt…</div>
+            ) : ganttTasks.length === 0 ? (
+              <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>No Gantt schedule generated yet for this project.</div>
+            ) : (
+              <GanttChart
+                project={selectedProject}
+                tasks={ganttTasks}
+                keyDates={{
+                  constructionStart:      selectedProject.constructionStartDate,
+                  targetOpeningDate:      selectedProject.targetOpeningDate,
+                  forecastOpeningDate:    selectedProject.forecastOpeningDate,
+                  constructionCompletion: selectedProject.constructionCompletionDate,
+                }}
+                readOnly
+              />
+            )}
+          </div>
         )}
 
         {/* Missing reports modal */}

@@ -421,7 +421,9 @@ export default function GanttChart({
   defaultZoom = 'month',
   readOnly = false,
 }) {
-  const tasks = tasksProp || ganttData || [];
+  const rawTasks = tasksProp || ganttData || [];
+  const activeWPIds = project?.scope?.workPackages;
+  const tasks = activeWPIds ? rawTasks.filter(t => activeWPIds.includes(t.id)) : rawTasks;
 
   const [zoom,         setZoom]         = useState(defaultZoom);
   const [showArrows,   setShowArrows]   = useState(true);

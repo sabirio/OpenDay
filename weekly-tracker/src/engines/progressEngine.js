@@ -2,15 +2,15 @@
  * progressEngine.js — Single source of truth for all progress calculations.
  *
  * Three-level API:
- *   calculateActivityProgress(entry)          → 0-100 for a single task entry
- *   calculatePhaseProgress(phaseId, taskMap)  → { pct, count } for one WP/phase
- *   calculateProjectProgress(wpStatuses)      → 0-100 overall (Gantt format)
- *   calculateProjectProgressResult(wpCum, legCum) → { progress, format, phases }
+ *   calculateActivityProgress(entry)                          → 0-100 for a single task entry
+ *   calculatePhaseProgress(phaseId, taskMap, ew?)            → { pct, count } for one WP/phase
+ *   calculateProjectProgress(wpStatuses, scopeWPIds?)        → 0-100 overall (Gantt format)
+ *   calculateProjectProgressResult(wpCum, legCum, scope?)    → { progress, format, phases }
  *
  * Weighting:
- *   Within each phase: tasks are weighted by duration_pct from masterTaskLibrary.
- *   Tasks not defined in the library (custom) fall back to equal weight.
- *   Across phases: simple average — all phases contribute equally.
+ *   Without scope: tasks weighted by duration_pct; phases contribute equally (simple average).
+ *   With scope:    computeEffectiveWeights() normalises weights across only the active WPs;
+ *                  inactive phases/WPs are excluded from calculations.
  *
  * Format detection:
  *   'gantt'  — workPackageStatuses: { phaseId → { taskLabel → { progress, status } } }
@@ -18,15 +18,18 @@
  *   'none'   — no usable data
  */
 
-import { WORK_PACKAGES as GANTT_TASKS, getPhasesInOrder } from '../config/masterTaskLibrary';
+import {
+  WORK_PACKAGES as GANTT_TASKS,
+  getPhasesInOrder,
+  computeEffectiveWeights,
+} from '../config/masterTaskLibrary';
 import {
   estimateProgressFromStatuses,
   computeWPCumulativeStatuses,
   computeCumulativeStatuses,
 } from '../utils/reportUtils';
 
-// Build a lookup map: { phaseId → { taskLabel → duration_pct } }
-// duration_pct values within each phase sum to ~1.0 (ready-to-use weights).
+// Build a lookup: { phaseId → { taskLabel → duration_pct } } — used when no scope is set.
 const TASK_WEIGHTS = {};
 for (const task of GANTT_TASKS) {
   if (!TASK_WEIGHTS[task.phaseId]) TASK_WEIGHTS[task.phaseId] = {};
@@ -51,21 +54,45 @@ export function calculateActivityProgress(entry) {
 
 /**
  * Compute progress for a single Gantt phase/WP.
- * Tasks are weighted by duration_pct from masterTaskLibrary.
- * Custom tasks (not in the library) get equal weight to the average library task.
+ *
+ * @param {string} phaseId
+ * @param {object} taskMap        — { taskLabel → { progress, status } }
+ * @param {object|null} effectiveWeights — { wpId → weight } from computeEffectiveWeights().
+ *   When provided, only tasks whose WP is active in scope are counted and weights are
+ *   taken from this map (already normalised). When null, falls back to TASK_WEIGHTS.
+ *
  * Returns { pct: 0-100, count: number }.
  */
-export function calculatePhaseProgress(phaseId, taskMap) {
+export function calculatePhaseProgress(phaseId, taskMap, effectiveWeights = null) {
   const entries = Object.entries(taskMap || {});
   if (entries.length === 0) return { pct: 0, count: 0 };
 
-  const phaseWeights = TASK_WEIGHTS[phaseId] || {};
+  let phaseWeights;
+  let filteredEntries;
+
+  if (effectiveWeights) {
+    // Build { taskLabel → effectiveWeight } for this phase from the scoped weight map.
+    phaseWeights = {};
+    for (const task of GANTT_TASKS) {
+      if (task.phaseId === phaseId && effectiveWeights[task.id] != null) {
+        phaseWeights[task.label] = effectiveWeights[task.id];
+      }
+    }
+    // Only include tasks that are active in scope.
+    filteredEntries = entries.filter(([label]) => phaseWeights[label] != null);
+    if (filteredEntries.length === 0) return { pct: 0, count: 0 };
+  } else {
+    phaseWeights = TASK_WEIGHTS[phaseId] || {};
+    filteredEntries = entries; // no scope filter — include all entries
+  }
+
   let weightedSum = 0;
   let totalWeight = 0;
 
-  // Separate known (have duration_pct) from unknown (custom) tasks
-  const knownEntries   = entries.filter(([label]) => phaseWeights[label] != null);
-  const unknownEntries = entries.filter(([label]) => phaseWeights[label] == null);
+  const knownEntries   = filteredEntries.filter(([label]) => phaseWeights[label] != null);
+  const unknownEntries = effectiveWeights
+    ? [] // when scope is active, custom tasks outside scope are excluded
+    : filteredEntries.filter(([label]) => phaseWeights[label] == null);
 
   for (const [label, entry] of knownEntries) {
     const w = phaseWeights[label];
@@ -73,11 +100,8 @@ export function calculatePhaseProgress(phaseId, taskMap) {
     totalWeight += w;
   }
 
-  // Unknown tasks share equal weight equal to the average known-task weight
   if (unknownEntries.length > 0) {
-    const fallbackW = knownEntries.length > 0
-      ? totalWeight / knownEntries.length
-      : 1;
+    const fallbackW = knownEntries.length > 0 ? totalWeight / knownEntries.length : 1;
     for (const [, entry] of unknownEntries) {
       weightedSum += calculateActivityProgress(entry) * fallbackW;
       totalWeight += fallbackW;
@@ -86,7 +110,7 @@ export function calculatePhaseProgress(phaseId, taskMap) {
 
   return {
     pct:   totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0,
-    count: entries.length,
+    count: knownEntries.length + unknownEntries.length,
   };
 }
 
@@ -94,17 +118,25 @@ export function calculatePhaseProgress(phaseId, taskMap) {
 
 /**
  * Compute overall project progress from Gantt workPackageStatuses.
- * Phase progress is duration_pct-weighted internally; phases contribute equally
- * to the project total (simple average across phases that have data).
+ *
+ * @param {object} wpStatuses  — { phaseId → { taskLabel → entry } }
+ * @param {string[]|null} scopeWPIds — active WP id list; null = full scope
  * Returns 0-100.
  */
-export function calculateProjectProgress(wpStatuses) {
-  const phases = getPhasesInOrder();
-  let phaseSum = 0, phaseCount = 0;
+export function calculateProjectProgress(wpStatuses, scopeWPIds = null) {
+  const effectiveWeights = scopeWPIds ? computeEffectiveWeights(scopeWPIds) : null;
 
+  // Determine which phases to visit (all phases if no scope, else only those with active WPs).
+  const activePhaseIds = effectiveWeights
+    ? new Set(Object.keys(effectiveWeights).map(id => GANTT_TASKS.find(t => t.id === id)?.phaseId).filter(Boolean))
+    : null;
+
+  const phases = getPhasesInOrder().filter(p => !activePhaseIds || activePhaseIds.has(p.id));
+
+  let phaseSum = 0, phaseCount = 0;
   for (const phase of phases) {
     const taskMap = wpStatuses?.[phase.id] || {};
-    const { pct, count } = calculatePhaseProgress(phase.id, taskMap);
+    const { pct, count } = calculatePhaseProgress(phase.id, taskMap, effectiveWeights);
     if (count === 0) continue;
     phaseSum += pct;
     phaseCount++;
@@ -117,51 +149,60 @@ export function calculateProjectProgress(wpStatuses) {
 
 /**
  * Progress value at a given index in a sorted report array.
- * Drop-in replacement for the reportUtils version — uses weighted Gantt calculation
- * instead of the flat average, so EVM and Monte Carlo get accurate earned-value points.
  *
  * @param {Array}  sortedReports — reports sorted oldest → newest
  * @param {number} index         — inclusive upper bound (0-based)
+ * @param {string[]|null} scopeWPIds — active WP ids; null = full scope
  * @returns {number} 0-100
  */
-export function progressAtIndex(sortedReports, index) {
+export function progressAtIndex(sortedReports, index, scopeWPIds = null) {
   const slice  = sortedReports.slice(0, index + 1);
   const wpCum  = computeWPCumulativeStatuses(slice);
   const legCum = computeCumulativeStatuses(slice);
-  return calculateProjectProgressResult(wpCum, legCum).progress;
+  // Use report's snapshot weights if saved (prevents retroactive shifts on scope change).
+  const snapshotScope = sortedReports[index]?.snapshotWeights
+    ? null // snapshotWeights already encode scope; pass null so engine uses them directly
+    : scopeWPIds;
+  return calculateProjectProgressResult(wpCum, legCum, snapshotScope).progress;
 }
 
 /**
  * Format-aware progress breakdown.
  *
- * @param {object|null} wpCumulative   — result of computeWPCumulativeStatuses()
+ * @param {object|null} wpCumulative     — result of computeWPCumulativeStatuses()
  * @param {object|null} legacyCumulative — result of computeCumulativeStatuses()
+ * @param {string[]|null} scopeWPIds     — active WP ids; null = full scope
  * @returns {{ progress: number, format: 'gantt'|'legacy'|'none', phases: Array }}
- *
- * phases entries: { id, name, pct, count }
  */
-export function calculateProjectProgressResult(wpCumulative, legacyCumulative) {
+export function calculateProjectProgressResult(wpCumulative, legacyCumulative, scopeWPIds = null) {
   if (wpCumulative?.workPackageStatuses) {
     const wpStatuses = wpCumulative.workPackageStatuses;
+    const effectiveWeights = scopeWPIds ? computeEffectiveWeights(scopeWPIds) : null;
+    const activePhaseIds = effectiveWeights
+      ? new Set(Object.keys(effectiveWeights).map(id => GANTT_TASKS.find(t => t.id === id)?.phaseId).filter(Boolean))
+      : null;
+
     const phases = getPhasesInOrder()
+      .filter(p => !activePhaseIds || activePhaseIds.has(p.id))
       .map(phase => {
-        const { pct, count } = calculatePhaseProgress(phase.id, wpStatuses[phase.id] || {});
+        const { pct, count } = calculatePhaseProgress(phase.id, wpStatuses[phase.id] || {}, effectiveWeights);
         if (count === 0) return null;
         return { id: phase.id, name: phase.label, pct, count };
       })
       .filter(Boolean);
+
     return {
-      format: 'gantt',
-      progress: calculateProjectProgress(wpStatuses),
+      format:   'gantt',
+      progress: calculateProjectProgress(wpStatuses, scopeWPIds),
       phases,
     };
   }
 
   if (legacyCumulative) {
     return {
-      format: 'legacy',
+      format:   'legacy',
       progress: estimateProgressFromStatuses(legacyCumulative),
-      phases: [],
+      phases:   [],
     };
   }
 
