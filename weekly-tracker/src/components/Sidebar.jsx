@@ -4,20 +4,11 @@ import { useAuth } from '../auth/AuthContext';
 import { getAllowedNavItems } from '../engines/permissionEngine';
 import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
 
-function ThemeToggle() {
-  const [theme, setTheme] = useState(
-    () => document.documentElement.getAttribute('data-theme') || 'dark'
-  );
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
+function ThemeToggle({ theme, onToggle }) {
   return (
     <button
       className="theme-toggle"
-      onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+      onClick={onToggle}
       title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {theme === 'dark' ? '☀' : '☾'}
@@ -28,6 +19,15 @@ function ThemeToggle() {
 function Sidebar() {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem('theme') || document.documentElement.getAttribute('data-theme') || 'dark'
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   const visibleNav = getAllowedNavItems(role, NAV_ITEMS);
   const badgeStyle = ROLE_BADGE_STYLES[role] ?? {};
@@ -41,9 +41,9 @@ function Sidebar() {
     <aside className="sidebar">
       <div style={{ padding: '12px 0 8px' }}>
         <img
-          src="/openday-logo.png"
-          alt="OPENDAY"
-          style={{ width: '100%', maxWidth: 140, display: 'block', objectFit: 'contain' }}
+          src={theme === 'dark' ? '/logo-dark.png' : '/logo-light.png'}
+          alt="OpenDay"
+          style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
         />
       </div>
 
@@ -67,7 +67,7 @@ function Sidebar() {
 
       <div style={{ marginTop: 'auto', paddingTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <ThemeToggle />
+          <ThemeToggle theme={theme} onToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
           {user && (
             <button className="sidebar-logout-btn" onClick={handleLogout}>
               Sign out
