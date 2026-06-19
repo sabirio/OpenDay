@@ -39,8 +39,8 @@ export const NAV_ITEMS = [
 
 // Role badge colours shown in the Sidebar
 export const ROLE_BADGE_STYLES = {
-  Admin:      { background: '#eff6ff', color: '#2563eb' },
-  PM:         { background: '#f0fdf4', color: '#16a34a' },
-  Contractor: { background: '#fef2f2', color: '#dc2626' },
-  Viewer:     { background: '#fefce8', color: '#b45309' },
+  Admin:      { background: 'var(--status-done-bg)',  color: 'var(--status-done)'  },
+  PM:         { background: 'var(--accent-subtle)',   color: 'var(--accent)'       },
+  Contractor: { background: 'var(--status-warn-bg)',  color: 'var(--status-warn)'  },
+  Viewer:     { background: 'var(--bg-elevated)',     color: 'var(--text-muted)'   },
 };

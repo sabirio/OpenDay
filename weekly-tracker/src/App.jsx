@@ -20,6 +20,12 @@ import * as projectService from "./services/projectService";
 import * as reportService from "./services/reportService";
 import * as siteVisitService from "./services/siteVisitService";
 
+// ── Theme initialisation (runs once before first render) ──────────────────────
+(function () {
+  const t = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+
 // ── Error boundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -32,15 +38,15 @@ class ErrorBoundary extends Component {
   render() {
     if (!this.state.hasError) return this.props.children;
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: '#f5f6fa', color: '#111827' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
         <div style={{ fontSize: 40 }}>⚠️</div>
         <div style={{ fontSize: 20, fontWeight: 600 }}>Something went wrong</div>
-        <div style={{ fontSize: 14, color: '#6b7280', maxWidth: 480, textAlign: 'center' }}>
+        <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 480, textAlign: 'center' }}>
           {this.state.error?.message || 'An unexpected error occurred.'}
         </div>
         <button
           onClick={() => window.location.reload()}
-          style={{ marginTop: 8, padding: '8px 24px', background: '#22d3ee', color: '#111827', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+          style={{ marginTop: 8, padding: '8px 24px', background: 'var(--accent)', color: 'var(--text-inverse)', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
         >
           Reload page
         </button>
@@ -52,8 +58,8 @@ class ErrorBoundary extends Component {
 // ── Global screens ────────────────────────────────────────────────────────────
 function GlobalLoadingScreen() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f5f6fa', color: '#6b7280', fontFamily: 'sans-serif', gap: 12 }}>
-      <div style={{ width: 20, height: 20, border: '3px solid #e5e7eb', borderTopColor: '#f97316', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-base)', color: 'var(--text-muted)', fontFamily: 'sans-serif', gap: 12 }}>
+      <div style={{ width: 20, height: 20, border: '3px solid var(--border)', borderTopColor: 'var(--status-warn)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <span style={{ fontSize: 15 }}>Loading project data…</span>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
@@ -62,15 +68,15 @@ function GlobalLoadingScreen() {
 
 function GlobalErrorScreen({ error, onRetry }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: '#f5f6fa', color: '#111827' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
       <div style={{ fontSize: 40 }}>🔌</div>
       <div style={{ fontSize: 20, fontWeight: 600 }}>Failed to load data</div>
-      <div style={{ fontSize: 14, color: '#6b7280', maxWidth: 480, textAlign: 'center' }}>
+      <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 480, textAlign: 'center' }}>
         {error || 'Could not connect to the database. Check your network and try again.'}
       </div>
       <button
         onClick={onRetry}
-        style={{ marginTop: 8, padding: '8px 24px', background: '#22d3ee', color: '#111827', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+        style={{ marginTop: 8, padding: '8px 24px', background: 'var(--accent)', color: 'var(--text-inverse)', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
       >
         Retry
       </button>

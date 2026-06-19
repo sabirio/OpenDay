@@ -22,8 +22,8 @@ function ContractorSelect({ projects = [] }) {
       <header className="contractor-header">
         <div className="contractor-header-brand">
           <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="8" fill="#1e3a5f" />
-            <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="#60a5fa" />
+            <rect width="32" height="32" rx="8" fill="var(--bg-elevated)" />
+            <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="var(--accent)" />
           </svg>
           <span>Construction PM Portal</span>
         </div>

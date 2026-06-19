@@ -103,8 +103,8 @@ export function computePortfolioContractorScores(allRows) {
     const avgPerf     = Math.round(d.totalPerf / n);
     const avgAccuracy = Math.round(d.totalAccuracy / n);
     const avgTotal    = Math.round(d.totalScore / n);
-    const perfColor   = avgPerf >= 80 ? "#22c55e" : avgPerf >= 60 ? "#f59e0b" : "#dc2626";
-    const accColor    = avgAccuracy >= 80 ? "#22c55e" : avgAccuracy >= 60 ? "#f59e0b" : "#dc2626";
+    const perfColor   = avgPerf >= 80 ? "var(--status-done)" : avgPerf >= 60 ? "var(--status-warn)" : "var(--status-alert)";
+    const accColor    = avgAccuracy >= 80 ? "var(--status-done)" : avgAccuracy >= 60 ? "var(--status-warn)" : "var(--status-alert)";
     const perfLevel   = avgPerf >= 80 ? "Reliable" : avgPerf >= 60 ? "Moderate" : "Needs Attention";
     const accLevel    = avgAccuracy >= 80 ? "Accurate" : avgAccuracy >= 60 ? "Moderate" : "Unreliable";
     return { name, avgTotal, avgPerf, avgAccuracy, perfColor, accColor, perfLevel, accLevel, projects: d.projects, n, reportCount: d.reportCount };

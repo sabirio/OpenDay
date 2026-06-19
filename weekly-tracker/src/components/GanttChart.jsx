@@ -9,36 +9,36 @@ const ROW_H       = 36;
 const PHASE_ROW_H = 32;
 const BAR_H       = 22;
 
-// Phase colour palette — local to Gantt only; colour not stored in config
+// Phase colour palette — monochrome, only orange/red used for functional signal
 const PHASE_PALETTE = {
-  demolition:    '#6b7280',
-  floor_prep:    '#f97316',
-  rough_in:      '#0891b2',
-  floor_tiling:  '#22d3ee',
-  testing:       '#d97706',
-  wall_closing:  '#ec4899',
-  finishes:      '#14b8a6',
-  end_devices:   '#f59e0b',
-  commissioning: '#10b981',
-  pre_opening:   '#475569',
-  handover:      '#84cc16',
+  demolition:    'var(--text-muted)',
+  floor_prep:    'var(--status-warn)',
+  rough_in:      'var(--text-secondary)',
+  floor_tiling:  'var(--accent)',
+  testing:       'var(--status-warn)',
+  wall_closing:  'var(--border-strong)',
+  finishes:      'var(--text-secondary)',
+  end_devices:   'var(--status-warn)',
+  commissioning: 'var(--status-done)',
+  pre_opening:   'var(--text-muted)',
+  handover:      'var(--status-done)',
 };
-function phaseColor(id) { return PHASE_PALETTE[id] || '#6b7280'; }
+function phaseColor(id) { return PHASE_PALETTE[id] || 'var(--text-muted)'; }
 
 const C = {
-  bg:        '#111827',
-  bgCard:    '#1f2937',
-  bgEl:      'rgba(255,255,255,0.04)',
-  border:    '#374151',
-  text:      '#f9fafb',
-  muted:     '#9ca3af',
-  blue:      '#22d3ee',
-  green:     '#10b981',
-  yellow:    '#f97316',
-  red:       '#ef4444',
-  redCrit:   '#ef4444',
-  orange:    '#f97316',
-  white60:   'rgba(255,255,255,0.45)',
+  bg:        'var(--bg-base)',
+  bgCard:    'var(--bg-surface)',
+  bgEl:      'var(--accent-subtle)',
+  border:    'var(--border)',
+  text:      'var(--text-primary)',
+  muted:     'var(--text-muted)',
+  blue:      'var(--accent)',
+  green:     'var(--status-done)',
+  yellow:    'var(--status-warn)',
+  red:       'var(--status-alert)',
+  redCrit:   'var(--status-alert)',
+  orange:    'var(--status-warn)',
+  white60:   'var(--text-muted)',
 };
 
 function fmtDate(d) {
@@ -87,7 +87,7 @@ function Controls({ zoom, setZoom, onToday, onFitAll, showArrows, onArrowsToggle
         ...btnStyle,
         borderColor: showArrows ? C.blue : C.border,
         color:       showArrows ? C.blue : C.muted,
-        background:  showArrows ? 'rgba(79,142,247,0.1)' : 'transparent',
+        background:  showArrows ? 'var(--accent-subtle)' : 'transparent',
       }}>
         Arrows ↗
       </button>
@@ -123,7 +123,7 @@ function WPTooltip({ task, onClose }) {
     <div style={{
       position: 'fixed', top: 90, right: 24, width: 268, zIndex: 200,
       background: C.bgCard, border: `1.5px solid ${C.border}`,
-      borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.7)',
+      borderRadius: 12, boxShadow: 'var(--shadow-lg)',
       overflow: 'hidden', fontFamily: 'system-ui, sans-serif',
     }}>
       {/* Header */}
@@ -158,8 +158,8 @@ function WPTooltip({ task, onClose }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: C.muted }}>Discrepancy</span>
               {disc.status === 'critical'
-                ? badge(`CRITICAL (${disc.delta?.toFixed(1)}%)`, '#fff', C.red)
-                : badge(`WARNING (${disc.delta?.toFixed(1)}%)`, '#fdba74', '#7c2d12')}
+                ? badge(`CRITICAL (${disc.delta?.toFixed(1)}%)`, 'var(--text-inverse)', C.red)
+                : badge(`WARNING (${disc.delta?.toFixed(1)}%)`, 'var(--status-warn)', 'var(--status-warn-bg)')}
             </div>
             {disc.site_visit_date && <Row label="Visited" value={fmtDate(disc.site_visit_date)} />}
           </>
@@ -191,7 +191,7 @@ function Row({ label, value, bold, critical }) {
 
 function Legend() {
   const bars = [
-    { label: 'Planned',       bg: '#e5e7eb',                  border: C.border },
+    { label: 'Planned',       bg: 'var(--border)',             border: C.border },
     { label: 'In Progress',   bg: C.blue,                     border: 'none' },
     { label: 'Complete',      bg: C.green,                    border: 'none' },
     { label: 'Critical Path', bg: 'rgba(255,100,100,0.4)',    border: C.redCrit },
@@ -253,13 +253,13 @@ function WPBar({ task, isSelected, onClick }) {
     strokeWidth = 1;
     strokeDash  = 'none';
   } else if (isCritical) {
-    bgFill     = 'rgba(239,68,68,0.15)';
-    progFill   = '#ef4444';
+    bgFill     = 'var(--status-alert-bg)';
+    progFill   = 'var(--status-alert)';
     strokeColor = C.redCrit;
     strokeWidth = 1.5;
     strokeDash  = 'none';
   } else {
-    bgFill     = notStarted ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.1)';
+    bgFill     = notStarted ? 'var(--accent-subtle)' : 'var(--bg-elevated)';
     progFill   = C.blue;
     strokeColor = C.border;
     strokeWidth = 1;
@@ -550,7 +550,7 @@ export default function GanttChart({
                 : disc?.status === 'warning'  ? C.yellow
                 : 'transparent'
               }`,
-              background: selectedTask?.id === wp.id ? 'rgba(34,211,238,0.07)' : 'transparent',
+              background: selectedTask?.id === wp.id ? 'var(--accent-subtle)' : 'transparent',
               flexShrink: 0,
             }}>
             {t?.isBlocker && <span style={{ fontSize: 9, flexShrink: 0 }}>🔒</span>}

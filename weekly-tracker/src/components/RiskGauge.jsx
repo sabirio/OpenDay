@@ -4,7 +4,7 @@ export function RiskGauge({ score, level, color }) {
   const R = 45, C = 2 * Math.PI * R, dash = (score / 100) * C;
   return (
     <svg width={110} height={110} viewBox="0 0 110 110">
-      <circle cx={55} cy={55} r={R} fill="none" stroke="#374151" strokeWidth={10} />
+      <circle cx={55} cy={55} r={R} fill="none" stroke="var(--border)" strokeWidth={10} />
       <circle cx={55} cy={55} r={R} fill="none" stroke={color.border}
         strokeWidth={10} strokeDasharray={`${dash} ${C - dash}`}
         strokeLinecap="round" transform="rotate(-90 55 55)"

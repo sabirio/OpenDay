@@ -66,7 +66,7 @@ export function buildProjectWPs(templateId, projectStart, targetOpeningDate, sto
         label:           wp.label,
         phaseId:         wp.phaseId,
         phaseLabel:      phase?.label || wp.phaseId,
-        phaseColor:      phase?.color || '#94A3B8',
+        phaseColor:      phase?.color || 'var(--text-muted)',
         phaseOrder:      phase?.order || 99,
         duration_pct:    wp.duration_pct,
         isBlocker:       wp.isBlocker,

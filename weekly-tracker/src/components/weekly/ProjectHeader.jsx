@@ -1,12 +1,14 @@
+const STATUS_COLORS = {
+  Active:    { bg: 'var(--status-done-bg)',  color: 'var(--status-done)',  border: 'var(--border)' },
+  Completed: { bg: 'var(--accent-subtle)',   color: 'var(--accent)',       border: 'var(--border)' },
+  OnHold:    { bg: 'var(--status-warn-bg)',  color: 'var(--status-warn)',  border: 'var(--border)' },
+};
+const SC_FALLBACK = { bg: 'var(--bg-elevated)', color: 'var(--text-muted)', border: 'var(--border)' };
+
 export default function ProjectHeader({ project }) {
   if (!project) return null;
 
-  const STATUS_COLORS = {
-    Active:    { bg: '#064e3b', color: '#6ee7b7', border: '#065f46' },
-    Completed: { bg: '#164e63', color: '#67e8f9', border: '#0e7490' },
-    OnHold:    { bg: '#7c2d12', color: '#fdba74', border: '#92400e' },
-  };
-  const sc = STATUS_COLORS[project.projectStatus] ?? { bg: '#374151', color: '#9ca3af', border: '#4b5563' };
+  const sc = STATUS_COLORS[project.projectStatus] ?? SC_FALLBACK;
 
   const meta = [
     project.storeCode && `Store ${project.storeCode}`,
@@ -19,13 +21,13 @@ export default function ProjectHeader({ project }) {
   return (
     <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
       <div>
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: '#f9fafb', margin: 0, lineHeight: 1.3 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3 }}>
           {project.shoppingMallName || project.storeCode || '—'}
         </h2>
-        <div style={{ fontSize: 13, color: '#9ca3af', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
           {meta.map((part, i) => (
             <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {i > 0 && <span style={{ color: '#4b5563' }}>·</span>}
+              {i > 0 && <span style={{ color: 'var(--border-strong)' }}>·</span>}
               {part}
             </span>
           ))}

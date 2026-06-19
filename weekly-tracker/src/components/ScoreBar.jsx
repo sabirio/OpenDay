@@ -3,10 +3,10 @@ export function ScoreBar({ label, pts, max, color }) {
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-        <span style={{ color: "#9ca3af" }}>{label}</span>
-        <span style={{ fontWeight: 700, color: "#e5e7eb" }}>{pts} / {max}</span>
+        <span style={{ color: "var(--text-muted)" }}>{label}</span>
+        <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>{pts} / {max}</span>
       </div>
-      <div style={{ background: "#374151", borderRadius: 4, height: 6, overflow: "hidden" }}>
+      <div style={{ background: "var(--border)", borderRadius: 4, height: 6, overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.4s ease" }} />
       </div>
     </div>
@@ -17,10 +17,10 @@ export function FactorPill({ f }) {
   const neg = f.pts < 0;
   const sev = neg ? "low" : f.pts >= 12 ? "crit" : f.pts >= 6 ? "high" : "med";
   const styles = {
-    crit: { bg: "#7f1d1d", text: "#fca5a5", border: "#991b1b" },
-    high: { bg: "#7c2d12", text: "#fdba74", border: "#92400e" },
-    med:  { bg: "#7c2d12", text: "#fdba74", border: "#92400e" },
-    low:  { bg: "#064e3b", text: "#6ee7b7", border: "#065f46" },
+    crit: { bg: "var(--status-alert-bg)", text: "var(--status-alert)", border: "var(--border)" },
+    high: { bg: "var(--status-warn-bg)",  text: "var(--status-warn)",  border: "var(--border)" },
+    med:  { bg: "var(--status-warn-bg)",  text: "var(--status-warn)",  border: "var(--border)" },
+    low:  { bg: "var(--status-done-bg)",  text: "var(--status-done)",  border: "var(--border)" },
   };
   const s = styles[sev];
   return (
@@ -32,14 +32,14 @@ export function FactorPill({ f }) {
 }
 
 export function MiniRiskSparkline({ points }) {
-  if (points.length < 2) return <span style={{ fontSize: 11, color: "#9ca3af" }}>—</span>;
+  if (points.length < 2) return <span style={{ fontSize: 11, color: "var(--text-muted)" }}>—</span>;
   const w = 84, h = 30;
   const xs = points.map((_, i) => (i / (points.length - 1)) * w);
   const sy = v => h - (v / 100) * h;
   const poly = points.map((p, i) => `${xs[i]},${sy(p.score)}`).join(" ");
   const last = points[points.length - 1], prev = points[points.length - 2];
   const delta = last.score - prev.score;
-  const col = delta > 5 ? "#ef4444" : delta < -5 ? "#10b981" : "#9ca3af";
+  const col = delta > 5 ? "var(--status-alert)" : delta < -5 ? "var(--status-done)" : "var(--text-muted)";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: "visible" }}>

@@ -18,7 +18,7 @@ function phaseProgressFromGanttStatuses(wpStatuses) {
     .map(phase => {
       const { pct, count } = calculatePhaseProgress(phase.id, wpStatuses[phase.id] || {});
       if (count === 0) return null;
-      const meta = GANTT_PHASE_META[phase.id] || { name: phase.label, color: '#6b7280' };
+      const meta = GANTT_PHASE_META[phase.id] || { name: phase.label, color: 'var(--text-muted)' };
       return { wpId: phase.id, name: meta.name, color: meta.color, pct };
     })
     .filter(Boolean);

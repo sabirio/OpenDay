@@ -1,7 +1,29 @@
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getAllowedNavItems } from '../engines/permissionEngine';
 import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState(
+    () => document.documentElement.getAttribute('data-theme') || 'dark'
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  return (
+    <button
+      className="theme-toggle"
+      onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {theme === 'dark' ? '☀' : '☾'}
+    </button>
+  );
+}
 
 function Sidebar() {
   const { user, role, logout } = useAuth();
@@ -44,12 +66,15 @@ function Sidebar() {
       </nav>
 
       <div style={{ marginTop: 'auto', paddingTop: 16 }}>
-        {user && (
-          <button className="sidebar-logout-btn" onClick={handleLogout}>
-            Sign out
-          </button>
-        )}
-        <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <ThemeToggle />
+          {user && (
+            <button className="sidebar-logout-btn" onClick={handleLogout}>
+              Sign out
+            </button>
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
           by Sabir Khairullin
         </div>
       </div>

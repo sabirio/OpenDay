@@ -11,11 +11,11 @@ function SiteVisitSelect({ projects = [] }) {
       ? Math.ceil((new Date(project.targetOpeningDate) - new Date()) / 86400000)
       : null;
     const urgencyColor =
-      daysToOpening === null ? '#9ca3af'
-      : daysToOpening < 0   ? '#ef4444'
-      : daysToOpening < 30  ? '#ef4444'
-      : daysToOpening < 90  ? '#f97316'
-      : '#10b981';
+      daysToOpening === null ? 'var(--text-muted)'
+      : daysToOpening < 0   ? 'var(--status-alert)'
+      : daysToOpening < 30  ? 'var(--status-alert)'
+      : daysToOpening < 90  ? 'var(--status-warn)'
+      : 'var(--status-done)';
 
     const openingLabel =
       daysToOpening === null  ? null
@@ -24,8 +24,8 @@ function SiteVisitSelect({ projects = [] }) {
       : `${daysToOpening}d · ${project.targetOpeningDate}`;
 
     const statusChip = project.projectStatus === 'Active'
-      ? { bg: '#064e3b', color: '#6ee7b7', border: '#065f46' }
-      : { bg: '#374151', color: '#9ca3af', border: '#4b5563' };
+      ? { bg: 'var(--status-done-bg)', color: 'var(--status-done)', border: 'var(--border)' }
+      : { bg: 'var(--bg-elevated)',    color: 'var(--text-muted)',  border: 'var(--border)' };
 
     return (
       <div
@@ -37,19 +37,19 @@ function SiteVisitSelect({ projects = [] }) {
           gap: 16,
           padding: '12px 18px',
           background: 'transparent',
-          borderBottom: '1px solid #374151',
+          borderBottom: '1px solid var(--border)',
           cursor: 'pointer',
           transition: 'background 0.12s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.05)'; }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-subtle)'; }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
       >
         {/* Store + Mall */}
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#f9fafb', lineHeight: 1.3 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
             {project.storeCode || '—'}
           </div>
-          <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {project.shoppingMallName || '—'}
             {project.city && <span style={{ marginLeft: 6 }}>· {[project.city, project.country].filter(Boolean).join(', ')}</span>}
           </div>
@@ -58,7 +58,7 @@ function SiteVisitSelect({ projects = [] }) {
         {/* PM + opening */}
         <div style={{ minWidth: 0 }}>
           {project.projectManager && (
-            <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>{project.projectManager}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>{project.projectManager}</div>
           )}
           {openingLabel && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -83,8 +83,8 @@ function SiteVisitSelect({ projects = [] }) {
           style={{
             padding: '7px 18px',
             borderRadius: 8,
-            background: 'linear-gradient(135deg, #f97316 0%, #ea6c0a 100%)',
-            color: '#ffffff',
+            background: 'var(--status-warn)',
+            color: 'var(--text-inverse)',
             fontSize: 12,
             fontWeight: 700,
             border: 'none',
@@ -102,21 +102,21 @@ function SiteVisitSelect({ projects = [] }) {
     if (rows.length === 0) return null;
     return (
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
           {title} — {rows.length}
         </div>
-        <div style={{ border: '1px solid #374151', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>
+        <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
           {/* Table header */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: '2fr 1.5fr 1fr auto',
             gap: 16,
             padding: '8px 18px',
-            background: 'rgba(255,255,255,0.04)',
-            borderBottom: '1px solid #374151',
+            background: 'var(--accent-subtle)',
+            borderBottom: '1px solid var(--border)',
           }}>
             {['Project', 'PM / Opening', 'Status', ''].map((h, i) => (
-              <div key={i} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9ca3af' }}>{h}</div>
+              <div key={i} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>{h}</div>
             ))}
           </div>
           {/* Rows */}
@@ -140,7 +140,7 @@ function SiteVisitSelect({ projects = [] }) {
       </div>
 
       {projects.length === 0 ? (
-        <div className="dashboard-summary-card" style={{ textAlign: 'center', padding: '48px 24px', color: '#9ca3af' }}>
+        <div className="dashboard-summary-card" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)' }}>
           No projects available. Add projects first.
         </div>
       ) : (

@@ -40,7 +40,7 @@ const VIEWS = [
 
 function SPISparkline({ points, width = 140, height = 44 }) {
   const valid = (points || []).filter(p => p.spi !== null);
-  if (valid.length < 2) return <span style={{ color: '#6b7280', fontSize: 11 }}>No trend</span>;
+  if (valid.length < 2) return <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>No trend</span>;
 
   const minV  = Math.min(0.5, ...valid.map(p => p.spi));
   const maxV  = Math.max(1.5, ...valid.map(p => p.spi));
@@ -51,12 +51,12 @@ function SPISparkline({ points, width = 140, height = 44 }) {
 
   const d     = valid.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i)},${toY(p.spi)}`).join(' ');
   const last  = valid[valid.length - 1].spi;
-  const color = last >= 0.95 ? '#10b981' : last >= 0.80 ? '#f97316' : '#ef4444';
+  const color = last >= 0.95 ? 'var(--status-done)' : last >= 0.80 ? 'var(--status-warn)' : 'var(--status-alert)';
   const refY  = toY(1.0);
 
   return (
     <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }}>
-      <line x1="0" y1={refY} x2={width} y2={refY} stroke="#374151" strokeWidth="1" strokeDasharray="3,3"/>
+      <line x1="0" y1={refY} x2={width} y2={refY} stroke="var(--border)" strokeWidth="1" strokeDasharray="3,3"/>
       <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
       <circle cx={toX(valid.length - 1)} cy={toY(last)} r="3" fill={color}/>
     </svg>
@@ -66,7 +66,7 @@ function SPISparkline({ points, width = 140, height = 44 }) {
 // ── Filter bar sub-component ──────────────────────────────────────────────────
 
 function FilterBar({ stores, contractors, filterStore, setFilterStore, filterContractor, setFilterContractor, showStore = true, showContractor = true }) {
-  const selStyle = { height: 34, padding: "0 10px", borderRadius: 8, border: "1.5px solid #374151", fontSize: 12, color: "#e5e7eb", background: "#1f2937", cursor: "pointer", outline: "none", minWidth: 140 };
+  const selStyle = { height: 34, padding: "0 10px", borderRadius: 8, border: "1.5px solid var(--border)", fontSize: 12, color: "var(--text-primary)", background: "var(--bg-input)", cursor: "pointer", outline: "none", minWidth: 140 };
   const hasActive = (showStore && filterStore) || (showContractor && filterContractor);
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -84,7 +84,7 @@ function FilterBar({ stores, contractors, filterStore, setFilterStore, filterCon
       )}
       {hasActive && (
         <button type="button" onClick={() => { setFilterStore(""); setFilterContractor(""); }}
-          style={{ height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid #374151", fontSize: 12, color: "#9ca3af", background: "rgba(255,255,255,0.06)", cursor: "pointer" }}>
+          style={{ height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid var(--border)", fontSize: 12, color: "var(--text-muted)", background: "var(--accent-subtle)", cursor: "pointer" }}>
           Clear
         </button>
       )}
@@ -214,9 +214,9 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           <p>Project health · Risk scoring · Contractor performance · PM verification alignment.</p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
-          <div style={{ textAlign: "center", background: summaryStats.avgHealth >= 75 ? '#064e3b' : summaryStats.avgHealth >= 50 ? '#7c2d12' : '#7f1d1d', border: `1.5px solid ${summaryStats.avgHealth >= 75 ? '#065f46' : summaryStats.avgHealth >= 50 ? '#92400e' : '#991b1b'}`, borderRadius: 12, padding: "10px 14px", minWidth: 70 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: summaryStats.avgHealth >= 75 ? "#6ee7b7" : summaryStats.avgHealth >= 50 ? "#fdba74" : "#fca5a5", lineHeight: 1 }}>{summaryStats.avgHealth}</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Health</div>
+          <div style={{ textAlign: "center", background: summaryStats.avgHealth >= 75 ? 'var(--status-done-bg)' : summaryStats.avgHealth >= 50 ? 'var(--status-warn-bg)' : 'var(--status-alert-bg)', border: '1.5px solid var(--border)', borderRadius: 12, padding: "10px 14px", minWidth: 70 }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: summaryStats.avgHealth >= 75 ? "var(--status-done)" : summaryStats.avgHealth >= 50 ? "var(--status-warn)" : "var(--status-alert)", lineHeight: 1 }}>{summaryStats.avgHealth}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Health</div>
           </div>
           {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map(level => {
             const c = RISK_COLORS[level];
@@ -227,20 +227,20 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
               </div>
             );
           })}
-          <div style={{ textAlign: "center", background: "rgba(255,255,255,0.04)", border: "1.5px solid #374151", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: "#f9fafb", lineHeight: 1 }}>{summaryStats.avgScore}</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Risk</div>
+          <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{summaryStats.avgScore}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Risk</div>
           </div>
           {summaryStats.opening30 > 0 && (
-            <div style={{ textAlign: "center", background: "#7c2d12", border: "1.5px solid #92400e", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "#fdba74", lineHeight: 1 }}>{summaryStats.opening30}</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#fdba74", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Open &lt;30d</div>
+            <div style={{ textAlign: "center", background: "var(--status-warn-bg)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--status-warn)", lineHeight: 1 }}>{summaryStats.opening30}</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "var(--status-warn)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Open &lt;30d</div>
             </div>
           )}
           {summaryStats.pmMismatch > 0 && (
-            <div style={{ textAlign: "center", background: "#164e63", border: "1.5px solid #0e7490", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "#67e8f9", lineHeight: 1 }}>{summaryStats.pmMismatch}</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#67e8f9", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>PM Mismatch</div>
+            <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--accent)", lineHeight: 1 }}>{summaryStats.pmMismatch}</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>PM Mismatch</div>
             </div>
           )}
         </div>
@@ -248,21 +248,21 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
 
       {/* ── Critical early warnings (always visible) ── */}
       {criticalRows.length > 0 && (
-        <div style={{ background: "rgba(127,29,29,0.4)", border: "1.5px solid #991b1b", borderRadius: 14, padding: "16px 20px", marginBottom: 20, borderLeft: "4px solid #ef4444" }}>
+        <div style={{ background: "var(--status-alert-bg)", border: "1.5px solid var(--border)", borderRadius: 14, padding: "16px 20px", marginBottom: 20, borderLeft: "4px solid var(--status-alert)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <span style={{ fontSize: 18 }}>🚨</span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#fca5a5" }}>EARLY WARNING — {criticalRows.length} CRITICAL PROJECT{criticalRows.length > 1 ? "S" : ""} REQUIRE IMMEDIATE ACTION</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: "var(--status-alert)" }}>EARLY WARNING — {criticalRows.length} CRITICAL PROJECT{criticalRows.length > 1 ? "S" : ""} REQUIRE IMMEDIATE ACTION</span>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {criticalRows.map(({ project, riskScore, schedDev, latestReport }) => {
               const dTo = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
               return (
-                <div key={project.id} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid #991b1b", borderRadius: 10, padding: "12px 16px", minWidth: 240 }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: "#fca5a5", marginBottom: 6 }}>{project.storeCode} — {project.shoppingMallName}</div>
-                  <div style={{ fontSize: 12, color: "#e5e7eb", marginBottom: 2 }}>Risk Score: <strong style={{ color: "#ef4444" }}>{riskScore.score} / 100</strong></div>
-                  {schedDev?.predictedDelayDays > 0 && <div style={{ fontSize: 12, color: "#e5e7eb", marginBottom: 2 }}>Predicted delay: <strong style={{ color: "#ef4444" }}>+{schedDev.predictedDelayDays} days</strong></div>}
-                  {dTo !== null && <div style={{ fontSize: 12, fontWeight: 700, color: dTo < 0 ? "#ef4444" : "#f97316" }}>{dTo < 0 ? `⛔ ${Math.abs(dTo)}d OVERDUE` : `📅 ${dTo}d to opening`}</div>}
-                  {latestReport?.activitiesBlocked === "Yes" && <div style={{ fontSize: 12, fontWeight: 700, color: "#ef4444", marginTop: 4 }}>⛔ Activities blocked</div>}
+                <div key={project.id} style={{ background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", minWidth: 240 }}>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: "var(--status-alert)", marginBottom: 6 }}>{project.storeCode} — {project.shoppingMallName}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-primary)", marginBottom: 2 }}>Risk Score: <strong style={{ color: "var(--status-alert)" }}>{riskScore.score} / 100</strong></div>
+                  {schedDev?.predictedDelayDays > 0 && <div style={{ fontSize: 12, color: "var(--text-primary)", marginBottom: 2 }}>Predicted delay: <strong style={{ color: "var(--status-alert)" }}>+{schedDev.predictedDelayDays} days</strong></div>}
+                  {dTo !== null && <div style={{ fontSize: 12, fontWeight: 700, color: dTo < 0 ? "var(--status-alert)" : "var(--status-warn)" }}>{dTo < 0 ? `⛔ ${Math.abs(dTo)}d OVERDUE` : `📅 ${dTo}d to opening`}</div>}
+                  {latestReport?.activitiesBlocked === "Yes" && <div style={{ fontSize: 12, fontWeight: 700, color: "var(--status-alert)", marginTop: 4 }}>⛔ Activities blocked</div>}
                 </div>
               );
             })}
@@ -271,18 +271,18 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       )}
 
       {/* ── Tab navigation ── */}
-      <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: 4, border: "1px solid #374151", width: "fit-content" }}>
+      <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "var(--accent-subtle)", borderRadius: 12, padding: 4, border: "1px solid var(--border)", width: "fit-content" }}>
         {VIEWS.map(({ id, label }) => (
           <button key={id} type="button" data-testid="risk-view-tab" data-view-id={id} onClick={() => setActiveView(id)} style={{
             padding: "8px 18px", borderRadius: 9, border: "none",
-            background: activeView === id ? "rgba(34,211,238,0.1)" : "transparent",
-            color: activeView === id ? "#22d3ee" : "#6b7280",
+            background: activeView === id ? "var(--accent-subtle)" : "transparent",
+            color: activeView === id ? "var(--accent)" : "var(--text-muted)",
             fontSize: 13, fontWeight: activeView === id ? 700 : 500,
             cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap",
           }}>
             {label}
             {id === "escalations" && allEscalations.length > 0 && (
-              <span style={{ marginLeft: 6, background: "#ef4444", color: "white", borderRadius: 8, fontSize: 10, fontWeight: 800, padding: "1px 6px" }}>{allEscalations.length}</span>
+              <span style={{ marginLeft: 6, background: "var(--status-alert)", color: "var(--text-inverse)", borderRadius: 8, fontSize: 10, fontWeight: 800, padding: "1px 6px" }}>{allEscalations.length}</span>
             )}
           </button>
         ))}
@@ -295,13 +295,13 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
         <div style={{ display: "grid", gap: 16 }}>
           {/* Risk Register table */}
           {sortedByRisk.length === 0 ? (
-            <div className="dashboard-summary-card" style={{ textAlign: "center", color: "#6b7280", padding: "60px 0" }}>
+            <div className="dashboard-summary-card" style={{ textAlign: "center", color: "var(--text-muted)", padding: "60px 0" }}>
               No projects found. Add projects and submit reports to activate the risk engine.
             </div>
           ) : (
             <div className="dashboard-summary-card" style={{ margin: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#f9fafb", marginBottom: 4 }}>Project Risk Register</div>
-              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>All projects sorted by risk score · click row to expand details</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 4 }}>Project Risk Register</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>All projects sorted by risk score · click row to expand details</div>
               <RiskTable sortedByRisk={sortedByRisk} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
             </div>
           )}
@@ -316,10 +316,10 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                   <div style={{ flexShrink: 0 }}><RiskGauge score={riskScore.score} level={riskScore.level} color={c} /></div>
                   <div style={{ flex: 1, minWidth: 220 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 2, flexWrap: "wrap" }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: "#f9fafb" }}>{project.storeCode} — {project.shoppingMallName}</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)" }}>{project.storeCode} — {project.shoppingMallName}</div>
                       <HealthBadge {...health} />
                     </div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10 }}>{[project.projectManager, project.generalContractor, project.city].filter(Boolean).join(" · ")}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>{[project.projectManager, project.generalContractor, project.city].filter(Boolean).join(" · ")}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{riskScore.factors.map((f, i) => <FactorPill key={i} f={f} />)}</div>
                     {escalations.length > 0 && (
                       <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -332,16 +332,16 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                     )}
                     {actions && actions.length > 0 && (
                       <div style={{ marginTop: 12 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Recommended Actions</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Recommended Actions</div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                           {actions.map((a, i) => {
-                            const ac = a.priority === "HIGH" ? { bg: '#7f1d1d', text: '#fca5a5', border: '#991b1b' } : { bg: '#7c2d12', text: '#fdba74', border: '#92400e' };
+                            const ac = a.priority === "HIGH" ? { bg: 'var(--status-alert-bg)', text: 'var(--status-alert)', border: 'var(--border)' } : { bg: 'var(--status-warn-bg)', text: 'var(--status-warn)', border: 'var(--border)' };
                             return (
                               <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 8px", borderRadius: 7, background: ac.bg, border: `1px solid ${ac.border}` }}>
                                 <span style={{ fontSize: 9, fontWeight: 800, color: ac.text, textTransform: "uppercase", marginTop: 2, flexShrink: 0 }}>{a.priority}</span>
                                 <div>
                                   <div style={{ fontSize: 11, fontWeight: 600, color: ac.text }}>{a.action}</div>
-                                  <div style={{ fontSize: 10, color: "#9ca3af" }}>{a.reason}</div>
+                                  <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{a.reason}</div>
                                 </div>
                               </div>
                             );
@@ -351,32 +351,32 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                     )}
                   </div>
                   {schedDev && (
-                    <div style={{ flexShrink: 0, background: "rgba(255,255,255,0.04)", border: "1px solid #374151", borderRadius: 12, padding: "14px 18px", minWidth: 180 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#9ca3af", marginBottom: 10 }}>Schedule Analysis</div>
+                    <div style={{ flexShrink: 0, background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", minWidth: 180 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: 10 }}>Schedule Analysis</div>
                       {[
-                        { label: "Expected", value: `${schedDev.expectedPct}%`, color: "#e5e7eb" },
-                        { label: "Actual",   value: `${schedDev.actualPct}%`,   color: "#e5e7eb" },
-                        { label: "Deviation", value: schedDev.deviationPct > 0 ? `−${schedDev.deviationPct}%` : "On track", color: schedDev.deviationPct > 15 ? "#ef4444" : schedDev.deviationPct > 5 ? "#f97316" : "#10b981" },
-                        schedDev.predictedDelayDays > 0 && { label: "Pred. delay", value: `+${schedDev.predictedDelayDays}d`, color: "#ef4444" },
-                        schedDev.predictedDelayDays > 0 && schedDev.predictedOpeningDate && { label: "Pred. opening", value: schedDev.predictedOpeningDate.toLocaleDateString("en-GB"), color: "#ef4444" },
+                        { label: "Expected", value: `${schedDev.expectedPct}%`, color: "var(--text-primary)" },
+                        { label: "Actual",   value: `${schedDev.actualPct}%`,   color: "var(--text-primary)" },
+                        { label: "Deviation", value: schedDev.deviationPct > 0 ? `−${schedDev.deviationPct}%` : "On track", color: schedDev.deviationPct > 15 ? "var(--status-alert)" : schedDev.deviationPct > 5 ? "var(--status-warn)" : "var(--status-done)" },
+                        schedDev.predictedDelayDays > 0 && { label: "Pred. delay", value: `+${schedDev.predictedDelayDays}d`, color: "var(--status-alert)" },
+                        schedDev.predictedDelayDays > 0 && schedDev.predictedOpeningDate && { label: "Pred. opening", value: schedDev.predictedOpeningDate.toLocaleDateString("en-GB"), color: "var(--status-alert)" },
                       ].filter(Boolean).map(({ label, value, color }) => (
                         <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 14, marginBottom: 6 }}>
-                          <span style={{ fontSize: 12, color: "#9ca3af" }}>{label}</span>
+                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{label}</span>
                           <span style={{ fontSize: 12, fontWeight: 700, color }}>{value}</span>
                         </div>
                       ))}
                     </div>
                   )}
                   <div style={{ flexShrink: 0, minWidth: 140 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#6b7280", marginBottom: 8 }}>Trend</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: 8 }}>Trend</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                       <span style={{ fontSize: 22, color: trend.color, fontWeight: 800 }}>{trend.icon}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: trend.color }}>{trend.trend}</span>
                     </div>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#6b7280", marginBottom: 6 }}>Risk Evolution</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: 6 }}>Risk Evolution</div>
                     <MiniRiskSparkline points={evolution} />
                     {dTo !== null && (
-                      <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: dTo < 0 ? "#ef4444" : dTo < 30 ? "#ef4444" : dTo < 90 ? "#f97316" : "#10b981" }}>
+                      <div style={{ marginTop: 10, fontSize: 12, fontWeight: 700, color: dTo < 0 ? "var(--status-alert)" : dTo < 30 ? "var(--status-alert)" : dTo < 90 ? "var(--status-warn)" : "var(--status-done)" }}>
                         {dTo < 0 ? `⛔ ${Math.abs(dTo)}d overdue` : `📅 ${dTo}d to open`}
                       </div>
                     )}
@@ -399,16 +399,16 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           ════════════════════════════════════════════ */}
       {activeView === "heatmap" && (
         <div className="dashboard-summary-card">
-          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "#f9fafb" }}>Portfolio Risk Heatmap</div>
-          <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 20 }}>Risk level by project × 14 dimensions · sorted by overall score</div>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "var(--text-primary)" }}>Portfolio Risk Heatmap</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>Risk level by project × 14 dimensions · sorted by overall score</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ borderCollapse: "separate", borderSpacing: "3px 3px" }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left", padding: "4px 8px", fontSize: 11, fontWeight: 700, color: "#9ca3af", minWidth: 110 }}>Project</th>
-                  <th style={{ textAlign: "center", padding: "4px 6px", fontSize: 11, fontWeight: 700, color: "#9ca3af", minWidth: 50 }}>Score</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 110 }}>Project</th>
+                  <th style={{ textAlign: "center", padding: "4px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 50 }}>Score</th>
                   {RISK_DIMENSIONS.map(d => (
-                    <th key={d} style={{ textAlign: "center", padding: "4px 3px", fontSize: 9, fontWeight: 700, color: "#9ca3af", minWidth: 34, whiteSpace: "nowrap" }}>
+                    <th key={d} style={{ textAlign: "center", padding: "4px 3px", fontSize: 9, fontWeight: 700, color: "var(--text-muted)", minWidth: 34, whiteSpace: "nowrap" }}>
                       {d.length > 8 ? d.substring(0, 8) + "…" : d}
                     </th>
                   ))}
@@ -423,8 +423,8 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                           <div style={{ width: 3, height: 16, borderRadius: 2, background: c.text, flexShrink: 0 }} />
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#f9fafb" }}>{project.storeCode}</div>
-                            <div style={{ fontSize: 10, color: "#9ca3af" }}>{project.shoppingMallName}</div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>{project.storeCode}</div>
+                            <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{project.shoppingMallName}</div>
                           </div>
                         </div>
                       </td>
@@ -438,13 +438,13 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
               </tbody>
             </table>
           </div>
-          <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap", paddingTop: 16, borderTop: "1px solid #374151" }}>
+          <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
             {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map(l => {
               const c = RISK_COLORS[l];
               return (
                 <div key={l} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <div style={{ width: 22, height: 22, borderRadius: 5, background: c.bg, border: `1px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: c.text }}>{l[0]}</div>
-                  <span style={{ color: "#9ca3af", fontSize: 12 }}>{l}</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{l}</span>
                 </div>
               );
             })}
@@ -457,16 +457,16 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           ════════════════════════════════════════════ */}
       {activeView === "escalations" && (
         <div className="dashboard-summary-card">
-          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "#f9fafb" }}>
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "var(--text-primary)" }}>
             Risk Escalation Register
-            {allEscalations.length > 0 && <span style={{ marginLeft: 8, background: "#ef4444", color: "white", borderRadius: 8, fontSize: 11, fontWeight: 800, padding: "2px 8px" }}>{allEscalations.length}</span>}
+            {allEscalations.length > 0 && <span style={{ marginLeft: 8, background: "var(--status-alert)", color: "var(--text-inverse)", borderRadius: 8, fontSize: 11, fontWeight: 800, padding: "2px 8px" }}>{allEscalations.length}</span>}
           </div>
-          <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 20 }}>Unresolved risks · repeated blockers · open support requests · PM mismatches</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>Unresolved risks · repeated blockers · open support requests · PM mismatches</div>
           {allEscalations.length === 0 ? (
             <div style={{ textAlign: "center", padding: "56px 0" }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#10b981" }}>No escalations detected</div>
-              <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6 }}>No risks have been repeatedly reported without resolution</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--status-done)" }}>No escalations detected</div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 6 }}>No risks have been repeatedly reported without resolution</div>
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -479,13 +479,13 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                     const typeIcon = { risk: "⚠", blocker: "⛔", support: "📋", mismatch: "🔍" }[e.type] || "•";
                     return (
                       <tr key={i}>
-                        <td><div style={{ fontWeight: 700, color: "#f9fafb" }}>{e.project.storeCode}</div><div style={{ fontSize: 11, color: "#9ca3af" }}>{e.project.shoppingMallName}</div></td>
-                        <td><span style={{ fontSize: 13 }}>{typeIcon}</span> <span style={{ fontSize: 12, color: "#e5e7eb", textTransform: "capitalize" }}>{e.type}</span></td>
-                        <td><div style={{ fontSize: 13, fontWeight: 600, color: "#f9fafb" }}>{e.label}</div><div style={{ fontSize: 11, color: "#9ca3af" }}>{e.description}</div></td>
+                        <td><div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{e.project.storeCode}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{e.project.shoppingMallName}</div></td>
+                        <td><span style={{ fontSize: 13 }}>{typeIcon}</span> <span style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "capitalize" }}>{e.type}</span></td>
+                        <td><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{e.label}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{e.description}</div></td>
                         <td style={{ fontSize: 18, fontWeight: 800, color: RISK_COLORS[e.severity].text }}>{e.weeks}</td>
-                        <td style={{ fontSize: 13, color: "#e5e7eb" }}>{e.latestOwner || "—"}</td>
-                        <td style={{ fontSize: 12, color: "#9ca3af" }}>{e.firstSeen ? new Date(e.firstSeen).toLocaleDateString("en-GB") : "—"}</td>
-                        <td style={{ fontSize: 12, color: "#9ca3af" }}>{e.lastSeen  ? new Date(e.lastSeen).toLocaleDateString("en-GB")  : "—"}</td>
+                        <td style={{ fontSize: 13, color: "var(--text-secondary)" }}>{e.latestOwner || "—"}</td>
+                        <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{e.firstSeen ? new Date(e.firstSeen).toLocaleDateString("en-GB") : "—"}</td>
+                        <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{e.lastSeen  ? new Date(e.lastSeen).toLocaleDateString("en-GB")  : "—"}</td>
                         <td><RiskBadge level={e.severity} /></td>
                       </tr>
                     );
@@ -503,9 +503,9 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       {activeView === "contractors" && (
         <div style={{ display: "grid", gap: 14 }}>
           <div className="dashboard-summary-card" style={{ margin: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "#f9fafb" }}>Contractor Performance & Reporting Reliability</div>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>
-              <strong style={{ color: "#e5e7eb" }}>Performance</strong> = contractor-controlled items · <strong style={{ color: "#e5e7eb" }}>PM Alignment</strong> = PM site visit verification alignment · lowest first
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "var(--text-primary)" }}>Contractor Performance & Reporting Reliability</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+              <strong style={{ color: "var(--text-secondary)" }}>Performance</strong> = contractor-controlled items · <strong style={{ color: "var(--text-secondary)" }}>PM Alignment</strong> = PM site visit verification alignment · lowest first
             </div>
 
             <FilterBar
@@ -519,48 +519,48 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
             />
 
             {contractorTabScores.length === 0 ? (
-              <div style={{ textAlign: "center", color: "#6b7280", padding: "48px 0" }}>No contractor data for selected filters.</div>
+              <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "48px 0" }}>No contractor data for selected filters.</div>
             ) : (
               <div style={{ display: "grid", gap: 14 }}>
                 {contractorTabScores.map(c => (
-                  <div key={c.name} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid #374151", borderRadius: 14, padding: "20px 22px" }}>
+                  <div key={c.name} style={{ background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 22px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
                       <div>
-                        <div style={{ fontSize: 16, fontWeight: 800, color: "#f9fafb", marginBottom: 3 }}>{c.name}</div>
-                        <div style={{ fontSize: 12, color: "#9ca3af" }}>{c.projects.join(", ")} · {c.n} project{c.n > 1 ? "s" : ""} · {c.reportCount} reports</div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-primary)", marginBottom: 3 }}>{c.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.projects.join(", ")} · {c.n} project{c.n > 1 ? "s" : ""} · {c.reportCount} reports</div>
                       </div>
                       <div style={{ display: "flex", gap: 16 }}>
-                        <div style={{ textAlign: "center", background: "rgba(255,255,255,0.04)", border: "1.5px solid #374151", borderRadius: 12, padding: "12px 18px" }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Performance</div>
+                        <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "12px 18px" }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>Performance</div>
                           <div style={{ fontSize: 36, fontWeight: 800, color: c.perfColor, lineHeight: 1 }}>{c.avgPerf}</div>
                           <div style={{ fontSize: 11, fontWeight: 600, color: c.perfColor, marginTop: 4 }}>{c.perfLevel}</div>
                         </div>
-                        <div style={{ textAlign: "center", background: "rgba(255,255,255,0.04)", border: "1.5px solid #374151", borderRadius: 12, padding: "12px 18px" }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>PM Alignment</div>
+                        <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "12px 18px" }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>PM Alignment</div>
                           <div style={{ fontSize: 36, fontWeight: 800, color: c.accColor, lineHeight: 1 }}>{c.avgAccuracy}</div>
                           <div style={{ fontSize: 11, fontWeight: 600, color: c.accColor, marginTop: 4 }}>{c.accLevel}</div>
                         </div>
                       </div>
                     </div>
                     {contractorTabRows.filter(row => row.contractorName === c.name).map(({ project, contScore }) => (
-                      <div key={project.id} style={{ background: "rgba(0,0,0,0.2)", border: "1px solid #374151", borderRadius: 10, padding: "12px 16px", marginBottom: 8 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: "#e5e7eb", marginBottom: 10 }}>{project.storeCode} — {project.shoppingMallName}</div>
+                      <div key={project.id} style={{ background: "rgba(0,0,0,0.15)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", marginBottom: 8 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-secondary)", marginBottom: 10 }}>{project.storeCode} — {project.shoppingMallName}</div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                           <div>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", marginBottom: 6 }}>Performance breakdown</div>
-                            <ScoreBar label="Reporting Discipline" pts={contScore.breakdown.reporting}     max={20} color={contScore.breakdown.reporting >= 16 ? "#10b981" : contScore.breakdown.reporting >= 12 ? "#f97316" : "#ef4444"} />
-                            <ScoreBar label="Contractor Progress"  pts={contScore.breakdown.progress}      max={25} color={contScore.breakdown.progress >= 20 ? "#10b981" : contScore.breakdown.progress >= 14 ? "#f97316" : "#ef4444"} />
-                            <ScoreBar label="Issue Management"     pts={contScore.breakdown.issues}        max={15} color={contScore.breakdown.issues >= 12 ? "#10b981" : contScore.breakdown.issues >= 8 ? "#f97316" : "#ef4444"} />
-                            <ScoreBar label="Communication"        pts={contScore.breakdown.communication} max={10} color={contScore.breakdown.communication >= 8 ? "#10b981" : contScore.breakdown.communication >= 5 ? "#f97316" : "#ef4444"} />
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>Performance breakdown</div>
+                            <ScoreBar label="Reporting Discipline" pts={contScore.breakdown.reporting}     max={20} color={contScore.breakdown.reporting >= 16 ? "var(--status-done)" : contScore.breakdown.reporting >= 12 ? "var(--status-warn)" : "var(--status-alert)"} />
+                            <ScoreBar label="Contractor Progress"  pts={contScore.breakdown.progress}      max={25} color={contScore.breakdown.progress >= 20 ? "var(--status-done)" : contScore.breakdown.progress >= 14 ? "var(--status-warn)" : "var(--status-alert)"} />
+                            <ScoreBar label="Issue Management"     pts={contScore.breakdown.issues}        max={15} color={contScore.breakdown.issues >= 12 ? "var(--status-done)" : contScore.breakdown.issues >= 8 ? "var(--status-warn)" : "var(--status-alert)"} />
+                            <ScoreBar label="Communication"        pts={contScore.breakdown.communication} max={10} color={contScore.breakdown.communication >= 8 ? "var(--status-done)" : contScore.breakdown.communication >= 5 ? "var(--status-warn)" : "var(--status-alert)"} />
                           </div>
                           <div>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", marginBottom: 6 }}>PM Alignment</div>
-                            <ScoreBar label="PM Verification" pts={contScore.breakdown.pmAlignment} max={30} color={contScore.breakdown.pmAlignment >= 24 ? "#10b981" : contScore.breakdown.pmAlignment >= 18 ? "#f97316" : "#ef4444"} />
-                            {contScore.pmAlignmentDetails.length === 0 && <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>No PM site visits recorded yet</div>}
+                            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>PM Alignment</div>
+                            <ScoreBar label="PM Verification" pts={contScore.breakdown.pmAlignment} max={30} color={contScore.breakdown.pmAlignment >= 24 ? "var(--status-done)" : contScore.breakdown.pmAlignment >= 18 ? "var(--status-warn)" : "var(--status-alert)"} />
+                            {contScore.pmAlignmentDetails.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>No PM site visits recorded yet</div>}
                             {contScore.pmAlignmentDetails.map((d, i) => (
-                              <div key={i} style={{ fontSize: 12, color: "#e5e7eb", marginTop: 6 }}>
-                                Visit {new Date(d.visitDate).toLocaleDateString("en-GB")}: <span style={{ fontWeight: 700, color: d.matchRate >= 80 ? "#10b981" : d.matchRate >= 60 ? "#f97316" : "#ef4444" }}>{d.matchRate}% match</span>
-                                {d.overstatements > 0 && <span style={{ color: "#ef4444", marginLeft: 8 }}>· {d.overstatements} overstated</span>}
+                              <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
+                                Visit {new Date(d.visitDate).toLocaleDateString("en-GB")}: <span style={{ fontWeight: 700, color: d.matchRate >= 80 ? "var(--status-done)" : d.matchRate >= 60 ? "var(--status-warn)" : "var(--status-alert)" }}>{d.matchRate}% match</span>
+                                {d.overstatements > 0 && <span style={{ color: "var(--status-alert)", marginLeft: 8 }}>· {d.overstatements} overstated</span>}
                               </div>
                             ))}
                           </div>
@@ -581,8 +581,8 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       {activeView === "pm-align" && (
         <div style={{ display: "grid", gap: 16 }}>
           <div className="dashboard-summary-card" style={{ margin: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "#f9fafb" }}>PM Site Visit Verification</div>
-            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>Contractor-reported statuses vs PM observations · overstatements show where GC claimed more progress than PM verified</div>
+            <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "var(--text-primary)" }}>PM Site Visit Verification</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>Contractor-reported statuses vs PM observations · overstatements show where GC claimed more progress than PM verified</div>
 
             <FilterBar
               stores={allStoreCodes}
@@ -599,7 +599,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                 <select
                   value={filterReport}
                   onChange={e => setFilterReport(e.target.value)}
-                  style={{ height: 34, padding: "0 10px", borderRadius: 8, border: "1.5px solid #374151", fontSize: 12, color: "#e5e7eb", background: "#1f2937", cursor: "pointer", outline: "none", minWidth: 220 }}
+                  style={{ height: 34, padding: "0 10px", borderRadius: 8, border: "1.5px solid var(--border)", fontSize: 12, color: "var(--text-primary)", background: "var(--bg-input)", cursor: "pointer", outline: "none", minWidth: 220 }}
                 >
                   <option value="">All GC reports</option>
                   {pmAlignReportOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
@@ -608,7 +608,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                   <button
                     type="button"
                     onClick={() => setFilterReport("")}
-                    style={{ height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid #374151", fontSize: 12, color: "#9ca3af", background: "rgba(255,255,255,0.06)", cursor: "pointer" }}
+                    style={{ height: 34, padding: "0 12px", borderRadius: 8, border: "1.5px solid var(--border)", fontSize: 12, color: "var(--text-muted)", background: "var(--accent-subtle)", cursor: "pointer" }}
                   >
                     Clear
                   </button>
@@ -618,7 +618,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           </div>
 
           {pmAlignRows.filter(r => r.projSiteVisits.length > 0).length === 0 && (
-            <div className="dashboard-summary-card" style={{ margin: 0, textAlign: "center", color: "#6b7280", padding: "60px 0" }}>
+            <div className="dashboard-summary-card" style={{ margin: 0, textAlign: "center", color: "var(--text-muted)", padding: "60px 0" }}>
               {allRows.filter(r => r.projSiteVisits.length > 0).length === 0
                 ? "No PM site visits recorded yet. Complete a PM Site Visit Report to see comparison data here."
                 : "No projects match the selected filters."}
@@ -638,10 +638,10 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
             if (visitsSorted.length === 0) return null;
             return (
               <div key={project.id} className="dashboard-summary-card" style={{ margin: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: "#f9fafb", marginBottom: 2 }}>{project.storeCode} — {project.shoppingMallName}</div>
-                <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>
-                  {project.generalContractor && <span style={{ marginRight: 10, color: "#e5e7eb", fontWeight: 600 }}>{project.generalContractor}</span>}
-                  PM Alignment Score: <span style={{ fontWeight: 700, color: contScore.pmAlignmentScore >= 80 ? "#10b981" : contScore.pmAlignmentScore >= 60 ? "#f97316" : "#ef4444" }}>{contScore.pmAlignmentScore} / 100</span>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 2 }}>{project.storeCode} — {project.shoppingMallName}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+                  {project.generalContractor && <span style={{ marginRight: 10, color: "var(--text-secondary)", fontWeight: 600 }}>{project.generalContractor}</span>}
+                  PM Alignment Score: <span style={{ fontWeight: 700, color: contScore.pmAlignmentScore >= 80 ? "var(--status-done)" : contScore.pmAlignmentScore >= 60 ? "var(--status-warn)" : "var(--status-alert)" }}>{contScore.pmAlignmentScore} / 100</span>
                   {" · "}{visitsSorted.length} site visit{visitsSorted.length !== 1 ? "s" : ""}
                 </div>
                 {visitsSorted.map((visit, vi) => {
@@ -649,27 +649,27 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                   const gcAtVisit = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || sorted[sorted.length - 1];
                   const items = computePmAlignmentItems(gcAtVisit, visit);
                   const { matchRate, overstatements, matches } = summarizeAlignmentItems(items);
-                  const matchColor = matchRate >= 80 ? "#10b981" : matchRate >= 60 ? "#f97316" : "#ef4444";
+                  const matchColor = matchRate >= 80 ? "var(--status-done)" : matchRate >= 60 ? "var(--status-warn)" : "var(--status-alert)";
                   return (
-                    <div key={vi} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid #374151", borderRadius: 12, padding: "14px 18px", marginBottom: 12 }}>
+                    <div key={vi} style={{ background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", marginBottom: 12 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: 13, color: "#e5e7eb" }}>Visit {visitDate.toLocaleDateString("en-GB")}</div>
-                          {gcAtVisit && <div style={{ fontSize: 11, color: "#9ca3af" }}>vs GC report {new Date(gcAtVisit.reportingDate || gcAtVisit.submittedAt).toLocaleDateString("en-GB")}</div>}
+                          <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-secondary)" }}>Visit {visitDate.toLocaleDateString("en-GB")}</div>
+                          {gcAtVisit && <div style={{ fontSize: 11, color: "var(--text-muted)" }}>vs GC report {new Date(gcAtVisit.reportingDate || gcAtVisit.submittedAt).toLocaleDateString("en-GB")}</div>}
                         </div>
                         <div style={{ display: "flex", gap: 12 }}>
-                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: matchColor }}>{matchRate}%</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Match rate</div></div>
-                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: overstatements.length > 0 ? "#ef4444" : "#10b981" }}>{overstatements.length}</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Overstated</div></div>
-                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: "#10b981" }}>{matches.length}</div><div style={{ fontSize: 10, color: "#9ca3af" }}>Matches</div></div>
+                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: matchColor }}>{matchRate}%</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Match rate</div></div>
+                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: overstatements.length > 0 ? "var(--status-alert)" : "var(--status-done)" }}>{overstatements.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Overstated</div></div>
+                          <div style={{ textAlign: "center" }}><div style={{ fontSize: 22, fontWeight: 800, color: "var(--status-done)" }}>{matches.length}</div><div style={{ fontSize: 10, color: "var(--text-muted)" }}>Matches</div></div>
                         </div>
                       </div>
                       {items.length > 0 && (
                         <div style={{ overflowX: "auto" }}>
                           <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
-                              <tr style={{ borderBottom: `2px solid #374151` }}>
+                              <tr style={{ borderBottom: `2px solid var(--border)` }}>
                                 {["Work Item", "Contractor Status", "PM Observed", "Mismatch Type", "Severity"].map(h => (
-                                  <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 10, fontWeight: 700, color: "#9ca3af", whiteSpace: "nowrap" }}>{h}</th>
+                                  <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 10, fontWeight: 700, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{h}</th>
                                 ))}
                               </tr>
                             </thead>
@@ -681,21 +681,21 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                                 const isMatch   = item.mismatchType === "Match";
                                 const isPmAhead = item.mismatchType === "PM ahead";
                                 const sev = SEV_COLORS[item.severity];
-                                const rowBg     = item.severity === "CRITICAL" ? 'rgba(127,29,29,0.3)' : item.severity === "HIGH" ? 'rgba(124,45,18,0.3)' : item.severity === "MEDIUM" ? 'rgba(124,45,18,0.2)' : isPmAhead ? 'rgba(6,78,59,0.2)' : 'transparent';
-                                const typeColor = item.severity === "CRITICAL" ? "#fca5a5" : item.severity === "HIGH" ? "#fdba74" : item.severity === "MEDIUM" ? "#fdba74" : isPmAhead ? "#10b981" : "#9ca3af";
+                                const rowBg     = item.severity === "CRITICAL" ? 'var(--status-alert-bg)' : item.severity === "HIGH" ? 'var(--status-warn-bg)' : item.severity === "MEDIUM" ? 'var(--status-warn-bg)' : isPmAhead ? 'var(--status-done-bg)' : 'transparent';
+                                const typeColor = item.severity === "CRITICAL" ? "var(--status-alert)" : item.severity === "HIGH" ? "var(--status-warn)" : item.severity === "MEDIUM" ? "var(--status-warn)" : isPmAhead ? "var(--status-done)" : "var(--text-muted)";
                                 return (
-                                  <tr key={ii} style={{ borderBottom: "1px solid #374151", background: rowBg, opacity: isMatch ? 0.6 : 1 }}>
-                                    <td style={{ padding: "7px 10px", fontSize: 12, color: "#e5e7eb", maxWidth: 220 }}>{item.name}</td>
-                                    <td style={{ padding: "7px 10px", fontSize: 12 }}><span style={{ fontWeight: item.overstate ? 700 : 400, color: item.overstate ? "#ef4444" : "#e5e7eb" }}>{item.gcStatus}</span></td>
-                                    <td style={{ padding: "7px 10px", fontSize: 12 }}><span style={{ fontWeight: isPmAhead ? 700 : 400, color: isPmAhead ? "#10b981" : "#e5e7eb" }}>{item.pmStatus}</span></td>
+                                  <tr key={ii} style={{ borderBottom: "1px solid var(--border)", background: rowBg, opacity: isMatch ? 0.6 : 1 }}>
+                                    <td style={{ padding: "7px 10px", fontSize: 12, color: "var(--text-secondary)", maxWidth: 220 }}>{item.name}</td>
+                                    <td style={{ padding: "7px 10px", fontSize: 12 }}><span style={{ fontWeight: item.overstate ? 700 : 400, color: item.overstate ? "var(--status-alert)" : "var(--text-secondary)" }}>{item.gcStatus}</span></td>
+                                    <td style={{ padding: "7px 10px", fontSize: 12 }}><span style={{ fontWeight: isPmAhead ? 700 : 400, color: isPmAhead ? "var(--status-done)" : "var(--text-secondary)" }}>{item.pmStatus}</span></td>
                                     <td style={{ padding: "7px 10px", fontSize: 12, fontWeight: 600, color: typeColor }}>{item.mismatchType}</td>
                                     <td style={{ padding: "7px 10px" }}>
                                       {sev ? (
                                         <span style={{ display: "inline-block", padding: "2px 9px", borderRadius: 9, fontSize: 11, fontWeight: 700, background: sev.bg, color: sev.text, border: `1px solid ${sev.border}` }}>{item.severity}</span>
                                       ) : isMatch ? (
-                                        <span style={{ fontSize: 11, color: "#10b981", fontWeight: 600 }}>✓ Match</span>
+                                        <span style={{ fontSize: 11, color: "var(--status-done)", fontWeight: 600 }}>✓ Match</span>
                                       ) : (
-                                        <span style={{ fontSize: 11, color: "#10b981" }}>↑ PM ahead</span>
+                                        <span style={{ fontSize: 11, color: "var(--status-done)" }}>↑ PM ahead</span>
                                       )}
                                     </td>
                                   </tr>
@@ -706,8 +706,8 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                         </div>
                       )}
                       {visit.pmScheduleAssessment && (
-                        <div style={{ marginTop: 10, fontSize: 12, color: "#9ca3af" }}>
-                          PM schedule assessment: <span style={{ fontWeight: 700, color: isSevereScheduleStatus(visit.pmScheduleAssessment) ? "#ef4444" : visit.pmScheduleAssessment === "At Risk" ? "#f97316" : "#10b981" }}>{visit.pmScheduleAssessment}</span>
+                        <div style={{ marginTop: 10, fontSize: 12, color: "var(--text-muted)" }}>
+                          PM schedule assessment: <span style={{ fontWeight: 700, color: isSevereScheduleStatus(visit.pmScheduleAssessment) ? "var(--status-alert)" : visit.pmScheduleAssessment === "At Risk" ? "var(--status-warn)" : "var(--status-done)" }}>{visit.pmScheduleAssessment}</span>
                         </div>
                       )}
                     </div>
@@ -724,7 +724,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       {activeView === "gantt-spi" && (
         <div style={{ display: "grid", gap: 16 }}>
           {ganttSpiLoading && (
-            <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px 0', fontSize: 14 }}>
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0', fontSize: 14 }}>
               Loading Gantt SPI data…
             </div>
           )}
@@ -733,17 +733,17 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
             <>
               {/* ── SPI Overview table ── */}
               <div className="dashboard-summary-card" style={{ margin: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#f9fafb', marginBottom: 4 }}>Schedule Performance Index (SPI) — All Projects</div>
-                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>SPI = actual progress ÷ planned progress · ≥0.95 On Schedule · 0.80–0.94 At Risk · &lt;0.80 Critical</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>Schedule Performance Index (SPI) — All Projects</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>SPI = actual progress ÷ planned progress · ≥0.95 On Schedule · 0.80–0.94 At Risk · &lt;0.80 Critical</div>
                 {ganttMetricsMap.size === 0 ? (
-                  <div style={{ color: '#6b7280', fontSize: 13 }}>No Gantt data found. Generate a Gantt for your projects to see SPI analytics.</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No Gantt data found. Generate a Gantt for your projects to see SPI analytics.</div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ borderBottom: '2px solid #374151' }}>
+                        <tr style={{ borderBottom: '2px solid var(--border)' }}>
                           {['Project', 'SPI', 'Status', 'Critical Path', 'Last Visit', 'Trend (8w)'].map(h => (
-                            <th key={h} style={{ textAlign: 'left', padding: '7px 10px', fontSize: 10, fontWeight: 700, color: '#9ca3af', whiteSpace: 'nowrap' }}>{h}</th>
+                            <th key={h} style={{ textAlign: 'left', padding: '7px 10px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -752,13 +752,13 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                           const m    = ganttMetricsMap.get(project.id);
                           const st   = m ? SPI_STATUS[m.spiStatus] : SPI_STATUS.no_schedule;
                           const ch   = m?.criticalHealth;
-                          const chColor = !ch || ch.total === 0 ? '#6b7280' : ch.label === 'healthy' ? '#10b981' : ch.label === 'warning' ? '#f97316' : '#ef4444';
+                          const chColor = !ch || ch.total === 0 ? 'var(--text-muted)' : ch.label === 'healthy' ? 'var(--status-done)' : ch.label === 'warning' ? 'var(--status-warn)' : 'var(--status-alert)';
                           const trend = projectTrends[project.id] || [];
                           return (
-                            <tr key={project.id} style={{ borderBottom: '1px solid #374151' }}>
+                            <tr key={project.id} style={{ borderBottom: '1px solid var(--border)' }}>
                               <td style={{ padding: '8px 10px' }}>
-                                <div style={{ fontWeight: 700, fontSize: 13, color: '#f9fafb' }}>{project.storeCode}</div>
-                                <div style={{ fontSize: 11, color: '#9ca3af' }}>{project.shoppingMallName}</div>
+                                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>{project.storeCode}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{project.shoppingMallName}</div>
                               </td>
                               <td style={{ padding: '8px 10px' }}>
                                 <span style={{ fontSize: 18, fontWeight: 800, color: st.color }}>
@@ -775,9 +775,9 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                                   <span style={{ color: chColor, fontSize: 12, fontWeight: 600 }}>
                                     {ch.behind === 0 ? '✓ All on track' : `${ch.behind}/${ch.total} behind`}
                                   </span>
-                                ) : <span style={{ color: '#6b7280', fontSize: 12 }}>—</span>}
+                                ) : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
                               </td>
-                              <td style={{ padding: '8px 10px', fontSize: 12, color: '#6b7280' }}>
+                              <td style={{ padding: '8px 10px', fontSize: 12, color: 'var(--text-muted)' }}>
                                 {m?.lastVisitDate
                                   ? new Date(m.lastVisitDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
                                   : '—'}
@@ -796,46 +796,46 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
 
               {/* ── Discrepancy History ── */}
               <div className="dashboard-summary-card" style={{ margin: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#f9fafb', marginBottom: 4 }}>Discrepancy History</div>
-                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>PM vs GC progress gaps from site visits · latest 10 per project</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>Discrepancy History</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>PM vs GC progress gaps from site visits · latest 10 per project</div>
                 {allRows.map(({ project }) => {
                   const discs = discHistory[project.id] || [];
                   if (discs.length === 0) return null;
                   const critCount = discs.filter(d => d.status === 'critical').length;
                   const warnCount = discs.filter(d => d.status === 'warning').length;
                   return (
-                    <div key={project.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #374151', borderRadius: 12, padding: '14px 18px', marginBottom: 10 }}>
+                    <div key={project.id} style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                         <div>
-                          <span style={{ fontWeight: 700, fontSize: 13, color: '#f9fafb' }}>{project.storeCode}</span>
-                          <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 8 }}>{project.shoppingMallName}</span>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>{project.storeCode}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>{project.shoppingMallName}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 10 }}>
-                          {critCount > 0 && <span style={{ color: '#ef4444', fontSize: 12, fontWeight: 700 }}>{critCount} critical</span>}
-                          {warnCount > 0 && <span style={{ color: '#f97316', fontSize: 12, fontWeight: 700 }}>{warnCount} warning</span>}
+                          {critCount > 0 && <span style={{ color: 'var(--status-alert)', fontSize: 12, fontWeight: 700 }}>{critCount} critical</span>}
+                          {warnCount > 0 && <span style={{ color: 'var(--status-warn)', fontSize: 12, fontWeight: 700 }}>{warnCount} warning</span>}
                         </div>
                       </div>
                       <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                           <thead>
-                            <tr style={{ borderBottom: '1px solid #374151' }}>
+                            <tr style={{ borderBottom: '1px solid var(--border)' }}>
                               {['WP', 'Visit Date', 'GC%', 'PM%', 'Delta', 'Status'].map(h => (
-                                <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#9ca3af' }}>{h}</th>
+                                <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>{h}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {discs.map((d, i) => {
-                              const stColor = d.status === 'critical' ? '#ef4444' : d.status === 'warning' ? '#f97316' : '#10b981';
+                              const stColor = d.status === 'critical' ? 'var(--status-alert)' : d.status === 'warning' ? 'var(--status-warn)' : 'var(--status-done)';
                               return (
-                                <tr key={i} style={{ borderBottom: '1px solid #374151' }}>
-                                  <td style={{ padding: '5px 8px', fontSize: 12, color: '#e5e7eb' }}>{d.wpId}</td>
-                                  <td style={{ padding: '5px 8px', fontSize: 12, color: '#9ca3af' }}>{d.visitDate ? new Date(d.visitDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}</td>
-                                  <td style={{ padding: '5px 8px', fontSize: 12, color: '#9ca3af' }}>{d.contractorPct ?? '—'}%</td>
-                                  <td style={{ padding: '5px 8px', fontSize: 12, color: '#9ca3af' }}>{d.sitePct ?? '—'}%</td>
+                                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <td style={{ padding: '5px 8px', fontSize: 12, color: 'var(--text-secondary)' }}>{d.wpId}</td>
+                                  <td style={{ padding: '5px 8px', fontSize: 12, color: 'var(--text-muted)' }}>{d.visitDate ? new Date(d.visitDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}</td>
+                                  <td style={{ padding: '5px 8px', fontSize: 12, color: 'var(--text-muted)' }}>{d.contractorPct ?? '—'}%</td>
+                                  <td style={{ padding: '5px 8px', fontSize: 12, color: 'var(--text-muted)' }}>{d.sitePct ?? '—'}%</td>
                                   <td style={{ padding: '5px 8px', fontSize: 13, fontWeight: 700, color: stColor }}>{d.delta != null ? `Δ${d.delta}%` : '—'}</td>
                                   <td style={{ padding: '5px 8px' }}>
-                                    <span style={{ background: d.status === 'critical' ? '#7f1d1d' : d.status === 'warning' ? '#7c2d12' : '#064e3b', color: stColor, borderRadius: 5, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
+                                    <span style={{ background: d.status === 'critical' ? 'var(--status-alert-bg)' : d.status === 'warning' ? 'var(--status-warn-bg)' : 'var(--status-done-bg)', color: stColor, borderRadius: 5, padding: '1px 7px', fontSize: 11, fontWeight: 700 }}>
                                       {d.status}
                                     </span>
                                   </td>
@@ -849,32 +849,32 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
                   );
                 })}
                 {allRows.every(({ project }) => !(discHistory[project.id]?.length > 0)) && (
-                  <div style={{ color: '#6b7280', fontSize: 13 }}>No discrepancy data yet. Submit PM site visits to track GC vs PM gaps.</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No discrepancy data yet. Submit PM site visits to track GC vs PM gaps.</div>
                 )}
               </div>
 
               {/* ── Contractor Reliability ── */}
               <div className="dashboard-summary-card" style={{ margin: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#f9fafb', marginBottom: 4 }}>Contractor Reliability Score</div>
-                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 16 }}>Based on site_visit_discrepancies · score = 100% - (critical gaps / total assessments)</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>Contractor Reliability Score</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>Based on site_visit_discrepancies · score = 100% - (critical gaps / total assessments)</div>
                 {reliabilityMap.size === 0 ? (
-                  <div style={{ color: '#6b7280', fontSize: 13 }}>No discrepancy data yet.</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No discrepancy data yet.</div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
                     {allRows.map(({ project }) => {
                       const rel = reliabilityMap.get(project.id);
                       if (!rel || rel.total === 0) return null;
-                      const scoreColor = rel.score >= 80 ? '#10b981' : rel.score >= 60 ? '#f97316' : '#ef4444';
+                      const scoreColor = rel.score >= 80 ? 'var(--status-done)' : rel.score >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
                       return (
-                        <div key={project.id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #374151', borderRadius: 10, padding: '12px 16px' }}>
-                          <div style={{ fontWeight: 700, fontSize: 12, color: '#f9fafb', marginBottom: 2 }}>{project.storeCode}</div>
-                          <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>{project.generalContractor || 'No GC'}</div>
+                        <div key={project.id} style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
+                          <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-primary)', marginBottom: 2 }}>{project.storeCode}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>{project.generalContractor || 'No GC'}</div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: 28, fontWeight: 800, color: scoreColor }}>{rel.score}</span>
-                            <div style={{ fontSize: 11, color: '#9ca3af', textAlign: 'right' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'right' }}>
                               <div>{rel.ok} ok</div>
-                              {rel.warning > 0 && <div style={{ color: '#f97316' }}>{rel.warning} warn</div>}
-                              {rel.critical > 0 && <div style={{ color: '#ef4444' }}>{rel.critical} crit</div>}
+                              {rel.warning > 0 && <div style={{ color: 'var(--status-warn)' }}>{rel.warning} warn</div>}
+                              {rel.critical > 0 && <div style={{ color: 'var(--status-alert)' }}>{rel.critical} crit</div>}
                             </div>
                           </div>
                         </div>

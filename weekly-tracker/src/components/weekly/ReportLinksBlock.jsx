@@ -10,7 +10,7 @@ export default function ReportLinksBlock({ report }) {
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
       {/* Look Ahead */}
       <div className="dashboard-summary-card" style={{ margin: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#f9fafb' }}>Look Ahead</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--text-primary)' }}>Look Ahead</div>
         {hasLookAhead ? (
           <>
             <TextBlock label="Top 3 — Next Week" value={report.nextWeekTop3}  plain />
@@ -20,28 +20,28 @@ export default function ReportLinksBlock({ report }) {
             )}
           </>
         ) : (
-          <div style={{ fontSize: 13, color: '#9ca3af' }}>No look-ahead submitted</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No look-ahead submitted</div>
         )}
       </div>
 
       {/* Declaration */}
       <div className="dashboard-summary-card" style={{ margin: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: '#f9fafb' }}>Declaration</div>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--text-primary)' }}>Declaration</div>
         {hasDeclaration ? (
           <>
             <TextBlock label="Pending Issues" value={report.pendingIssues} plain />
             <TextBlock label="Final Comments"  value={report.finalComments} plain />
           </>
         ) : (
-          <div style={{ fontSize: 13, color: '#9ca3af', marginBottom: 12 }}>No comments</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>No comments</div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
           <div style={{
             width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-            background: report.declarationConfirmed ? '#10b981' : '#374151',
-            border: `1px solid ${report.declarationConfirmed ? '#10b981' : '#4b5563'}`,
+            background: report.declarationConfirmed ? 'var(--status-done)' : 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
           }} />
-          <span style={{ fontSize: 12, color: '#9ca3af' }}>Confirmed by contractor</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Confirmed by contractor</span>
         </div>
       </div>
     </div>

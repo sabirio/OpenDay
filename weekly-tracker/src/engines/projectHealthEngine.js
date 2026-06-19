@@ -19,8 +19,8 @@ export function computeProjectHealth(riskScore, progress, contScore) {
   const score = Math.min(100, Math.round(riskPts + progressPts + contPts + alignPts + pmPts));
 
   const level = score >= 75 ? "Healthy" : score >= 50 ? "Attention" : "Critical";
-  const color = score >= 75 ? "#16a34a" : score >= 50 ? "#d97706" : "#dc2626";
-  const bg    = score >= 75 ? "#dcfce7" : score >= 50 ? "#fef9c3" : "#fee2e2";
+  const color = score >= 75 ? "var(--status-done)"  : score >= 50 ? "var(--status-warn)"  : "var(--status-alert)";
+  const bg    = score >= 75 ? "var(--status-done-bg)" : score >= 50 ? "var(--status-warn-bg)" : "var(--status-alert-bg)";
 
   const reasons = [];
   if (riskScore.score >= 60)           reasons.push(`High risk score (${riskScore.score}/100)`);

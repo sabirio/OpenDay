@@ -76,10 +76,10 @@ body {
   color: var(--text-primary);
 }
 .sidebar a.active {
-  background: rgba(34, 211, 238, 0.1);
-  color: var(--accent-active);
+  background: var(--accent-subtle);
+  color: var(--accent);
   font-weight: 600;
-  border-left: none; /* removed the old orange left border */
+  border-left: none;
 }
 
 
@@ -155,8 +155,8 @@ body {
   transition: border-color 0.15s;
 }
 .dashboard-filter-group select:focus {
-  border-color: var(--accent-active);
-  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 
 .dashboard-metrics-toolbar {
@@ -314,7 +314,7 @@ body {
 
 .status-pill {
   background: var(--chip-bg-orange);
-  border: 1px solid #92400e;
+  border: 1px solid var(--border);
   border-radius: var(--radius-full);
   padding: 10px 16px;
   display: flex;
@@ -402,10 +402,10 @@ body {
    BUTTONS
    ============================================================ */
 
-/* Primary — cyan (was orange) */
+/* Primary */
 .primary-button {
-  background: var(--accent-active);
-  color: #111827;
+  background: var(--accent);
+  color: var(--text-inverse);
   border: none;
   padding: 10px 20px;
   border-radius: var(--radius-md);
@@ -427,7 +427,7 @@ body {
   font-size: 0.9375rem;
   transition: background 0.15s;
 }
-.secondary-button:hover { background: #4b5563; }
+.secondary-button:hover { background: var(--border-strong); }
 
 /* Small action button */
 .small-button {
@@ -455,13 +455,13 @@ body {
   font-size: 0.875rem;
   transition: background 0.15s;
 }
-.text-button:hover { background: rgba(34, 211, 238, 0.1); }
+.text-button:hover { background: var(--accent-subtle); }
 
 /* Shared utility buttons */
 .btn-primary {
   padding: 10px 20px;
-  background: var(--accent-active);
-  color: #111827;
+  background: var(--accent);
+  color: var(--text-inverse);
   border: none;
   border-radius: var(--radius-md);
   font-size: 0.875rem;
@@ -481,7 +481,7 @@ body {
   cursor: pointer;
   transition: background 0.15s;
 }
-.btn-ghost:hover { background: #4b5563; color: var(--text-primary); }
+.btn-ghost:hover { background: var(--border-strong); color: var(--text-primary); }
 
 .btn-ghost-sm {
   padding: 6px 14px;
@@ -493,7 +493,7 @@ body {
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
 }
-.btn-ghost-sm:hover { border-color: #6b7280; color: var(--text-primary); }
+.btn-ghost-sm:hover { border-color: var(--border-strong); color: var(--text-primary); }
 
 
 /* ============================================================
@@ -641,8 +641,8 @@ body {
 }
 .form-field input:focus,
 .form-field select:focus {
-  border-color: var(--accent-active);
-  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 .form-field input::placeholder { color: var(--text-muted); }
 
@@ -667,8 +667,8 @@ body {
   transition: border-color 0.15s;
 }
 .form-field textarea:focus {
-  border-color: var(--accent-active);
-  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 
 
@@ -820,7 +820,7 @@ body {
   align-items: center;
   gap: 8px;
   background: var(--chip-bg-red);
-  border: 1px solid #991b1b;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 10px 14px;
   font-size: 0.8125rem;
@@ -849,8 +849,8 @@ body {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .login-field input:focus {
-  border-color: var(--accent-active);
-  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 .login-field input::placeholder { color: var(--text-muted); }
 .login-field input:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -872,13 +872,13 @@ body {
 .login-checkbox input[type="checkbox"] {
   width: 15px;
   height: 15px;
-  accent-color: var(--accent-active);
+  accent-color: var(--accent);
   cursor: pointer;
 }
 .login-link {
   background: none;
   border: none;
-  color: var(--accent-active);
+  color: var(--accent);
   font-size: 0.8125rem;
   cursor: pointer;
   padding: 0;
@@ -889,8 +889,8 @@ body {
 
 .login-btn {
   height: 44px;
-  background: var(--accent-active);
-  color: #111827;
+  background: var(--accent);
+  color: var(--text-inverse);
   border: none;
   border-radius: var(--radius-md);
   font-size: 0.9375rem;
@@ -907,8 +907,8 @@ body {
 .login-spinner {
   width: 17px;
   height: 17px;
-  border: 2px solid rgba(17, 24, 39, 0.3);
-  border-top-color: #111827;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: var(--text-inverse);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -1296,7 +1296,7 @@ body {
   margin-top: 4px;
   transition: background 0.15s;
 }
-.admin-save-ok { background: var(--accent-success) !important; color: #111827 !important; }
+.admin-save-ok { background: var(--status-done) !important; color: var(--text-inverse) !important; }
 
 
 /* ============================================================

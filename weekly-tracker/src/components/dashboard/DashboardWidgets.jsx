@@ -1,18 +1,17 @@
 import { RISK_LEVEL_COLORS } from '../../config/statusColors';
 
-/* Dark design system tokens (mirrors :root in design-system.css) */
 const T = {
-  bgSurface:  'rgba(31, 41, 55, 0.6)',
-  bgPage:     '#111827',
-  border:     '#374151',
-  textMuted:  '#6b7280',
-  textSec:    '#9ca3af',
-  textBody:   '#e5e7eb',
-  textPrimary:'#f9fafb',
-  shadow:     '0 1px 3px rgba(0,0,0,0.4)',
+  bgSurface:  'var(--bg-surface)',
+  bgPage:     'var(--bg-base)',
+  border:     'var(--border)',
+  textMuted:  'var(--text-muted)',
+  textSec:    'var(--text-secondary)',
+  textBody:   'var(--text-primary)',
+  textPrimary:'var(--text-primary)',
+  shadow:     'var(--shadow)',
 };
 
-export function KpiCard({ label, value, sub, color = '#22d3ee' }) {
+export function KpiCard({ label, value, sub, color = 'var(--accent)' }) {
   return (
     <div data-testid="kpi-card" style={{
       background: T.bgSurface,
@@ -31,7 +30,7 @@ export function KpiCard({ label, value, sub, color = '#22d3ee' }) {
   );
 }
 
-export function LineChart({ points = [], width = 480, height = 120, color = '#22d3ee' }) {
+export function LineChart({ points = [], width = 480, height = 120, color = 'var(--accent)' }) {
   const valid = points.filter(p => p.date && !isNaN(new Date(p.date)));
   if (valid.length < 2) return (
     <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textMuted, fontSize: 13 }}>
@@ -71,20 +70,25 @@ export function ActivityHeatmap({ projectRows, weekCount = 16 }) {
     return { start: s, end: e, label: s.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) };
   });
   const CW = 36, CH = 28, LW = 100, G = 3;
-  /* Dark-theme status colours — same semantic meaning, dark-mode palette */
   const STATUS_BG = {
-    'On Track': '#10b981',
-    'Critical': '#ef4444',
-    'Delayed':  '#ef4444',
-    'At Risk':  '#f97316',
+    'On Track': 'var(--border-strong)',
+    'Critical': 'var(--status-alert)',
+    'Delayed':  'var(--status-alert)',
+    'At Risk':  'var(--status-warn)',
+  };
+  const STATUS_FG = {
+    'On Track': 'var(--text-primary)',
+    'Critical': '#fff',
+    'Delayed':  '#fff',
+    'At Risk':  '#fff',
   };
   const LEGEND = [
-    { color: T.border,   t: 'No report' },
-    { color: '#10b981',  t: 'On Track'  },
-    { color: '#f97316',  t: 'At Risk'   },
-    { color: '#ef4444',  t: 'Delayed'   },
-    { color: '#ef4444',  t: 'Critical'  },
-    { color: T.textSec,  t: 'Submitted' },
+    { color: 'var(--border)',        t: 'No report' },
+    { color: 'var(--border-strong)', t: 'On Track'  },
+    { color: 'var(--status-warn)',   t: 'At Risk'   },
+    { color: 'var(--status-alert)',  t: 'Delayed'   },
+    { color: 'var(--status-alert)',  t: 'Critical'  },
+    { color: 'var(--text-secondary)',t: 'Submitted' },
   ];
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -102,12 +106,13 @@ export function ActivityHeatmap({ projectRows, weekCount = 16 }) {
               {project.storeCode}
             </div>
             {cells.map((cell, i) => {
-              const bg = cell.count > 0 ? (STATUS_BG[cell.status] ?? T.textSec) : T.border;
+              const bg = cell.count > 0 ? (STATUS_BG[cell.status] ?? 'var(--text-secondary)') : 'var(--border)';
+              const fg = cell.count > 0 ? (STATUS_FG[cell.status] ?? '#fff') : 'transparent';
               return (
                 <div
                   key={i}
                   title={`${weeks[i].label} · ${cell.count > 0 ? cell.count + ' report(s) · ' + (cell.status || 'submitted') : 'No report'}`}
-                  style={{ width: CW, height: CH, borderRadius: 4, background: bg, marginRight: G, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: cell.count > 0 ? '#fff' : 'transparent' }}
+                  style={{ width: CW, height: CH, borderRadius: 4, background: bg, marginRight: G, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: fg }}
                 >
                   {cell.count > 0 ? String(cell.count) : ''}
                 </div>
@@ -133,16 +138,23 @@ export function TextBlock({ label, value }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textMuted, marginBottom: 5 }}>{label}</div>
-      <div style={{ background: 'rgba(31,41,55,0.6)', border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 13, color: T.textBody, lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{value}</div>
+      <div style={{ background: 'var(--bg-surface)', border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px 12px', fontSize: 13, color: T.textBody, lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{value}</div>
     </div>
   );
 }
 
+const SCHED_STYLES = {
+  'On Track': { color: 'var(--status-done)',  background: 'var(--status-done-bg)',  border: '1px solid var(--border)' },
+  'Critical': { color: 'var(--status-alert)', background: 'var(--status-alert-bg)', border: '1px solid var(--border)' },
+  'Delayed':  { color: 'var(--status-alert)', background: 'var(--status-alert-bg)', border: '1px solid var(--border)' },
+  'At Risk':  { color: 'var(--status-warn)',  background: 'var(--status-warn-bg)',  border: '1px solid var(--border)' },
+};
+const SCHED_FALLBACK = { color: 'var(--text-muted)', background: 'var(--bg-elevated)', border: '1px solid var(--border)' };
+
 export function SchedBadge({ status }) {
-  const c = status === 'On Track' ? '#10b981' : status === 'Critical' ? '#ef4444' : status === 'Delayed' ? '#ef4444' : status === 'At Risk' ? '#f97316' : '#4b5563';
-  const bg = c + '22';
+  const s = SCHED_STYLES[status] || SCHED_FALLBACK;
   return (
-    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: bg, color: c, border: `1px solid ${c}55` }}>
+    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, ...s }}>
       {status || '—'}
     </span>
   );

@@ -1,8 +1,8 @@
 export const RISK_COLORS = {
-  LOW:      { text: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
-  MEDIUM:   { text: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-  HIGH:     { text: "#c2410c", bg: "#fff7ed", border: "#fed7aa" },
-  CRITICAL: { text: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+  LOW:      { text: "var(--status-done)",  bg: "var(--status-done-bg)",   border: "var(--border)" },
+  MEDIUM:   { text: "var(--status-warn)",  bg: "var(--status-warn-bg)",   border: "var(--border)" },
+  HIGH:     { text: "var(--status-warn)",  bg: "var(--status-warn-bg)",   border: "var(--border)" },
+  CRITICAL: { text: "var(--status-alert)", bg: "var(--status-alert-bg)",  border: "var(--border)" },
 };
 
 export const RISK_DIMENSIONS = [

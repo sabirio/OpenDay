@@ -5,15 +5,16 @@ import { constructionWeights, testingWeights, handoverWeights } from '../config/
 // ── Constants ────────────────────────────────────────────────────────────────
 
 export const PROJECT_COLORS = [
-  "#2f855a","#2563eb","#d97706","#dc2626","#7c3aed",
-  "#0891b2","#be185d","#059669","#92400e","#1d4ed8",
+  "var(--accent)", "var(--text-secondary)", "var(--accent)", "var(--status-warn)",
+  "var(--accent)", "var(--text-secondary)", "var(--accent)", "var(--status-alert)",
+  "var(--accent)", "var(--text-muted)",
 ];
 
 // WP_COLS: one column per work package for the heatmap tab
 export const WP_COLS = WORK_PACKAGES.map((wp) => ({
   label:  wp.name.replace('Pre-construction', 'Pre-Con').replace('Demolition & Preparation', 'Demo').replace('Construction', 'Struct.').replace('MEP Rough-in', 'MEP').replace('Finishes & Final Installation', 'Finishes').replace('Fixtures & Equipment', 'Equipment').replace('Testing, Commissioning & Integration', 'T&C').replace('Snagging & Handover', 'Handover'),
   wpId:   wp.id,
-  color:  '#6b7280',
+  color:  'var(--text-muted)',
   phase:  wp.id === 'demolition' ? 'demolition' : wp.id === 'commissioning' ? 'testing' : wp.id === 'handover' ? 'handover' : 'construction',
   key:    wp.id === 'demolition' ? null : wp.id === 'commissioning' ? 'Sprinkler system testing and commissioning' : wp.id === 'handover' ? 'Snag list resolution' : null,
 }));
@@ -34,16 +35,16 @@ export const HANDOVER_ITEMS = [
 
 export function svCompare(pm, gc) {
   if (!pm && !gc) return null;
-  if (!pm) return { type:"not-assessed", badge:"Not assessed", color:"#6b7280", bg:"#f9fafb", border:"#e5e7eb" };
-  if (!gc) return { type:"no-gc", badge:"No GC data", color:"#6b7280", bg:"#f9fafb", border:"#e5e7eb" };
+  if (!pm) return { type:"not-assessed", badge:"Not assessed", color:"var(--text-muted)",   bg:"var(--bg-elevated)",     border:"var(--border)" };
+  if (!gc) return { type:"no-gc",        badge:"No GC data",  color:"var(--text-muted)",   bg:"var(--bg-elevated)",     border:"var(--border)" };
   // WP_STATUS_SCORES has exact keys — avoids "Not Started".includes("started") false-positive in getStatusScore
   const psExact=WP_STATUS_SCORES[pm], gsExact=WP_STATUS_SCORES[gc];
-  if (psExact===null||gsExact===null) return { type:"no-gc", badge:"N/A", color:"#6b7280", bg:"#f9fafb", border:"#e5e7eb" };
+  if (psExact===null||gsExact===null) return { type:"no-gc", badge:"N/A", color:"var(--text-muted)", bg:"var(--bg-elevated)", border:"var(--border)" };
   const ps=psExact!==undefined?psExact:getStatusScore(pm);
   const gs=gsExact!==undefined?gsExact:getStatusScore(gc);
-  if (ps===gs) return { type:"match",       badge:"✓ Match",       color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" };
-  if (ps<gs)   return { type:"discrepancy", badge:"⚠ Discrepancy", color:"#dc2626", bg:"#fef2f2", border:"#fecaca" };
-  return       { type:"pm-higher",  badge:"↑ PM ahead",    color:"#d97706", bg:"#fffbeb", border:"#fde68a" };
+  if (ps===gs) return { type:"match",       badge:"✓ Match",       color:"var(--status-done)",  bg:"var(--status-done-bg)",  border:"var(--border)" };
+  if (ps<gs)   return { type:"discrepancy", badge:"⚠ Discrepancy", color:"var(--status-alert)", bg:"var(--status-alert-bg)", border:"var(--border)" };
+  return       { type:"pm-higher",  badge:"↑ PM ahead",    color:"var(--status-warn)",  bg:"var(--status-warn-bg)",  border:"var(--border)" };
 }
 
 // Mapping from old GC report field names → new WP task names (for GC old-format fallback)
@@ -98,10 +99,10 @@ export function computePhaseCompletions(statuses) {
   let hs=0,hw=0;
   Object.keys(handoverWeights||{}).forEach(k=>{const w=handoverWeights[k],st=statuses.handoverStatuses?.[k];if(st!==undefined){hs+=getStatusScore(st)*w;hw+=w;}});
   return [
-    { label:"Demolition",           pct:demoScore,                              color:"#8b5cf6" },
-    { label:"Construction",         pct:cw>0?Math.round(cs/cw*100):null,        color:"#3b82f6" },
-    { label:"Testing & Commissioning", pct:tw>0?Math.round(ts/tw*100):null,    color:"#f59e0b" },
-    { label:"Handover",             pct:hw>0?Math.round(hs/hw*100):null,        color:"#22c55e" },
+    { label:"Demolition",           pct:demoScore,                              color:"var(--text-secondary)" },
+    { label:"Construction",         pct:cw>0?Math.round(cs/cw*100):null,        color:"var(--accent)"          },
+    { label:"Testing & Commissioning", pct:tw>0?Math.round(ts/tw*100):null,    color:"var(--status-warn)"     },
+    { label:"Handover",             pct:hw>0?Math.round(hs/hw*100):null,        color:"var(--status-done)"     },
   ];
 }
 
@@ -137,11 +138,11 @@ export function getWpProgress(wpCs, col) {
 }
 
 export function wpStyle(status) {
-  if (!status) return { bg:"#f9fafb", text:"#9ca3af", lbl:"–" };
+  if (!status) return { bg:"var(--bg-elevated)", text:"var(--text-muted)", lbl:"–" };
   const s = status.toLowerCase();
-  if (s.includes("complet") || s.includes("ready"))    return { bg:"#f0fdf4", text:"#16a34a", lbl:"✓" };
-  if (s.includes("progress") || s.includes("started")) return { bg:"#eff6ff", text:"#3b82f6", lbl:"▶" };
-  if (s.includes("planned") || s.includes("scheduled")) return { bg:"#fffbeb", text:"#d97706", lbl:"S" };
-  if (s.includes("not start"))                          return { bg:"#f9fafb", text:"#9ca3af", lbl:"·" };
-  return { bg:"#f9fafb", text:"#6b7280", lbl:"?" };
+  if (s.includes("complet") || s.includes("ready"))     return { bg:"var(--status-done-bg)",  text:"var(--status-done)",  lbl:"✓" };
+  if (s.includes("progress") || s.includes("started"))  return { bg:"var(--accent-subtle)",   text:"var(--accent)",       lbl:"▶" };
+  if (s.includes("planned") || s.includes("scheduled")) return { bg:"var(--status-warn-bg)",  text:"var(--status-warn)",  lbl:"S" };
+  if (s.includes("not start"))                          return { bg:"var(--bg-elevated)",      text:"var(--text-muted)",   lbl:"·" };
+  return { bg:"var(--bg-elevated)", text:"var(--text-muted)", lbl:"?" };
 }

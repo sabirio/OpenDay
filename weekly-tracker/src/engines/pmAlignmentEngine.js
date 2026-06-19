@@ -161,13 +161,14 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
 
   // LOW 0–2 | MEDIUM 3–5 | HIGH 6–8
   const level = pts >= 6 ? "HIGH" : pts >= 3 ? "MEDIUM" : "LOW";
-  const color = level === "HIGH" ? "#22c55e" : level === "MEDIUM" ? "#f59e0b" : "#94a3b8";
+  const color   = level === "HIGH" ? "var(--status-done)"  : level === "MEDIUM" ? "var(--status-warn)" : "var(--text-muted)";
+  const colorBg = level === "HIGH" ? "var(--status-done-bg)" : level === "MEDIUM" ? "var(--status-warn-bg)" : "var(--bg-elevated)";
   const label =
     level === "HIGH"   ? "High confidence" :
     level === "MEDIUM" ? "Moderate confidence" :
                          "Limited data";
 
-  return { level, pts, maxPts: 8, color, label };
+  return { level, pts, maxPts: 8, color, colorBg, label };
 }
 
 export function summarizeAlignmentItems(items) {

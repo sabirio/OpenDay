@@ -39,7 +39,7 @@ export function computeScheduleDeviation(project, progress) {
 // ── Trend ─────────────────────────────────────────────────────────────────────
 
 export function computeTrend(sortedReports) {
-  if (sortedReports.length < 2) return { trend: "Insufficient data", icon: "—", color: "#94a3b8", avgDiff: 0 };
+  if (sortedReports.length < 2) return { trend: "Insufficient data", icon: "—", color: "var(--text-muted)", avgDiff: 0 };
   const points = sortedReports.map((_, i) => {
     const slice = sortedReports.slice(0, i + 1);
     const wpCum  = computeWPCumulativeStatuses(slice);
@@ -48,15 +48,15 @@ export function computeTrend(sortedReports) {
   });
   const recent = points.slice(-Math.min(4, points.length));
   const diffs  = recent.slice(1).map((v, i) => v - recent[i]);
-  if (!diffs.length) return { trend: "Insufficient data", icon: "—", color: "#94a3b8", avgDiff: 0 };
+  if (!diffs.length) return { trend: "Insufficient data", icon: "—", color: "var(--text-muted)", avgDiff: 0 };
   const avgDiff = Math.round(diffs.reduce((s, d) => s + d, 0) / diffs.length);
   const lastDiff = diffs[diffs.length - 1];
   const prevAvg  = diffs.length >= 2 ? diffs.slice(0, -1).reduce((s, d) => s + d, 0) / (diffs.length - 1) : avgDiff;
   const velocitySlowing = diffs.length >= 2 && lastDiff < prevAvg - 2;
-  if (avgDiff >= 5)  return { trend: "Improving",       icon: "↑",  color: "#22c55e", avgDiff };
-  if (avgDiff >= 1)  return { trend: velocitySlowing ? "Acceleration Loss" : "Stable", icon: velocitySlowing ? "⚡" : "→", color: velocitySlowing ? "#f59e0b" : "#3b82f6", avgDiff };
-  if (avgDiff >= -2) return { trend: "Stalling",        icon: "⚠",  color: "#f59e0b", avgDiff };
-  return               { trend: "Deteriorating",        icon: "↓",  color: "#dc2626", avgDiff };
+  if (avgDiff >= 5)  return { trend: "Improving",       icon: "↑",  color: "var(--status-done)", avgDiff };
+  if (avgDiff >= 1)  return { trend: velocitySlowing ? "Acceleration Loss" : "Stable", icon: velocitySlowing ? "⚡" : "→", color: velocitySlowing ? "var(--status-warn)" : "var(--accent)", avgDiff };
+  if (avgDiff >= -2) return { trend: "Stalling",        icon: "⚠",  color: "var(--status-warn)", avgDiff };
+  return               { trend: "Deteriorating",        icon: "↓",  color: "var(--status-alert)", avgDiff };
 }
 
 // ── No-Report Risk (dynamic, time-aware) ─────────────────────────────────────

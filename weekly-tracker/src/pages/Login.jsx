@@ -53,8 +53,8 @@ function Login() {
         <div className="login-header">
           <div className="login-logo">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="8" fill="#1e3a5f" />
-              <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="#60a5fa" />
+              <rect width="32" height="32" rx="8" fill="var(--bg-elevated)" />
+              <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="var(--accent)" />
             </svg>
           </div>
           <h1 className="login-title">NORYX</h1>
@@ -66,8 +66,8 @@ function Login() {
           {error && (
             <div className="login-error" role="alert">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="#f87171" strokeWidth="1.5" />
-                <path d="M8 5v4M8 11v.5" stroke="#f87171" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="8" cy="8" r="7" stroke="var(--status-alert)" strokeWidth="1.5" />
+                <path d="M8 5v4M8 11v.5" stroke="var(--status-alert)" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
               {error}
             </div>

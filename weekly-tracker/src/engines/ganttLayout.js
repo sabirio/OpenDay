@@ -282,7 +282,7 @@ function buildKeyDateLines(keyDates, dateToX) {
     date:  today,
     x:     dateToX(today),
     label: 'Today',
-    color: '#EF4444',
+    color: 'var(--text-muted)',
     style: 'dashed',
   });
 
@@ -292,7 +292,7 @@ function buildKeyDateLines(keyDates, dateToX) {
       date:  new Date(keyDates.targetOpeningDate),
       x:     dateToX(new Date(keyDates.targetOpeningDate)),
       label: 'Target Opening',
-      color: '#3B82F6',
+      color: 'var(--accent)',
       style: 'solid',
     });
   }
@@ -303,7 +303,7 @@ function buildKeyDateLines(keyDates, dateToX) {
       date:  new Date(keyDates.constructionCompletionDate),
       x:     dateToX(new Date(keyDates.constructionCompletionDate)),
       label: 'Construction Complete',
-      color: '#10B981',
+      color: 'var(--status-done)',
       style: 'solid',
     });
   }
@@ -326,7 +326,7 @@ function buildKeyDateLines(keyDates, dateToX) {
         date:  new Date(keyDates.forecastOpeningDate),
         x:     forecastX,
         label: 'Forecast Opening',
-        color: '#F97316',
+        color: 'var(--status-warn)',
         style: 'dashed',
       });
     }

@@ -1,48 +1,54 @@
 /* ============================================================
    C&F Tracker — Design System
-   Single source of truth for all visual tokens.
-   Imported at the top of index.css — do not load separately.
+   Monochrome dark/light theme. Only --status-alert (red) and
+   --status-warn (orange) break the greyscale rule.
    ============================================================ */
 
 
-/* ── 1. Color Tokens ─────────────────────────────────────────────────────── */
+/* ── 1. Dark mode tokens (default) ───────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --bg-page:          #111827;                    /* gray-900 — page bg */
-  --bg-surface:       #1f2937;                    /* gray-800 — solid surface */
-  --bg-surface-alpha: rgba(31, 41, 55, 0.6);     /* gray-800 60% — cards */
-  --bg-elevated:      rgba(255, 255, 255, 0.04); /* subtle hover/lift */
+  --bg-base:           #0a0a0a;
+  --bg-surface:        #141414;
+  --bg-elevated:       #1c1c1c;
+  --bg-input:          #1c1c1c;
 
   /* Borders */
-  --border:        #374151;  /* gray-700 */
-  --border-subtle: rgba(55, 65, 81, 0.5);
+  --border:            #2a2a2a;
+  --border-strong:     #3d3d3d;
 
   /* Text */
-  --text-primary:   #f9fafb;  /* gray-50  — headings, key values */
-  --text-body:      #e5e7eb;  /* gray-200 — body / data */
-  --text-secondary: #9ca3af;  /* gray-400 — labels, metadata */
-  --text-muted:     #6b7280;  /* gray-500 — hints, timestamps */
+  --text-primary:      #f5f5f5;
+  --text-secondary:    #a3a3a3;
+  --text-muted:        #525252;
+  --text-inverse:      #0a0a0a;
 
-  /* Semantic accents */
-  --accent-success:  #10b981;  /* emerald-500 — completed, on-track */
-  --accent-active:   #22d3ee;  /* cyan-400    — in-progress, links, primary action */
-  --accent-warning:  #f97316;  /* orange-400  — financial, at-risk, additional works */
-  --accent-error:    #ef4444;  /* red-500     — blocked, mismatch, overdue */
-  --accent-inactive: #4b5563;  /* gray-600    — not-started, disabled */
+  /* Accent — white in dark, black in light */
+  --accent:            #ffffff;
+  --accent-subtle:     rgba(255, 255, 255, 0.06);
 
-  /* Chip backgrounds (dark-tinted) */
-  --chip-bg-green:  #064e3b;  --chip-fg-green:  #6ee7b7;
-  --chip-bg-cyan:   #164e63;  --chip-fg-cyan:   #67e8f9;
-  --chip-bg-orange: #7c2d12;  --chip-fg-orange: #fdba74;
-  --chip-bg-gray:   #374151;  --chip-fg-gray:   #d1d5db;
-  --chip-bg-red:    #7f1d1d;  --chip-fg-red:    #fca5a5;
+  /* Status: functional color signals only */
+  --status-done:       #ffffff;
+  --status-done-bg:    rgba(255, 255, 255, 0.08);
+  --status-active:     #a3a3a3;
+  --status-active-bg:  rgba(163, 163, 163, 0.10);
+  --status-todo:       #3d3d3d;
+  --status-todo-bg:    transparent;
+  --status-alert:      #ef4444;
+  --status-alert-bg:   rgba(239, 68, 68, 0.08);
+  --status-warn:       #f97316;
+  --status-warn-bg:    rgba(249, 115, 22, 0.08);
 
-  /* Elevated card shadow (only approved shadow) */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+  /* Shadows */
+  --shadow:            0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.8);
+
+  /* Focus ring */
+  --focus-ring:        0 0 0 2px rgba(255, 255, 255, 0.12);
 
   /* Spacing */
-  --space-1: 0.25rem;  --space-2: 0.5rem;  --space-3: 0.75rem;
-  --space-4: 1rem;     --space-5: 1.25rem; --space-6: 1.5rem;
+  --space-1: 0.25rem;  --space-2: 0.5rem;   --space-3: 0.75rem;
+  --space-4: 1rem;     --space-5: 1.25rem;  --space-6: 1.5rem;
   --space-8: 2rem;
 
   /* Radii */
@@ -55,10 +61,69 @@
   /* Typography */
   --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* ── Legacy aliases (used by index.css & older component code) ── */
+  --bg-page:           var(--bg-base);
+  --bg-surface-alpha:  var(--bg-surface);
+  --bg-card:           var(--bg-surface);
+  --text-body:         var(--text-primary);
+  --accent-active:     var(--accent);
+  --accent-success:    var(--status-done);
+  --accent-warning:    var(--status-warn);
+  --accent-error:      var(--status-alert);
+  --accent-inactive:   var(--border-strong);
+  --shadow-card:       var(--shadow);
+
+  /* ── Chip shorthands ── */
+  --chip-bg-green:     var(--status-done-bg);
+  --chip-fg-green:     var(--status-done);
+  --chip-bg-cyan:      var(--accent-subtle);
+  --chip-fg-cyan:      var(--accent);
+  --chip-bg-orange:    var(--status-warn-bg);
+  --chip-fg-orange:    var(--status-warn);
+  --chip-bg-gray:      var(--bg-elevated);
+  --chip-fg-gray:      var(--text-secondary);
+  --chip-bg-red:       var(--status-alert-bg);
+  --chip-fg-red:       var(--status-alert);
 }
 
 
-/* ── 2. Status Chips ─────────────────────────────────────────────────────── */
+/* ── 2. Light mode overrides ─────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base:           #ffffff;
+  --bg-surface:        #f5f5f5;
+  --bg-elevated:       #ebebeb;
+  --bg-input:          #ffffff;
+
+  --border:            #e5e5e5;
+  --border-strong:     #d4d4d4;
+
+  --text-primary:      #0a0a0a;
+  --text-secondary:    #525252;
+  --text-muted:        #a3a3a3;
+  --text-inverse:      #f5f5f5;
+
+  --accent:            #0a0a0a;
+  --accent-subtle:     rgba(0, 0, 0, 0.04);
+
+  --status-done:       #0a0a0a;
+  --status-done-bg:    rgba(0, 0, 0, 0.06);
+  --status-active:     #525252;
+  --status-active-bg:  rgba(82, 82, 82, 0.08);
+  --status-todo:       #d4d4d4;
+  --status-todo-bg:    transparent;
+  --status-alert:      #dc2626;
+  --status-alert-bg:   rgba(220, 38, 38, 0.06);
+  --status-warn:       #ea580c;
+  --status-warn-bg:    rgba(234, 88, 12, 0.06);
+
+  --shadow:            0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.12);
+  --focus-ring:        0 0 0 2px rgba(0, 0, 0, 0.12);
+}
+
+
+/* ── 3. Status Chips ─────────────────────────────────────────────────────── */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -77,7 +142,7 @@
 .chip--red    { background: var(--chip-bg-red);    color: var(--chip-fg-red);    }
 
 
-/* ── 3. Status Dots ──────────────────────────────────────────────────────── */
+/* ── 4. Status Dots ──────────────────────────────────────────────────────── */
 .dot {
   display: inline-block;
   width: 0.375rem;
@@ -85,14 +150,14 @@
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
-.dot--green  { background: var(--accent-success);  }
-.dot--cyan   { background: var(--accent-active);   }
-.dot--orange { background: var(--accent-warning);  }
-.dot--red    { background: var(--accent-error);    }
-.dot--gray   { background: var(--accent-inactive); }
+.dot--green  { background: var(--status-done);   }
+.dot--cyan   { background: var(--accent);         }
+.dot--orange { background: var(--status-warn);    }
+.dot--red    { background: var(--status-alert);   }
+.dot--gray   { background: var(--border-strong);  }
 
 
-/* ── 4. Progress Bars ────────────────────────────────────────────────────── */
+/* ── 5. Progress Bars ────────────────────────────────────────────────────── */
 .progress-track {
   background: var(--border);
   border-radius: var(--radius-full);
@@ -104,26 +169,26 @@
   border-radius: var(--radius-full);
   transition: width 0.3s ease;
 }
-.progress-fill--active  { background: var(--accent-active);   }
-.progress-fill--done    { background: var(--accent-success);  }
-.progress-fill--warning { background: var(--accent-warning);  }
-.progress-fill--error   { background: var(--accent-error);    }
-.progress-fill--gray    { background: var(--accent-inactive); }
+.progress-fill--active  { background: var(--accent);        }
+.progress-fill--done    { background: var(--status-done);   }
+.progress-fill--warning { background: var(--status-warn);   }
+.progress-fill--error   { background: var(--status-alert);  }
+.progress-fill--gray    { background: var(--border-strong); }
 
 
-/* ── 5. Cards ────────────────────────────────────────────────────────────── */
+/* ── 6. Cards ────────────────────────────────────────────────────────────── */
 .card {
-  background: var(--bg-surface-alpha);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
 }
-.card--orange { border-color: #92400e; }
-.card--red    { border-left: 3px solid var(--accent-error); }
+.card--orange { border-color: var(--status-warn); }
+.card--red    { border-left: 3px solid var(--status-alert); }
 
 
-/* ── 6. Buttons ──────────────────────────────────────────────────────────── */
+/* ── 7. Buttons ──────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -141,22 +206,19 @@
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* Primary — cyan for interaction */
 .btn-primary {
-  background: var(--accent-active);
-  color: #111827;
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 .btn-primary:hover:not(:disabled) { opacity: 0.85; }
 
-/* Ghost — dark surface */
 .btn-ghost {
   background: var(--border);
-  color: var(--text-body);
+  color: var(--text-primary);
   border: none;
 }
-.btn-ghost:hover:not(:disabled) { background: #4b5563; color: var(--text-primary); }
+.btn-ghost:hover:not(:disabled) { background: var(--border-strong); color: var(--text-primary); }
 
-/* Ghost small */
 .btn-ghost-sm {
   background: transparent;
   color: var(--text-secondary);
@@ -169,14 +231,13 @@
   transition: border-color 0.15s, color 0.15s;
   font-family: var(--font-sans);
 }
-.btn-ghost-sm:hover { border-color: #6b7280; color: var(--text-primary); }
+.btn-ghost-sm:hover { border-color: var(--border-strong); color: var(--text-primary); }
 
-/* Danger */
-.btn-danger { background: var(--accent-error); color: #fff; }
+.btn-danger { background: var(--status-alert); color: #fff; }
 .btn-danger:hover:not(:disabled) { opacity: 0.85; }
 
 
-/* ── 7. Tables ───────────────────────────────────────────────────────────── */
+/* ── 8. Tables ───────────────────────────────────────────────────────────── */
 .ds-table { width: 100%; border-collapse: collapse; }
 .ds-table thead th {
   padding: 10px 14px;
@@ -190,15 +251,15 @@
 }
 .ds-table tbody td {
   padding: 12px 14px;
-  color: var(--text-body);
+  color: var(--text-primary);
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
 }
-.ds-table tbody tr:hover { background: var(--bg-elevated); }
-.ds-table tbody tr.row--alert { background: rgba(239, 68, 68, 0.08); }
+.ds-table tbody tr:hover { background: var(--accent-subtle); }
+.ds-table tbody tr.row--alert { background: var(--status-alert-bg); }
 
 
-/* ── 8. Navigation item ──────────────────────────────────────────────────── */
+/* ── 9. Navigation item ──────────────────────────────────────────────────── */
 .nav-item {
   color: var(--text-secondary);
   padding: 0.625rem 1rem;
@@ -208,20 +269,19 @@
   display: block;
   transition: background 0.12s, color 0.12s;
 }
-.nav-item:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.nav-item:hover { background: var(--accent-subtle); color: var(--text-primary); }
 .nav-item.active {
-  background: rgba(34, 211, 238, 0.1);
-  color: var(--accent-active);
+  background: var(--accent-subtle);
+  color: var(--accent);
   font-weight: 600;
 }
 
 
-/* ── 9. Global form inputs ───────────────────────────────────────────────── */
-/* Named .ds-* to opt in explicitly — does NOT affect excluded form pages */
+/* ── 10. Global form inputs ──────────────────────────────────────────────── */
 .ds-input,
 .ds-select,
 .ds-textarea {
-  background: var(--bg-surface);
+  background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: var(--radius-md);
@@ -235,14 +295,14 @@
 .ds-input:focus,
 .ds-select:focus,
 .ds-textarea:focus {
-  border-color: var(--accent-active);
-  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
 }
 .ds-input::placeholder,
 .ds-textarea::placeholder { color: var(--text-muted); }
 
 
-/* ── 10. Collapsible sections ────────────────────────────────────────────── */
+/* ── 11. Collapsible sections ────────────────────────────────────────────── */
 .collapsible-header {
   display: flex;
   align-items: center;
@@ -261,7 +321,7 @@
 .collapsible--open .collapsible-body { display: block; }
 
 
-/* ── 11. Empty states ────────────────────────────────────────────────────── */
+/* ── 12. Empty states ────────────────────────────────────────────────────── */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -276,7 +336,7 @@
 .empty-state__text  { font-size: 0.813rem; line-height: 1.65; }
 
 
-/* ── 12. Modal / Overlay ─────────────────────────────────────────────────── */
+/* ── 13. Modal / Overlay ─────────────────────────────────────────────────── */
 .ds-overlay {
   position: fixed;
   inset: 0;
@@ -291,7 +351,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   max-height: 90vh;
   overflow-y: auto;
@@ -317,15 +377,15 @@
 .ds-modal-close:hover { color: var(--text-primary); }
 
 
-/* ── 13. Typography utilities ────────────────────────────────────────────── */
+/* ── 14. Typography utilities ────────────────────────────────────────────── */
 .text-primary   { color: var(--text-primary); }
 .text-secondary { color: var(--text-secondary); }
 .text-muted     { color: var(--text-muted); }
-.text-body      { color: var(--text-body); }
-.text-success   { color: var(--accent-success); }
-.text-active    { color: var(--accent-active); }
-.text-warning   { color: var(--accent-warning); }
-.text-error     { color: var(--accent-error); }
+.text-body      { color: var(--text-primary); }
+.text-success   { color: var(--status-done); }
+.text-active    { color: var(--accent); }
+.text-warning   { color: var(--status-warn); }
+.text-error     { color: var(--status-alert); }
 
 .label-uppercase {
   font-size: 0.75rem;
@@ -333,4 +393,26 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
+}
+
+
+/* ── 15. Theme toggle button ─────────────────────────────────────────────── */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }

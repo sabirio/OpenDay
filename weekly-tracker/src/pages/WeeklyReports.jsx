@@ -31,7 +31,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) return (
       <div className="dashboard-summary-card">
         <h2>Rendering error</h2>
-        <pre style={{ whiteSpace: "pre-wrap", fontSize: 13, color: "#ef4444" }}>{String(this.state.error)}</pre>
+        <pre style={{ whiteSpace: "pre-wrap", fontSize: 13, color: "var(--status-alert)" }}>{String(this.state.error)}</pre>
       </div>
     );
     return this.props.children;
@@ -262,13 +262,13 @@ function WeeklyReports({ projects, reports }) {
         {showMissingModal && (
           <>
             <div onClick={() => setShowMissingModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000 }} />
-            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 780, maxWidth: "96vw", maxHeight: "85vh", background: "#1f2937", zIndex: 1001, borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.55)", display: "flex", flexDirection: "column", borderTop: "3px solid #ef4444", border: "1px solid #374151" }}>
-              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #374151", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 780, maxWidth: "96vw", maxHeight: "85vh", background: "var(--bg-surface)", zIndex: 1001, borderRadius: 16, boxShadow: "var(--shadow-lg)", display: "flex", flexDirection: "column", borderTop: "3px solid var(--status-alert)", border: "1px solid var(--border)" }}>
+              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "#f9fafb" }}>Missing Reports</div>
-                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>Projects with no report or last report older than 7 days</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>Missing Reports</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Projects with no report or last report older than 7 days</div>
                 </div>
-                <button type="button" onClick={() => setShowMissingModal(false)} style={{ padding: "5px 13px", borderRadius: 8, border: "1px solid #374151", background: "rgba(255,255,255,0.06)", color: "#e5e7eb", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close ×</button>
+                <button type="button" onClick={() => setShowMissingModal(false)} style={{ padding: "5px 13px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--accent-subtle)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close ×</button>
               </div>
               <div style={{ overflowY: "auto", padding: "16px 24px" }}>
                 <table className="dashboard-table" style={{ width: "100%" }}>
@@ -276,12 +276,12 @@ function WeeklyReports({ projects, reports }) {
                   <tbody>
                     {portfolioKpis.missing.sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999)).map(({ project, latestReport, daysSinceReport }) => (
                       <tr key={project.id}>
-                        <td><div style={{ fontWeight: 700, color: "#f9fafb" }}>{project.storeCode}</div><div style={{ fontSize: 11, color: "#9ca3af" }}>{project.shoppingMallName}</div></td>
-                        <td style={{ fontSize: 12, color: "#e5e7eb" }}>{project.generalContractor || "—"}</td>
-                        <td style={{ fontSize: 12, color: "#9ca3af" }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: "#ef4444", fontWeight: 700 }}>Never</span>}</td>
-                        <td style={{ fontSize: 13, fontWeight: 700, color: "#ef4444" }}>{daysSinceReport !== null ? `${daysSinceReport}d` : "—"}</td>
-                        <td style={{ fontSize: 12, color: "#e5e7eb" }}>{project.projectManager || "—"}</td>
-                        <td>{!latestReport ? <span style={{ fontSize: 11, fontWeight: 700, color: "#fca5a5", padding: "2px 8px", borderRadius: 7, background: "#7f1d1d", border: "1px solid #991b1b" }}>Missing</span> : <span style={{ fontSize: 11, fontWeight: 700, color: "#fdba74", padding: "2px 8px", borderRadius: 7, background: "#7c2d12", border: "1px solid #92400e" }}>Overdue</span>}</td>
+                        <td><div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{project.storeCode}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{project.shoppingMallName}</div></td>
+                        <td style={{ fontSize: 12, color: "var(--text-secondary)" }}>{project.generalContractor || "—"}</td>
+                        <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: "var(--status-alert)", fontWeight: 700 }}>Never</span>}</td>
+                        <td style={{ fontSize: 13, fontWeight: 700, color: "var(--status-alert)" }}>{daysSinceReport !== null ? `${daysSinceReport}d` : "—"}</td>
+                        <td style={{ fontSize: 12, color: "var(--text-secondary)" }}>{project.projectManager || "—"}</td>
+                        <td>{!latestReport ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--status-alert)", padding: "2px 8px", borderRadius: 7, background: "var(--status-alert-bg)", border: "1px solid var(--border)" }}>Missing</span> : <span style={{ fontSize: 11, fontWeight: 700, color: "var(--status-warn)", padding: "2px 8px", borderRadius: 7, background: "var(--status-warn-bg)", border: "1px solid var(--border)" }}>Overdue</span>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -293,7 +293,7 @@ function WeeklyReports({ projects, reports }) {
 
         {/* Empty state */}
         {projectReports.length === 0 && selectedProject && (
-          <div className="dashboard-summary-card" style={{ color: "#9ca3af", padding: "32px 24px", textAlign: "center" }}>
+          <div className="dashboard-summary-card" style={{ color: "var(--text-muted)", padding: "32px 24px", textAlign: "center" }}>
             No weekly reports submitted yet for this project.
           </div>
         )}
@@ -327,10 +327,10 @@ function WeeklyReports({ projects, reports }) {
             {/* Site photos */}
             {selectedReport.photos?.length > 0 && (
               <div className="dashboard-summary-card" style={{ marginBottom: 20 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "#f9fafb" }}>Site Photos</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "var(--text-primary)" }}>Site Photos</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {selectedReport.photos.map((photo, i) => (
-                    <span key={i} style={{ padding: "4px 12px", borderRadius: 8, fontSize: 13, background: "#164e63", border: "1px solid #0e7490", color: "#67e8f9" }}>
+                    <span key={i} style={{ padding: "4px 12px", borderRadius: 8, fontSize: 13, background: "var(--accent-subtle)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
                       {typeof photo === "string" ? photo : photo?.name || `Photo ${i + 1}`}
                     </span>
                   ))}

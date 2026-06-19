@@ -1,9 +1,15 @@
 function spiColor(spi) {
-  if (spi >= 1.0)  return '#10b981';
-  if (spi >= 0.95) return '#f97316';
-  if (spi >= 0.85) return '#f97316';
-  return '#ef4444';
+  if (spi >= 1.0)  return 'var(--status-done)';
+  if (spi >= 0.85) return 'var(--status-warn)';
+  return 'var(--status-alert)';
 }
+
+const SPI_BADGE = {
+  on_track:          { color: 'var(--status-done)',  bg: 'var(--status-done-bg)',  border: 'var(--border)' },
+  minor_delay:       { color: 'var(--status-warn)',  bg: 'var(--status-warn-bg)',  border: 'var(--border)' },
+  significant_delay: { color: 'var(--status-warn)',  bg: 'var(--status-warn-bg)',  border: 'var(--border)' },
+};
+const SPI_BADGE_FALLBACK = { color: 'var(--status-alert)', bg: 'var(--status-alert-bg)', border: 'var(--border)' };
 
 function Sparkline({ history }) {
   if (!history || history.length < 2) return null;
@@ -25,9 +31,9 @@ function Sparkline({ history }) {
       <line
         x1={0} y1={H - ((1.0 - minSpi) / range) * H}
         x2={W} y2={H - ((1.0 - minSpi) / range) * H}
-        stroke="#374151" strokeWidth={1} strokeDasharray="3,3"
+        stroke="var(--border)" strokeWidth={1} strokeDasharray="3,3"
       />
-      <polyline points={pts.join(' ')} fill="none" stroke="#22d3ee" strokeWidth={2} />
+      <polyline points={pts.join(' ')} fill="none" stroke="var(--accent)" strokeWidth={2} />
       {(() => {
         const last = pts[pts.length - 1].split(',');
         const c    = spiColor(spis[spis.length - 1]);
@@ -40,7 +46,7 @@ function Sparkline({ history }) {
 export default function EvmWidget({ evm }) {
   if (!evm) {
     return (
-      <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
         No schedule data
       </div>
     );
@@ -51,12 +57,14 @@ export default function EvmWidget({ evm }) {
   const gauge  = Math.round(Math.min(1, Math.max(0, evm.SPI)) * gaugeW);
 
   const tcpiChip = evm.tcpiStatus === 'unrealistic'
-    ? { color: '#fca5a5', bg: '#7f1d1d', border: '#991b1b' }
-    : { color: '#fdba74', bg: '#7c2d12', border: '#92400e' };
+    ? { color: 'var(--status-alert)', bg: 'var(--status-alert-bg)', border: 'var(--border)' }
+    : { color: 'var(--status-warn)',  bg: 'var(--status-warn-bg)',  border: 'var(--border)' };
+
+  const badge = SPI_BADGE[evm.spiStatus] ?? SPI_BADGE_FALLBACK;
 
   return (
-    <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid #374151', borderRadius: 10, padding: '12px 14px', minWidth: 200 }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+    <div style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', minWidth: 200 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
         EVM — Schedule Performance
       </div>
 
@@ -65,20 +73,17 @@ export default function EvmWidget({ evm }) {
           <span style={{ fontSize: 22, fontWeight: 800, color: c, lineHeight: 1 }}>
             {evm.SPI.toFixed(2)}
           </span>
-          <div style={{ fontSize: 9, color: '#9ca3af', marginTop: 1 }}>SPI</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>SPI</div>
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ background: '#374151', borderRadius: 3, height: 6, overflow: 'hidden', marginBottom: 4 }}>
+          <div style={{ background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden', marginBottom: 4 }}>
             <div style={{ width: `${(gauge / gaugeW) * 100}%`, height: '100%', background: c, borderRadius: 3, transition: 'width 0.3s' }} />
           </div>
-          <div style={{ fontSize: 10, color: '#9ca3af' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
             EV {evm.EV}% · PV {evm.PV}%
           </div>
         </div>
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
-          background: c + '22', color: c, border: `1px solid ${c}44`,
-        }}>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
           {evm.spiStatus === 'on_track'           ? 'On Track'
            : evm.spiStatus === 'minor_delay'       ? 'Minor Delay'
            : evm.spiStatus === 'significant_delay' ? 'Significant'
@@ -93,14 +98,14 @@ export default function EvmWidget({ evm }) {
       )}
 
       {evm.EACdays > 0 && (
-        <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>
-          Forecast delay: <strong style={{ color: '#ef4444' }}>+{evm.EACdays}d</strong>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+          Forecast delay: <strong style={{ color: 'var(--status-alert)' }}>+{evm.EACdays}d</strong>
         </div>
       )}
 
       {evm.spiHistory?.length >= 2 && (
         <div>
-          <div style={{ fontSize: 9, color: '#9ca3af', marginBottom: 3 }}>Weekly SPI</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 3 }}>Weekly SPI</div>
           <Sparkline history={evm.spiHistory} />
         </div>
       )}
