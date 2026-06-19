@@ -16,12 +16,12 @@ export function KpiCard({ label, value, sub, color = 'var(--accent)' }) {
     <div data-testid="kpi-card" style={{
       background: T.bgSurface,
       borderRadius: 12,
-      padding: '12px 16px',
+      padding: '12px 14px',
       flex: 1,
-      minWidth: 110,
+      minWidth: 100,
     }}>
       <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.textMuted, marginBottom: 7 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1, minHeight: 32, display: 'flex', alignItems: 'center' }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 5 }}>{sub}</div>}
     </div>
   );

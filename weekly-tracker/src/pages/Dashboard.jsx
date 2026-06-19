@@ -193,7 +193,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       )}
 
       {/* ── KPI Cards ── */}
-      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} />
+      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} />
 
       {/* ── Upcoming Openings ── */}
       {upcomingOpenings.length > 0 && (
