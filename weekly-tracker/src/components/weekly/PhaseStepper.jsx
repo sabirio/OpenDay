@@ -23,53 +23,99 @@ function wpOverallStatus(wp, mergedStatuses) {
   return deriveOverallStatus(statuses);
 }
 
+const SHORT_NAME = name =>
+  name
+    .replace('Pre-construction', 'Pre-con')
+    .replace('Demolition & Preparation', 'Demo')
+    .replace('Finishes & Final Installation', 'Finishes')
+    .replace('Fixtures & Equipment', 'Equipment')
+    .replace('Testing & Commissioning', 'T&C')
+    .replace('Snagging & Handover', 'Handover')
+    .replace('MEP Rough-in', 'MEP');
+
+function PhaseCard({ wp, pct, isSelected, onClick }) {
+  const isDone      = pct === 100;
+  const hasProgress = pct > 0 && pct < 100;
+
+  const cardStyle = isDone ? {
+    border: '2px solid var(--status-warn)',
+    background: 'var(--status-warn-bg)',
+    color: 'var(--status-warn)',
+    boxShadow: '0 0 12px rgba(249,115,22,0.2)',
+  } : hasProgress ? {
+    border: '2px solid #888',
+    background: 'var(--bg-elevated)',
+    color: '#ccc',
+    boxShadow: 'none',
+  } : {
+    border: '2px solid #333',
+    background: 'var(--bg-elevated)',
+    color: '#555',
+    boxShadow: 'none',
+  };
+
+  const labelColor = isDone ? 'var(--status-warn)' : hasProgress ? '#aaa' : '#444';
+
+  return (
+    <div
+      onClick={onClick}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: '1 1 0', cursor: 'pointer', minWidth: 64 }}
+    >
+      <div style={{
+        width: 64, height: 64, borderRadius: 10,
+        position: 'relative', overflow: 'hidden',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+        outline: isSelected ? '2px solid var(--text-primary)' : 'none',
+        outlineOffset: 2,
+        transition: 'all 0.15s',
+        ...cardStyle,
+      }}>
+        {/* Fill overlay for in-progress state */}
+        {hasProgress && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: `${pct}%`,
+            background: '#ffffff0a',
+            borderTop: '1px solid #ffffff15',
+          }} />
+        )}
+        <span style={{ fontSize: 13, fontWeight: 800, lineHeight: 1, position: 'relative', zIndex: 1 }}>
+          {pct}%
+        </span>
+        {isDone && (
+          <span style={{ fontSize: 10, lineHeight: 1, position: 'relative', zIndex: 1 }}>✓</span>
+        )}
+      </div>
+      <div style={{
+        fontSize: 11, color: labelColor, textAlign: 'center',
+        maxWidth: 70, lineHeight: 1.3,
+        fontWeight: isSelected ? 700 : 500,
+      }}>
+        {SHORT_NAME(wp.name)}
+      </div>
+    </div>
+  );
+}
+
 export default function PhaseStepper({ workPackages, mergedStatuses, reportKey }) {
   const [activeId, setActiveId] = useState(null);
-
   const activeWP = workPackages.find(wp => wp.id === activeId);
 
   return (
     <div key={reportKey} style={{ marginBottom: 20 }}>
-      {/* Stepper rail */}
+      {/* Phase cards rail */}
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', boxShadow: 'var(--shadow)' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', gap: 0 }}>
-          {workPackages.map((wp, i) => {
-            const pct     = wpProgress(wp, mergedStatuses);
-            const status  = wpOverallStatus(wp, mergedStatuses);
-            const color   = statusColor(status);
-            const styles  = statusStyles(status);
-            const isActive = wp.id === activeId;
-            const isLast  = i === workPackages.length - 1;
-
+        <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', gap: 4 }}>
+          {workPackages.map(wp => {
+            const pct = wpProgress(wp, mergedStatuses);
             return (
-              <div key={wp.id} style={{ display: 'flex', alignItems: 'flex-start', flex: isLast ? '0 0 auto' : '1 1 0', minWidth: 80 }}>
-                <div
-                  onClick={() => setActiveId(isActive ? null : wp.id)}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', padding: '0 4px', minWidth: 72 }}
-                >
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: isActive ? color : styles.bg,
-                    border: `2px solid ${color}`,
-                    fontSize: 11, fontWeight: 700,
-                    color: isActive ? 'var(--text-inverse)' : color,
-                    transition: 'all 0.15s',
-                  }}>
-                    {pct}%
-                  </div>
-                  <div style={{
-                    fontSize: 10, fontWeight: isActive ? 700 : 500,
-                    color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
-                    textAlign: 'center', lineHeight: 1.3, maxWidth: 68, wordBreak: 'break-word',
-                  }}>
-                    {wp.name.replace('Pre-construction', 'Pre-con').replace('Demolition & Preparation', 'Demo').replace('Finishes & Final Installation', 'Finishes').replace('Fixtures & Equipment', 'Equipment').replace('Testing & Commissioning', 'T&C').replace('Snagging & Handover', 'Handover').replace('MEP Rough-in', 'MEP')}
-                  </div>
-                </div>
-
-                {!isLast && (
-                  <div style={{ flex: 1, height: 2, background: 'var(--border)', marginTop: 15, minWidth: 8 }} />
-                )}
-              </div>
+              <PhaseCard
+                key={wp.id}
+                wp={wp}
+                pct={pct}
+                isSelected={wp.id === activeId}
+                onClick={() => setActiveId(activeId === wp.id ? null : wp.id)}
+              />
             );
           })}
         </div>
