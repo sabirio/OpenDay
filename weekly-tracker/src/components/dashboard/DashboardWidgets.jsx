@@ -19,6 +19,9 @@ export function KpiCard({ label, value, sub, color = 'var(--accent)' }) {
       padding: '12px 14px',
       flex: 1,
       minWidth: 100,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
     }}>
       <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.textMuted, marginBottom: 7 }}>{label}</div>
       <div style={{ fontSize: 24, fontWeight: 800, color, lineHeight: 1, minHeight: 32, display: 'flex', alignItems: 'center' }}>{value}</div>

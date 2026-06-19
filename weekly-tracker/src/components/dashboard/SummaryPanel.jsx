@@ -24,8 +24,8 @@ function SmallDonut({ counts, total }) {
   });
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-      <svg width={64} height={64} viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+      <svg width={96} height={96} viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border)" strokeWidth={sw} />
         {allOnTrack ? (
           <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--text-primary)" strokeWidth={sw} />
@@ -46,14 +46,14 @@ function SmallDonut({ counts, total }) {
         <text x={cx} y={cy + 5} textAnchor="middle" fontSize={14} fontWeight={800} fill="var(--text-primary)">{total}</text>
       </svg>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
         {DONUT_SEGMENTS.map(({ label, key, color }) => {
           const n = counts[key] ?? 0;
           return (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, opacity: n === 0 ? 0.3 : 1 }} />
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 60 }}>{label}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: n === 0 ? 'var(--text-muted)' : color }}>{n}</span>
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, opacity: n === 0 ? 0.3 : 1 }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 64 }}>{label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: n === 0 ? 'var(--text-muted)' : color }}>{n}</span>
             </div>
           );
         })}
@@ -62,7 +62,10 @@ function SmallDonut({ counts, total }) {
   );
 }
 
-export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [] }) {
+export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], projects = [] }) {
+  const newOpeningCount = projects.filter(p => p.project_type === 'new_opening').length;
+  const rebuildingCount = projects.filter(p => p.project_type === 'rebuilding').length;
+
   const analytics = rows && rows.length > 0 ? (() => {
     const evmRows  = rows.filter(r => r.evm?.SPI != null);
     const avgSPI   = evmRows.length
@@ -100,11 +103,11 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [] })
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16, alignItems: 'stretch' }}>
         <KpiCard label="Total Projects"    value={kpis.total}           color="var(--text-secondary)" />
         <KpiCard label="Active"            value={kpis.active}          color="var(--status-done)"    sub={`${kpis.total - kpis.active} closed`} />
-        <KpiCard label="At Risk"           value={kpis.atRisk}          color={kpis.atRisk > 0 ? 'var(--status-warn)' : 'var(--status-done)'}   sub="schedule issues" />
-        <KpiCard label="Critical"          value={kpis.critical}        color={kpis.critical > 0 ? 'var(--status-alert)' : 'var(--status-done)'} sub="immediate action" />
+        <KpiCard label="New Opening"       value={newOpeningCount}      color="var(--accent)"         sub="project type" />
+        <KpiCard label="Rebuilding"        value={rebuildingCount}      color="var(--text-secondary)" sub="project type" />
         <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)"         sub={`${reportsTotal} total`} />
 
         {/* vertical divider */}
@@ -114,8 +117,8 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [] })
 
         {/* Portfolio Health donut */}
         {donutTotal > 0 && (
-          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '12px 14px', flexShrink: 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>Portfolio Health</div>
+          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '12px 16px', flexShrink: 0, minWidth: 220 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 10 }}>Portfolio Health</div>
             <SmallDonut counts={donutCounts} total={donutTotal} />
           </div>
         )}

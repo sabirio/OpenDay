@@ -86,13 +86,6 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     .sort((a, b) => (a.gantt?.spi ?? 1) - (b.gantt?.spi ?? 1))
   , [allRows, ganttMetrics, dismissedAlertIds]);
 
-  // Projects opening within 45 days, sorted nearest first
-  const upcomingOpenings = useMemo(() => allRows
-    .filter(({ daysToOpening }) => daysToOpening !== null && daysToOpening >= 0 && daysToOpening <= 45)
-    .sort((a, b) => a.daysToOpening - b.daysToOpening)
-    .map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
-  , [allRows, ganttMetrics]);
-
   const alerts = useMemo(() => computePortfolioAlerts(allRows), [allRows]);
 
   const heatmapRows = useMemo(()=>{
@@ -193,40 +186,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       )}
 
       {/* ── KPI Cards ── */}
-      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} />
-
-      {/* ── Upcoming Openings ── */}
-      {upcomingOpenings.length > 0 && (
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, boxShadow: 'var(--shadow)', borderLeft: '4px solid var(--accent)' }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', marginBottom: 10 }}>
-            Opening in ≤45 Days ({upcomingOpenings.length})
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {upcomingOpenings.map(row => {
-              const st = row.gantt ? SPI_STATUS[row.gantt.spiStatus] : SPI_STATUS.no_schedule;
-              return (
-                <div key={row.project.id} style={{
-                  background: 'var(--accent-subtle)', border: `1.5px solid ${st.border || 'var(--border)'}`,
-                  borderRadius: 9, padding: '7px 12px', minWidth: 180,
-                  display: 'flex', flexDirection: 'column', gap: 3,
-                  cursor: 'pointer',
-                }} onClick={() => sel(String(row.project.id))}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>{row.project.storeCode}</span>
-                    <span style={{ background: st.bg, color: st.color, borderRadius: 5, padding: '1px 6px', fontSize: 11, fontWeight: 700 }}>
-                      {row.gantt?.spi != null ? `SPI ${row.gantt.spi.toFixed(2)}` : 'No Gantt'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{row.project.shoppingMallName}</div>
-                  <div style={{ fontSize: 11, color: row.daysToOpening < 14 ? 'var(--status-alert)' : 'var(--status-warn)', fontWeight: 600 }}>
-                    {row.daysToOpening === 0 ? 'Opens today!' : `${row.daysToOpening}d to open`}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} projects={projects} />
 
       {/* ── Filters ── */}
       <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center" }}>
