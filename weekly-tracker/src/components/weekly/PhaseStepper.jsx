@@ -92,10 +92,10 @@ function PhaseCard({ wp, pct, isSelected, onClick, hasChanges }) {
         {/* "Changed this week" dot — only when a WP in this phase has a positive delta */}
         {hasChanges && (
           <div style={{
-            position: 'absolute', top: -3, right: -3,
-            width: 9, height: 9, borderRadius: '50%',
-            background: 'var(--status-done)',
-            border: '1.5px solid var(--bg-surface)',
+            position: 'absolute', top: -4, right: -4,
+            width: 10, height: 10, borderRadius: '50%',
+            background: 'var(--accent)',
+            border: '2px solid var(--bg-surface)',
             pointerEvents: 'none',
           }} />
         )}
