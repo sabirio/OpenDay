@@ -14,7 +14,7 @@ export default function ProjectCard({ project, latestReport, progress, color, pr
   const visitOverdue = visitDays !== null && visitDays > 14;
 
   return (
-    <div onClick={() => onSelect(String(project.id))} style={{ background: 'var(--bg-surface)', borderRadius: 12, border: '1px solid var(--border)', padding: '18px 20px', borderTop: `3px solid ${color}`, boxShadow: 'var(--shadow)', cursor: 'pointer' }}>
+    <div onClick={() => onSelect(String(project.id))} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '18px 20px', cursor: 'pointer' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>{project.storeCode}</div>

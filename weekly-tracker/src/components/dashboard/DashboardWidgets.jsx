@@ -16,12 +16,9 @@ export function KpiCard({ label, value, sub, color = 'var(--accent)' }) {
     <div data-testid="kpi-card" style={{
       background: T.bgSurface,
       borderRadius: 12,
-      border: `1px solid ${T.border}`,
-      borderTop: `3px solid ${color}`,
       padding: '12px 16px',
       flex: 1,
       minWidth: 110,
-      boxShadow: T.shadow,
     }}>
       <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: T.textMuted, marginBottom: 7 }}>{label}</div>
       <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>

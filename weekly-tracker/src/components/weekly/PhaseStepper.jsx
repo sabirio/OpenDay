@@ -77,7 +77,7 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey }
 
       {/* Expanded task detail panel */}
       {activeWP && (
-        <div style={{ marginTop: 4, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 20px', boxShadow: 'var(--shadow)', borderTop: `3px solid ${statusColor(wpOverallStatus(activeWP, mergedStatuses))}` }}>
+        <div style={{ marginTop: 4, background: 'var(--bg-elevated)', borderRadius: 14, padding: '14px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>{activeWP.name}</span>
             <button type="button" onClick={() => setActiveId(null)} style={{ padding: '2px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--accent-subtle)', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>Close ×</button>
