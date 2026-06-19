@@ -261,36 +261,38 @@ export async function create(report, cumulativeProgress = null) {
 
   const savedReport = fromDB(data);
 
-  try {
-    // Use the cumulative value passed by the caller (same number shown on screen).
-    // Fall back to single-report calculation only when caller omits it.
-    const calculatedProgress = cumulativeProgress !== null
-      ? cumulativeProgress
-      : normalized.workPackageStatuses
-        ? calculateProjectProgress(normalized.workPackageStatuses)
-        : 0;
+  // Use the cumulative value passed by the caller (same number shown on screen).
+  // Fall back to single-report calculation only when caller omits it.
+  const calculatedProgress = cumulativeProgress !== null
+    ? cumulativeProgress
+    : normalized.workPackageStatuses
+      ? calculateProjectProgress(normalized.workPackageStatuses)
+      : 0;
 
-    const d = new Date(normalized.reportingDate);
-    const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = utc.getUTCDay() || 7;
-    utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
-    const weekNumber = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+  const d = new Date(normalized.reportingDate);
+  const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = utc.getUTCDay() || 7;
+  utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+  const weekNumber = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
 
-    await supabase.from('progress_history').insert({
-      project_id:       normalized.projectId,
-      week_number:      weekNumber,
-      overall_progress: calculatedProgress,
-      spi:              null,
-      recorded_at:      new Date(normalized.reportingDate).toISOString(),
-      snapshot: {
-        phases:       normalized.currentPhases,
-        blockers:     normalized.activitiesBlocked,
-        work_packages: normalized.workPackageStatuses,
-      },
-    });
-  } catch (histErr) {
-    console.warn('[progress_history] snapshot write failed:', histErr);
+  const { error: histErr } = await supabase.from('progress_history').insert({
+    project_id:       normalized.projectId,
+    week_number:      weekNumber,
+    overall_progress: calculatedProgress,
+    spi:              null,
+    recorded_at:      new Date(normalized.reportingDate).toISOString(),
+    snapshot: {
+      phases:        normalized.currentPhases,
+      blockers:      normalized.activitiesBlocked,
+      work_packages: normalized.workPackageStatuses,
+    },
+  });
+
+  if (histErr) {
+    // Surface the error — a missing history row breaks the Weekly Reports narrative.
+    // Root cause was RLS (migration 008 fixes it); don't silently swallow future failures.
+    throw new Error(`Report saved but progress history write failed: ${histErr.message}`);
   }
 
   return savedReport;
