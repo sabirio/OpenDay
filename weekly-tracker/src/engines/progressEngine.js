@@ -33,11 +33,17 @@ import { calculateProgressDelta } from './progressDeltaEngine';
 import { SCHEDULE_CONFIG } from '../config/scheduleConfig';
 import { sortReasons } from '../utils/reasonUtils';
 
-// Build a lookup: { phaseId → { taskLabel → duration_pct } } — used when no scope is set.
-const TASK_WEIGHTS = {};
-for (const task of GANTT_TASKS) {
-  if (!TASK_WEIGHTS[task.phaseId]) TASK_WEIGHTS[task.phaseId] = {};
-  TASK_WEIGHTS[task.phaseId][task.label] = task.duration_pct;
+// Lazy-initialized lookup: { phaseId → { taskLabel → duration_pct } } — used when no scope is set.
+// Lazy to avoid Rolldown scope-hoisting TDZ when GANTT_TASKS is accessed before masterTaskLibrary exports resolve.
+let _taskWeights = null;
+function getTaskWeights() {
+  if (_taskWeights) return _taskWeights;
+  _taskWeights = {};
+  for (const task of GANTT_TASKS) {
+    if (!_taskWeights[task.phaseId]) _taskWeights[task.phaseId] = {};
+    _taskWeights[task.phaseId][task.label] = task.duration_pct;
+  }
+  return _taskWeights;
 }
 
 // ── Activity level ────────────────────────────────────────────────────────────
@@ -86,7 +92,7 @@ export function calculatePhaseProgress(phaseId, taskMap, effectiveWeights = null
     filteredEntries = entries.filter(([label]) => phaseWeights[label] != null);
     if (filteredEntries.length === 0) return { pct: 0, count: 0 };
   } else {
-    phaseWeights = TASK_WEIGHTS[phaseId] || {};
+    phaseWeights = getTaskWeights()[phaseId] || {};
     filteredEntries = entries; // no scope filter — include all entries
   }
 
