@@ -23,10 +23,6 @@ function validateProject(project, requireId = false) {
       throw new Error(`Invalid date for ${f}: ${project[f]}`);
     }
   }
-  if (project.storeSizeSqm !== undefined && project.storeSizeSqm !== null) {
-    const sqm = Number(project.storeSizeSqm);
-    if (isNaN(sqm) || sqm <= 0) throw new Error('store_size_sqm must be a positive number');
-  }
 }
 
 /**
