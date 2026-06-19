@@ -127,8 +127,8 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey, 
   return (
     <div key={reportKey} style={{ marginBottom: 20 }}>
       {/* Phase cards rail */}
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', boxShadow: 'var(--shadow)' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', gap: 4 }}>
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', boxShadow: 'var(--shadow)', overflow: 'visible' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', paddingTop: 12, gap: 4 }}>
           {workPackages.map(wp => {
             const pct = wpProgress(wp, mergedStatuses);
             return (
