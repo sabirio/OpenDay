@@ -30,10 +30,13 @@ function StatBlock({ label, children }) {
   );
 }
 
-export default function ProgressNarrative({ progressComparison }) {
+export default function ProgressNarrative({ progressComparison, selectedProgress }) {
   if (!progressComparison) return null;
 
-  const { actualPct, scheduleStatus, scheduleGap, deltaVsLastWeek, reasons = [] } = progressComparison;
+  const { scheduleStatus, scheduleGap, deltaVsLastWeek, reasons = [] } = progressComparison;
+  // selectedProgress: from progress_history for the selected week (null = no stored row → show —)
+  // Falls back to progressComparison.actualPct only when selectedProgress is not explicitly provided.
+  const displayPct = selectedProgress !== undefined ? selectedProgress : progressComparison.actualPct;
 
   // ── Delta block ────────────────────────────────────────────────────────────
   let deltaNode;
@@ -84,9 +87,15 @@ export default function ProgressNarrative({ progressComparison }) {
       {/* Three stat blocks */}
       <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: reasons.length > 0 ? 16 : 0 }}>
         <StatBlock label="Current">
-          <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
-            {actualPct}<span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-secondary)' }}>%</span>
-          </span>
+          {displayPct !== null && displayPct !== undefined
+            ? (
+              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
+                {displayPct}<span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-secondary)' }}>%</span>
+              </span>
+            ) : (
+              <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-muted)' }}>—</span>
+            )
+          }
         </StatBlock>
 
         <div style={{ width: 1, background: 'var(--border)', alignSelf: 'stretch', flexShrink: 0 }} />

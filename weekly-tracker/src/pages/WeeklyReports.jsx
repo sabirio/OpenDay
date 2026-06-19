@@ -198,17 +198,22 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     const prevHistRow    = currentIdx > 0  ? allHistory[currentIdx - 1] : null;
     const selectedHistoryRows = [prevHistRow, currentHistRow].filter(Boolean);
 
+    // Use the history row's stored progress for the selected week, not the live cumulative.
+    // Also pass the report date as referenceDate so expectedPct is evaluated at that point in time.
+    const selectedProgress = currentHistRow?.overall_progress ?? null;
+    const refDate = selectedReport?.reportingDate ? new Date(selectedReport.reportingDate) : null;
     const progressComparison = calculateProgressComparison(
       selectedProject,
-      overallProgress,
+      selectedProgress !== null ? selectedProgress : overallProgress,
       selectedHistoryRows,
-      SCHEDULE_CONFIG
+      SCHEDULE_CONFIG,
+      refDate
     );
     const risk      = computeProjectRiskScore(selectedProject, projectReports, overallProgress, projSiteVisits);
     const contScore = computeContractorScores(selectedProject, projectReports, projSiteVisits);
     const health    = computeProjectHealth(risk, overallProgress, contScore, latestReport);
     const readiness = computeOpeningReadiness(wpCum, selectedProject.targetOpeningDate ?? null);
-    return { progressComparison, risk, contScore, health, readiness };
+    return { progressComparison, risk, contScore, health, readiness, selectedProgress };
   }, [selectedProject, selectedReport, overallProgress, projectReports, siteVisits]);
 
   const additionalWorksList = useMemo(() => {
@@ -226,14 +231,18 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     return { entries, total };
   }, [projectReports]);
 
-  // Merged WP statuses (current report + cumulative) — passed to PhaseStepper
+  // Merged WP statuses (current report + cumulative up to selected date) — passed to PhaseStepper
   const mergedStatuses = useMemo(() => {
     if (!selectedReport) return {};
+    const cutoff = selectedReport.reportingDate || selectedReport.submittedAt;
+    const reportsUpTo = projectReports.filter(
+      r => (r.reportingDate || r.submittedAt) <= cutoff
+    );
     const wpReport       = isWPReport(selectedReport);
     const current        = wpReport ? selectedReport.workPackageStatuses : deriveWPStatusesFromOldReport(selectedReport);
     const cumulative     = wpReport
-      ? computeWPCumulativeStatuses(projectReports)?.workPackageStatuses
-      : mergeOldDerivedStatuses(projectReports.map(deriveWPStatusesFromOldReport));
+      ? computeWPCumulativeStatuses(reportsUpTo)?.workPackageStatuses
+      : mergeOldDerivedStatuses(reportsUpTo.map(deriveWPStatusesFromOldReport));
     const wpsConfig = wpReport ? GANTT_WORK_PACKAGES : WORK_PACKAGES;
     const merged = {};
     for (const wp of wpsConfig) {
@@ -395,7 +404,10 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
         {/* Report detail */}
         {selectedReport && (
           <>
-            <ProgressNarrative progressComparison={engineOutputs?.progressComparison} />
+            <ProgressNarrative
+              progressComparison={engineOutputs?.progressComparison}
+              selectedProgress={engineOutputs?.selectedProgress}
+            />
 
             <PrevReportSummary
               prevReport={prevReport}
