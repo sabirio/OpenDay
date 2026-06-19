@@ -41,8 +41,8 @@ function Sidebar() {
     <aside className="sidebar">
       <div style={{ padding: '12px 0 8px' }}>
         <img
-          src="/noryx-logo.png"
-          alt="NORYX"
+          src="/openday-logo.png"
+          alt="OPENDAY"
           style={{ width: '100%', maxWidth: 140, display: 'block', objectFit: 'contain' }}
         />
       </div>
