@@ -59,8 +59,14 @@ export default function ProgressNarrative({ progressComparison, selectedProgress
   }
 
   // ── Vs Plan block ──────────────────────────────────────────────────────────
+  // When there is no stored progress row for this week (displayPct === null),
+  // VS PLAN must also show no-data — not compute from the live fallback value.
   let planNode;
-  if (scheduleStatus === 'ahead') {
+  if (displayPct === null) {
+    planNode = (
+      <span style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>— no data for this week</span>
+    );
+  } else if (scheduleStatus === 'ahead') {
     planNode = (
       <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--status-done)', lineHeight: 1 }}>
         Ahead {Math.abs(scheduleGap)}pp
