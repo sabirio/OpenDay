@@ -35,6 +35,22 @@ export function calculateWorkPackageDeltas(currentStatuses, prevStatuses) {
   return result;
 }
 
+/**
+ * Returns a per-phase boolean flag: true if any task in that phase has a positive delta.
+ * Used to render the "changed this week" dot on phase tiles without tile-level math.
+ *
+ * @param {object|null} wpDeltas — output of calculateWorkPackageDeltas
+ * @returns {object|null} — { [wpId]: boolean } or null when wpDeltas is null
+ */
+export function computePhaseChangeFlags(wpDeltas) {
+  if (!wpDeltas) return null;
+  const flags = {};
+  for (const [wpId, tasks] of Object.entries(wpDeltas)) {
+    flags[wpId] = Object.values(tasks).some(t => !t.isNew && t.delta > 0);
+  }
+  return flags;
+}
+
 // Returns delta between latest and previous week snapshot for a project
 export function calculateProgressDelta(currentProgress, historyRows) {
   if (!historyRows || historyRows.length < 2) return null;

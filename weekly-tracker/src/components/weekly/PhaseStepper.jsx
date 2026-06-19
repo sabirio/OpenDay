@@ -33,7 +33,7 @@ const SHORT_NAME = name =>
     .replace('Snagging & Handover', 'Handover')
     .replace('MEP Rough-in', 'MEP');
 
-function PhaseCard({ wp, pct, isSelected, onClick }) {
+function PhaseCard({ wp, pct, isSelected, onClick, hasChanges }) {
   const isDone      = pct === 100;
   const hasProgress = pct > 0 && pct < 100;
 
@@ -61,31 +61,46 @@ function PhaseCard({ wp, pct, isSelected, onClick }) {
       onClick={onClick}
       style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: '1 1 0', cursor: 'pointer', minWidth: 64 }}
     >
-      <div style={{
-        width: 64, height: 64, borderRadius: 10,
-        position: 'relative', overflow: 'hidden',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-        outline: isSelected ? '2px solid var(--text-primary)' : 'none',
-        outlineOffset: 2,
-        transition: 'all 0.15s',
-        ...cardStyle,
-      }}>
-        {/* Fill overlay for in-progress state */}
-        {hasProgress && (
+      {/* Wrapper gives the dot a clipping context outside the overflow:hidden card */}
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: 10,
+          position: 'relative', overflow: 'hidden',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+          outline: isSelected ? '2px solid var(--text-primary)' : 'none',
+          outlineOffset: 2,
+          transition: 'all 0.15s',
+          ...cardStyle,
+        }}>
+          {/* Fill overlay for in-progress state */}
+          {hasProgress && (
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              height: `${pct}%`,
+              background: '#ffffff0a',
+              borderTop: '1px solid #ffffff15',
+            }} />
+          )}
+          <span style={{ fontSize: 13, fontWeight: 800, lineHeight: 1, position: 'relative', zIndex: 1 }}>
+            {pct}%
+          </span>
+          {isDone && (
+            <span style={{ fontSize: 10, lineHeight: 1, position: 'relative', zIndex: 1 }}>✓</span>
+          )}
+        </div>
+
+        {/* "Changed this week" dot — only when a WP in this phase has a positive delta */}
+        {hasChanges && (
           <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            height: `${pct}%`,
-            background: '#ffffff0a',
-            borderTop: '1px solid #ffffff15',
+            position: 'absolute', top: -3, right: -3,
+            width: 9, height: 9, borderRadius: '50%',
+            background: 'var(--status-done)',
+            border: '1.5px solid var(--bg-surface)',
+            pointerEvents: 'none',
           }} />
         )}
-        <span style={{ fontSize: 13, fontWeight: 800, lineHeight: 1, position: 'relative', zIndex: 1 }}>
-          {pct}%
-        </span>
-        {isDone && (
-          <span style={{ fontSize: 10, lineHeight: 1, position: 'relative', zIndex: 1 }}>✓</span>
-        )}
       </div>
+
       <div style={{
         fontSize: 11, color: labelColor, textAlign: 'center',
         maxWidth: 70, lineHeight: 1.3,
@@ -105,7 +120,7 @@ function DeltaIndicator({ d }) {
   return                   <span style={{ fontSize: 10, color: 'var(--text-muted)',  flexShrink: 0 }}>—</span>;
 }
 
-export default function PhaseStepper({ workPackages, mergedStatuses, reportKey, wpDeltas }) {
+export default function PhaseStepper({ workPackages, mergedStatuses, reportKey, wpDeltas, phaseChangeFlags }) {
   const [activeId, setActiveId] = useState(null);
   const activeWP = workPackages.find(wp => wp.id === activeId);
 
@@ -123,6 +138,7 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey, 
                 pct={pct}
                 isSelected={wp.id === activeId}
                 onClick={() => setActiveId(activeId === wp.id ? null : wp.id)}
+                hasChanges={phaseChangeFlags?.[wp.id] ?? false}
               />
             );
           })}

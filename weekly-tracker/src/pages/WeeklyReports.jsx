@@ -7,7 +7,7 @@ import {
   isWPReport,
 } from "../utils/reportUtils";
 import { calculateProjectProgress, calculateProgressComparison } from "../engines/progressEngine";
-import { calculateWorkPackageDeltas } from "../engines/progressDeltaEngine";
+import { calculateWorkPackageDeltas, computePhaseChangeFlags } from "../engines/progressDeltaEngine";
 import { computeProjectRiskScore } from "../engines/riskEngine";
 import { computeContractorScores } from "../engines/contractorEngine";
 import { computeProjectHealth } from "../engines/projectHealthEngine";
@@ -276,6 +276,11 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     [mergedStatuses, prevMergedStatuses]
   );
 
+  const phaseChangeFlags = useMemo(
+    () => computePhaseChangeFlags(wpDeltas),
+    [wpDeltas]
+  );
+
   useEffect(() => {
     if (!showGantt || !effectiveProjectId) return;
     setGanttLoading(true);
@@ -432,6 +437,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
               mergedStatuses={mergedStatuses}
               reportKey={effectiveReportId}
               wpDeltas={wpDeltas}
+              phaseChangeFlags={phaseChangeFlags}
             />
 
             <ReportLinksBlock report={selectedReport} />
