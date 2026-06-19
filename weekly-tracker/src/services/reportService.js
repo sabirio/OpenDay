@@ -247,7 +247,7 @@ export async function getAll() {
   return data.map(fromDB);
 }
 
-export async function create(report) {
+export async function create(report, cumulativeProgress = null) {
   const normalized = normalizeReport(report);
   validateReport(normalized);
 
@@ -261,11 +261,14 @@ export async function create(report) {
 
   const savedReport = fromDB(data);
 
-  // TODO: progress_history snapshot
   try {
-    const calculatedProgress = normalized.workPackageStatuses
-      ? calculateProjectProgress(normalized.workPackageStatuses)
-      : 0;
+    // Use the cumulative value passed by the caller (same number shown on screen).
+    // Fall back to single-report calculation only when caller omits it.
+    const calculatedProgress = cumulativeProgress !== null
+      ? cumulativeProgress
+      : normalized.workPackageStatuses
+        ? calculateProjectProgress(normalized.workPackageStatuses)
+        : 0;
 
     const d = new Date(normalized.reportingDate);
     const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));

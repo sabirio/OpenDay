@@ -17,6 +17,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { WORK_PACKAGES, makeEmptyWPStatuses, getWPGroups } from "../config/workPackages";
 import { getProjectGantt } from "../services/ganttService";
 import { submitReport as submitContractorReport } from "../services/contractorReportService";
+import { computeWPCumulativeStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
+import { calculateProjectProgressResult } from "../engines/progressEngine";
 
 const riskOptions = [
   { label: "Resource Availability",          description: "Shortage of manpower, equipment, or site supervision within the next 2–3 weeks." },
@@ -760,7 +762,15 @@ function ContractorReport({ projects, reports, onSaveReport }) {
         photos: form.photos.map((p) => (p?.name ? p.name : p)),
       });
 
-      await onSaveReport(mainReportPayload);
+      // Compute cumulative progress (all prior reports + this one) before saving,
+      // so the history row stores the same number the Weekly Reports screen shows.
+      const projectReports = reports.filter(r => String(r.projectId) === String(project.id));
+      const allReports = [...projectReports, mainReportPayload];
+      const wpCum  = computeWPCumulativeStatuses(allReports);
+      const legCum = computeCumulativeStatuses(allReports);
+      const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum).progress;
+
+      await onSaveReport(mainReportPayload, cumulativeProgress);
 
       if (ganttTasks.length > 0) {
         const wpProgressArray = Object.entries(ganttWpProgress).map(([wpId, value]) => ({

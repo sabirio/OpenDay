@@ -107,11 +107,12 @@ export async function getAll() {
 
   try {
     const ids = projects.map(p => p.id);
-    const { data: histRows } = await supabase
+    const { data: histRows, error: histErr } = await supabase
       .from('progress_history')
       .select('project_id, overall_progress, spi, recorded_at, week_number')
       .in('project_id', ids)
       .order('recorded_at', { ascending: false });
+    if (histErr) console.warn('[progressHistory] fetch failed:', histErr);
 
     const histByProject = {};
     for (const row of (histRows || [])) {

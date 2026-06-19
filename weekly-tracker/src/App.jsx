@@ -150,8 +150,8 @@ function App() {
     setProjects((prev) => prev.filter((p) => p.id !== id));
   }
 
-  async function handleSaveReport(report) {
-    const saved = await reportService.create(report);
+  async function handleSaveReport(report, cumulativeProgress = null) {
+    const saved = await reportService.create(report, cumulativeProgress);
     setReports((prev) => [...prev, saved]);
     return saved;
   }
