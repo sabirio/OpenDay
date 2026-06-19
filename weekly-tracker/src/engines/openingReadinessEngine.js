@@ -1,5 +1,6 @@
 import { WORK_PACKAGES } from "../config/workPackages";
 import { daysUntil } from "../utils/reportUtils";
+import { sortReasons } from "../utils/reasonUtils";
 
 // Derived from WORK_PACKAGES[].tasks[].openingBlocker — no hardcoded strings.
 // To change which tasks are blockers, update the openingBlocker flag in workPackages.js.
@@ -86,6 +87,30 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate)
     status = 'Ready';
   }
 
+  const reasons = [];
+
+  if (status === 'No Date') {
+    reasons.push({ type: 'neutral', text: 'No target opening date set', source: 'schedule' });
+  } else if (status === 'Overdue') {
+    reasons.push({ type: 'critical', text: `Opening date overdue by ${Math.abs(daysToOpening)}d`, source: 'schedule' });
+  } else if (status === 'Critical') {
+    reasons.push({ type: 'critical', text: `Critical opening: ${daysToOpening}d remaining`, source: 'schedule' });
+  } else if (status === 'At Risk') {
+    reasons.push({ type: 'warning', text: `Opening date at risk — ${daysToOpening}d remaining`, source: 'schedule' });
+  } else {
+    reasons.push({ type: 'positive', text: `Opening on track — ${daysToOpening}d remaining`, source: 'schedule' });
+  }
+
+  for (const b of criticalBlockers) {
+    reasons.push({ type: 'critical', text: `Blocker: ${b.task} (${b.status})`, source: 'blocker' });
+  }
+  for (const b of softBlockers) {
+    reasons.push({ type: 'warning', text: `Soft blocker: ${b.task} (${b.status})`, source: 'blocker' });
+  }
+  if (criticalBlockers.length === 0 && softBlockers.length === 0 && status !== 'No Date') {
+    reasons.push({ type: 'positive', text: 'No critical path blockers', source: 'blocker' });
+  }
+
   return {
     status,
     daysToOpening,
@@ -93,5 +118,6 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate)
     criticalBlockers,
     softBlockers,
     blockerCount: criticalBlockers.length + softBlockers.length,
+    reasons: sortReasons(reasons),
   };
 }

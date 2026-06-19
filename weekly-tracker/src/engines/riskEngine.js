@@ -3,9 +3,48 @@ import { calculateProjectProgressResult } from "./progressEngine";
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER } from "../config/riskConfig";
 import { RISK_WEIGHTS } from "../config/riskWeights";
+import { sortReasons } from "../utils/reasonUtils";
 
 // Re-export config constants so all existing imports from riskEngine keep working.
 export { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER };
+
+// ── Reason helpers ────────────────────────────────────────────────────────────
+
+const FACTOR_SOURCE = {
+  "Schedule deviation":                   "schedule",
+  "EVM SPI critical":                     "schedule",
+  "Historical deterioration":             "schedule",
+  "Repeated blocker":                     "blocker",
+  "Activities blocked":                   "blocker",
+  "Opening proximity":                    "schedule",
+  "Risk scale":                           "risk",
+  "Risk indicators":                      "risk",
+  "Report staleness":                     "risk",
+  "PM Site Visit mismatch":               "contractor",
+  "Hidden risk (PM vs GC)":              "contractor",
+  "Severity gap (PM vs GC)":             "contractor",
+  "Support required":                     "support",
+  "Recovery detected":                    "progress",
+  "No reports submitted":                 "risk",
+  "No data — critical expected progress": "risk",
+  "No data — high expected progress":     "risk",
+  "Construction started, no updates":     "schedule",
+  "Construction overdue":                 "schedule",
+  "Opening overdue — no reports":         "schedule",
+  "Opening imminent — no reports":        "schedule",
+  "Opening proximity — no reports":       "schedule",
+};
+
+function factorsToReasons(factors) {
+  return sortReasons(factors.map(f => ({
+    type:   f.pts < 0  ? 'positive'
+          : f.pts >= 15 ? 'critical'
+          : f.pts >= 8  ? 'warning'
+          : 'neutral',
+    text:   `${f.name}: ${f.value}`,
+    source: FACTOR_SOURCE[f.name] || 'risk',
+  })));
+}
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -122,7 +161,7 @@ function computeNoReportsRisk(project) {
 
   score = Math.min(100, Math.round(score));
   const level = getRiskLevel(score);
-  return { score, level, color: RISK_COLORS[level], factors, rootCause: [] };
+  return { score, level, color: RISK_COLORS[level], factors, rootCause: [], reasons: factorsToReasons(factors) };
 }
 
 // ── Project Risk Score ────────────────────────────────────────────────────────
@@ -302,7 +341,7 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
     .sort((a, b) => b.pct - a.pct);
 
   const level = getRiskLevel(score);
-  return { score, level, color: RISK_COLORS[level], factors, rootCause };
+  return { score, level, color: RISK_COLORS[level], factors, rootCause, reasons: factorsToReasons(factors) };
 }
 
 // ── Dimension Risk ────────────────────────────────────────────────────────────

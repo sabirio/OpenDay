@@ -31,6 +31,7 @@ import {
 } from '../utils/reportUtils';
 import { calculateProgressDelta } from './progressDeltaEngine';
 import { SCHEDULE_CONFIG } from '../config/scheduleConfig';
+import { sortReasons } from '../utils/reasonUtils';
 
 // Build a lookup: { phaseId → { taskLabel → duration_pct } } — used when no scope is set.
 const TASK_WEIGHTS = {};
@@ -255,11 +256,34 @@ export function calculateProgressComparison(project, actualPct, historyRows, con
 
   const delta = calculateProgressDelta(actualPct, historyRows);
 
+  const reasons = [];
+  if (scheduleGap !== null) {
+    if (scheduleStatus === 'ahead') {
+      reasons.push({ type: 'positive', text: `Ahead ${scheduleGap}pp vs plan (actual ${actualPct}%, expected ${expectedPct}%)`, source: 'schedule' });
+    } else if (scheduleStatus === 'behind') {
+      reasons.push({ type: 'warning', text: `Behind ${Math.abs(scheduleGap)}pp vs plan (actual ${actualPct}%, expected ${expectedPct}%)`, source: 'schedule' });
+    } else {
+      reasons.push({ type: 'neutral', text: `On track (actual ${actualPct}%, expected ${expectedPct}%)`, source: 'schedule' });
+    }
+  } else {
+    reasons.push({ type: 'neutral', text: 'No schedule baseline — start/end dates not set', source: 'schedule' });
+  }
+  if (delta !== null) {
+    if (delta.delta > 0) {
+      reasons.push({ type: 'positive', text: `+${delta.delta}% progress since last week`, source: 'progress' });
+    } else if (delta.delta < 0) {
+      reasons.push({ type: 'warning', text: `${delta.delta}% progress since last week`, source: 'progress' });
+    } else {
+      reasons.push({ type: 'neutral', text: 'No change since last week', source: 'progress' });
+    }
+  }
+
   return {
     actualPct,
     expectedPct,
     scheduleGap,
     scheduleStatus,
     deltaVsLastWeek: delta?.delta ?? null,
+    reasons: sortReasons(reasons),
   };
 }

@@ -254,7 +254,7 @@ function App() {
                     path="/weekly-reports"
                     element={
                       <ProtectedRoute resource="weekly_reports">
-                        <WeeklyReports projects={projects} reports={reports} />
+                        <WeeklyReports projects={projects} reports={reports} siteVisits={siteVisits} />
                       </ProtectedRoute>
                     }
                   />

@@ -6,7 +6,12 @@ import {
   computeWPCumulativeStatuses,
   isWPReport,
 } from "../utils/reportUtils";
-import { calculateProjectProgress } from "../engines/progressEngine";
+import { calculateProjectProgress, calculateProgressComparison } from "../engines/progressEngine";
+import { computeProjectRiskScore } from "../engines/riskEngine";
+import { computeContractorScores } from "../engines/contractorEngine";
+import { computeProjectHealth } from "../engines/projectHealthEngine";
+import { computeOpeningReadiness } from "../engines/openingReadinessEngine";
+import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import {
   PHASES as GANTT_PHASES,
@@ -123,7 +128,7 @@ function mergeOldDerivedStatuses(derivedList) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-function WeeklyReports({ projects, reports }) {
+function WeeklyReports({ projects, reports, siteVisits = [] }) {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedReportId,  setSelectedReportId]  = useState("");
   const [showMissingModal,  setShowMissingModal]  = useState(false);
@@ -168,6 +173,27 @@ function WeeklyReports({ projects, reports }) {
   }, [projectReports, overallCumulative]);
 
   const portfolioKpis = useMemo(() => computePortfolioMissing(projects, reports), [projects, reports]);
+
+  // Engine outputs — wired after overallProgress so we can pass it in.
+  // risk and contScore computed before health because health depends on both.
+  // projSiteVisits filtered here; engines expect pre-filtered arrays (do not filter internally).
+  const engineOutputs = useMemo(() => {
+    if (!selectedProject) return null;
+    const projSiteVisits     = siteVisits.filter(v => String(v.projectId) === String(selectedProject.id));
+    const latestReport       = projectReports[0] ?? null; // projectReports sorted newest-first
+    const wpCum              = computeWPCumulativeStatuses(projectReports);
+    const progressComparison = calculateProgressComparison(
+      selectedProject,
+      overallProgress,
+      selectedProject.progressHistory ?? [],
+      SCHEDULE_CONFIG
+    );
+    const risk      = computeProjectRiskScore(selectedProject, projectReports, overallProgress, projSiteVisits);
+    const contScore = computeContractorScores(selectedProject, projectReports, projSiteVisits);
+    const health    = computeProjectHealth(risk, overallProgress, contScore, latestReport);
+    const readiness = computeOpeningReadiness(wpCum, selectedProject.targetOpeningDate ?? null);
+    return { progressComparison, risk, contScore, health, readiness };
+  }, [selectedProject, overallProgress, projectReports, siteVisits]);
 
   const additionalWorksList = useMemo(() => {
     const sorted = [...projectReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
@@ -353,6 +379,13 @@ function WeeklyReports({ projects, reports }) {
         {/* Report detail */}
         {selectedReport && (
           <>
+            {/* DEBUG — remove before B1 */}
+            {engineOutputs && (
+              <pre style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', fontSize: 11, color: 'var(--text-secondary)', overflowX: 'auto', marginBottom: 16, lineHeight: 1.5 }}>
+                {JSON.stringify(engineOutputs, null, 2)}
+              </pre>
+            )}
+
             <PrevReportSummary
               prevReport={prevReport}
               formatDate={formatDate}
