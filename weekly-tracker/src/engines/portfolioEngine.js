@@ -191,6 +191,22 @@ export function computeSiteVisitKpis(svData) {
 }
 
 /**
+ * Roll up per-project command lists into a portfolio-level summary.
+ *
+ * @param {Command[][]} allProjectCommands — one Command[] per project (from commandEngine.getCommands)
+ * @returns {{ criticalCount, warningCount, mostUrgent: Command|null }}
+ */
+export function computePortfolioCommands(allProjectCommands) {
+  const SEV_ORDER = { critical: 0, warning: 1, info: 2 };
+  const all = allProjectCommands.flat();
+  const criticalCount = all.filter(c => c.severity === 'critical').length;
+  const warningCount  = all.filter(c => c.severity === 'warning').length;
+  const sorted  = [...all].sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity]);
+  const mostUrgent = sorted[0] ?? null;
+  return { criticalCount, warningCount, mostUrgent };
+}
+
+/**
  * Risk-level breakdown + health/score summary for Risk Dashboard header.
  * @param {Array} allRows - RiskDashboard allRows (each with riskScore, health, project)
  */

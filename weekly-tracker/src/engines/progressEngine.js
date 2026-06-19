@@ -27,7 +27,10 @@ import {
   estimateProgressFromStatuses,
   computeWPCumulativeStatuses,
   computeCumulativeStatuses,
+  DAY_MS,
 } from '../utils/reportUtils';
+import { calculateProgressDelta } from './progressDeltaEngine';
+import { SCHEDULE_CONFIG } from '../config/scheduleConfig';
 
 // Build a lookup: { phaseId → { taskLabel → duration_pct } } — used when no scope is set.
 const TASK_WEIGHTS = {};
@@ -207,4 +210,56 @@ export function calculateProjectProgressResult(wpCumulative, legacyCumulative, s
   }
 
   return { format: 'none', progress: 0, phases: [] };
+}
+
+// ── Schedule comparison ───────────────────────────────────────────────────────
+
+/**
+ * Compute all comparison fields for a single project.
+ *
+ * expectedPct uses linear time interpolation:
+ *   elapsed_days / total_days × 100
+ * where total = constructionStartDate → constructionEndDate (or targetOpeningDate).
+ * This matches the formula used in riskEngine.computeScheduleDeviation and evmEngine.
+ *
+ * @param {object}      project        — project row (constructionStartDate, constructionEndDate, targetOpeningDate)
+ * @param {number}      actualPct      — current overall progress (0-100)
+ * @param {Array}       historyRows    — project.progressHistory (last 2 rows from progress_history table)
+ * @param {object}      config         — defaults to SCHEDULE_CONFIG
+ * @param {Date|null}   referenceDate  — date to evaluate expectedPct against; null = today.
+ *                                       Pass a past date to compute a historical comparison.
+ * @returns {{ actualPct, expectedPct, scheduleGap, scheduleStatus, deltaVsLastWeek }}
+ */
+export function calculateProgressComparison(project, actualPct, historyRows, config = SCHEDULE_CONFIG, referenceDate = null) {
+  const ref   = referenceDate instanceof Date ? referenceDate : new Date();
+  const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;
+  const end   = project.constructionEndDate
+    ? new Date(project.constructionEndDate)
+    : project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
+
+  let expectedPct = null;
+  if (start && end && end > start) {
+    const totalDays   = Math.ceil((end - start) / DAY_MS);
+    const elapsedDays = Math.max(0, Math.ceil((ref - start) / DAY_MS));
+    expectedPct = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+  }
+
+  const scheduleGap = expectedPct !== null ? actualPct - expectedPct : null;
+
+  let scheduleStatus = null;
+  if (scheduleGap !== null) {
+    if      (scheduleGap >=  config.aheadThreshold)  scheduleStatus = 'ahead';
+    else if (scheduleGap <= -config.behindThreshold)  scheduleStatus = 'behind';
+    else                                              scheduleStatus = 'on_track';
+  }
+
+  const delta = calculateProgressDelta(actualPct, historyRows);
+
+  return {
+    actualPct,
+    expectedPct,
+    scheduleGap,
+    scheduleStatus,
+    deltaVsLastWeek: delta?.delta ?? null,
+  };
 }
