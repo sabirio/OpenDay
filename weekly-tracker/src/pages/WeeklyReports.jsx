@@ -287,6 +287,8 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     [selectedProject]
   );
 
+  const displayWorkPackages = isWPReport(selectedReport) ? GANTT_WORK_PACKAGES : WORK_PACKAGES;
+
   const phaseClassifications = useMemo(
     () => selectedProject ? classifyPhases(displayWorkPackages, mergedStatuses, prevMergedStatuses) : [],
     [selectedProject, displayWorkPackages, mergedStatuses, prevMergedStatuses]
@@ -302,7 +304,6 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   }, [showGantt, effectiveProjectId]);
 
   const riskCount = (selectedReport?.risks || []).filter(Boolean).length;
-  const displayWorkPackages = isWPReport(selectedReport) ? GANTT_WORK_PACKAGES : WORK_PACKAGES;
 
   return (
     <ErrorBoundary>
