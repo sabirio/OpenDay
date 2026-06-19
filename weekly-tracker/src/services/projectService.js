@@ -103,7 +103,48 @@ export async function getAll() {
     .select('*')
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return data.map(fromDB);
+  const projects = data.map(fromDB);
+
+  try {
+    const ids = projects.map(p => p.id);
+    const { data: histRows } = await supabase
+      .from('progress_history')
+      .select('project_id, overall_progress, spi, recorded_at, week_number')
+      .in('project_id', ids)
+      .order('recorded_at', { ascending: false });
+
+    const histByProject = {};
+    for (const row of (histRows || [])) {
+      if (!histByProject[row.project_id]) histByProject[row.project_id] = [];
+      if (histByProject[row.project_id].length < 2) histByProject[row.project_id].push(row);
+    }
+    return projects.map(p => ({ ...p, progressHistory: histByProject[p.id] || [] }));
+  } catch {
+    return projects.map(p => ({ ...p, progressHistory: [] }));
+  }
+}
+
+export async function getProgressSnapshot(isoWeekStr) {
+  const [yearStr, weekStr] = isoWeekStr.split('-W');
+  const year = parseInt(yearStr), week = parseInt(weekStr);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const monday = new Date(jan4.getTime() - (jan4Day - 1) * 86400000 + (week - 1) * 7 * 86400000);
+  const nextMonday = new Date(monday.getTime() + 7 * 86400000);
+
+  const { data, error } = await supabase
+    .from('progress_history')
+    .select('project_id, overall_progress, spi, recorded_at')
+    .gte('recorded_at', monday.toISOString())
+    .lt('recorded_at', nextMonday.toISOString());
+
+  if (error) throw error;
+
+  const map = {};
+  for (const row of (data || [])) {
+    if (!map[row.project_id]) map[row.project_id] = row;
+  }
+  return map;
 }
 
 export async function create(project) {

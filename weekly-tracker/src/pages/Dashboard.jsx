@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   estimateProgressFromStatuses,
   computeCumulativeStatuses, computeWPCumulativeStatuses,
@@ -22,6 +22,26 @@ import SiteVisitsTab from "../components/dashboard/SiteVisitsTab";
 import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { SPI_STATUS } from "../config/statusColors";
+import { getProgressSnapshot } from "../services/projectService";
+
+function isoWeekLabel(isoWeekStr) {
+  const [yearStr, weekStr] = isoWeekStr.split('-W');
+  const year = parseInt(yearStr), week = parseInt(weekStr);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const monday = new Date(jan4.getTime() - (jan4Day - 1) * 86400000 + (week - 1) * 7 * 86400000);
+  return `Week ${week} — ${monday.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })}`;
+}
+
+function currentISOWeek() {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
 
 function Dashboard({ projects, reports, siteVisits = [] }) {
   const [activeView, setActiveView]               = useState("overview");
@@ -31,6 +51,24 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
   const [expandedVisitId, setExpandedVisitId]     = useState(null);
   const [svStoreFilter, setSvStoreFilter]         = useState("all");
   const [dismissedAlertIds, setDismissedAlertIds] = useState(new Set());
+  const [snapshotWeek, setSnapshotWeek]           = useState(null);
+  const [snapshotData, setSnapshotData]           = useState({});
+  const [snapshotLoading, setSnapshotLoading]     = useState(false);
+
+  const handleSnapshotWeekChange = useCallback(async (weekStr) => {
+    if (!weekStr) { setSnapshotWeek(null); setSnapshotData({}); return; }
+    setSnapshotWeek(weekStr);
+    setSnapshotLoading(true);
+    try {
+      const data = await getProgressSnapshot(weekStr);
+      setSnapshotData(data);
+    } catch (err) {
+      console.warn('[snapshot] fetch failed:', err);
+      setSnapshotData({});
+    } finally {
+      setSnapshotLoading(false);
+    }
+  }, []);
 
   const ganttMetrics = useGanttMetrics(projects);
 
@@ -201,8 +239,41 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
         <div style={{ marginLeft:"auto",fontSize:12,color:"var(--text-muted)" }}>{filteredRows.length} / {projects.length} projects</div>
       </div>
 
+      {/* ── Snapshot week picker ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>View snapshot for week:</label>
+        <input
+          type="week"
+          max={currentISOWeek()}
+          value={snapshotWeek || ''}
+          onChange={e => handleSnapshotWeekChange(e.target.value)}
+          style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-input)', outline: 'none', cursor: 'pointer' }}
+        />
+        {snapshotWeek && (
+          <button type="button" onClick={() => handleSnapshotWeekChange(null)} style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}>
+            ✕ Live view
+          </button>
+        )}
+      </div>
+
+      {/* ── Snapshot banner ── */}
+      {snapshotWeek && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'var(--accent-subtle)', border: '1.5px solid var(--border)',
+          borderLeft: '4px solid var(--accent)', borderRadius: 9,
+          padding: '8px 14px', marginBottom: 12, fontSize: 13,
+        }}>
+          <span style={{ fontWeight: 700, color: 'var(--accent)' }}>
+            {snapshotLoading ? 'Loading snapshot…' : `Viewing snapshot: ${isoWeekLabel(snapshotWeek)}`}
+          </span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Read-only · progress values from history</span>
+          <button type="button" onClick={() => handleSnapshotWeekChange(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+        </div>
+      )}
+
       {/* ── Status Matrix ── */}
-      <StatusMatrix rows={defaultSorted} alerts={alerts} drawerProjectId={drawerProjectId} onSelect={sel}/>
+      <StatusMatrix rows={defaultSorted} alerts={alerts} drawerProjectId={drawerProjectId} onSelect={sel} snapshotData={snapshotData} snapshotMode={!!snapshotWeek}/>
 
       {/* ── View tabs ── */}
       <div style={{ display:"flex",gap:3,marginBottom:16,background:"var(--accent-subtle)",borderRadius:12,padding:4,border:"1px solid var(--border)",width:"fit-content" }}>

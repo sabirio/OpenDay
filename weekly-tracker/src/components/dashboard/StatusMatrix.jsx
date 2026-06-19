@@ -1,5 +1,6 @@
 import { formatDate } from '../../utils/reportUtils';
 import { SchedBadge, RiskBadge } from './DashboardWidgets';
+import { calculateProgressDelta } from '../../engines/progressDeltaEngine';
 
 function currentPhaseLabel(row) {
   const { cumulativeStatuses, latestReport } = row;
@@ -14,7 +15,7 @@ function reportTag({ latestReport, daysSinceReport }) {
   return <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-alert)' }}>Overdue {daysSinceReport}d</span>;
 }
 
-export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect }) {
+export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, snapshotData = {}, snapshotMode = false }) {
   return (
     <div className="dashboard-summary-card" style={{ marginBottom: 16 }}>
       <div style={{ marginBottom: 14 }}>
@@ -36,12 +37,27 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect }
               <tr><td colSpan="12" style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>No matching projects.</td></tr>
             ) : rows.map((row) => {
               const { project, latestReport, progress, color, daysToOpening, daysSinceReport, riskLevel, missingReport } = row;
-              const phase      = currentPhaseLabel(row);
+              const phase       = currentPhaseLabel(row);
               const schedStatus = latestReport?.projectScheduleStatus;
-              const isOpen     = drawerProjectId === String(project.id);
-              const dToC       = daysToOpening === null ? 'var(--text-muted)' : daysToOpening < 0 ? 'var(--status-alert)' : daysToOpening < 30 ? 'var(--status-alert)' : daysToOpening < 90 ? 'var(--status-warn)' : 'var(--status-done)';
+              const isOpen      = drawerProjectId === String(project.id);
+              const dToC        = daysToOpening === null ? 'var(--text-muted)' : daysToOpening < 0 ? 'var(--status-alert)' : daysToOpening < 30 ? 'var(--status-alert)' : daysToOpening < 90 ? 'var(--status-warn)' : 'var(--status-done)';
+
+              const snapRow        = snapshotMode ? snapshotData[project.id] : null;
+              const displayProgress = snapRow != null ? Math.round(snapRow.overall_progress) : progress;
+              const noSnapData      = snapshotMode && snapRow == null;
+
+              const delta = !snapshotMode
+                ? calculateProgressDelta(progress, project.progressHistory)
+                : null;
+
               return (
-                <tr key={project.id} data-testid="dashboard-project-row" data-project-id={String(project.id)} onClick={() => onSelect(String(project.id))} style={{ cursor: 'pointer', background: isOpen ? 'var(--status-done-bg)' : undefined, transition: 'background 0.15s' }}>
+                <tr
+                  key={project.id}
+                  data-testid="dashboard-project-row"
+                  data-project-id={String(project.id)}
+                  onClick={snapshotMode ? undefined : () => onSelect(String(project.id))}
+                  style={{ cursor: snapshotMode ? 'default' : 'pointer', background: isOpen ? 'var(--status-done-bg)' : undefined, transition: 'background 0.15s' }}
+                >
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <div style={{ width: 3, height: 18, borderRadius: 2, background: color, flexShrink: 0 }} />
@@ -51,12 +67,24 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect }
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--text-secondary)', minWidth: 140, whiteSpace: 'nowrap' }}>{phase || <span style={{ color: 'var(--text-muted)' }}>No report</span>}</td>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <div style={{ width: 48, background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden', flexShrink: 0 }}>
-                        <div style={{ width: `${progress}%`, height: '100%', background: 'var(--progress-fill)', borderRadius: 3 }} />
+                    {noSnapData ? (
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                        <div style={{ width: 48, background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden', flexShrink: 0 }}>
+                          <div style={{ width: `${displayProgress}%`, height: '100%', background: 'var(--progress-fill)', borderRadius: 3 }} />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', minWidth: 28 }}>{displayProgress}%</span>
+                        {delta && (
+                          <span style={{
+                            fontSize: 11, fontWeight: 700,
+                            color: delta.direction === 'up' ? 'var(--status-done)' : delta.direction === 'down' ? 'var(--status-alert)' : 'var(--text-muted)',
+                          }}>
+                            {delta.label}
+                          </span>
+                        )}
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', minWidth: 28 }}>{progress}%</span>
-                    </div>
+                    )}
                   </td>
                   <td><SchedBadge status={schedStatus} /></td>
                   <td><RiskBadge level={riskLevel} /></td>

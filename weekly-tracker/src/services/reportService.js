@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { calculateProjectProgress } from "../engines/progressEngine";
 
 const DEFAULT_REPORT_VALUES = {
   projectScheduleStatus: "On Track",
@@ -258,5 +259,35 @@ export async function create(report) {
 
   if (error) throw error;
 
-  return fromDB(data);
+  const savedReport = fromDB(data);
+
+  // TODO: progress_history snapshot
+  try {
+    const calculatedProgress = normalized.workPackageStatuses
+      ? calculateProjectProgress(normalized.workPackageStatuses)
+      : 0;
+
+    const d = new Date(normalized.reportingDate);
+    const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    const weekNumber = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+
+    await supabase.from('progress_history').insert({
+      project_id:       normalized.projectId,
+      week_number:      weekNumber,
+      overall_progress: calculatedProgress,
+      spi:              null,
+      snapshot: {
+        phases:       normalized.currentPhases,
+        blockers:     normalized.activitiesBlocked,
+        work_packages: normalized.workPackageStatuses,
+      },
+    });
+  } catch (histErr) {
+    console.warn('[progress_history] snapshot write failed:', histErr);
+  }
+
+  return savedReport;
 }
