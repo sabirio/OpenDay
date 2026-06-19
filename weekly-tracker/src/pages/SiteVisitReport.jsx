@@ -283,7 +283,9 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
     if (!project?.id) return;
     setGanttLoading(true);
     getProjectGantt(project.id)
-      .then(tasks => {
+      .then(rawTasks => {
+        const activeWPIds = project?.scope?.workPackages;
+        const tasks = activeWPIds ? (rawTasks || []).filter(t => activeWPIds.includes(t.id)) : (rawTasks || []);
         setGanttTasks(tasks);
         // Pre-fill PM observations from current gantt progress
         const initial = {};
