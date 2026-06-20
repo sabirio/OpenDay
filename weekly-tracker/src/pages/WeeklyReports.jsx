@@ -168,7 +168,10 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     return estimateProgressFromStatuses(overallCumulative);
   }, [projectReports, overallCumulative, selectedProject]);
 
-  const portfolioKpis = useMemo(() => computePortfolioMissing(projects, reports), [projects, reports]);
+  const portfolioKpis = useMemo(
+    () => computePortfolioMissing(selectedProject ? [selectedProject] : [], reports),
+    [selectedProject, reports]
+  );
 
   // Engine outputs — wired after overallProgress so we can pass it in.
   // risk and contScore computed before health because health depends on both.
