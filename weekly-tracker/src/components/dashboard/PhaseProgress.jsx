@@ -2,13 +2,13 @@
 export default function PhaseProgress({ bars, color = 'var(--accent)' }) {
   if (!bars || bars.length === 0) return null;
   return (
-    <div style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginTop: 12 }}>
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 10 }}>Work Package Progress</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 28px', alignContent: 'start' }}>
         {bars.map(({ wpId, name, label, pct }) => (
           <div key={wpId || label || name}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{name || label}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{name || label}</span>
               <span style={{ fontSize: 11, fontWeight: 700, color: pct > 0 ? color : 'var(--border-strong)' }}>{pct}%</span>
             </div>
             <div style={{ background: 'var(--border)', borderRadius: 3, height: 5, overflow: 'hidden' }}>

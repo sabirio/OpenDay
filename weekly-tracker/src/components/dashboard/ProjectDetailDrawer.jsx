@@ -106,11 +106,11 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
               </div>
               <div style={{ display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Last report</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Last report</span>
                   <ReportAgeBadge daysSince={contractor.daysSinceReport} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Total reports</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Total reports</span>
                   <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{contractor.reportCount}</span>
                 </div>
                 {contractor.blocked && (
@@ -125,11 +125,11 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
             <div data-testid="pm-site-visit-summary" style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 10 }}>PM Site Visit</div>
               {!pmVisit.hasVisit ? (
-                <div style={{ color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic', marginTop: 22, textAlign: 'center' }}>No site visits recorded</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 13, fontStyle: 'italic', marginTop: 22, textAlign: 'center' }}>No site visits recorded</div>
               ) : (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 10 }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Latest visit</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Latest visit</span>
                     <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatDate(pmVisit.latestVisitDate)}</span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
@@ -140,14 +140,14 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
                     ].map(({ l, v, c, testId }) => (
                       <div key={l} data-testid={testId || undefined} style={{ background: 'var(--accent-subtle)', borderRadius: 8, padding: '7px 10px', textAlign: 'center', border: '1px solid var(--border)' }}>
                         <div style={{ fontSize: 20, fontWeight: 800, color: c, lineHeight: 1 }}>{v}</div>
-                        <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{l}</div>
+                        <div style={{ fontSize: 9, color: 'var(--text-secondary)', marginTop: 3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{l}</div>
                       </div>
                     ))}
                   </div>
                   {pmVisit.matchRate !== null && (
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Match rate</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>Match rate</span>
                         <span style={{ fontWeight: 700, color: matchRateColor }}>{pmVisit.matchRate}%</span>
                       </div>
                       <div style={{ background: 'var(--border)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
@@ -157,7 +157,7 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
                   )}
                   {pmVisit.pmScheduleAssessment && (
                     <div style={{ marginTop: 8, fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: 'var(--text-muted)' }}>PM schedule</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>PM schedule</span>
                       <SchedBadge status={pmVisit.pmScheduleAssessment} />
                     </div>
                   )}
@@ -182,7 +182,7 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
                   { l: 'Add. Works', ok: !risk.additionalWorks, crit: false,               v: risk.additionalWorks ? 'Yes' : 'No',                   testId: 'additional-works-status' },
                 ].map(({ l, ok, crit, v, testId }) => (
                   <div key={l} data-testid={testId || undefined} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                    <span style={{ color: 'var(--text-muted)' }}>{l}</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>{l}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <StatusDot ok={ok} critical={crit} />
                       <span style={{ color: ok ? 'var(--text-primary)' : crit ? 'var(--status-alert)' : 'var(--status-warn)', fontWeight: ok ? 400 : 600 }}>{v}</span>
@@ -197,16 +197,17 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
           </div>
 
           {/* Block 5 — Data Confidence */}
-          <div data-testid="data-confidence-block" style={{ background: 'var(--accent-subtle)', border: `1px solid ${confidence.colorBg}`, borderRadius: 12, padding: '14px 16px', gridColumn: 'span 2' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div data-testid="data-confidence-block" style={{ background: 'var(--bg-elevated)', border: `1px solid ${confidence.colorBg}`, borderRadius: 12, padding: '14px 16px', gridColumn: 'span 2' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Data Confidence</div>
               <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: confidence.colorBg, color: confidence.color, border: '1px solid var(--border)' }}>{confidence.label}</span>
             </div>
+            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 8px 0' }}>How complete & recent this project's reporting is — more filled bars = more reliable dashboard numbers.</p>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {Array.from({ length: confidence.maxPts }).map((_, i) => (
                 <div key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i < confidence.pts ? confidence.color : 'var(--border)' }} />
               ))}
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: 4 }}>{confidence.pts}/{confidence.maxPts}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', whiteSpace: 'nowrap', marginLeft: 4 }}>{confidence.pts}/{confidence.maxPts}</span>
             </div>
           </div>
 
