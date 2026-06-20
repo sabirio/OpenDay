@@ -163,6 +163,10 @@ export function getWPsForTemplate(templateId) {
   return getWPsInOrder(); // custom: caller filters
 }
 
+export function getDefaultPhaseWeights() {
+  return { ...PHASE_WEIGHTS };
+}
+
 export function computeEffectiveWeights(scopeWPIds = null) {
   return _core(WORK_PACKAGES, scopeWPIds, PHASE_WEIGHTS);
 }
