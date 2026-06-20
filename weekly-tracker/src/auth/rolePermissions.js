@@ -34,7 +34,8 @@ export const NAV_ITEMS = [
   { to: '/weekly-reports',    label: 'Weekly Reports', resource: 'weekly_reports' },
   { to: '/site-visit-select', label: 'Site Visit',     resource: 'site_visit' },
   { to: '/risk',              label: 'Risk Dashboard', resource: 'risk_engine' },
-  { to: '/admin/users',       label: 'Users',          resource: 'admin_users' },
+  { to: '/admin/users',            label: 'Users',            resource: 'admin_users' },
+  { to: '/admin/template-editor', label: 'Template Editor',  resource: 'admin_users' },
 ];
 
 // Role badge colours shown in the Sidebar

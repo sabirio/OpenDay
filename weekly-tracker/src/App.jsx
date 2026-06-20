@@ -8,6 +8,7 @@ import ContractorReport from "./pages/ContractorReport";
 import SiteVisitReport from "./pages/SiteVisitReport";
 import RiskDashboard from "./pages/RiskDashboard";
 import AdminUsers from "./pages/AdminUsers";
+import TemplateEditor from "./pages/TemplateEditor";
 import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
 import ContractorSelect from "./pages/ContractorSelect";
@@ -19,6 +20,16 @@ import { getDefaultRoute } from "./engines/permissionEngine";
 import * as projectService from "./services/projectService";
 import * as reportService from "./services/reportService";
 import * as siteVisitService from "./services/siteVisitService";
+import { constructionRetailV1 } from "./domains/construction/templates/constructionRetailV1";
+
+const CONSTRUCTION_TEMPLATE = {
+  phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
+  workPackages: constructionRetailV1.phases.flatMap(phase =>
+    (phase.workPackages || []).map(wp => ({
+      id: wp.id, label: wp.label, phaseId: phase.id, duration_pct: wp.durationPct,
+    }))
+  ),
+};
 
 // ── Theme initialisation (runs once before first render) ──────────────────────
 (function () {
@@ -279,6 +290,18 @@ function App() {
                     element={
                       <ProtectedRoute resource="admin_users">
                         <AdminUsers projects={projects} />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/template-editor"
+                    element={
+                      <ProtectedRoute resource="admin_users">
+                        <TemplateEditor
+                          initialTemplate={CONSTRUCTION_TEMPLATE}
+                          onSave={(t) => console.log('SAVE', t)}
+                          onCancel={() => {}}
+                        />
                       </ProtectedRoute>
                     }
                   />
