@@ -37,15 +37,16 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
           <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>Site Visit Comparison</div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>PM observed statuses vs GC weekly reports · click row to expand detail</div>
           <div style={{ display: 'grid', gap: 8 }}>
-            {svData.map(({ visit, project, gcReport, items, matches, discrepancies, pmAhead, matchRate }) => {
+            {svData.map(({ visit, project, gcReport, items, discrepancies, pmAhead, matchRate }) => {
               const toggleId   = visit.id || visit.submittedAt;
               const isExpanded = expandedVisitId === toggleId;
               const mColor     = matchRateColor(matchRate);
-              const visibleItems = discrepancyOnly
-                ? items.filter(i => i.result?.type && i.result.type !== 'match')
-                : items;
-              const phaseOrder = [...new Set(visibleItems.map(i => i.phase))];
-              const byPhase    = phaseOrder.map(ph => ({ phase: ph, items: visibleItems.filter(i => i.phase === ph) })).filter(g => g.items.length > 0);
+              const nonMatch   = items.filter(i => i.result?.type && i.result.type !== 'match');
+              const visible    = discrepancyOnly
+                ? nonMatch.filter(i => i.result.type === 'discrepancy')
+                : nonMatch;
+              const phaseOrder = [...new Set(visible.map(i => i.phase))];
+              const byPhase    = phaseOrder.map(ph => ({ phase: ph, items: visible.filter(i => i.phase === ph) })).filter(g => g.items.length > 0);
               return (
                 <div key={toggleId} style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                   {/* Summary row */}
@@ -62,10 +63,9 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      {matchRate !== null && <span style={{ fontSize: 13, fontWeight: 800, color: mColor }}>{matchRate}%</span>}
-                      {discrepancies > 0 && <span style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--status-alert-bg)', color: 'var(--status-alert)', border: '1px solid var(--border)' }}>⚠ {discrepancies}</span>}
-                      {pmAhead > 0 && <span style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--status-warn-bg)', color: 'var(--status-warn)', border: '1px solid var(--border)' }}>↑ {pmAhead}</span>}
-                      {matches > 0 && <span style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--status-done-bg)', color: 'var(--status-done)', border: '1px solid var(--border)' }}>✓ {matches}</span>}
+                      {matchRate !== null && <span title="PM vs GC agreement" style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--bg-elevated)', color: mColor, border: '1px solid var(--border)' }}>{matchRate}% match</span>}
+                      {discrepancies > 0 && <span title="GC overclaiming vs PM" style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--status-alert-bg)', color: 'var(--status-alert)', border: '1px solid var(--border)' }}>▲ {discrepancies} discrepancies</span>}
+                      {pmAhead > 0 && <span title="PM sees more progress than GC" style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--status-warn-bg)', color: 'var(--status-warn)', border: '1px solid var(--border)' }}>↑ {pmAhead} PM ahead</span>}
                       <span style={{ color: 'var(--text-secondary)', fontSize: 14, fontWeight: 700 }}>{isExpanded ? '▲' : '▼'}</span>
                     </div>
                   </div>
@@ -91,9 +91,9 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
                         <input type="checkbox" checked={discrepancyOnly} onChange={e => setDiscrepancyOnly(e.target.checked)} />
                         Discrepancies only
                       </label>
-                      {discrepancyOnly && byPhase.length === 0 ? (
+                      {visible.length === 0 ? (
                         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                          No discrepancies — PM and GC agree on all assessed items.
+                          No mismatches — PM and GC agree on all assessed items.
                         </div>
                       ) : byPhase.map(({ phase, items: phItems }) => (
                         <div key={phase} style={{ marginBottom: 14 }}>

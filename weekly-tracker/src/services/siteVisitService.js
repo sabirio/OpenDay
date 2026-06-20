@@ -32,7 +32,7 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
 
   // 2. Insert site_visit_wps observations (calculate discrepancy live)
   // gc_progress and gc_status are passed per-task from the caller (SiteVisitReport.jsx).
-  // Status-rank comparison is primary; numeric progress is the fallback.
+  // Progress delta is primary when either side has progress; status-rank delta (×10) is the fallback.
   const STATUS_RANK = { completed: 2, in_progress: 1, not_started: 0, delayed: -1, blocked: -2 };
   const discrepancies = [];
   const observationRows = wpObservationsArray.map(w => {
@@ -45,8 +45,10 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
     const pmRank    = STATUS_RANK[pmStatus] ?? 0;
     const rankDelta = pmRank - gcRank;
 
-    // Prefer status-rank delta (×10 to give it weight); fall back to progress delta
-    const signedDelta = rankDelta !== 0 ? rankDelta * 10 : (pmProgress - gcProgress);
+    const progressDelta = pmProgress - gcProgress;
+    const signedDelta = (pmProgress !== 0 || gcProgress !== 0)
+      ? progressDelta
+      : rankDelta * 10;
     const absDelta    = Math.abs(signedDelta);
     const discStatus  = absDelta >= 20 ? 'critical' : absDelta >= 10 ? 'warning' : 'ok';
 
