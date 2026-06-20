@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { formatDate } from '../../utils/reportUtils';
 import { KpiCard } from '../dashboard/DashboardWidgets';
 
@@ -11,6 +11,7 @@ const SCHED_CHIP = {
 const SCHED_FALLBACK = { bg: 'var(--bg-elevated)', color: 'var(--text-muted)' };
 
 export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, onExpandedChange }) {
+  const [discrepancyOnly, setDiscrepancyOnly] = useState(false);
   const cols = ['Item', 'GC Report', 'PM Observed', 'Δ', 'Result'];
   const matchRateColor = (rate) =>
     rate === null ? 'var(--text-muted)' : rate >= 80 ? 'var(--status-done)' : rate >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
@@ -40,9 +41,11 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
               const toggleId   = visit.id || visit.submittedAt;
               const isExpanded = expandedVisitId === toggleId;
               const mColor     = matchRateColor(matchRate);
-              const flagged    = items.filter(i => i.result && (i.result.type === 'discrepancy' || i.result.type === 'pm-higher'));
-              const phaseOrder = [...new Set(flagged.map(i => i.phase))];
-              const byPhase    = phaseOrder.map(ph => ({ phase: ph, items: flagged.filter(i => i.phase === ph) })).filter(g => g.items.length > 0);
+              const visibleItems = discrepancyOnly
+                ? items.filter(i => i.result?.type && i.result.type !== 'match')
+                : items;
+              const phaseOrder = [...new Set(visibleItems.map(i => i.phase))];
+              const byPhase    = phaseOrder.map(ph => ({ phase: ph, items: visibleItems.filter(i => i.phase === ph) })).filter(g => g.items.length > 0);
               return (
                 <div key={toggleId} style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                   {/* Summary row */}
@@ -84,9 +87,13 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
                           {visit.observations && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{visit.observations}</span>}
                         </div>
                       )}
-                      {flagged.length === 0 ? (
-                        <div style={{ fontSize: 12, color: 'var(--status-done)', fontWeight: 600 }}>
-                          ✓ All assessed items match the GC report — no discrepancies.
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 10 }}>
+                        <input type="checkbox" checked={discrepancyOnly} onChange={e => setDiscrepancyOnly(e.target.checked)} />
+                        Discrepancies only
+                      </label>
+                      {discrepancyOnly && byPhase.length === 0 ? (
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          No discrepancies — PM and GC agree on all assessed items.
                         </div>
                       ) : byPhase.map(({ phase, items: phItems }) => (
                         <div key={phase} style={{ marginBottom: 14 }}>

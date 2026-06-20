@@ -245,6 +245,19 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
           })}
         </div>
       </div>
+      {(pmStatus === 'in_progress' || pmStatus === 'delayed') && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, paddingLeft: 4 }}>
+          <input
+            type="range" min="0" max="100" step="5"
+            value={curProgress}
+            onChange={e => onChange({ ...(pmEntry || {}), observed_progress: Number(e.target.value), observed_status: pmStatus })}
+            style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', minWidth: 34, textAlign: 'right' }}>
+            {curProgress}%
+          </span>
+        </div>
+      )}
     </div>
   );
 }

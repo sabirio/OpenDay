@@ -5,6 +5,7 @@ import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumul
 import { calculateProjectProgressResult } from './progressEngine';
 import { WORK_PACKAGES } from '../config/workPackages';
 import { svCompare, getGCStatusForTask, CONSTRUCTION_ITEMS, TESTING_ITEMS, HANDOVER_ITEMS } from '../config/dashboardConstants';
+import { getWPById, getPhaseById } from '../config/masterTaskLibrary';
 
 const SEV_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
 
@@ -145,9 +146,11 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
         else if (rankDiff < 0 || delta < 0)              resultType = 'discrepancy';
         else                                             resultType = 'pm-higher';
 
+        const wpDef    = getWPById(wp.wp_id);
+        const phaseDef = getPhaseById(wp.phase_id);
         items.push({
-          phase:      wp.phase_id || wp.wp_id || 'task',
-          label:      wp.wp_id,
+          phase:      phaseDef?.label || wp.phase_id || 'Phase',
+          label:      wpDef?.label    || wp.wp_id    || 'Task',
           pm:         SV_STATUS_LABEL[pmStatus] ?? pmStatus,
           gc:         SV_STATUS_LABEL[gcStatus] ?? gcStatus,
           gcProgress: wp.gc_progress ?? null,
