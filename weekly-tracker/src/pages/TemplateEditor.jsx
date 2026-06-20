@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights } from '../core/projects/templateEditor.js';
 import { validateTemplate, isTemplateValid } from '../core/projects/validation/validateTemplate.js';
+import { fetchActiveTemplate, saveTemplate } from '../data/templatesApi.js';
 
 const EPS = 0.001;
 
@@ -31,8 +32,30 @@ const inputStyle = {
 };
 
 export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
-  const [draft, setDraft] = useState(initialTemplate);
-  const [expanded, setExpanded] = useState({});
+  const [draft, setDraft]           = useState(initialTemplate);
+  const [templateId, setTemplateId] = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | { error: string }
+  const [expanded, setExpanded]     = useState({});
+
+  // Auto-clear "Saved" confirmation after 3 s
+  useEffect(() => {
+    if (saveStatus !== 'saved') return;
+    const t = setTimeout(() => setSaveStatus(null), 3000);
+    return () => clearTimeout(t);
+  }, [saveStatus]);
+
+  // Fetch active template on mount; fall back to initialTemplate if fetch fails
+  useEffect(() => {
+    fetchActiveTemplate().then(fetched => {
+      if (fetched) {
+        const { id, name: _name, ...templateData } = fetched;
+        setTemplateId(id);
+        setDraft(templateData);
+      }
+      setLoading(false);
+    });
+  }, []);
 
   const issues = useMemo(() => validateTemplate(draft), [draft]);
   const valid  = useMemo(() => isTemplateValid(draft), [draft]);
@@ -66,6 +89,27 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
 
   const errorCount = issues.filter(i => i.severity === 'error').length;
   const weightOk   = Math.abs(weightSum - 100) <= EPS;
+  const canSave    = valid && !!templateId && saveStatus !== 'saving';
+
+  async function handleSave() {
+    if (!canSave) return;
+    setSaveStatus('saving');
+    const result = await saveTemplate(templateId, { phases: draft.phases, workPackages: draft.workPackages });
+    if (result.ok) {
+      setSaveStatus('saved');
+      onSave(draft);
+    } else {
+      setSaveStatus({ error: result.error ?? 'Save failed' });
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, color: 'var(--text-muted)', fontSize: 14 }}>
+        Loading template…
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24, maxWidth: 760, margin: '0 auto' }}>
@@ -82,6 +126,11 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
         }}>
           {valid ? 'Valid' : `${errorCount} error${errorCount !== 1 ? 's' : ''}`}
         </span>
+        {!templateId && (
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            (no active template in DB — changes cannot be saved)
+          </span>
+        )}
       </div>
 
       {/* Weight summary bar */}
@@ -223,21 +272,30 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
       )}
 
       {/* Footer */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+        {saveStatus === 'saved' && (
+          <span style={{ fontSize: 12, color: 'var(--status-done)', fontWeight: 600 }}>Saved</span>
+        )}
+        {saveStatus?.error && (
+          <span style={{ fontSize: 12, color: 'var(--status-alert)' }}>{saveStatus.error}</span>
+        )}
+        {saveStatus === 'saving' && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Saving…</span>
+        )}
         <button style={{ ...btnBase, padding: '6px 18px' }} onClick={onCancel}>
           Cancel
         </button>
         <button
-          disabled={!valid}
+          disabled={!canSave}
           style={{
             ...btnBase, padding: '6px 18px', fontWeight: 700,
-            background: valid ? 'var(--accent)'        : 'var(--bg-elevated)',
-            color:      valid ? 'var(--text-inverse)'  : 'var(--text-muted)',
-            border:     valid ? '1px solid var(--accent)' : '1px solid var(--border)',
-            cursor:     valid ? 'pointer'              : 'default',
-            opacity:    valid ? 1                      : 0.6,
+            background: canSave ? 'var(--accent)'       : 'var(--bg-elevated)',
+            color:      canSave ? 'var(--text-inverse)' : 'var(--text-muted)',
+            border:     canSave ? '1px solid var(--accent)' : '1px solid var(--border)',
+            cursor:     canSave ? 'pointer'             : 'default',
+            opacity:    canSave ? 1                     : 0.6,
           }}
-          onClick={() => onSave(draft)}
+          onClick={handleSave}
         >
           Save
         </button>
