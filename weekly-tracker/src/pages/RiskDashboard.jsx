@@ -142,7 +142,9 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       .finally(() => setGanttSpiLoading(false));
   }, [activeView, projects]);
 
-  const allRows = useMemo(() => projects.map(project => {
+  const allRows = useMemo(() => {
+    const driftCache = new Map();
+    return projects.map(project => {
     const projReports    = reports.filter(r => String(r.projectId) === String(project.id));
     const projSiteVisits = siteVisits.filter(v => String(v.projectId) === String(project.id));
     const sorted         = [...projReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
@@ -171,10 +173,17 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     const health         = computeProjectHealth(riskScore, progress, contScore);
     const contractorName = project.generalContractor || latestReport?.contractor || "";
     const evm            = computeEVM(project, sorted, progress);
-    const driftProfile   = computeContractorDriftProfile(projects, reports, siteVisits, contractorName);
+    let driftProfile;
+    if (driftCache.has(contractorName)) {
+      driftProfile = driftCache.get(contractorName);
+    } else {
+      driftProfile = computeContractorDriftProfile(projects, reports, siteVisits, contractorName);
+      driftCache.set(contractorName, driftProfile);
+    }
     const monteCarlo     = computeMonteCarloForecast(project, sorted, null);
     return { project, latestReport, progress, projReports, projSiteVisits, sorted, riskScore, schedDev, trend, contScore, escalations, dims, evolution, confidence, actions, health, contractorName, evm, driftProfile, monteCarlo };
-  }), [projects, reports, siteVisits]);
+  });
+  }, [projects, reports, siteVisits]);
 
   const sortedByRisk   = useMemo(() => [...allRows].sort((a, b) => b.riskScore.score - a.riskScore.score), [allRows]);
   const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === "CRITICAL"), [sortedByRisk]);
