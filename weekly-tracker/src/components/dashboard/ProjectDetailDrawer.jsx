@@ -90,7 +90,7 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
         </div>
 
         <div style={{ padding: '18px 22px', overflowY: 'auto', flex: 1 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 28 }}>
 
             {/* Block 1 — Contractor Report */}
             <div data-testid="contractor-status-summary" style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
