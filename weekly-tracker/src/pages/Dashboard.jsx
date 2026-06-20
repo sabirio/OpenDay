@@ -84,8 +84,9 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
                      && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
           .map(wp => wp.id)
       : null;
+    const phaseWeightOverrides = s?.weightOverrides ?? null;
     const progress = wpCumulativeStatuses
-      ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds)
+      ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides)
       : estimateProgressFromStatuses(cumulativeStatuses);
     const color = PROJECT_COLORS[idx%PROJECT_COLORS.length];
     const progressPoints = sorted.map((r,i)=>({ date:r.reportingDate||r.submittedAt, value:progressAtIndex(sorted,i) }));

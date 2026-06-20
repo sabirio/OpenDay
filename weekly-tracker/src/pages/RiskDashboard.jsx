@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { computeCumulativeStatuses, estimateProgressFromStatuses, computeWPCumulativeStatuses, isSevereScheduleStatus, daysUntil } from "../utils/reportUtils";
 import { calculateProjectProgress } from "../engines/progressEngine";
+import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
 import {
   RISK_COLORS, RISK_DIMENSIONS,
   computeScheduleDeviation,
@@ -134,8 +135,15 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     const cumStatuses    = computeCumulativeStatuses(projReports) || {};
     const latestReport   = sorted[sorted.length - 1] || null;
     const wpCumStatuses  = computeWPCumulativeStatuses(projReports);
+    const s              = project?.scope ?? null;
+    const scopeWPIds     = s
+      ? GANTT_WPS.filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
+                             && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
+                 .map(wp => wp.id)
+      : null;
+    const phaseWeightOverrides = s?.weightOverrides ?? null;
     const progress       = wpCumStatuses?.workPackageStatuses
-      ? calculateProjectProgress(wpCumStatuses.workPackageStatuses)
+      ? calculateProjectProgress(wpCumStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides)
       : estimateProgressFromStatuses(cumStatuses);
     const riskScore      = computeProjectRiskScore(project, projReports, progress, projSiteVisits);
     const schedDev       = computeScheduleDeviation(project, progress);

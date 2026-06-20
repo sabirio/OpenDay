@@ -162,7 +162,8 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
                        && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
             .map(wp => wp.id)
         : null;
-      return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds);
+      const phaseWeightOverrides = s?.weightOverrides ?? null;
+      return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds, phaseWeightOverrides);
     }
     return estimateProgressFromStatuses(overallCumulative);
   }, [projectReports, overallCumulative, selectedProject]);

@@ -138,7 +138,7 @@ export function calculatePhaseProgress(phaseId, taskMap, effectiveWeights = null
  * @param {string[]|null} scopeWPIds — active WP id list; null = full scope
  * Returns 0-100.
  */
-export function calculateProjectProgress(wpStatuses, scopeWPIds = null) {
+export function calculateProjectProgress(wpStatuses, scopeWPIds = null, phaseWeightOverrides = null) {
   const effectiveWeights = scopeWPIds ? computeEffectiveWeights(scopeWPIds) : null;
 
   // Determine which phases to visit (all phases if no scope, else only those with active WPs).
@@ -153,7 +153,9 @@ export function calculateProjectProgress(wpStatuses, scopeWPIds = null) {
     const taskMap = wpStatuses?.[phase.id] || {};
     const { pct, count } = calculatePhaseProgress(phase.id, taskMap, effectiveWeights);
     if (count === 0) continue;
-    const w = PHASE_PROGRESS_WEIGHT[phase.id] || 0;
+    const w = (phaseWeightOverrides && phaseWeightOverrides[phase.id] != null)
+      ? phaseWeightOverrides[phase.id]
+      : (PHASE_PROGRESS_WEIGHT[phase.id] || 0);
     weightedSum += pct * w;
     weightTotal += w;
   }
