@@ -19,7 +19,7 @@ import {
   getWPsByPhase as getGanttWPsByPhase,
 } from "../config/masterTaskLibrary";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
-import { computePortfolioMissing } from "../engines/portfolioEngine";
+import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
 import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
@@ -29,7 +29,8 @@ import ReportLinksBlock   from "../components/weekly/ReportLinksBlock";
 import AdditionalWorksBlock from "../components/weekly/AdditionalWorksBlock";
 import ProgressNarrative  from "../components/weekly/ProgressNarrative";
 import ProgressChart      from "../components/weekly/ProgressChart";
-import PhaseTimeline      from "../components/weekly/PhaseTimeline";
+import PhaseTimeline          from "../components/weekly/PhaseTimeline";
+import SiteVisitComparison   from "../components/weekly/SiteVisitComparison";
 
 // ─── ErrorBoundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
@@ -137,6 +138,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   const [showGantt,         setShowGantt]         = useState(false);
   const [ganttTasks,        setGanttTasks]        = useState([]);
   const [ganttLoading,      setGanttLoading]      = useState(false);
+  const [expandedVisitId,   setExpandedVisitId]   = useState(null);
 
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId && projects.some(p => String(p.id) === selectedProjectId))
@@ -293,6 +295,13 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     () => selectedProject ? classifyPhases(displayWorkPackages, mergedStatuses, prevMergedStatuses) : [],
     [selectedProject, displayWorkPackages, mergedStatuses, prevMergedStatuses]
   );
+
+  const svData = useMemo(() => {
+    if (!selectedProject) return [];
+    const projVisits = siteVisits.filter(v => String(v.projectId) === String(selectedProject.id));
+    return computeSiteVisitData(projVisits, [selectedProject], projectReports);
+  }, [selectedProject, siteVisits, projectReports]);
+  const svKpis = useMemo(() => computeSiteVisitKpis(svData), [svData]);
 
   useEffect(() => {
     if (!showGantt || !effectiveProjectId) return;
@@ -459,6 +468,15 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
               wpDeltas={wpDeltas}
               phaseChangeFlags={phaseChangeFlags}
             />
+
+            {selectedProject && (
+              <SiteVisitComparison
+                svData={svData}
+                svKpis={svKpis}
+                expandedVisitId={expandedVisitId}
+                onExpandedChange={setExpandedVisitId}
+              />
+            )}
 
             <ReportLinksBlock report={selectedReport} />
 

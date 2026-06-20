@@ -1,5 +1,5 @@
 import { formatDate } from '../../utils/reportUtils';
-import { KpiCard } from './DashboardWidgets';
+import { KpiCard } from '../dashboard/DashboardWidgets';
 
 const SCHED_CHIP = {
   'On Track': { bg: 'var(--status-done-bg)',  color: 'var(--status-done)'  },
@@ -9,57 +9,37 @@ const SCHED_CHIP = {
 };
 const SCHED_FALLBACK = { bg: 'var(--bg-elevated)', color: 'var(--text-muted)' };
 
-export default function SiteVisitsTab({ svData, svFiltered, svKpis, svStoreFilter, onFilterChange, expandedVisitId, onExpandedChange, svStoreOptions }) {
-  const matchRateColor = (rate) => rate === null ? 'var(--text-muted)' : rate >= 80 ? 'var(--status-done)' : rate >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
+export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, onExpandedChange }) {
+  const matchRateColor = (rate) =>
+    rate === null ? 'var(--text-muted)' : rate >= 80 ? 'var(--status-done)' : rate >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
 
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
-
-      {/* Filter bar */}
-      {svData.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <select
-            value={svStoreFilter}
-            onChange={e => { onFilterChange(e.target.value); onExpandedChange(null); }}
-            style={{ height: 36, padding: '0 12px', borderRadius: 9, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg-input)', cursor: 'pointer', outline: 'none' }}>
-            <option value="all">All stores</option>
-            {svStoreOptions.map(code => <option key={code} value={code}>{code}</option>)}
-          </select>
-          {svStoreFilter !== 'all' && (
-            <button type="button" onClick={() => onFilterChange('all')}
-              style={{ height: 36, padding: '0 12px', borderRadius: 9, border: '1px solid var(--border)', background: 'var(--status-alert-bg)', color: 'var(--status-alert)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              Clear ×
-            </button>
-          )}
-          <div style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-secondary)' }}>{svFiltered.length} / {svData.length} visits</div>
-        </div>
-      )}
+    <div style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
 
       {/* KPI row */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <KpiCard label="Total Visits"    value={svKpis.totalVisits} color="var(--accent)" />
-        <KpiCard label="Match Rate"      value={svKpis.overallMatchRate !== null ? `${svKpis.overallMatchRate}%` : '—'} color={matchRateColor(svKpis.overallMatchRate)} sub="PM vs GC agreement" />
-        <KpiCard label="Discrepancies"   value={svKpis.totalDiscrepancies} color={svKpis.totalDiscrepancies > 0 ? 'var(--status-alert)' : 'var(--status-done)'} sub="GC overclaiming" />
-        <KpiCard label="PM Ahead"        value={svKpis.totalPmAhead}       color={svKpis.totalPmAhead > 0 ? 'var(--status-warn)' : 'var(--status-done)'} sub="PM sees more progress" />
-        <KpiCard label="Matched Items"   value={svKpis.totalMatches}       color="var(--status-done)" sub={`of ${svKpis.totalAssessed} assessed`} />
+        <KpiCard label="Total Visits"  value={svKpis.totalVisits} color="var(--accent)" />
+        <KpiCard label="Match Rate"    value={svKpis.overallMatchRate !== null ? `${svKpis.overallMatchRate}%` : '—'} color={matchRateColor(svKpis.overallMatchRate)} sub="PM vs GC agreement" />
+        <KpiCard label="Discrepancies" value={svKpis.totalDiscrepancies} color={svKpis.totalDiscrepancies > 0 ? 'var(--status-alert)' : 'var(--status-done)'} sub="GC overclaiming" />
+        <KpiCard label="PM Ahead"      value={svKpis.totalPmAhead}       color={svKpis.totalPmAhead > 0 ? 'var(--status-warn)' : 'var(--status-done)'} sub="PM sees more progress" />
+        <KpiCard label="Matched Items" value={svKpis.totalMatches}       color="var(--status-done)" sub={`of ${svKpis.totalAssessed} assessed`} />
       </div>
 
       {svData.length === 0 ? (
         <div className="dashboard-summary-card" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-secondary)', fontSize: 14 }}>
-          No site visits recorded yet.<br />
-          <span style={{ fontSize: 12 }}>Open a project from the Projects page and click "Site Visit" to start an assessment.</span>
+          No site visits recorded for this project yet.
         </div>
       ) : (
         <div className="dashboard-summary-card">
           <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>Site Visit Comparison</div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>PM observed statuses vs GC weekly reports · click row to expand detail</div>
           <div style={{ display: 'grid', gap: 8 }}>
-            {svFiltered.map(({ visit, project, gcReport, items, matches, discrepancies, pmAhead, matchRate }) => {
-              const toggleId    = visit.id || visit.submittedAt;
-              const isExpanded  = expandedVisitId === toggleId;
-              const mColor      = matchRateColor(matchRate);
-              const phaseOrder  = [...new Set(items.map(i => i.phase))];
-              const byPhase     = phaseOrder.map(ph => ({ phase: ph, items: items.filter(i => i.phase === ph) })).filter(g => g.items.length > 0);
+            {svData.map(({ visit, project, gcReport, items, matches, discrepancies, pmAhead, matchRate }) => {
+              const toggleId   = visit.id || visit.submittedAt;
+              const isExpanded = expandedVisitId === toggleId;
+              const mColor     = matchRateColor(matchRate);
+              const phaseOrder = [...new Set(items.map(i => i.phase))];
+              const byPhase    = phaseOrder.map(ph => ({ phase: ph, items: items.filter(i => i.phase === ph) })).filter(g => g.items.length > 0);
               return (
                 <div key={toggleId} style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                   {/* Summary row */}

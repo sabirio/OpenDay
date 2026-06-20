@@ -1,4 +1,5 @@
 import { KpiCard } from './DashboardWidgets';
+import { formatDate } from '../../utils/reportUtils';
 
 const DONUT_SEGMENTS = [
   { label: 'On Track',  key: 'On Track',  color: 'var(--text-primary)'  },
@@ -62,7 +63,7 @@ function SmallDonut({ counts, total }) {
   );
 }
 
-export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], projects = [] }) {
+export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], projects = [], svKpis, lastVisitDate }) {
   const newOpeningCount = projects.filter(p => p.project_type === 'new_opening').length;
   const rebuildingCount = projects.filter(p => p.project_type === 'rebuilding').length;
 
@@ -109,6 +110,15 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], p
         <KpiCard label="New Opening"       value={newOpeningCount}      color="var(--accent)"         sub="project type" />
         <KpiCard label="Rebuilding"        value={rebuildingCount}      color="var(--text-secondary)" sub="project type" />
         <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)"         sub={`${reportsTotal} total`} />
+
+        {svKpis && svKpis.totalVisits > 0 && (
+          <KpiCard
+            label="Site Visits"
+            value={svKpis.totalVisits}
+            color="var(--accent)"
+            sub={lastVisitDate ? `Last ${formatDate(lastVisitDate)}` : 'no visits'}
+          />
+        )}
 
         {/* vertical divider */}
         {donutTotal > 0 && (

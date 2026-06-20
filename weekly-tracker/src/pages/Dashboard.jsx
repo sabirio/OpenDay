@@ -18,7 +18,6 @@ import OverviewTab from "../components/dashboard/OverviewTab";
 import ProjectHeatmap from "../components/dashboard/ProjectHeatmap";
 import ProgressTab from "../components/dashboard/ProgressTab";
 import ContractorsTab from "../components/dashboard/ContractorsTab";
-import SiteVisitsTab from "../components/dashboard/SiteVisitsTab";
 import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { SPI_STATUS } from "../config/statusColors";
@@ -48,8 +47,6 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
   const [drawerProjectId, setDrawerProjectId]     = useState(null);
   const [filterStatus, setFilterStatus]           = useState("all");
   const [searchQuery, setSearchQuery]             = useState("");
-  const [expandedVisitId, setExpandedVisitId]     = useState(null);
-  const [svStoreFilter, setSvStoreFilter]         = useState("all");
   const [dismissedAlertIds, setDismissedAlertIds] = useState(new Set());
   const [snapshotWeek, setSnapshotWeek]           = useState(null);
   const [snapshotData, setSnapshotData]           = useState({});
@@ -146,15 +143,12 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
   const svData = useMemo(() => computeSiteVisitData(siteVisits, projects, reports), [siteVisits, projects, reports]);
 
-  const svFiltered = useMemo(()=>
-    svStoreFilter==="all" ? svData : svData.filter(d=>d.project?.storeCode===svStoreFilter)
-  ,[svData,svStoreFilter]);
+  const svKpis = useMemo(() => computeSiteVisitKpis(svData), [svData]);
 
-  const svStoreOptions = useMemo(()=>
-    Array.from(new Set(svData.map(d=>d.project?.storeCode).filter(Boolean))).sort()
-  ,[svData]);
-
-  const svKpis = useMemo(() => computeSiteVisitKpis(svFiltered), [svFiltered]);
+  const lastVisitDate = useMemo(() => {
+    const dates = svData.map(d => d.visit?.visitDate || d.visit?.submittedAt).filter(Boolean);
+    return dates.length ? dates.sort().at(-1) : null;
+  }, [svData]);
 
   const drawerRow = useMemo(()=>drawerProjectId?allRows.find(({project})=>String(project.id)===drawerProjectId)||null:null,[allRows,drawerProjectId]);
   const drawerSiteVisits = useMemo(()=>drawerRow?siteVisits.filter(sv=>String(sv.projectId)===String(drawerRow.project.id)):[],[siteVisits,drawerRow]);
@@ -168,7 +162,6 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     {id:"progress",label:"Progress"},
     {id:"contractors",label:"Contractors"},
     {id:"activity",label:"Activity"},
-    {id:"sitevisits",label:"Site Visits"},
   ];
 
   const sel=(id)=>setDrawerProjectId(id===drawerProjectId?null:id);
@@ -224,7 +217,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       )}
 
       {/* ── KPI Cards ── */}
-      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} projects={projects} />
+      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} projects={projects} svKpis={svKpis} lastVisitDate={lastVisitDate} />
 
       {/* ── Filters ── */}
       <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center" }}>
@@ -298,19 +291,6 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
           <div style={{ fontSize:12,color:"var(--text-muted)",marginBottom:18 }}>Last 16 weeks · cell = reports submitted · color = schedule status</div>
           <ActivityHeatmap projectRows={heatmapRows.filter(({project})=>filteredRows.some(({project:p})=>p.id===project.id))} weekCount={16}/>
         </div>
-      )}
-
-      {activeView==="sitevisits"&&(
-        <SiteVisitsTab
-          svData={svData}
-          svFiltered={svFiltered}
-          svKpis={svKpis}
-          svStoreFilter={svStoreFilter}
-          onFilterChange={setSvStoreFilter}
-          expandedVisitId={expandedVisitId}
-          onExpandedChange={setExpandedVisitId}
-          svStoreOptions={svStoreOptions}
-        />
       )}
 
       {/* ── Project Detail Drawer ── */}
