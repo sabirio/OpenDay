@@ -9,6 +9,7 @@ import SiteVisitReport from "./pages/SiteVisitReport";
 import RiskDashboard from "./pages/RiskDashboard";
 import AdminUsers from "./pages/AdminUsers";
 import TemplateEditor from "./pages/TemplateEditor";
+import WeightAudit from "./pages/WeightAudit";
 import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
 import ContractorSelect from "./pages/ContractorSelect";
@@ -286,6 +287,14 @@ function App() {
                     }
                   />
                   <Route
+                    path="/weight-audit"
+                    element={
+                      <ProtectedRoute resource="weight_audit">
+                        <WeightAudit projects={projects} />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
                     path="/admin/users"
                     element={
                       <ProtectedRoute resource="admin_users">
@@ -318,3 +327,5 @@ function App() {
 }
 
 export default App;
+
+console.log(JSON.stringify(CONSTRUCTION_TEMPLATE));
