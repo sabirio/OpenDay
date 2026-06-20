@@ -28,15 +28,6 @@ function PhaseNode({ status }) {
       </div>
     );
   }
-  if (status === 'current') {
-    return (
-      <div style={{
-        width: 14, height: 14, borderRadius: '50%',
-        background: 'var(--accent)',
-        flexShrink: 0,
-      }} />
-    );
-  }
   return (
     <div style={{
       width: 12, height: 12, borderRadius: '50%',
@@ -48,8 +39,7 @@ function PhaseNode({ status }) {
 }
 
 export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseChangeFlags }) {
-  const currentPhase = phases.find(p => p.status === 'current');
-  const [activeId, setActiveId] = useState(currentPhase?.id ?? null);
+  const [activeId, setActiveId] = useState(null);
 
   const activePhase = phases.find(p => p.id === activeId);
 
@@ -83,7 +73,7 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
                   userSelect: 'none',
                   padding: '4px 4px 6px',
                   borderRadius: 8,
-                  background: (isActive || isCurrent) ? 'var(--accent-subtle)' : 'transparent',
+                  background: isActive ? 'var(--accent-subtle)' : 'transparent',
                   outline: isActive ? '1.5px solid var(--accent)' : 'none',
                 }}
               >
