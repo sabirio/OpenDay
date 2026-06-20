@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabase";
 import { calculateProjectProgress } from "../engines/progressEngine";
+import { fetchTemplateById } from "../data/templatesApi";
+import { computeEffectiveWeights } from "../core/projects/weights/computeEffectiveWeights";
 
 const DEFAULT_REPORT_VALUES = {
   projectScheduleStatus: "On Track",
@@ -236,6 +238,30 @@ function toDB(report) {
   };
 }
 
+async function buildWeightSnapshot(projectId) {
+  const { data: project, error } = await supabase
+    .from('projects')
+    .select('template_id, scope')
+    .eq('id', projectId)
+    .single();
+  if (error) throw error;
+
+  if (!project?.template_id) {
+    return { effective_weights: null, template_id: null, template_version: null };
+  }
+
+  const tpl = await fetchTemplateById(project.template_id);
+  if (!tpl) {
+    return { effective_weights: null, template_id: null, template_version: null };
+  }
+
+  const scopeWPIds   = project.scope?.workPackages ?? null;
+  const phaseWeights = Object.fromEntries((tpl.phases || []).map(p => [p.id, p.progressWeight]));
+  const effective    = computeEffectiveWeights(tpl.workPackages || [], scopeWPIds, phaseWeights);
+
+  return { effective_weights: effective, template_id: tpl.id, template_version: tpl.version };
+}
+
 export async function getAll() {
   const { data, error } = await supabase
     .from("reports")
@@ -276,6 +302,13 @@ export async function create(report, cumulativeProgress = null) {
   const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
   const weekNumber = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
 
+  let weightSnap = { effective_weights: null, template_id: null, template_version: null };
+  try {
+    weightSnap = await buildWeightSnapshot(normalized.projectId);
+  } catch (snapErr) {
+    console.warn('[buildWeightSnapshot] could not build weight snapshot:', snapErr);
+  }
+
   const { error: histErr } = await supabase.from('progress_history').insert({
     project_id:       normalized.projectId,
     week_number:      weekNumber,
@@ -283,9 +316,12 @@ export async function create(report, cumulativeProgress = null) {
     spi:              null,
     recorded_at:      new Date(normalized.reportingDate).toISOString(),
     snapshot: {
-      phases:        normalized.currentPhases,
-      blockers:      normalized.activitiesBlocked,
-      work_packages: normalized.workPackageStatuses,
+      phases:            normalized.currentPhases,
+      blockers:          normalized.activitiesBlocked,
+      work_packages:     normalized.workPackageStatuses,
+      effective_weights: weightSnap.effective_weights,
+      template_id:       weightSnap.template_id,
+      template_version:  weightSnap.template_version,
     },
   });
 
