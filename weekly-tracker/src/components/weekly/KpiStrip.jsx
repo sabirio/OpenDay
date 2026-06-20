@@ -28,8 +28,12 @@ export default function KpiStrip({ project, report, overallProgress, portfolioKp
       node: <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{currentPhase}</span>,
     },
     {
-      label: 'Report Date',
-      node: <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{report?.reportingDate || '—'}</span>,
+      label: 'Construction Start',
+      node: <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{project.constructionStartDate || '—'}</span>,
+    },
+    {
+      label: 'Construction End',
+      node: <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{project.constructionEndDate || '—'}</span>,
     },
     {
       label: 'Target Opening',
@@ -49,8 +53,10 @@ export default function KpiStrip({ project, report, overallProgress, portfolioKp
       </div>
 
       <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-        <InfoLabel label="Construction Start">{project.constructionStartDate || '—'}</InfoLabel>
-        <InfoLabel label="Construction End">{project.constructionEndDate || '—'}</InfoLabel>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 5 }}>Report Date</div>
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{report?.reportingDate || '—'}</span>
+        </div>
         <InfoLabel label="Total Reports">{projectReportCount}</InfoLabel>
         <div style={{ cursor: portfolioKpis.missingCount > 0 ? 'pointer' : 'default' }} onClick={portfolioKpis.missingCount > 0 ? onMissingClick : undefined}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 5 }}>Missing Reports</div>
