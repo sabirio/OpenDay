@@ -15,6 +15,13 @@ import {
   test2_boundaries,
 } from './discrepancyEngine.test.js';
 
+import {
+  test1_getDefaultPhaseWeights,
+  test2_overrideNullEqualsDefault,
+  test3_overrideChangesResult,
+  test4_partialOverrideFallsBackToDefault,
+} from './progressWeights.test.js';
+
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
 const tests = [
@@ -25,6 +32,10 @@ const tests = [
   { name: 'Gantt Test 5: Forecast Calculation (3 WPs with data)',                       fn: test5_forecastCalculation },
   { name: 'Discrepancy Test 1: All scenarios (ok / warning / critical)',                fn: test1_allScenarios },
   { name: 'Discrepancy Test 2: Boundary edge cases (delta 10, 25, 26, 0, 9)',          fn: test2_boundaries },
+  { name: 'Weights Test 1: getDefaultPhaseWeights returns protected copy',             fn: test1_getDefaultPhaseWeights },
+  { name: 'Weights Test 2: null override == default behavior',                         fn: test2_overrideNullEqualsDefault },
+  { name: 'Weights Test 3: phase weight override shifts overall %',                    fn: test3_overrideChangesResult },
+  { name: 'Weights Test 4: partial override falls back to defaults',                   fn: test4_partialOverrideFallsBackToDefault },
 ];
 
 let passed = 0;

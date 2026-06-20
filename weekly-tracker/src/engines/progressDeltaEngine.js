@@ -1,4 +1,4 @@
-import { WP_STATUS_SCORES } from '../config/workPackages';
+import { WP_STATUS_SCORES } from '../config/workPackages.js';
 
 // Effective % for a single task entry — mirrors PhaseStepper.wpProgress logic.
 function taskEffectivePct(entry) {

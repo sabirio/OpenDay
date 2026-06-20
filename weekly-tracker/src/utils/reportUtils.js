@@ -4,13 +4,13 @@ import {
   handoverWeights,
   phaseWeights,
   statusScores,
-} from "../config/reportWeights";
+} from "../config/reportWeights.js";
 
 import {
   WORK_PACKAGES,
   WP_STATUS_SCORES,
   computePackageProgress,
-} from "../config/workPackages";
+} from "../config/workPackages.js";
 
 // ─── LEGACY FORMAT SUPPORT ────────────────────────────────────────────────────
 // The functions below exist to handle the old report format where progress was

@@ -22,7 +22,7 @@ import {
   WORK_PACKAGES as GANTT_TASKS,
   getPhasesInOrder,
   computeEffectiveWeights,
-} from '../config/masterTaskLibrary';
+} from '../config/masterTaskLibrary.js';
 import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1.js';
 
 const PHASE_PROGRESS_WEIGHT = Object.fromEntries(
@@ -33,10 +33,10 @@ import {
   computeWPCumulativeStatuses,
   computeCumulativeStatuses,
   DAY_MS,
-} from '../utils/reportUtils';
-import { calculateProgressDelta } from './progressDeltaEngine';
-import { SCHEDULE_CONFIG } from '../config/scheduleConfig';
-import { sortReasons } from '../utils/reasonUtils';
+} from '../utils/reportUtils.js';
+import { calculateProgressDelta } from './progressDeltaEngine.js';
+import { SCHEDULE_CONFIG } from '../config/scheduleConfig.js';
+import { sortReasons } from '../utils/reasonUtils.js';
 
 // Lazy-initialized lookup: { phaseId → { taskLabel → duration_pct } } — used when no scope is set.
 // Lazy to avoid Rolldown scope-hoisting TDZ when GANTT_TASKS is accessed before masterTaskLibrary exports resolve.
