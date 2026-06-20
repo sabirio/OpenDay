@@ -1,4 +1,5 @@
 import { WP_STATUS_SCORES } from '../config/workPackages.js';
+import { getDefaultPhaseWeights } from '../config/masterTaskLibrary.js';
 
 // Effective % for a single task entry — mirrors PhaseStepper.wpProgress logic.
 function taskEffectivePct(entry) {
@@ -76,8 +77,9 @@ function phasePct(wp, statuses) {
  * @param {object|null} prevMergedStatuses — cumulative WP statuses at previous report date
  * @returns {Array<{id, name, tasks, groups, pct, status, delta}>}
  */
-export function classifyPhases(workPackages, mergedStatuses, prevMergedStatuses = null, scopePhaseIds = null) {
+export function classifyPhases(workPackages, mergedStatuses, prevMergedStatuses = null, scopePhaseIds = null, phaseWeights = null) {
   const inScope = id => !scopePhaseIds || scopePhaseIds.includes(id);
+  const weights = phaseWeights ?? getDefaultPhaseWeights();
 
   const phases = workPackages.map(wp => {
     const pct     = phasePct(wp, mergedStatuses);
@@ -99,6 +101,7 @@ export function classifyPhases(workPackages, mergedStatuses, prevMergedStatuses 
         pct: p.pct,
         status: 'out_of_scope',
         delta: null,
+        weight: null,
       };
     }
     let status;
@@ -110,6 +113,7 @@ export function classifyPhases(workPackages, mergedStatuses, prevMergedStatuses 
       pct: p.pct,
       status,
       delta: p.prevPct !== null ? p.pct - p.prevPct : null,
+      weight: weights[p.id] ?? null,
     };
   });
 }

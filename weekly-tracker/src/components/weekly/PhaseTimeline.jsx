@@ -121,6 +121,12 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
                   {isOutOfScope ? 'Not in scope' : `${pct}%`}
                 </span>
 
+                {!isOutOfScope && phase.weight != null && (
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
+                    вес {phase.weight}%
+                  </span>
+                )}
+
                 {!isOutOfScope && hasChanges && delta !== null && delta > 0 && (
                   <span style={{ fontSize: 10, color: 'var(--status-done)', fontWeight: 700 }}>
                     ▲+{delta}pp
@@ -172,6 +178,11 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
               {activePhase.pct}%
             </span>
+            {activePhase.weight != null && (
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-muted)' }}>
+                · вес {activePhase.weight}%
+              </span>
+            )}
           </div>
 
           {/* WP groups grid */}

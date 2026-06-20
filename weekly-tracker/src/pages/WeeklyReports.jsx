@@ -14,7 +14,7 @@ import { computeProjectHealth } from "../engines/projectHealthEngine";
 import { computeOpeningReadiness } from "../engines/openingReadinessEngine";
 import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
-import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
+import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from "../config/masterTaskLibrary";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
@@ -293,7 +293,10 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     // Full (unscoped) list so out-of-scope phases are still emitted in the timeline.
     const fullPhaseList = isWPReport(selectedReport) ? getScopedGanttWorkPackages(null) : WORK_PACKAGES;
     const scopePhaseIds = displayWorkPackages.map(p => p.id);
-    return classifyPhases(fullPhaseList, mergedStatuses, prevMergedStatuses, scopePhaseIds);
+    const scope = selectedProject.scope ?? null;
+    const ov = scope?.weightOverrides;
+    const phaseWeights = ov ? { ...getDefaultPhaseWeights(), ...ov } : getDefaultPhaseWeights();
+    return classifyPhases(fullPhaseList, mergedStatuses, prevMergedStatuses, scopePhaseIds, phaseWeights);
   }, [selectedProject, selectedReport, displayWorkPackages, mergedStatuses, prevMergedStatuses]);
 
   const svData = useMemo(() => {
