@@ -1,4 +1,9 @@
 import { computeEffectiveWeights as _core } from '../core/projects/index.js';
+import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1.js';
+
+const PHASE_WEIGHTS = Object.fromEntries(
+  constructionRetailV1.phases.map(p => [p.id, p.progressWeight])
+);
 
 /**
  * masterTaskLibrary.js — Gantt Task Library
@@ -159,5 +164,5 @@ export function getWPsForTemplate(templateId) {
 }
 
 export function computeEffectiveWeights(scopeWPIds = null) {
-  return _core(WORK_PACKAGES, scopeWPIds);
+  return _core(WORK_PACKAGES, scopeWPIds, PHASE_WEIGHTS);
 }
