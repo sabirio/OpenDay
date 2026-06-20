@@ -14,7 +14,7 @@ import { computeProjectHealth } from "../engines/projectHealthEngine";
 import { computeOpeningReadiness } from "../engines/openingReadinessEngine";
 import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
-import { getScopedGanttWorkPackages } from "../config/masterTaskLibrary";
+import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
@@ -154,9 +154,18 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   const overallCumulative = useMemo(() => computeCumulativeStatuses(projectReports), [projectReports]);
   const overallProgress = useMemo(() => {
     const wpCum = computeWPCumulativeStatuses(projectReports);
-    if (wpCum?.workPackageStatuses) return calculateProjectProgress(wpCum.workPackageStatuses);
+    if (wpCum?.workPackageStatuses) {
+      const s = selectedProject?.scope ?? null;
+      const scopeWPIds = s
+        ? GANTT_WPS
+            .filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
+                       && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
+            .map(wp => wp.id)
+        : null;
+      return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds);
+    }
     return estimateProgressFromStatuses(overallCumulative);
-  }, [projectReports, overallCumulative]);
+  }, [projectReports, overallCumulative, selectedProject]);
 
   const portfolioKpis = useMemo(() => computePortfolioMissing(projects, reports), [projects, reports]);
 
