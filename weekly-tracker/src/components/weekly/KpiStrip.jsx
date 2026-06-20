@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import { StatusBadge, InfoLabel } from './shared';
 
 export default function KpiStrip({ project, report, overallProgress, portfolioKpis, projectReportCount, onMissingClick }) {
-  const [open, setOpen] = useState(false);
   if (!project) return null;
 
   const currentPhase = Array.isArray(report?.currentPhases)
@@ -40,46 +38,37 @@ export default function KpiStrip({ project, report, overallProgress, portfolioKp
   ];
 
   return (
-    <div className="dashboard-summary-card" style={{ marginBottom: 16, padding: '14px 20px' }}>
-      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: open ? 16 : 0 }}>
+    <div className="dashboard-summary-card" style={{ marginBottom: 0, padding: '14px 20px', height: '100%', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
         {kpis.map(k => (
           <div key={k.label}>
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
             {k.node}
           </div>
         ))}
-        <button
-          type="button"
-          onClick={() => setOpen(v => !v)}
-          style={{ marginLeft: 'auto', padding: '4px 12px', borderRadius: 8, border: '1px solid var(--border)', background: open ? 'var(--status-warn-bg)' : 'var(--accent-subtle)', color: open ? 'var(--status-warn)' : 'var(--text-secondary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-end', flexShrink: 0 }}
-        >
-          {open ? 'Less ▲' : 'More ▼'}
-        </button>
       </div>
 
-      {open && (
-        <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-          <InfoLabel label="Construction Start">{project.constructionStartDate || '—'}</InfoLabel>
-          <InfoLabel label="Construction End">{project.constructionEndDate || '—'}</InfoLabel>
-          <InfoLabel label="Total Reports">{projectReportCount}</InfoLabel>
-          <div style={{ cursor: portfolioKpis.missingCount > 0 ? 'pointer' : 'default' }} onClick={portfolioKpis.missingCount > 0 ? onMissingClick : undefined}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 5 }}>Missing Reports</div>
-            <span style={{ fontSize: 18, fontWeight: 800, color: portfolioKpis.missingCount > 0 ? 'var(--status-alert)' : 'var(--status-done)', textDecoration: portfolioKpis.missingCount > 0 ? 'underline dotted' : 'none' }}>
-              {portfolioKpis.missingCount}
-            </span>
-          </div>
-          <InfoLabel label="Blocked">
-            <span style={{ fontWeight: 700, color: report?.activitiesBlocked === 'Yes' ? 'var(--status-alert)' : 'var(--status-done)' }}>
-              {report?.activitiesBlocked || '—'}
-            </span>
-          </InfoLabel>
-          <InfoLabel label="Client Support">
-            <span style={{ fontWeight: 700, color: report?.supportRequired === 'Yes' ? 'var(--status-warn)' : 'var(--status-done)' }}>
-              {report?.supportRequired || '—'}
-            </span>
-          </InfoLabel>
+      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+        <InfoLabel label="Construction Start">{project.constructionStartDate || '—'}</InfoLabel>
+        <InfoLabel label="Construction End">{project.constructionEndDate || '—'}</InfoLabel>
+        <InfoLabel label="Total Reports">{projectReportCount}</InfoLabel>
+        <div style={{ cursor: portfolioKpis.missingCount > 0 ? 'pointer' : 'default' }} onClick={portfolioKpis.missingCount > 0 ? onMissingClick : undefined}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 5 }}>Missing Reports</div>
+          <span style={{ fontSize: 18, fontWeight: 800, color: portfolioKpis.missingCount > 0 ? 'var(--status-alert)' : 'var(--status-done)', textDecoration: portfolioKpis.missingCount > 0 ? 'underline dotted' : 'none' }}>
+            {portfolioKpis.missingCount}
+          </span>
         </div>
-      )}
+        <InfoLabel label="Blocked">
+          <span style={{ fontWeight: 700, color: report?.activitiesBlocked === 'Yes' ? 'var(--status-alert)' : 'var(--status-done)' }}>
+            {report?.activitiesBlocked || '—'}
+          </span>
+        </InfoLabel>
+        <InfoLabel label="Client Support">
+          <span style={{ fontWeight: 700, color: report?.supportRequired === 'Yes' ? 'var(--status-warn)' : 'var(--status-done)' }}>
+            {report?.supportRequired || '—'}
+          </span>
+        </InfoLabel>
+      </div>
     </div>
   );
 }

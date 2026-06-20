@@ -354,18 +354,26 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
           )}
         </div>
 
-        {/* Project header + KPI strip */}
+        {/* Project header + KPI strip + Progress Narrative */}
         {selectedProject && (
           <>
             <ProjectHeader project={selectedProject} />
-            <KpiStrip
-              project={selectedProject}
-              report={selectedReport}
-              overallProgress={overallProgress}
-              portfolioKpis={portfolioKpis}
-              projectReportCount={projectReports.length}
-              onMissingClick={() => setShowMissingModal(true)}
-            />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'stretch', marginBottom: 16 }}>
+              <KpiStrip
+                project={selectedProject}
+                report={selectedReport}
+                overallProgress={overallProgress}
+                portfolioKpis={portfolioKpis}
+                projectReportCount={projectReports.length}
+                onMissingClick={() => setShowMissingModal(true)}
+              />
+              {selectedReport && (
+                <ProgressNarrative
+                  progressComparison={engineOutputs?.progressComparison}
+                  selectedProgress={engineOutputs?.selectedProgress}
+                />
+              )}
+            </div>
           </>
         )}
 
@@ -435,11 +443,6 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
         {/* Report detail */}
         {selectedReport && (
           <>
-            <ProgressNarrative
-              progressComparison={engineOutputs?.progressComparison}
-              selectedProgress={engineOutputs?.selectedProgress}
-            />
-
             <ProgressChart
               series={progressSeries}
               scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}

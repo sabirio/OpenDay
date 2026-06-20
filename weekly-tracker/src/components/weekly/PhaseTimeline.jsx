@@ -31,10 +31,8 @@ function PhaseNode({ status }) {
   if (status === 'current') {
     return (
       <div style={{
-        width: 18, height: 18, borderRadius: '50%',
+        width: 14, height: 14, borderRadius: '50%',
         background: 'var(--accent)',
-        outline: '2px solid var(--accent)',
-        outlineOffset: '3px',
         flexShrink: 0,
       }} />
     );

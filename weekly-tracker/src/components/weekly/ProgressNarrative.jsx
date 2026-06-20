@@ -89,7 +89,7 @@ export default function ProgressNarrative({ progressComparison, selectedProgress
   }
 
   return (
-    <div className="dashboard-summary-card" style={{ marginBottom: 16 }}>
+    <div className="dashboard-summary-card" style={{ marginBottom: 0, height: '100%', boxSizing: 'border-box' }}>
       {/* Three stat blocks */}
       <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: reasons.length > 0 ? 16 : 0 }}>
         <StatBlock label="Current">
