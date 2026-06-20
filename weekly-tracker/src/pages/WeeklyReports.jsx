@@ -131,22 +131,6 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   const [expandedVisitId,   setExpandedVisitId]   = useState(null);
   const [activeTemplate,    setActiveTemplate]    = useState(null);
 
-  useEffect(() => {
-    if (!selectedProject) { setActiveTemplate(null); return; }
-    let alive = true;
-    (async () => {
-      let tpl = null;
-      if (selectedProject.templateId) {
-        tpl = await fetchTemplateById(selectedProject.templateId);
-        if (!tpl) tpl = await fetchActiveTemplate();
-      } else {
-        tpl = await fetchActiveTemplate();
-      }
-      if (alive) setActiveTemplate(tpl);
-    })();
-    return () => { alive = false; };
-  }, [selectedProject?.id, selectedProject?.templateId]);
-
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId && projects.some(p => String(p.id) === selectedProjectId))
       return selectedProjectId;
@@ -168,6 +152,22 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
 
   const selectedReport  = projectReports.find(r => String(r.id) === effectiveReportId);
   const selectedProject = projects.find(p => String(p.id) === effectiveProjectId);
+
+  useEffect(() => {
+    if (!selectedProject) { setActiveTemplate(null); return; }
+    let alive = true;
+    (async () => {
+      let tpl = null;
+      if (selectedProject.templateId) {
+        tpl = await fetchTemplateById(selectedProject.templateId);
+        if (!tpl) tpl = await fetchActiveTemplate();
+      } else {
+        tpl = await fetchActiveTemplate();
+      }
+      if (alive) setActiveTemplate(tpl);
+    })();
+    return () => { alive = false; };
+  }, [selectedProject?.id, selectedProject?.templateId]);
 
   const prevReport = useMemo(() => {
     if (!selectedReport) return null;
