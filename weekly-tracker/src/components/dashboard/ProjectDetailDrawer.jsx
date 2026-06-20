@@ -6,6 +6,7 @@ import { RISK_LEVEL_COLORS } from '../../config/statusColors';
 import { SchedBadge } from './DashboardWidgets';
 import PhaseProgress from './PhaseProgress';
 import TimelineFlag from './TimelineFlag';
+import InfoTip from '../common/InfoTip';
 
 const RL = RISK_LEVEL_COLORS;
 
@@ -199,7 +200,10 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
           {/* Block 5 — Data Confidence */}
           <div data-testid="data-confidence-block" style={{ background: 'var(--bg-elevated)', border: `1px solid ${confidence.colorBg}`, borderRadius: 12, padding: '14px 16px', gridColumn: 'span 2' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Data Confidence</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>Data Confidence</div>
+                <InfoTip topic="dataConfidence" breakdown={confidence.breakdown} pts={confidence.pts} maxPts={confidence.maxPts} />
+              </div>
               <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: confidence.colorBg, color: confidence.color, border: '1px solid var(--border)' }}>{confidence.label}</span>
             </div>
             <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 8px 0' }}>How complete & recent this project's reporting is — more filled bars = more reliable dashboard numbers.</p>

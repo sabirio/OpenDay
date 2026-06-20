@@ -327,5 +327,97 @@ check('D1: [] → matchRate=100', summarizeAlignmentItems([]).matchRate === 100)
   check('D5: overstatements[0].overstate = true', r.overstatements[0]?.overstate === true);
 }
 
+// ── E) computeConfidenceLevel — breakdown array (new field) ───────────────────
+console.log('\nE) computeConfidenceLevel — breakdown field');
+
+// E1: breakdown is an array with exactly 3 dimensions
+{
+  const r = computeConfidenceLevel(nArr(0), nArr(0), null);
+  check('E1a: breakdown is array',         Array.isArray(r.breakdown));
+  check('E1b: breakdown has 3 items',      r.breakdown.length === 3);
+}
+
+// E2: dimension names are correct and in order
+{
+  const r = computeConfidenceLevel(nArr(0), nArr(0), null);
+  check('E2a: dim[0]="Report history"',    r.breakdown[0].dimension === 'Report history');
+  check('E2b: dim[1]="PM site visits"',    r.breakdown[1].dimension === 'PM site visits');
+  check('E2c: dim[2]="Report freshness"',  r.breakdown[2].dimension === 'Report freshness');
+}
+
+// E3: max values per dimension
+{
+  const r = computeConfidenceLevel(nArr(0), nArr(0), null);
+  check('E3a: report history max=3',       r.breakdown[0].max === 3);
+  check('E3b: site visits max=3',          r.breakdown[1].max === 3);
+  check('E3c: freshness max=2',            r.breakdown[2].max === 2);
+}
+
+// E4: earned values match pts for known cases
+{
+  // 8 reports + 2 visits + today → 3+3+2=8
+  const r = computeConfidenceLevel(nArr(8), nArr(2), lr(0));
+  check('E4a: 8 reports → earned=3',       r.breakdown[0].earned === 3);
+  check('E4b: 2 visits → earned=3',        r.breakdown[1].earned === 3);
+  check('E4c: 0d → earned=2',             r.breakdown[2].earned === 2);
+}
+{
+  // 4 reports + 1 visit + 8d → 2+2+1=5
+  const r = computeConfidenceLevel(nArr(4), nArr(1), lr(8 * DAY));
+  check('E4d: 4 reports → earned=2',       r.breakdown[0].earned === 2);
+  check('E4e: 1 visit → earned=2',         r.breakdown[1].earned === 2);
+  check('E4f: 8d → earned=1',             r.breakdown[2].earned === 1);
+}
+
+// E5: sum(earned) === pts invariant
+{
+  const cases = [
+    [nArr(0),  nArr(0),  null],
+    [nArr(1),  nArr(0),  lr(0)],
+    [nArr(4),  nArr(1),  lr(8 * DAY)],
+    [nArr(8),  nArr(2),  lr(0)],
+    [nArr(10), nArr(3),  null],
+  ];
+  for (const [rr, vv, ll] of cases) {
+    const res = computeConfidenceLevel(rr, vv, ll);
+    const sum = res.breakdown.reduce((s, b) => s + b.earned, 0);
+    check(`E5: ${rr.length}r/${vv.length}v → sum(earned)=${sum}===pts=${res.pts}`, sum === res.pts);
+  }
+}
+
+// E6: detail strings — zero case and non-zero case
+{
+  const r0 = computeConfidenceLevel(nArr(0), nArr(0), null);
+  check('E6a: 0 reports → detail "No reports submitted"',
+    r0.breakdown[0].detail === 'No reports submitted');
+  check('E6b: 0 visits → detail "No site visits recorded"',
+    r0.breakdown[1].detail === 'No site visits recorded');
+  check('E6c: null latestReport → detail "No recent report"',
+    r0.breakdown[2].detail === 'No recent report');
+
+  const r1 = computeConfidenceLevel(nArr(1), nArr(1), null);
+  check('E6d: 1 report → singular "1 report submitted"',
+    r1.breakdown[0].detail === '1 report submitted');
+  check('E6e: 1 visit → singular "1 site visit recorded"',
+    r1.breakdown[1].detail === '1 site visit recorded');
+
+  const r4 = computeConfidenceLevel(nArr(4), nArr(2), null);
+  check('E6f: 4 reports → plural "4 reports submitted"',
+    r4.breakdown[0].detail === '4 reports submitted');
+  check('E6g: 2 visits → plural "2 site visits recorded"',
+    r4.breakdown[1].detail === '2 site visits recorded');
+}
+
+// E7: existing return fields unchanged (additive only — no regressions)
+{
+  const r = computeConfidenceLevel(nArr(4), nArr(1), lr(8 * DAY));
+  check('E7a: level still present',  typeof r.level === 'string');
+  check('E7b: pts still present',    typeof r.pts === 'number');
+  check('E7c: maxPts still 8',       r.maxPts === 8);
+  check('E7d: color still present',  typeof r.color === 'string');
+  check('E7e: colorBg still present', typeof r.colorBg === 'string');
+  check('E7f: label still present',  typeof r.label === 'string');
+}
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

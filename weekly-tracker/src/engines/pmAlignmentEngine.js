@@ -138,26 +138,54 @@ export function computePmAlignmentItems(gcReport, pmVisit) {
  * Levels: LOW (0–2) | MEDIUM (3–5) | HIGH (6–8)
  */
 export function computeConfidenceLevel(projReports, projSiteVisits, latestReport) {
-  let pts = 0;
+  const breakdown = [];
 
-  // Report history depth
-  if (projReports.length >= 8)      pts += 3;
-  else if (projReports.length >= 4) pts += 2;
-  else if (projReports.length >= 1) pts += 1;
+  // Report history depth (max 3pts)
+  const reportEarned =
+    projReports.length >= 8 ? 3 :
+    projReports.length >= 4 ? 2 :
+    projReports.length >= 1 ? 1 : 0;
+  breakdown.push({
+    dimension: 'Report history',
+    earned: reportEarned,
+    max: 3,
+    detail: projReports.length === 0
+      ? 'No reports submitted'
+      : `${projReports.length} report${projReports.length === 1 ? '' : 's'} submitted`,
+  });
 
-  // PM verification coverage
-  if (projSiteVisits.length >= 2)      pts += 3;
-  else if (projSiteVisits.length === 1) pts += 2;
+  // PM verification coverage (max 3pts)
+  const visitEarned =
+    projSiteVisits.length >= 2 ? 3 :
+    projSiteVisits.length === 1 ? 2 : 0;
+  breakdown.push({
+    dimension: 'PM site visits',
+    earned: visitEarned,
+    max: 3,
+    detail: projSiteVisits.length === 0
+      ? 'No site visits recorded'
+      : `${projSiteVisits.length} site visit${projSiteVisits.length === 1 ? '' : 's'} recorded`,
+  });
 
-  // Report freshness
+  // Report freshness (max 2pts)
+  let freshnessEarned = 0;
+  let freshnessDetail = 'No recent report';
   if (latestReport) {
     const daysSince = Math.floor(
       (Date.now() - new Date(latestReport.reportingDate || latestReport.submittedAt).getTime())
       / DAY_MS
     );
-    if (daysSince <= 7)       pts += 2;
-    else if (daysSince <= 14) pts += 1;
+    freshnessEarned = daysSince <= 7 ? 2 : daysSince <= 14 ? 1 : 0;
+    freshnessDetail = `Last report ${daysSince}d ago`;
   }
+  breakdown.push({
+    dimension: 'Report freshness',
+    earned: freshnessEarned,
+    max: 2,
+    detail: freshnessDetail,
+  });
+
+  const pts = reportEarned + visitEarned + freshnessEarned;
 
   // LOW 0–2 | MEDIUM 3–5 | HIGH 6–8
   const level = pts >= 6 ? "HIGH" : pts >= 3 ? "MEDIUM" : "LOW";
@@ -168,7 +196,7 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
     level === "MEDIUM" ? "Moderate confidence" :
                          "Limited data";
 
-  return { level, pts, maxPts: 8, color, colorBg, label };
+  return { level, pts, maxPts: 8, color, colorBg, label, breakdown };
 }
 
 export function summarizeAlignmentItems(items) {
