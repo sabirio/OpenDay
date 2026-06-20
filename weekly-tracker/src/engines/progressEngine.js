@@ -23,6 +23,11 @@ import {
   getPhasesInOrder,
   computeEffectiveWeights,
 } from '../config/masterTaskLibrary';
+import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1.js';
+
+const PHASE_PROGRESS_WEIGHT = Object.fromEntries(
+  constructionRetailV1.phases.map(p => [p.id, p.progressWeight])
+);
 import {
   estimateProgressFromStatuses,
   computeWPCumulativeStatuses,
@@ -143,16 +148,17 @@ export function calculateProjectProgress(wpStatuses, scopeWPIds = null) {
 
   const phases = getPhasesInOrder().filter(p => !activePhaseIds || activePhaseIds.has(p.id));
 
-  let phaseSum = 0, phaseCount = 0;
+  let weightedSum = 0, weightTotal = 0;
   for (const phase of phases) {
     const taskMap = wpStatuses?.[phase.id] || {};
     const { pct, count } = calculatePhaseProgress(phase.id, taskMap, effectiveWeights);
     if (count === 0) continue;
-    phaseSum += pct;
-    phaseCount++;
+    const w = PHASE_PROGRESS_WEIGHT[phase.id] || 0;
+    weightedSum += pct * w;
+    weightTotal += w;
   }
 
-  return phaseCount === 0 ? 0 : Math.round(phaseSum / phaseCount);
+  return weightTotal === 0 ? 0 : Math.round(weightedSum / weightTotal);
 }
 
 // ── Full result ───────────────────────────────────────────────────────────────
