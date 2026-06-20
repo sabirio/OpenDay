@@ -18,6 +18,7 @@ import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhase
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
+import { fetchActiveTemplate } from "../data/templatesApi";
 import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
@@ -121,6 +122,13 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   const [ganttTasks,        setGanttTasks]        = useState([]);
   const [ganttLoading,      setGanttLoading]      = useState(false);
   const [expandedVisitId,   setExpandedVisitId]   = useState(null);
+  const [activeTemplate,    setActiveTemplate]    = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetchActiveTemplate().then(t => { if (alive) setActiveTemplate(t); });
+    return () => { alive = false; };
+  }, []);
 
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId && projects.some(p => String(p.id) === selectedProjectId))
@@ -163,10 +171,10 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
             .map(wp => wp.id)
         : null;
       const phaseWeightOverrides = s?.weightOverrides ?? null;
-      return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds, phaseWeightOverrides);
+      return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds, phaseWeightOverrides, activeTemplate);
     }
     return estimateProgressFromStatuses(overallCumulative);
-  }, [projectReports, overallCumulative, selectedProject]);
+  }, [projectReports, overallCumulative, selectedProject, activeTemplate]);
 
   const portfolioKpis = useMemo(
     () => computePortfolioMissing(selectedProject ? [selectedProject] : [], reports),
