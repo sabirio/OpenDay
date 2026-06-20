@@ -18,7 +18,7 @@ import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhase
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
-import { fetchActiveTemplate } from "../data/templatesApi";
+import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
 import { isTemplateValid, validateTemplate } from "../core/projects";
 import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
@@ -126,10 +126,20 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   const [activeTemplate,    setActiveTemplate]    = useState(null);
 
   useEffect(() => {
+    if (!selectedProject) { setActiveTemplate(null); return; }
     let alive = true;
-    fetchActiveTemplate().then(t => { if (alive) setActiveTemplate(t); });
+    (async () => {
+      let tpl = null;
+      if (selectedProject.templateId) {
+        tpl = await fetchTemplateById(selectedProject.templateId);
+        if (!tpl) tpl = await fetchActiveTemplate();
+      } else {
+        tpl = await fetchActiveTemplate();
+      }
+      if (alive) setActiveTemplate(tpl);
+    })();
     return () => { alive = false; };
-  }, []);
+  }, [selectedProject?.id, selectedProject?.templateId]);
 
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId && projects.some(p => String(p.id) === selectedProjectId))
