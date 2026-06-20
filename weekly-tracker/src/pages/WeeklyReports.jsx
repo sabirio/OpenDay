@@ -19,6 +19,7 @@ import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../component
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
 import { fetchActiveTemplate } from "../data/templatesApi";
+import { isTemplateValid, validateTemplate } from "../core/projects";
 import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
@@ -160,6 +161,16 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   }, [selectedReport, projectReports, effectiveReportId]);
 
   const overallCumulative = useMemo(() => computeCumulativeStatuses(projectReports), [projectReports]);
+
+  const templateIssues = useMemo(
+    () => (activeTemplate ? validateTemplate(activeTemplate) : []),
+    [activeTemplate]
+  );
+  const gatedTemplate = useMemo(
+    () => (activeTemplate && isTemplateValid(activeTemplate) ? activeTemplate : null),
+    [activeTemplate]
+  );
+
   const overallProgress = useMemo(() => {
     const wpCum = computeWPCumulativeStatuses(projectReports);
     if (wpCum?.workPackageStatuses) {
@@ -171,10 +182,10 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
             .map(wp => wp.id)
         : null;
       const phaseWeightOverrides = s?.weightOverrides ?? null;
-      return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds, phaseWeightOverrides, activeTemplate);
+      return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds, phaseWeightOverrides, gatedTemplate);
     }
     return estimateProgressFromStatuses(overallCumulative);
-  }, [projectReports, overallCumulative, selectedProject, activeTemplate]);
+  }, [projectReports, overallCumulative, selectedProject, gatedTemplate]);
 
   const portfolioKpis = useMemo(
     () => computePortfolioMissing(selectedProject ? [selectedProject] : [], reports),
@@ -385,6 +396,22 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
         {selectedProject && (
           <>
             <ProjectHeader project={selectedProject} />
+            {templateIssues.filter(i => i.severity === 'error').length > 0 && (
+              <div role="alert" style={{
+                background: 'var(--status-warn-bg)', border: '1px solid var(--border)',
+                borderLeft: '4px solid var(--status-warn)', borderRadius: 10,
+                padding: '10px 16px', marginBottom: 14, fontSize: 13,
+              }}>
+                <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
+                  Active template is invalid — using built-in default weights. Fix in Template Editor:
+                </span>
+                <ul style={{ margin: '6px 0 0 0', paddingLeft: 20 }}>
+                  {templateIssues.filter(i => i.severity === 'error').map((e, idx) => (
+                    <li key={idx} style={{ color: 'var(--status-warn)', marginTop: 3 }}>{e.message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'stretch', marginBottom: 16 }}>
               <KpiStrip
                 project={selectedProject}
