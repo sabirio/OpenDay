@@ -1,9 +1,108 @@
 /**
- * ProgressNarrative — B1 progress stat blocks + reasons list.
+ * ProgressNarrative — B1 progress stat blocks + reasons list + Why % panel.
  *
  * Pure display. Reads progressComparison from calculateProgressComparison().
+ * explainResult comes pre-computed from WeeklyReports (explainFromSnapshot or explainLive).
  * No calculations here — all numbers come from the engine.
  */
+import { useState } from "react";
+
+// ── Why this %? expandable attribution panel ──────────────────────────────────
+function WhyPanel({ explainResult }) {
+  const [open, setOpen] = useState(false);
+  if (!explainResult) return null;
+
+  const { total, officialTotal, drift, denominator, lines, byPhase, excluded } = explainResult;
+  const source = officialTotal != null ? 'snapshot' : 'live';
+
+  return (
+    <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10 }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          fontSize: 12, fontWeight: 700, color: 'var(--text-muted)',
+          display: 'flex', alignItems: 'center', gap: 5,
+        }}
+        aria-expanded={open}
+      >
+        Why {Math.round(total)}%? <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Denominator note */}
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            Based on <strong style={{ color: 'var(--text-secondary)' }}>{lines.length}</strong> active work package{lines.length !== 1 ? 's' : ''} · weights sum to {denominator.toFixed(2)}
+            {' · '}<span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{source === 'snapshot' ? 'frozen weights' : 'live weights'}</span>
+            {drift != null && Math.abs(drift) > 0.5 && (
+              <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--status-alert)' }}>[drift {drift > 0 ? '+' : ''}{drift.toFixed(1)}pp]</span>
+            )}
+          </div>
+
+          {/* BY PHASE */}
+          {byPhase.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 7 }}>
+                By phase
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {byPhase.map(p => (
+                  <div key={p.phaseId}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>{p.label}</span>
+                      <span style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                        {Math.round(p.phaseProgress)}%
+                        {' · '}
+                        <strong style={{ color: 'var(--text-primary)' }}>{p.contribution.toFixed(1)}pp</strong>
+                      </span>
+                    </div>
+                    <div style={{ background: 'var(--border)', borderRadius: 3, height: 4, overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.min(100, p.phaseProgress)}%`, height: '100%', background: 'var(--accent)', borderRadius: 3, transition: 'width 0.3s ease' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TOP WP CONTRIBUTORS */}
+          {lines.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 7 }}>
+                Top contributors
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {lines.slice(0, 8).map(l => (
+                  <div key={l.wpId} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 11 }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 9, flexShrink: 0 }}>●</span>
+                    <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{l.label}</span>
+                    <span style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {Math.round(l.progress)}% · <strong style={{ color: 'var(--text-primary)' }}>{l.contribution.toFixed(1)}pp</strong>
+                    </span>
+                  </div>
+                ))}
+                {lines.length > 8 && (
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', paddingLeft: 14, marginTop: 2 }}>
+                    +{lines.length - 8} more
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* NOT IN SCOPE */}
+          {excluded.length > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+              <span style={{ fontWeight: 600 }}>Not in scope ({excluded.length}):</span>{' '}
+              {excluded.map(e => e.label).join(' · ')}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const REASON_COLOR = {
   positive: 'var(--status-done)',
@@ -30,7 +129,7 @@ function StatBlock({ label, children }) {
   );
 }
 
-export default function ProgressNarrative({ progressComparison, selectedProgress }) {
+export default function ProgressNarrative({ progressComparison, selectedProgress, explainResult }) {
   if (!progressComparison) return null;
 
   const { scheduleStatus, scheduleGap, deltaVsLastWeek, reasons = [] } = progressComparison;
@@ -132,6 +231,9 @@ export default function ProgressNarrative({ progressComparison, selectedProgress
           ))}
         </div>
       )}
+
+      {/* Why this %? attribution panel */}
+      <WhyPanel explainResult={explainResult} />
     </div>
   );
 }

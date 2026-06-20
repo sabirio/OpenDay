@@ -19,7 +19,8 @@ import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../component
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
-import { isTemplateValid, validateTemplate } from "../core/projects";
+import { isTemplateValid, validateTemplate, explainFromSnapshot, explainLive, taskProgressFromStatuses } from "../core/projects";
+import { constructionRetailV1 } from "../domains/construction/templates/constructionRetailV1";
 import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
@@ -113,6 +114,11 @@ function mergeOldDerivedStatuses(derivedList) {
   }
   return result;
 }
+
+// Stable labeled template for explain layer: GANTT_WPS (flat, with label+phaseId+duration_pct)
+// + constructionRetailV1.phases (with label+progressWeight). Labels are resolved here so the
+// explain output carries readable strings; ProgressNarrative needs no id→label lookup.
+const EXPLAIN_TEMPLATE = { workPackages: GANTT_WPS, phases: constructionRetailV1.phases };
 
 // ─── Main component ───────────────────────────────────────────────────────────
 function WeeklyReports({ projects, reports, siteVisits = [] }) {
@@ -240,7 +246,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     const contScore = computeContractorScores(selectedProject, projectReports, projSiteVisits);
     const health    = computeProjectHealth(risk, overallProgress, contScore, latestReport);
     const readiness = computeOpeningReadiness(wpCum, selectedProject.targetOpeningDate ?? null);
-    return { progressComparison, risk, contScore, health, readiness, selectedProgress };
+    return { progressComparison, risk, contScore, health, readiness, selectedProgress, currentHistRow };
   }, [selectedProject, selectedReport, overallProgress, projectReports, siteVisits]);
 
   const additionalWorksList = useMemo(() => {
@@ -289,6 +295,29 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     }
     return merged;
   }, [selectedReport, projectReports, scopedGanttWPs]);
+
+  // Explain result — reconstructs WHY the overall % is what it is.
+  // Prefers explainFromSnapshot when the history row has frozen effective_weights (version-proof).
+  // Falls back to explainLive (re-derived weights) for unsaved/legacy reports.
+  // Only wired for Gantt-format reports where label→wpId mapping is reliable.
+  const explainResult = useMemo(() => {
+    if (!isWPReport(selectedReport) || !mergedStatuses) return null;
+    try {
+      const taskProgress = taskProgressFromStatuses(mergedStatuses, EXPLAIN_TEMPLATE);
+      const histRow = engineOutputs?.currentHistRow;
+      if (histRow?.snapshot?.effective_weights && Object.keys(histRow.snapshot.effective_weights).length > 0) {
+        return explainFromSnapshot(histRow, taskProgress, EXPLAIN_TEMPLATE);
+      }
+      const s = selectedProject?.scope ?? null;
+      const scopeWPIds = s
+        ? GANTT_WPS
+            .filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
+                       && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
+            .map(wp => wp.id)
+        : null;
+      return explainLive(EXPLAIN_TEMPLATE, scopeWPIds, taskProgress, overallProgress);
+    } catch { return null; }
+  }, [selectedReport, mergedStatuses, engineOutputs, selectedProject, overallProgress]);
 
   // Cumulative WP statuses as of the previous report's date — used for WP delta calculation.
   const prevMergedStatuses = useMemo(() => {
@@ -435,6 +464,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
                 <ProgressNarrative
                   progressComparison={engineOutputs?.progressComparison}
                   selectedProgress={engineOutputs?.selectedProgress}
+                  explainResult={explainResult}
                 />
               )}
             </div>
