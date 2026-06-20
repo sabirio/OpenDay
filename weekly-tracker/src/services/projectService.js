@@ -54,8 +54,9 @@ function fromDB(row) {
     contractorEmail: row.contractor_email,
     projectType: row.project_type,
     projectStatus: row.project_status,
-    phases: normalizePhasesFromDB(row.phases || []),
-    scope:  row.scope || null,
+    phases:      normalizePhasesFromDB(row.phases || []),
+    scope:       row.scope       || null,
+    templateId:  row.template_id || null,
     // ── Gantt fields (read-only, written by ganttService) ──────────────────
     templateType:               row.template_type                || null,
     storeSizeSqm:               row.store_size_sqm               || null,
@@ -87,8 +88,9 @@ function toDB(project) {
     contractor_email: project.contractorEmail || null,
     project_type: project.projectType || 'New Opening',
     project_status: project.projectStatus || 'Active',
-    phases: project.phases || [],
-    scope:  project.scope  || null,
+    phases:      project.phases      || [],
+    scope:       project.scope       || null,
+    template_id: project.templateId  || null,
     // ── Gantt setup fields (PM-editable) ───────────────────────────────────
     template_type:  project.templateType  || null,
     store_size_sqm: project.storeSizeSqm  || null,
@@ -150,9 +152,21 @@ export async function getProgressSnapshot(isoWeekStr) {
 
 export async function create(project) {
   validateProject(project);
+  const payload = toDB(project);
+  // Pin to the active template at creation time if not already set.
+  if (!payload.template_id) {
+    const { data: tpl } = await supabase
+      .from('templates')
+      .select('id')
+      .eq('is_active', true)
+      .order('version', { ascending: false })
+      .limit(1)
+      .single();
+    payload.template_id = tpl?.id ?? null;
+  }
   const { data, error } = await supabase
     .from('projects')
-    .insert([toDB(project)])
+    .insert([payload])
     .select()
     .single();
   if (error) throw error;
@@ -162,9 +176,12 @@ export async function create(project) {
 export async function update(id, project) {
   if (!id) throw new Error('Project ID is required for update');
   validateProject(project);
+  const payload = toDB(project);
+  // template_id is immutable after creation — never overwrite on update.
+  delete payload.template_id;
   const { data, error } = await supabase
     .from('projects')
-    .update(toDB(project))
+    .update(payload)
     .eq('id', id)
     .select()
     .single();
