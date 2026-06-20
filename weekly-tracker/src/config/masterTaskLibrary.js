@@ -1,3 +1,5 @@
+import { computeEffectiveWeights as _core } from '../core/projects/index.js';
+
 /**
  * masterTaskLibrary.js — Gantt Task Library
  *
@@ -156,45 +158,6 @@ export function getWPsForTemplate(templateId) {
   return getWPsInOrder(); // custom: caller filters
 }
 
-/**
- * computeEffectiveWeights(scopeWPIds)
- *
- * Given a list of active WP ids, returns { wpId → effectiveWeight } where all
- * values sum to 1.0 (100% of project progress).
- *
- * Algorithm:
- *   1. Group selected WPs by phase
- *   2. phaseWeight = 1 / numberOfSelectedPhases (equal phase contribution)
- *   3. Within a phase, normalise duration_pct so they sum to 1.0
- *   4. effectiveWeight(wp) = phaseWeight × normalised_wp_pct
- *
- * If scopeWPIds is null/undefined → all WORK_PACKAGES are used (full scope).
- */
 export function computeEffectiveWeights(scopeWPIds = null) {
-  const wps = scopeWPIds
-    ? WORK_PACKAGES.filter(wp => scopeWPIds.includes(wp.id))
-    : WORK_PACKAGES;
-
-  if (wps.length === 0) return {};
-
-  const byPhase = {};
-  for (const wp of wps) {
-    if (!byPhase[wp.phaseId]) byPhase[wp.phaseId] = [];
-    byPhase[wp.phaseId].push(wp);
-  }
-
-  const phaseIds = Object.keys(byPhase);
-  const phaseWeight = 1 / phaseIds.length;
-  const result = {};
-
-  for (const phaseId of phaseIds) {
-    const phaseWPs = byPhase[phaseId];
-    const pctSum = phaseWPs.reduce((s, wp) => s + (wp.duration_pct || 0), 0);
-    for (const wp of phaseWPs) {
-      const normPct = pctSum > 0 ? wp.duration_pct / pctSum : 1 / phaseWPs.length;
-      result[wp.id] = phaseWeight * normPct;
-    }
-  }
-
-  return result;
+  return _core(WORK_PACKAGES, scopeWPIds);
 }
