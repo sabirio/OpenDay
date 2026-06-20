@@ -150,8 +150,14 @@ function mergeGanttWPStatuses(snapshots) {
       if (!merged[phaseId]) merged[phaseId] = {};
       for (const [taskName, entry] of Object.entries(tasks || {})) {
         if (!entry) continue;
-        const effectivePct = e =>
-          (e?.progress ?? 0) || ((WP_STATUS_SCORES[e?.status] ?? 0) * 100);
+        const effectivePct = e => {
+          const raw = e?.progress;
+          if (raw !== null && raw !== undefined && raw !== '') {
+            const n = Number(raw);
+            if (!Number.isNaN(n)) return n;
+          }
+          return (WP_STATUS_SCORES[e?.status] ?? 0) * 100;
+        };
         const cur = merged[phaseId][taskName];
         if (!cur || effectivePct(entry) > effectivePct(cur)) {
           merged[phaseId][taskName] = entry;
