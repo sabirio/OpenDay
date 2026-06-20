@@ -8,6 +8,16 @@ import { svCompare, getGCStatusForTask, CONSTRUCTION_ITEMS, TESTING_ITEMS, HANDO
 
 const SEV_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
 
+const SV_STATUS_LABEL = {
+  not_started: 'Not started', in_progress: 'In progress',
+  completed: 'Completed', delayed: 'Delayed', blocked: 'Blocked',
+};
+const SV_RESULT_STYLE = {
+  match:       { badge: '✓ Match',       type: 'match',       color: 'var(--status-done)',  bg: 'var(--status-done-bg)',  border: 'var(--border)' },
+  discrepancy: { badge: '⚠ Discrepancy', type: 'discrepancy', color: 'var(--status-alert)', bg: 'var(--status-alert-bg)', border: 'var(--border)' },
+  'pm-higher': { badge: '↑ PM ahead',    type: 'pm-higher',   color: 'var(--status-warn)',  bg: 'var(--status-warn-bg)',  border: 'var(--border)' },
+};
+
 /**
  * Build the PM alert list from a portfolio of project rows.
  * @param {Array} rows - allRows from Dashboard (each with project, latestReport, progress, daysToOpening, daysSinceReport, riskLevel)
@@ -135,7 +145,17 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
         else if (rankDiff < 0 || delta < 0)              resultType = 'discrepancy';
         else                                             resultType = 'pm-higher';
 
-        items.push({ phase: wp.phase_id || wp.wp_id || 'task', label: wp.wp_id, pm: pmStatus, gc: gcStatus, result: { type: resultType } });
+        items.push({
+          phase:      wp.phase_id || wp.wp_id || 'task',
+          label:      wp.wp_id,
+          pm:         SV_STATUS_LABEL[pmStatus] ?? pmStatus,
+          gc:         SV_STATUS_LABEL[gcStatus] ?? gcStatus,
+          gcProgress: wp.gc_progress ?? null,
+          pmProgress: wp.observed_progress ?? null,
+          delta:      delta,
+          note:       wp.pm_note || null,
+          result:     SV_RESULT_STYLE[resultType],
+        });
       }
     }
     // ── Old WP-status format (weekly reports)
