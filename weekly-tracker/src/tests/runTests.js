@@ -22,6 +22,12 @@ import {
   test4_partialOverrideFallsBackToDefault,
 } from './progressWeights.test.js';
 
+import {
+  test1_attachesDefaultWeights,
+  test2_resolvedWeightsArePassedThrough,
+  test3_outOfScopeStillCarriesWeightField,
+} from './phaseWeights.test.js';
+
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
 const tests = [
@@ -36,6 +42,9 @@ const tests = [
   { name: 'Weights Test 2: null override == default behavior',                         fn: test2_overrideNullEqualsDefault },
   { name: 'Weights Test 3: phase weight override shifts overall %',                    fn: test3_overrideChangesResult },
   { name: 'Weights Test 4: partial override falls back to defaults',                   fn: test4_partialOverrideFallsBackToDefault },
+  { name: 'Phase Weights Test 1: weight field attached (default fallback)',            fn: test1_attachesDefaultWeights },
+  { name: 'Phase Weights Test 2: resolved weights passed through verbatim',           fn: test2_resolvedWeightsArePassedThrough },
+  { name: 'Phase Weights Test 3: out_of_scope phase still carries weight',            fn: test3_outOfScopeStillCarriesWeightField },
 ];
 
 let passed = 0;
