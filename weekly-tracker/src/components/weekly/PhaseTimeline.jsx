@@ -28,6 +28,16 @@ function PhaseNode({ status }) {
       </div>
     );
   }
+  if (status === 'out_of_scope') {
+    return (
+      <div style={{
+        width: 10, height: 10, borderRadius: '50%',
+        background: 'transparent',
+        border: '1.5px solid var(--border)',
+        flexShrink: 0,
+      }} />
+    );
+  }
   return (
     <div style={{
       width: 12, height: 12, borderRadius: '50%',
@@ -54,22 +64,24 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
           const isActive       = phase.id === activeId;
           const isUpcoming     = status === 'upcoming';
           const isCurrent      = status === 'current';
+          const isOutOfScope   = status === 'out_of_scope';
           const hasChanges     = phaseChangeFlags?.[phase.id];
-          const nextIsUpcoming = phases[i + 1]?.status === 'upcoming';
+          const nextStatus     = phases[i + 1]?.status;
+          const nextIsNonActive = nextStatus === 'upcoming' || nextStatus === 'out_of_scope';
 
           return (
             <Fragment key={phase.id}>
-              {/* Phase cell — column: [node] [name] [pct] [delta] [chevron] */}
+              {/* Phase cell — column: [node] [name] [pct/label] [delta] [chevron] */}
               <div
-                onClick={() => setActiveId(isActive ? null : phase.id)}
+                onClick={isOutOfScope ? undefined : () => setActiveId(isActive ? null : phase.id)}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   flex: '1 1 70px',
                   maxWidth: 110,
-                  cursor: 'pointer',
-                  opacity: isUpcoming ? 0.45 : 1,
+                  cursor: isOutOfScope ? 'default' : 'pointer',
+                  opacity: isOutOfScope ? 0.35 : isUpcoming ? 0.45 : 1,
                   userSelect: 'none',
                   padding: '4px 4px 6px',
                   borderRadius: 8,
@@ -85,7 +97,7 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
                 <span style={{
                   fontSize: 12,
                   textAlign: 'center',
-                  color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  color: isOutOfScope ? 'var(--text-muted)' : isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)',
                   fontWeight: isCurrent ? 700 : 500,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -100,14 +112,16 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
                 </span>
 
                 <span style={{
-                  fontSize: 12, fontWeight: 600,
-                  color: isCurrent ? 'var(--text-primary)' : 'var(--text-muted)',
+                  fontSize: isOutOfScope ? 10 : 12,
+                  fontWeight: 600,
+                  fontStyle: isOutOfScope ? 'italic' : 'normal',
+                  color: 'var(--text-muted)',
                   marginTop: 2,
                 }}>
-                  {pct}%
+                  {isOutOfScope ? 'Not in scope' : `${pct}%`}
                 </span>
 
-                {hasChanges && delta !== null && delta > 0 && (
+                {!isOutOfScope && hasChanges && delta !== null && delta > 0 && (
                   <span style={{ fontSize: 10, color: 'var(--status-done)', fontWeight: 700 }}>
                     ▲+{delta}pp
                   </span>
@@ -125,8 +139,8 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
                   flex: '0 0 16px',
                   alignSelf: 'flex-start',
                   marginTop: 15,
-                  borderTop: nextIsUpcoming
-                    ? '2px dashed var(--text-muted)'
+                  borderTop: (isOutOfScope || nextIsNonActive)
+                    ? '2px dashed var(--border)'
                     : '2px solid var(--accent)',
                 }} />
               )}

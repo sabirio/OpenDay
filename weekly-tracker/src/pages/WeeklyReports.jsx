@@ -287,10 +287,13 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
 
   const displayWorkPackages = isWPReport(selectedReport) ? scopedGanttWPs : WORK_PACKAGES;
 
-  const phaseClassifications = useMemo(
-    () => selectedProject ? classifyPhases(displayWorkPackages, mergedStatuses, prevMergedStatuses) : [],
-    [selectedProject, displayWorkPackages, mergedStatuses, prevMergedStatuses]
-  );
+  const phaseClassifications = useMemo(() => {
+    if (!selectedProject) return [];
+    // Full (unscoped) list so out-of-scope phases are still emitted in the timeline.
+    const fullPhaseList = isWPReport(selectedReport) ? getScopedGanttWorkPackages(null) : WORK_PACKAGES;
+    const scopePhaseIds = displayWorkPackages.map(p => p.id);
+    return classifyPhases(fullPhaseList, mergedStatuses, prevMergedStatuses, scopePhaseIds);
+  }, [selectedProject, selectedReport, displayWorkPackages, mergedStatuses, prevMergedStatuses]);
 
   const svData = useMemo(() => {
     if (!selectedProject) return [];

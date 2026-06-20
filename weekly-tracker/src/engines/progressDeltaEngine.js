@@ -76,22 +76,35 @@ function phasePct(wp, statuses) {
  * @param {object|null} prevMergedStatuses — cumulative WP statuses at previous report date
  * @returns {Array<{id, name, tasks, groups, pct, status, delta}>}
  */
-export function classifyPhases(workPackages, mergedStatuses, prevMergedStatuses = null) {
+export function classifyPhases(workPackages, mergedStatuses, prevMergedStatuses = null, scopePhaseIds = null) {
+  const inScope = id => !scopePhaseIds || scopePhaseIds.includes(id);
+
   const phases = workPackages.map(wp => {
     const pct     = phasePct(wp, mergedStatuses);
     const prevPct = prevMergedStatuses != null ? phasePct(wp, prevMergedStatuses) : null;
     return { ...wp, pct, prevPct };
   });
 
-  // Current = first phase not yet complete; fallback to last if all done.
-  let currentIdx = phases.findIndex(p => p.pct < 100);
-  if (currentIdx === -1) currentIdx = phases.length - 1;
+  // Current = first in-scope phase not yet complete; fallback to last in-scope phase.
+  let currentIdx = phases.findIndex(p => inScope(p.id) && p.pct < 100);
+  if (currentIdx === -1) {
+    const inScopeIndices = phases.map((p, i) => inScope(p.id) ? i : -1).filter(i => i >= 0);
+    currentIdx = inScopeIndices[inScopeIndices.length - 1] ?? phases.length - 1;
+  }
 
   return phases.map((p, i) => {
+    if (!inScope(p.id)) {
+      return {
+        id: p.id, name: p.name, tasks: p.tasks, groups: p.groups,
+        pct: p.pct,
+        status: 'out_of_scope',
+        delta: null,
+      };
+    }
     let status;
-    if (p.pct === 100)     status = 'done';
+    if (p.pct === 100)         status = 'done';
     else if (i === currentIdx) status = 'current';
-    else                   status = 'upcoming';
+    else                       status = 'upcoming';
     return {
       id: p.id, name: p.name, tasks: p.tasks, groups: p.groups,
       pct: p.pct,
