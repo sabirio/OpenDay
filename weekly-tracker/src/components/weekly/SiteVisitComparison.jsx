@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import { formatDate } from '../../utils/reportUtils';
 import { KpiCard } from '../dashboard/DashboardWidgets';
 
@@ -11,7 +11,6 @@ const SCHED_CHIP = {
 const SCHED_FALLBACK = { bg: 'var(--bg-elevated)', color: 'var(--text-muted)' };
 
 export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, onExpandedChange }) {
-  const [discrepancyOnly, setDiscrepancyOnly] = useState(false);
   const cols = ['Item', 'GC Report', 'PM Observed', 'Δ', 'Result'];
   const matchRateColor = (rate) =>
     rate === null ? 'var(--text-muted)' : rate >= 80 ? 'var(--status-done)' : rate >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
@@ -41,10 +40,7 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
               const toggleId   = visit.id || visit.submittedAt;
               const isExpanded = expandedVisitId === toggleId;
               const mColor     = matchRateColor(matchRate);
-              const nonMatch   = items.filter(i => i.result?.type && i.result.type !== 'match');
-              const visible    = discrepancyOnly
-                ? nonMatch.filter(i => i.result.type === 'discrepancy')
-                : nonMatch;
+              const visible    = items.filter(i => i.result?.type && i.result.type !== 'match');
               const phaseOrder = [...new Set(visible.map(i => i.phase))];
               const byPhase    = phaseOrder.map(ph => ({ phase: ph, items: visible.filter(i => i.phase === ph) })).filter(g => g.items.length > 0);
               return (
@@ -87,10 +83,6 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
                           {visit.observations && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{visit.observations}</span>}
                         </div>
                       )}
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 10 }}>
-                        <input type="checkbox" checked={discrepancyOnly} onChange={e => setDiscrepancyOnly(e.target.checked)} />
-                        Discrepancies only
-                      </label>
                       {visible.length === 0 ? (
                         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                           No mismatches — PM and GC agree on all assessed items.

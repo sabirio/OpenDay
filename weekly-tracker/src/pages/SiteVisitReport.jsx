@@ -428,12 +428,22 @@ function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
       if (gcStatus === 'not_started' && gcProgress === 0) continue;
 
       const pmEntry  = pmWpObservations[task.id] || {};
-      const pmStatus = pmEntry.observed_status ?? gcStatus;  // auto-match if PM didn't change
-      const gcRank   = STATUS_RANK[gcStatus] ?? 0;
-      const pmRank   = STATUS_RANK[pmStatus] ?? 0;
-      if (pmRank === gcRank)    confirmed++;
-      else if (pmRank < gcRank) discrepancyCount++;
-      else                      pmAheadCount++;
+      const pmStatus     = pmEntry.observed_status ?? gcStatus;
+      const gcRank       = STATUS_RANK[gcStatus] ?? 0;
+      const pmRank       = STATUS_RANK[pmStatus] ?? 0;
+      const pmProgress   = pmEntry.observed_progress ?? gcProgress;
+      const PROGRESS_TOL = 5;
+
+      if (pmRank === gcRank) {
+        const d = pmProgress - gcProgress;
+        if      (d < -PROGRESS_TOL) discrepancyCount++;
+        else if (d >  PROGRESS_TOL) pmAheadCount++;
+        else                        confirmed++;
+      } else if (pmRank < gcRank) {
+        discrepancyCount++;
+      } else {
+        pmAheadCount++;
+      }
     }
 
     return (
