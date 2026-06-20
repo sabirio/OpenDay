@@ -4,8 +4,8 @@
  * No chart libraries — vanilla SVG with responsive viewBox.
  */
 
-const W = 500, H = 100;
-const PAD = { t: 10, r: 14, b: 28, l: 36 };
+const W = 1000, H = 150;
+const PAD = { t: 14, r: 24, b: 40, l: 56 };
 const PW  = W - PAD.l - PAD.r;
 const PH  = H - PAD.t - PAD.b;
 
@@ -49,7 +49,7 @@ export default function ProgressChart({ series, scheduleStatus, spi, reportCount
               stroke="var(--border)" strokeWidth="0.5"
             />
             <text
-              x={PAD.l - 5} y={yOf(v).toFixed(1)}
+              x={PAD.l - 6} y={yOf(v).toFixed(1)}
               textAnchor="end" dominantBaseline="middle"
               fill="var(--text-muted)" fontSize="8"
             >{v}%</text>
@@ -60,7 +60,7 @@ export default function ProgressChart({ series, scheduleStatus, spi, reportCount
         <polyline
           fill="none"
           stroke="var(--accent)"
-          strokeWidth="2"
+          strokeWidth="1.5"
           strokeLinejoin="round"
           points={pts}
         />
@@ -71,15 +71,15 @@ export default function ProgressChart({ series, scheduleStatus, spi, reportCount
             <circle
               cx={xOf(i, n).toFixed(1)}
               cy={yOf(d.pct).toFixed(1)}
-              r="3"
+              r="2.5"
               fill="var(--bg-surface)"
               stroke="var(--accent)"
-              strokeWidth="1.5"
+              strokeWidth="1.2"
             />
             {showLabel(i) && (
               <text
                 x={xOf(i, n).toFixed(1)}
-                y={(H - PAD.b + 11).toFixed(1)}
+                y={(H - PAD.b + 16).toFixed(1)}
                 textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
                 fill="var(--text-muted)"
                 fontSize="8"
