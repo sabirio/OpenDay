@@ -14,10 +14,7 @@ import { computeProjectHealth } from "../engines/projectHealthEngine";
 import { computeOpeningReadiness } from "../engines/openingReadinessEngine";
 import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
-import {
-  PHASES as GANTT_PHASES,
-  getWPsByPhase as getGanttWPsByPhase,
-} from "../config/masterTaskLibrary";
+import { getScopedGanttWorkPackages } from "../config/masterTaskLibrary";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
@@ -47,21 +44,6 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
-
-// ─── Gantt-path WP structure (masterTaskLibrary phases → PhaseStepper shape) ──
-const GANTT_WORK_PACKAGES = GANTT_PHASES
-  .map(phase => {
-    const wps = getGanttWPsByPhase(phase.id);
-    if (wps.length === 0) return null;
-    const taskNames = wps.map(wp => wp.label);
-    return {
-      id:     phase.id,
-      name:   phase.label,
-      tasks:  wps.map(wp => ({ name: wp.label, weight: 1 })),
-      groups: [{ id: `${phase.id}.g`, name: phase.label, tasks: taskNames }],
-    };
-  })
-  .filter(Boolean);
 
 // ─── Old-format compat helpers ────────────────────────────────────────────────
 const OLD_TO_WP_WEEKLY = {
@@ -234,6 +216,11 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     return { entries, total };
   }, [projectReports]);
 
+  const scopedGanttWPs = useMemo(
+    () => getScopedGanttWorkPackages(selectedProject?.scope ?? null),
+    [selectedProject]
+  );
+
   // Merged WP statuses (current report + cumulative up to selected date) — passed to PhaseStepper
   const mergedStatuses = useMemo(() => {
     if (!selectedReport) return {};
@@ -246,7 +233,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     const cumulative     = wpReport
       ? computeWPCumulativeStatuses(reportsUpTo)?.workPackageStatuses
       : mergeOldDerivedStatuses(reportsUpTo.map(deriveWPStatusesFromOldReport));
-    const wpsConfig = wpReport ? GANTT_WORK_PACKAGES : WORK_PACKAGES;
+    const wpsConfig = wpReport ? scopedGanttWPs : WORK_PACKAGES;
     const merged = {};
     for (const wp of wpsConfig) {
       merged[wp.id] = {};
@@ -259,7 +246,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
       }
     }
     return merged;
-  }, [selectedReport, projectReports]);
+  }, [selectedReport, projectReports, scopedGanttWPs]);
 
   // Cumulative WP statuses as of the previous report's date — used for WP delta calculation.
   const prevMergedStatuses = useMemo(() => {
@@ -289,7 +276,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     [selectedProject]
   );
 
-  const displayWorkPackages = isWPReport(selectedReport) ? GANTT_WORK_PACKAGES : WORK_PACKAGES;
+  const displayWorkPackages = isWPReport(selectedReport) ? scopedGanttWPs : WORK_PACKAGES;
 
   const phaseClassifications = useMemo(
     () => selectedProject ? classifyPhases(displayWorkPackages, mergedStatuses, prevMergedStatuses) : [],

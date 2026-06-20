@@ -120,6 +120,34 @@ export function getWPsInOrder() {
   });
 }
 
+/**
+ * getScopedGanttWorkPackages(scope)
+ *
+ * Returns the GANTT phase/WP display structure filtered by a project scope object.
+ * scope === null/undefined → full list (backward-compatible).
+ * Produces the same shape used by WeeklyReports' mergedStatuses / classifyPhases:
+ *   { id, name, tasks: [{name, weight}], groups: [{id, name, tasks: string[]}] }
+ */
+export function getScopedGanttWorkPackages(scope = null) {
+  const phaseIds = scope?.phases ?? null;       // null = all phases
+  const wpIds    = scope?.workPackages ?? null; // null = all WPs
+  return PHASES
+    .filter(phase => !phaseIds || phaseIds.includes(phase.id))
+    .map(phase => {
+      let wps = getWPsByPhase(phase.id);
+      if (wpIds) wps = wps.filter(wp => wpIds.includes(wp.id));
+      if (wps.length === 0) return null;        // phase has no in-scope WPs → drop it
+      const taskNames = wps.map(wp => wp.label);
+      return {
+        id:     phase.id,
+        name:   phase.label,
+        tasks:  wps.map(wp => ({ name: wp.label, weight: 1 })),
+        groups: [{ id: `${phase.id}.g`, name: phase.label, tasks: taskNames }],
+      };
+    })
+    .filter(Boolean);
+}
+
 export function getWPsForTemplate(templateId) {
   if (templateId === 'standard_with_demo') return getWPsInOrder();
   if (templateId === 'standard_no_demo') {
