@@ -211,7 +211,7 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
           </div>
 
           {/* WP Phase progress bars */}
-          <PhaseProgress bars={contractor.phaseProgress} />
+          <PhaseProgress bars={contractor.phaseProgress} color={color} />
         </div>
       </div>
     </>

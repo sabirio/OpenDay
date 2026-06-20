@@ -1,18 +1,18 @@
-/** @param {{ bars: Array<{wpId?: string, name?: string, label?: string, pct: number, color: string}> }} props */
-export default function PhaseProgress({ bars }) {
+/** @param {{ bars: Array<{wpId?: string, name?: string, label?: string, pct: number}>, color?: string }} props */
+export default function PhaseProgress({ bars, color = 'var(--accent)' }) {
   if (!bars || bars.length === 0) return null;
   return (
     <div style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 10 }}>Work Package Progress</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
-        {bars.map(({ wpId, name, label, color: wpColor, pct }) => (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 28px', alignContent: 'start' }}>
+        {bars.map(({ wpId, name, label, pct }) => (
           <div key={wpId || label || name}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{name || label}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: pct > 0 ? wpColor : 'var(--border-strong)' }}>{pct}%</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: pct > 0 ? color : 'var(--border-strong)' }}>{pct}%</span>
             </div>
             <div style={{ background: 'var(--border)', borderRadius: 3, height: 5, overflow: 'hidden' }}>
-              <div style={{ width: `${pct}%`, height: '100%', background: wpColor, borderRadius: 3 }} />
+              <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3 }} />
             </div>
           </div>
         ))}

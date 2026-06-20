@@ -1,4 +1,5 @@
 import { KpiCard } from './DashboardWidgets';
+import Icon from '../shared/Icon';
 import { formatDate } from '../../utils/reportUtils';
 
 const DONUT_SEGMENTS = [
@@ -97,7 +98,9 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], p
           marginBottom: 10,
           display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
         }}>
-          <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>⚠ Monte Carlo Warning:</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--status-warn)' }}>
+            <Icon name="warning" size={14} /> Monte Carlo Warning:
+          </span>
           <span style={{ color: 'var(--status-warn)' }}>
             {analytics.mcRiskyCount} project{analytics.mcRiskyCount > 1 ? 's' : ''} have &lt;50% probability of opening on time
           </span>

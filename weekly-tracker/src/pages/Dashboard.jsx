@@ -23,6 +23,7 @@ import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { SPI_STATUS } from "../config/statusColors";
 import { getProgressSnapshot } from "../services/projectService";
 import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
+import Icon from "../components/shared/Icon";
 
 function isoWeekLabel(isoWeekStr) {
   const [yearStr, weekStr] = isoWeekStr.split('-W');
@@ -200,8 +201,8 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
                 border: '1.5px solid var(--border)', borderRadius: 9, marginBottom: 5, fontSize: 12,
                 borderLeft: `4px solid ${st.color}`,
               }}>
-                <span style={{ fontWeight: 700, color: st.color }}>
-                  {row.gantt.spiStatus === 'critical' ? '⛔' : '⚠'} {st.label}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, color: st.color }}>
+                  <Icon name={row.gantt.spiStatus === 'critical' ? 'block' : 'warning'} size={14} /> {st.label}
                 </span>
                 <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{row.project.storeCode}</span>
                 <span style={{ color: 'var(--text-muted)' }}>{row.project.shoppingMallName}</span>
@@ -212,8 +213,8 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
                 <button
                   type="button"
                   onClick={() => setDismissedAlertIds(prev => new Set([...prev, row.project.id]))}
-                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}
-                >✕</button>
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                ><Icon name="close" size={14} /></button>
               </div>
             );
           })}
@@ -228,34 +229,31 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       {/* ── KPI Cards ── */}
       <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} projects={projects} svKpis={svKpis} lastVisitDate={lastVisitDate} />
 
-      {/* ── Filters ── */}
-      <div style={{ display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center" }}>
+      {/* ── Filters + Snapshot toolbar ── */}
+      <div style={{ display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:16 }}>
         <div style={{ position:"relative" }}>
-          <span style={{ position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:"var(--text-muted)",fontSize:13 }}>🔍</span>
-          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search…" style={{ paddingLeft:32,paddingRight:12,height:36,borderRadius:9,border:"1.5px solid var(--border)",fontSize:13,color:"var(--text-primary)",background:"var(--bg-input)",outline:"none",minWidth:180 }}/>
+          <span style={{ position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:"var(--text-muted)",display:"flex" }}><Icon name="search" size={15} /></span>
+          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search…" style={{ paddingLeft:34,paddingRight:12,height:36,borderRadius:9,border:"1.5px solid var(--border)",fontSize:13,color:"var(--text-primary)",background:"var(--bg-input)",outline:"none",minWidth:180 }}/>
         </div>
         <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid var(--border)",fontSize:13,color:"var(--text-primary)",background:"var(--bg-input)",cursor:"pointer",outline:"none" }}>
           {[["all","All statuses"],["on-track","On Track"],["at-risk","At Risk"],["critical","Critical"],["no-report","No Report"],["missing","Missing/Overdue"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
-        {filtersActive&&<button type="button" onClick={clearFilters} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid var(--border)",background:"var(--status-alert-bg)",color:"var(--status-alert)",fontSize:13,fontWeight:600,cursor:"pointer" }}>Clear ×</button>}
-        <div style={{ marginLeft:"auto",fontSize:12,color:"var(--text-muted)" }}>{filteredRows.length} / {projects.length} projects</div>
-      </div>
-
-      {/* ── Snapshot week picker ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>View snapshot for week:</label>
+        {filtersActive&&<button type="button" onClick={clearFilters} style={{ display:"inline-flex",alignItems:"center",gap:5,height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid var(--border)",background:"var(--status-alert-bg)",color:"var(--status-alert)",fontSize:13,fontWeight:600,cursor:"pointer" }}>Clear <Icon name="close" size={13} /></button>}
+        <div style={{ width:1,height:24,background:"var(--border)",margin:"0 2px" }} />
+        <label style={{ fontSize:12,color:"var(--text-muted)",fontWeight:600,whiteSpace:"nowrap" }}>View snapshot for week:</label>
         <input
           type="week"
           max={currentISOWeek()}
           value={snapshotWeek || ''}
-          onChange={e => handleSnapshotWeekChange(e.target.value)}
-          style={{ height: 32, padding: '0 10px', borderRadius: 8, border: '1.5px solid var(--border)', fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-input)', outline: 'none', cursor: 'pointer' }}
+          onChange={e=>handleSnapshotWeekChange(e.target.value)}
+          style={{ height:36,padding:"0 10px",borderRadius:9,border:"1.5px solid var(--border)",fontSize:12,color:"var(--text-primary)",background:"var(--bg-input)",outline:"none",cursor:"pointer" }}
         />
-        {snapshotWeek && (
-          <button type="button" onClick={() => handleSnapshotWeekChange(null)} style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-elevated)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer' }}>
-            ✕ Live view
+        {snapshotWeek&&(
+          <button type="button" onClick={()=>handleSnapshotWeekChange(null)} style={{ display:"inline-flex",alignItems:"center",gap:5,height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid var(--border)",background:"var(--bg-elevated)",color:"var(--text-muted)",fontSize:12,cursor:"pointer" }}>
+            <Icon name="close" size={13} /> Live view
           </button>
         )}
+        <div style={{ marginLeft:"auto",fontSize:12,color:"var(--text-muted)" }}>{filteredRows.length} / {projects.length} projects</div>
       </div>
 
       {/* ── Snapshot banner ── */}
@@ -270,7 +268,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
             {snapshotLoading ? 'Loading snapshot…' : `Viewing snapshot: ${isoWeekLabel(snapshotWeek)}`}
           </span>
           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Read-only · progress values from history</span>
-          <button type="button" onClick={() => handleSnapshotWeekChange(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>✕</button>
+          <button type="button" onClick={() => handleSnapshotWeekChange(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Icon name="close" size={15} /></button>
         </div>
       )}
 
@@ -280,7 +278,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       {/* ── View tabs ── */}
       <div style={{ display:"flex",gap:3,marginBottom:16,background:"var(--accent-subtle)",borderRadius:12,padding:4,border:"1px solid var(--border)",width:"fit-content" }}>
         {VIEWS.map(({id,label})=>(
-          <button key={id} type="button" onClick={()=>setActiveView(id)} style={{ padding:"7px 18px",borderRadius:9,border:"none",background:activeView===id?"var(--accent-subtle)":"transparent",color:activeView===id?"var(--accent)":"var(--text-muted)",fontSize:13,fontWeight:activeView===id?700:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" }}>
+          <button key={id} type="button" onClick={()=>setActiveView(id)} style={{ padding:"7px 18px",borderRadius:9,border:"none",background:activeView===id?"var(--accent)":"transparent",color:activeView===id?"var(--bg-surface)":"var(--text-muted)",boxShadow:activeView===id?"var(--shadow-sm)":"none",fontSize:13,fontWeight:activeView===id?700:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" }}>
             {label}
           </button>
         ))}
