@@ -22,6 +22,7 @@ import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { SPI_STATUS } from "../config/statusColors";
 import { getProgressSnapshot } from "../services/projectService";
+import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
 
 function isoWeekLabel(isoWeekStr) {
   const [yearStr, weekStr] = isoWeekStr.split('-W');
@@ -76,8 +77,15 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
     const cumulativeStatuses = computeCumulativeStatuses(projReports)||{};
     const wpCumulativeStatuses = computeWPCumulativeStatuses(projReports)||null;
     const latestReport = sorted[sorted.length-1]||null;
+    const s = project?.scope ?? null;
+    const scopeWPIds = s
+      ? GANTT_WPS
+          .filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
+                     && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
+          .map(wp => wp.id)
+      : null;
     const progress = wpCumulativeStatuses
-      ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses)
+      ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds)
       : estimateProgressFromStatuses(cumulativeStatuses);
     const color = PROJECT_COLORS[idx%PROJECT_COLORS.length];
     const progressPoints = sorted.map((r,i)=>({ date:r.reportingDate||r.submittedAt, value:progressAtIndex(sorted,i) }));
