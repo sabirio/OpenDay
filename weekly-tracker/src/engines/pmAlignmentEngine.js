@@ -9,6 +9,7 @@ export const HAND_KEYS = Object.keys(handoverWeights || {});
 
 // ─── Shared comparison helper ─────────────────────────────────────────────────
 
+// AD-005: intentionally separate scale — uses 0–1 status-score diff, not percentage-point delta.
 function buildAlignmentItem(name, gcS, pmS, wpId = null, taskName = null) {
   if (!gcS && !pmS) return null;
 

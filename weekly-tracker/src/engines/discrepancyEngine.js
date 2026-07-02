@@ -1,13 +1,38 @@
 // Discrepancy Engine — compares contractor-reported progress vs PM site-visit observations.
 
 /**
- * Determine discrepancy status from a delta value.
- * Boundaries: < 10 → ok, 10–25 → warning, > 25 → critical
+ * Severity of a discrepancy given an absolute or signed delta (pp).
+ * Thresholds: |delta| > 25 → critical, >= 10 → warning, else ok.
  */
-function discrepancyStatus(delta) {
-  if (delta > 25) return 'critical';
-  if (delta >= 10) return 'warning';
+export function discrepancySeverity(delta) {
+  const d = Math.abs(delta ?? 0);
+  if (d > 25) return 'critical';
+  if (d >= 10) return 'warning';
   return 'ok';
+}
+
+/**
+ * Classify a PM-vs-GC comparison into match / discrepancy / pm-higher.
+ *
+ * @param {object} opts
+ * @param {number|null} opts.pmRank   — numeric rank from STATUS_RANK (optional)
+ * @param {number|null} opts.gcRank   — numeric rank from STATUS_RANK (optional)
+ * @param {number}      opts.delta    — signed delta: positive = PM ahead, negative = GC overclaiming
+ * @returns {{ type: 'match'|'discrepancy'|'pm-higher', severity: 'ok'|'warning'|'critical' }}
+ */
+export function classifyDiscrepancy({ pmRank = null, gcRank = null, delta = 0 }) {
+  const rankDiff = pmRank != null && gcRank != null ? pmRank - gcRank : null;
+  let type;
+  if (rankDiff !== null) {
+    if      (rankDiff === 0 && Math.abs(delta) <= 5) type = 'match';
+    else if (rankDiff < 0 || delta < -5)             type = 'discrepancy';
+    else                                             type = 'pm-higher';
+  } else {
+    if      (Math.abs(delta) <= 5) type = 'match';
+    else if (delta < -5)           type = 'discrepancy';
+    else                           type = 'pm-higher';
+  }
+  return { type, severity: discrepancySeverity(delta) };
 }
 
 /**
@@ -41,7 +66,7 @@ export function calculateDiscrepancy(contractorReportWPs, siteVisitWPs) {
     const contractor_progress = contractor.progress ?? 0;
     const site_visit_progress = siteVisit.progress ?? 0;
     const delta = Math.abs(contractor_progress - site_visit_progress);
-    const status = discrepancyStatus(delta);
+    const status = discrepancySeverity(delta);
 
     results.push({
       wpId,

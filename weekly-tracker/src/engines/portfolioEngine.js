@@ -6,6 +6,7 @@ import { calculateProjectProgressResult } from './progressEngine';
 import { WORK_PACKAGES } from '../config/workPackages';
 import { svCompare, getGCStatusForTask, CONSTRUCTION_ITEMS, TESTING_ITEMS, HANDOVER_ITEMS } from '../config/dashboardConstants';
 import { getWPById, getPhaseById } from '../config/masterTaskLibrary';
+import { classifyDiscrepancy } from './discrepancyEngine';
 
 const SEV_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
 
@@ -159,12 +160,7 @@ export function computeSiteVisitData(siteVisits, projects, reports) {
         const gcStatus = wp.gc_status        ?? 'not_started';
         const pmRank   = STATUS_RANK[pmStatus] ?? 0;
         const gcRank   = STATUS_RANK[gcStatus] ?? 0;
-        const rankDiff = pmRank - gcRank;
-
-        let resultType;
-        if      (rankDiff === 0 && Math.abs(delta) <= 5) resultType = 'match';
-        else if (rankDiff < 0 || delta < 0)              resultType = 'discrepancy';
-        else                                             resultType = 'pm-higher';
+        const { type: resultType } = classifyDiscrepancy({ pmRank, gcRank, delta });
 
         const wpDef    = getWPById(wp.wp_id);
         const phaseDef = getPhaseById(wp.phase_id);

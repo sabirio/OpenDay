@@ -3,6 +3,7 @@ import { getPhasesInOrder } from '../config/masterTaskLibrary';
 import { DAY_MS, isMissingReport } from '../utils/reportUtils';
 import { calculatePhaseProgress } from './progressEngine';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
+import { classifyDiscrepancy } from './discrepancyEngine';
 import { computeOpeningReadiness } from './openingReadinessEngine';
 
 const GANTT_PHASE_COLORS = [
@@ -115,21 +116,12 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
           continue;
         }
 
-        // discrepancy_delta is signed: positive = PM sees more, negative = PM sees less.
-        // ±5% tolerance prevents rounding noise from registering as a discrepancy.
-        const ds    = wp.discrepancy_status || 'ok';
         const delta = wp.discrepancy_delta ?? 0;
+        const { type } = classifyDiscrepancy({ delta });
 
-        if (delta > 5) {
-          pmAhead++;           // PM observes meaningfully more progress than GC reported
-        } else if (delta < -5) {
-          discrepancies++;     // GC is overclaiming — PM observes less
-        } else if (ds === 'warning' || ds === 'critical') {
-          // Discrepancy engine flagged a large gap via status field
-          discrepancies++;
-        } else {
-          matches++;           // Within ±5% tolerance = confirmed
-        }
+        if      (type === 'pm-higher')    pmAhead++;
+        else if (type === 'discrepancy')  discrepancies++;
+        else                              matches++;
       }
     } else if (latestVisit.pmWorkPackageStatuses) {
       // Legacy format
