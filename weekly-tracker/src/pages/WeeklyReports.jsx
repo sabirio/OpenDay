@@ -17,6 +17,7 @@ import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from "../config/masterTaskLibrary";
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
+import { deriveWPStatusesFromOldReport, mergeOldDerivedStatuses } from "../engines/legacyReportEngine";
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt, updateWPDates } from "../services/ganttService";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
@@ -47,73 +48,6 @@ class ErrorBoundary extends React.Component {
     );
     return this.props.children;
   }
-}
-
-// ─── Old-format compat helpers ────────────────────────────────────────────────
-const OLD_TO_WP_WEEKLY = {
-  "Flooring installation":                                   { wpId: "finishes",      task: "Floor finishes" },
-  "Drywall partition installation":                          { wpId: "construction",  task: "Partitions & drywall" },
-  "Electrical systems installation":                         { wpId: "mep",           task: "Electrical conduits & cabling" },
-  "HVAC systems installation":                               { wpId: "mep",           task: "HVAC ducts" },
-  "Fire safety systems installation":                        { wpId: "mep",           task: "Fire suppression pipes" },
-  "Low current systems installation":                        { wpId: "mep",           task: "Low current systems" },
-  "Ceiling installation":                                    { wpId: "construction",  task: "Ceiling structures" },
-  "Lighting installation":                                   { wpId: "finishes",      task: "Lighting fixtures" },
-  "Furniture installation":                                  { wpId: "equipment",     task: "Furniture & loose items" },
-  "Sprinkler system testing and commissioning":              { wpId: "commissioning", task: "Sprinkler testing & commissioning" },
-  "Smoke detection system testing and commissioning":        { wpId: "commissioning", task: "Fire alarm testing" },
-  "Emergency announcement system testing and commissioning": { wpId: "commissioning", task: "Integrated systems testing" },
-  "HVAC system testing and commissioning":                   { wpId: "commissioning", task: "HVAC balancing & commissioning" },
-  "Electrical system testing and commissioning":             { wpId: "commissioning", task: "Electrical testing & certification" },
-  "Low current testing and commissioning":                   { wpId: "commissioning", task: "Security & access control testing" },
-  "Staff training":                                          { wpId: "handover",      task: "Staff training" },
-  "Manuals, certificates, test reports":                     { wpId: "handover",      task: "O&M manuals" },
-  "Final cleaning":                                          { wpId: "handover",      task: "Final cleaning" },
-  "Snag list resolution":                                    { wpId: "handover",      task: "Defects & snagging resolution" },
-};
-
-function mapOldToWPStatus(s) {
-  if (!s) return null;
-  const v = String(s).toLowerCase().trim();
-  if (v === "completed" || v === "done" || v === "complete") return "Completed";
-  if (v.includes("progress") || v === "started" || v === "active") return "In Progress";
-  if (v === "delayed" || v === "blocked" || v === "behind") return "Delayed";
-  return null;
-}
-
-function deriveWPStatusesFromOldReport(report) {
-  if (!report) return {};
-  const result = {};
-  function set(wpId, taskName, rawStatus) {
-    const status = mapOldToWPStatus(rawStatus);
-    if (!status) return;
-    if (!result[wpId]) result[wpId] = {};
-    result[wpId][taskName] = { status };
-  }
-  set("demolition", "Demolition works", report.demolitionStatus);
-  for (const [oldKey, { wpId, task }] of Object.entries(OLD_TO_WP_WEEKLY)) {
-    const raw = report.constructionStatuses?.[oldKey]
-      ?? report.testingStatuses?.[oldKey]
-      ?? report.handoverStatuses?.[oldKey];
-    set(wpId, task, raw);
-  }
-  return result;
-}
-
-function mergeOldDerivedStatuses(derivedList) {
-  const result = {};
-  for (const derived of derivedList) {
-    for (const [wpId, tasks] of Object.entries(derived)) {
-      if (!result[wpId]) result[wpId] = {};
-      for (const [taskName, entry] of Object.entries(tasks)) {
-        const cur = result[wpId][taskName];
-        if (!cur || (WP_STATUS_SCORES[entry.status] ?? -1) > (WP_STATUS_SCORES[cur.status] ?? -1)) {
-          result[wpId][taskName] = entry;
-        }
-      }
-    }
-  }
-  return result;
 }
 
 // Stable labeled template for explain layer: GANTT_WPS (flat, with label+phaseId+duration_pct)
