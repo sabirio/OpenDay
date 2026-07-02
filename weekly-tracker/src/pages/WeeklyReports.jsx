@@ -18,7 +18,7 @@ import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhase
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
-import { getProjectGantt } from "../services/ganttService";
+import { getProjectGantt, updateWPDates } from "../services/ganttService";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
 import { isTemplateValid, validateTemplate, explainFromSnapshot, explainLive, taskProgressFromStatuses } from "../core/projects";
 import { constructionRetailV1 } from "../domains/construction/templates/constructionRetailV1";
@@ -365,6 +365,19 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
       .finally(() => setGanttLoading(false));
   }, [showGantt, effectiveProjectId]);
 
+  const handleWPResize = useCallback(async (wpId, { plannedStart, plannedEnd, durationDays }) => {
+    setGanttTasks(prev => prev.map(t =>
+      t.id === wpId
+        ? { ...t, earlyStart: new Date(plannedStart), earlyFinish: new Date(plannedEnd), duration_days: durationDays }
+        : t
+    ));
+    try {
+      await updateWPDates(effectiveProjectId, wpId, { plannedStart, plannedEnd, durationDays });
+    } catch (err) {
+      console.error('[GanttResize] failed to save:', err);
+    }
+  }, [effectiveProjectId]);
+
   const riskCount = (selectedReport?.risks || []).filter(Boolean).length;
 
   return (
@@ -472,12 +485,13 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
                 project={selectedProject}
                 tasks={ganttTasks}
                 keyDates={{
-                  constructionStart:      selectedProject.constructionStartDate,
-                  targetOpeningDate:      selectedProject.targetOpeningDate,
-                  forecastOpeningDate:    selectedProject.forecastOpeningDate,
-                  constructionCompletion: selectedProject.constructionCompletionDate,
+                  constructionStartDate:      selectedProject.constructionStartDate,
+                  constructionEndDate:        selectedProject.constructionEndDate,
+                  targetOpeningDate:          selectedProject.targetOpeningDate,
+                  forecastOpeningDate:        selectedProject.forecastOpeningDate,
+                  constructionCompletionDate: selectedProject.constructionCompletionDate,
                 }}
-                readOnly
+                onWPResize={handleWPResize}
               />
             )}
           </div>

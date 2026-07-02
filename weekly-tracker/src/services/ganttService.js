@@ -192,7 +192,7 @@ export async function batchUpdateWPProgress(projectId, wpUpdates) {
 export async function regenerateGantt(projectId) {
   const { data: project, error: pErr } = await supabase
     .from('projects')
-    .select('template_type, construction_start_date, target_opening_date, store_size_sqm, scope')
+    .select('template_type, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, scope')
     .eq('id', projectId)
     .single();
   if (pErr) throw pErr;
@@ -217,10 +217,11 @@ export async function regenerateGantt(projectId) {
     ? { selectedWPIds: scopeWPIds }
     : {};
 
+  const projectEndDate = project.construction_end_date || project.target_opening_date;
   const wps = buildProjectWPs(
     templateId,
     project.construction_start_date,
-    project.target_opening_date,
+    projectEndDate,
     project.store_size_sqm || 1000,
     templateOptions
   );
@@ -305,6 +306,22 @@ export async function removeWPFromScope(projectId, wpId) {
   const { error } = await supabase
     .from('project_gantt_tasks')
     .update({ is_archived: true })
+    .eq('project_id', projectId)
+    .eq('wp_id', wpId);
+  if (error) throw error;
+}
+
+// ─── Manual date override (drag resize) ──────────────────────────────────────
+
+export async function updateWPDates(projectId, wpId, { plannedStart, plannedEnd, durationDays }) {
+  const { error } = await supabase
+    .from('project_gantt_tasks')
+    .update({
+      planned_start: plannedStart,
+      planned_end:   plannedEnd,
+      duration_days: durationDays,
+      updated_at:    new Date().toISOString(),
+    })
     .eq('project_id', projectId)
     .eq('wp_id', wpId);
   if (error) throw error;

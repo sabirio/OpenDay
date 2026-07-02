@@ -342,7 +342,8 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       const payload = editingProjectId ? { ...newProject, id: editingProjectId } : newProject;
       const savedProject = await onSaveProject(payload);
 
-      if (savedProject?.id && newProject.constructionStartDate && newProject.targetOpeningDate) {
+      const projectEndDate = newProject.constructionEndDate || newProject.targetOpeningDate;
+      if (savedProject?.id && newProject.constructionStartDate && projectEndDate) {
         try {
           if (savedProject.ganttGeneratedAt) {
             // Gantt already exists — refresh planned dates without wiping actual_progress.
@@ -361,7 +362,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
               savedProject.id,
               templateId,
               newProject.constructionStartDate,
-              newProject.targetOpeningDate,
+              projectEndDate,
               parseFloat(newProject.storeSizeSqm) || 1000,
               tOptions,
             );

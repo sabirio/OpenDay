@@ -60,19 +60,22 @@ export function calculateLayout(
 
   const discMap = Object.fromEntries((discrepancies || []).map(d => [d.wpId, d]));
 
-  // ── Timeline bounds ──────────────────────────────────────────────────────
-  const allDates = ganttResult.flatMap(w => [w.earlyStart, w.earlyFinish]);
-  if (keyDates.targetOpeningDate) allDates.push(new Date(keyDates.targetOpeningDate));
-  if (keyDates.constructionCompletionDate) allDates.push(new Date(keyDates.constructionCompletionDate));
-  if (keyDates.forecastOpeningDate) allDates.push(new Date(keyDates.forecastOpeningDate));
-
-  const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-  const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-
-  // Pad timeline a bit
-  const timelineStart = addDays(minDate, -2);
-  const timelineEnd   = addDays(maxDate, 5);
-  const totalDays     = diffDays(timelineStart, timelineEnd);
+  // ── Timeline bounds ── anchor to construction dates when provided ────────
+  let timelineStart, timelineEnd;
+  if (keyDates.constructionStartDate && keyDates.constructionEndDate) {
+    timelineStart = addDays(new Date(keyDates.constructionStartDate), -2);
+    timelineEnd   = addDays(new Date(keyDates.constructionEndDate),    5);
+  } else {
+    const allDates = ganttResult.flatMap(w => [w.earlyStart, w.earlyFinish]);
+    if (keyDates.targetOpeningDate)          allDates.push(new Date(keyDates.targetOpeningDate));
+    if (keyDates.constructionCompletionDate) allDates.push(new Date(keyDates.constructionCompletionDate));
+    if (keyDates.forecastOpeningDate)        allDates.push(new Date(keyDates.forecastOpeningDate));
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+    timelineStart = addDays(minDate, -2);
+    timelineEnd   = addDays(maxDate, 5);
+  }
+  const totalDays = diffDays(timelineStart, timelineEnd);
 
   const chartWidth = Math.max(MIN_PIXELS, containerWidth);
   const pixelsPerDay = chartWidth / totalDays;

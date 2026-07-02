@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { calculateLayout } from '../engines/ganttLayout.js';
 
+function addDaysLocal(date, days) {
+  const d = new Date(date instanceof Date ? date.getTime() : date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LEFT_W      = 280;
@@ -235,7 +241,7 @@ function Legend() {
 
 // ─── SVG bar per WP ───────────────────────────────────────────────────────────
 
-function WPBar({ task, isSelected, onClick }) {
+function WPBar({ task, isSelected, onClick, onDragStart }) {
   const { x, barY, width, barHeight, isCritical, isBlocker,
           status, actual_progress, discrepancy } = task;
 
@@ -369,6 +375,26 @@ function WPBar({ task, isSelected, onClick }) {
           stroke={C.red} strokeWidth={1.5} strokeDasharray="4,2" opacity={0.7}
         />
       )}
+
+      {/* Resize handles — left and right edges */}
+      {onDragStart && width > 16 && (
+        <>
+          <rect
+            x={x} y={barY + 2} width={6} height={barHeight - 4} rx={2}
+            fill="rgba(255,255,255,0.45)"
+            style={{ cursor: 'ew-resize' }}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDragStart(e, 'left'); }}
+          />
+          <rect
+            x={x + Math.max(2, width) - 6} y={barY + 2} width={6} height={barHeight - 4} rx={2}
+            fill="rgba(255,255,255,0.45)"
+            style={{ cursor: 'ew-resize' }}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDragStart(e, 'right'); }}
+          />
+        </>
+      )}
     </g>
   );
 }
@@ -418,6 +444,7 @@ export default function GanttChart({
   keyDates = {},
   discrepancies = [],
   onWPClick,
+  onWPResize,
   defaultZoom = 'month',
   readOnly = false,
 }) {
@@ -430,6 +457,9 @@ export default function GanttChart({
   const [collapseState, setCollapseState] = useState({});
   const [selectedTask, setSelectedTask]  = useState(null);
   const [containerW,   setContainerW]    = useState(900);
+  const [dragState,    setDragState]     = useState(null);
+  const [dragVisual,   setDragVisualSt]  = useState(null);
+  const dragVisualRef  = useRef(null);
 
   const containerRef = useRef(null);
   const rightRef     = useRef(null);
@@ -444,12 +474,18 @@ export default function GanttChart({
     return () => obs.disconnect();
   }, []);
 
-  // Build layout
+  // Build layout — merge project construction dates into keyDates for boundary anchoring
   const layout = useMemo(() => {
     if (layoutProp) return layoutProp;
     if (!tasks.length) return null;
-    return calculateLayout(tasks, zoom, containerW, keyDates, discrepancies, collapseState);
-  }, [layoutProp, tasks, zoom, containerW, keyDates, discrepancies, collapseState]);
+    const enrichedKeyDates = {
+      ...keyDates,
+      constructionStartDate: project?.constructionStartDate ?? keyDates?.constructionStartDate,
+      constructionEndDate:   project?.constructionEndDate   ?? keyDates?.constructionEndDate,
+    };
+    return calculateLayout(tasks, zoom, containerW, enrichedKeyDates, discrepancies, collapseState);
+  }, [layoutProp, tasks, zoom, containerW, keyDates, discrepancies, collapseState,
+      project?.constructionStartDate, project?.constructionEndDate]);
 
   // Scroll to today on mount / zoom change
   useEffect(() => {
@@ -482,6 +518,61 @@ export default function GanttChart({
     setSelectedTask(prev => prev?.id === task.id ? null : task);
     onWPClick?.(task.id);
   }, [onWPClick]);
+
+  const startDrag = useCallback((e, task, handle) => {
+    setDragState({
+      wpId:            task.id,
+      handle,
+      startClientX:    e.clientX,
+      origEarlyStart:  task.earlyStart instanceof Date ? task.earlyStart : new Date(task.earlyStart),
+      origEarlyFinish: task.earlyFinish instanceof Date ? task.earlyFinish : new Date(task.earlyFinish),
+    });
+  }, []);
+
+  // Mouse drag effect — resize WP bars
+  useEffect(() => {
+    if (!dragState || !layout) return;
+    const { pixelsPerDay } = layout;
+
+    const onMove = (e) => {
+      const dxDays = Math.round((e.clientX - dragState.startClientX) / pixelsPerDay);
+      let newStart = new Date(dragState.origEarlyStart.getTime());
+      let newEnd   = new Date(dragState.origEarlyFinish.getTime());
+
+      if (dragState.handle === 'right') {
+        newEnd = addDaysLocal(dragState.origEarlyFinish, dxDays);
+        if (newEnd <= newStart) newEnd = addDaysLocal(newStart, 1);
+      } else {
+        newStart = addDaysLocal(dragState.origEarlyStart, dxDays);
+        if (newStart >= newEnd) newStart = addDaysLocal(newEnd, -1);
+      }
+      const durationDays = Math.max(1, Math.round((newEnd - newStart) / 86400000));
+      const v = { wpId: dragState.wpId, earlyStart: newStart, earlyFinish: newEnd, durationDays };
+      dragVisualRef.current = v;
+      setDragVisualSt(v);
+    };
+
+    const onUp = () => {
+      const v = dragVisualRef.current;
+      if (v && onWPResize) {
+        onWPResize(dragState.wpId, {
+          plannedStart: v.earlyStart.toISOString().split('T')[0],
+          plannedEnd:   v.earlyFinish.toISOString().split('T')[0],
+          durationDays: v.durationDays,
+        });
+      }
+      dragVisualRef.current = null;
+      setDragState(null);
+      setDragVisualSt(null);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    };
+  }, [dragState, layout, onWPResize]);
 
   // ── Empty / loading ──────────────────────────────────────────────────────────
   if (!tasks.length) {
@@ -736,15 +827,37 @@ export default function GanttChart({
             {/* Arrows (below bars) */}
             {arrowEls}
 
+            {/* Drag overlay — keeps ew-resize cursor when mouse leaves bar */}
+            {dragState && (
+              <rect x={0} y={0} width={chartWidth} height={totalHeight}
+                fill="transparent" style={{ cursor: 'ew-resize' }} />
+            )}
+
             {/* WP bars */}
-            {layoutTasks.map(t => (
-              <WPBar
-                key={t.id}
-                task={t}
-                isSelected={selectedTask?.id === t.id}
-                onClick={() => !readOnly && handleBarClick(t)}
-              />
-            ))}
+            {layoutTasks.map(t => {
+              let displayTask = t;
+              if (dragVisual?.wpId === t.id) {
+                const { pixelsPerDay: ppd, timelineStart: tls } = layout;
+                const dStart = Math.round((dragVisual.earlyStart - new Date(tls)) / 86400000);
+                displayTask = {
+                  ...t,
+                  x:            dStart * ppd,
+                  width:        Math.max(2, dragVisual.durationDays * ppd),
+                  earlyStart:   dragVisual.earlyStart,
+                  earlyFinish:  dragVisual.earlyFinish,
+                  duration_days: dragVisual.durationDays,
+                };
+              }
+              return (
+                <WPBar
+                  key={t.id}
+                  task={displayTask}
+                  isSelected={selectedTask?.id === t.id}
+                  onClick={() => !readOnly && !dragState && handleBarClick(t)}
+                  onDragStart={(!readOnly && onWPResize) ? (e, handle) => startDrag(e, t, handle) : null}
+                />
+              );
+            })}
 
             {/* Key date lines (on top) */}
             {keyDateLines.map((kd, i) => (
