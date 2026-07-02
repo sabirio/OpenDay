@@ -192,7 +192,7 @@ export async function batchUpdateWPProgress(projectId, wpUpdates) {
 export async function regenerateGantt(projectId) {
   const { data: project, error: pErr } = await supabase
     .from('projects')
-    .select('template_type, construction_start_date, target_opening_date, store_size_sqm')
+    .select('template_type, construction_start_date, target_opening_date, store_size_sqm, scope')
     .eq('id', projectId)
     .single();
   if (pErr) throw pErr;
@@ -208,12 +208,21 @@ export async function regenerateGantt(projectId) {
     }])
   );
 
-  // Rebuild gantt
+  // Rebuild gantt — respect the project's scope (WP selection from scope configurator).
+  const scopeWPIds = project.scope?.workPackages;
+  const templateId = scopeWPIds?.length > 0
+    ? 'custom'
+    : project.template_type || 'standard_with_demo';
+  const templateOptions = scopeWPIds?.length > 0
+    ? { selectedWPIds: scopeWPIds }
+    : {};
+
   const wps = buildProjectWPs(
-    project.template_type || 'standard_with_demo',
+    templateId,
     project.construction_start_date,
     project.target_opening_date,
-    project.store_size_sqm || 1000
+    project.store_size_sqm || 1000,
+    templateOptions
   );
   const ganttResult = calculateGantt(wps, DEPENDENCY_RULES, project.construction_start_date);
   const { constructionCompletionDate, projectedOpeningDate } = calculateKeyDates(ganttResult);

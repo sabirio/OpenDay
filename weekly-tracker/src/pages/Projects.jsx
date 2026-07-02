@@ -349,12 +349,17 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
             await regenerateGantt(savedProject.id);
           } else {
             // First-time generation — tasks start at 0 (correct for new projects).
-            const tOptions = newProject.templateType === 'custom'
-              ? { selectedPhases: newProject.phases }
+            // Scope configurator stores selected WPs in scope.workPackages; use those when present.
+            const scopeWPIds = newProject.scope?.workPackages;
+            const templateId = scopeWPIds?.length > 0
+              ? 'custom'
+              : newProject.templateType || 'standard_with_demo';
+            const tOptions = scopeWPIds?.length > 0
+              ? { selectedWPIds: scopeWPIds }
               : {};
             await generateAndSaveGantt(
               savedProject.id,
-              newProject.templateType || 'standard_with_demo',
+              templateId,
               newProject.constructionStartDate,
               newProject.targetOpeningDate,
               parseFloat(newProject.storeSizeSqm) || 1000,
