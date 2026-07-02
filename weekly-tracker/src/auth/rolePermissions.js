@@ -21,22 +21,23 @@ export const ADMIN_ONLY_RESOURCES = ['admin_users'];
 
 // Where each role lands after a successful login
 export const ROLE_REDIRECTS = {
-  Admin: '/',
-  PM: '/',
+  Admin:      '/home',
+  PM:         '/home',
   Contractor: '/contractor-select',
-  Viewer: '/',
+  Viewer:     '/home',
 };
 
 // Sidebar nav items with their required resource permission
 export const NAV_ITEMS = [
-  { to: '/',                  label: 'Dashboard',      resource: 'dashboard' },
-  { to: '/projects',          label: 'Projects',       resource: 'projects' },
-  { to: '/weekly-reports',    label: 'Weekly Reports', resource: 'weekly_reports' },
-  { to: '/site-visit-select', label: 'Site Visit',     resource: 'site_visit' },
-  { to: '/risk',              label: 'Risk Dashboard', resource: 'risk_engine' },
-  { to: '/weight-audit',           label: 'Weight Audit',     resource: 'weight_audit' },
-  { to: '/admin/users',            label: 'Users',            resource: 'admin_users' },
-  { to: '/admin/template-editor', label: 'Template Editor',  resource: 'admin_users' },
+  { to: '/home',               label: 'Home',             resource: 'dashboard'      },
+  { to: '/',                   label: 'Dashboard',        resource: 'dashboard'      },
+  { to: '/projects',           label: 'Projects',         resource: 'projects'       },
+  { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
+  { to: '/site-visit-select',  label: 'Site Visit',       resource: 'site_visit'     },
+  { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine'    },
+  { to: '/weight-audit',       label: 'Weight Audit',     resource: 'weight_audit'   },
+  { to: '/admin/users',        label: 'Users',            resource: 'admin_users'    },
+  { to: '/admin/template-editor', label: 'Template Editor', resource: 'admin_users' },
 ];
 
 // Role badge colours shown in the Sidebar

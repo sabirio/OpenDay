@@ -2,6 +2,7 @@ import { useState, useEffect, Component } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Dashboard from "./pages/Dashboard";
+import Home from "./pages/Home";
 import Projects from "./pages/Projects";
 import WeeklyReports from "./pages/WeeklyReports";
 import ContractorReport from "./pages/ContractorReport";
@@ -247,6 +248,14 @@ function App() {
                     element={
                       <ProtectedRoute resource="dashboard">
                         <Dashboard projects={projects} reports={reports} siteVisits={siteVisits} />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/home"
+                    element={
+                      <ProtectedRoute resource="dashboard">
+                        <Home projects={projects} reports={reports} siteVisits={siteVisits} />
                       </ProtectedRoute>
                     }
                   />
