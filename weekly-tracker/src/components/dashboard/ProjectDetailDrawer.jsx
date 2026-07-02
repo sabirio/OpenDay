@@ -85,13 +85,23 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
                 title="Copy contractor report link">
                 Copy link
               </button>
-              {onRegenerateGantt && (
-                <button type="button" onClick={handleRegenGantt} disabled={regenerating}
-                  style={{ padding: '5px 11px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: regenerating ? 'var(--text-muted)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, cursor: regenerating ? 'not-allowed' : 'pointer' }}
-                  title="Refresh Gantt planned dates without wiping progress">
-                  {regenerating ? 'Updating…' : 'Regen Gantt'}
-                </button>
-              )}
+              {onRegenerateGantt && (() => {
+                const stale = row?.gantt?.isStale;
+                return (
+                  <button type="button" onClick={handleRegenGantt} disabled={regenerating}
+                    style={{
+                      padding: '5px 11px', borderRadius: 8,
+                      border: `1px solid ${stale ? '#f59e0b' : 'var(--border)'}`,
+                      background: 'transparent',
+                      color: regenerating ? 'var(--text-muted)' : stale ? '#f59e0b' : 'var(--text-secondary)',
+                      fontSize: 11, fontWeight: 600,
+                      cursor: regenerating ? 'not-allowed' : 'pointer',
+                    }}
+                    title={stale ? 'Gantt outdated — built by older engine. Click to regenerate.' : 'Refresh Gantt planned dates without wiping progress'}>
+                    {regenerating ? 'Updating…' : stale ? 'Regen Gantt · outdated' : 'Regen Gantt'}
+                  </button>
+                );
+              })()}
               <button type="button" onClick={onClose}
                 style={{ padding: '5px 13px', borderRadius: 8, border: 'none', background: 'var(--border)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                 Close ×

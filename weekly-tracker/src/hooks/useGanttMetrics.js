@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { loadAllGanttMetrics } from '../services/ganttService';
+import { isGanttStale } from '../engines/ganttEngine';
 
 /**
  * Loads Gantt SPI metrics for a list of projects.
@@ -17,7 +18,14 @@ export function useGanttMetrics(projects, enabled = true) {
     if (!projects || projects.length === 0) return;
     if (ganttMetrics.size > 0) return;
     loadAllGanttMetrics(projects.map(p => p.id))
-      .then(setGanttMetrics)
+      .then(metricsMap => {
+        const enriched = new Map();
+        for (const [pid, metrics] of metricsMap) {
+          const project = projects.find(p => p.id === pid);
+          enriched.set(pid, { ...metrics, isStale: isGanttStale(project) });
+        }
+        setGanttMetrics(enriched);
+      })
       .catch(err => console.warn('[useGanttMetrics] failed:', err));
   }, [projects, enabled]);
 

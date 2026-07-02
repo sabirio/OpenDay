@@ -3,6 +3,16 @@ import { WORK_PACKAGES, PHASES, getPhaseById, getWPById } from '../config/master
 import { filterRulesForWPs } from '../config/dependencyRules.js';
 import { resolveTemplateWPs } from '../config/projectTemplates.js';
 
+// Increment whenever the engine produces structurally different planned dates.
+// Any saved Gantt with a different (or null) version is considered stale.
+export const GANTT_ENGINE_VERSION = 2;
+
+// True when project has a Gantt but it was built by an older engine version.
+export function isGanttStale(project) {
+  if (!project?.ganttGeneratedAt) return false;
+  return (project.ganttEngineVersion ?? null) !== GANTT_ENGINE_VERSION;
+}
+
 // ─── Date utilities ───────────────────────────────────────────────────────────
 
 function addDays(date, days) {

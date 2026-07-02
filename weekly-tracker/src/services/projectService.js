@@ -61,6 +61,7 @@ function fromDB(row) {
     templateType:               row.template_type                || null,
     storeSizeSqm:               row.store_size_sqm               || null,
     ganttGeneratedAt:           row.gantt_generated_at           || null,
+    ganttEngineVersion:         row.gantt_engine_version         ?? null,
     constructionCompletionDate: row.construction_completion_date || null,
     forecastOpeningDate:        row.forecast_opening_date        || null,
   };
@@ -198,15 +199,22 @@ export async function remove(id) {
  * Called exclusively by ganttService after Gantt calculation.
  * Updates computed date fields only — never called from UI directly.
  */
-export async function updateGanttDates(id, { templateType, ganttGeneratedAt, constructionCompletionDate, forecastOpeningDate }) {
-  const { error } = await supabase
-    .from('projects')
-    .update({
-      template_type:                templateType               || null,
-      gantt_generated_at:           ganttGeneratedAt           || null,
-      construction_completion_date: constructionCompletionDate || null,
-      forecast_opening_date:        forecastOpeningDate        || null,
-    })
-    .eq('id', id);
+export async function updateGanttDates(id, {
+  templateType,
+  ganttGeneratedAt,
+  ganttEngineVersion,
+  constructionCompletionDate,
+  forecastOpeningDate,
+} = {}) {
+  // Only include fields that were explicitly passed — avoids nullifying unrelated columns.
+  const patch = {};
+  if (templateType               !== undefined) patch.template_type                = templateType               || null;
+  if (ganttGeneratedAt           !== undefined) patch.gantt_generated_at           = ganttGeneratedAt           || null;
+  if (ganttEngineVersion         !== undefined) patch.gantt_engine_version         = ganttEngineVersion         ?? null;
+  if (constructionCompletionDate !== undefined) patch.construction_completion_date = constructionCompletionDate || null;
+  if (forecastOpeningDate        !== undefined) patch.forecast_opening_date        = forecastOpeningDate        || null;
+
+  if (Object.keys(patch).length === 0) return;
+  const { error } = await supabase.from('projects').update(patch).eq('id', id);
   if (error) throw error;
 }

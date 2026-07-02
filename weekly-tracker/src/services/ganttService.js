@@ -7,6 +7,7 @@ import {
   checkFeasibility,
   calculateKeyDates,
   calculateForecastOpening,
+  GANTT_ENGINE_VERSION,
 } from '../engines/ganttEngine';
 import { DEPENDENCY_RULES } from '../config/dependencyRules';
 import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth } from '../engines/spiEngine';
@@ -62,6 +63,7 @@ export async function generateAndSaveGantt(
   await updateGanttDates(projectId, {
     templateType:               templateId,
     ganttGeneratedAt:           new Date().toISOString(),
+    ganttEngineVersion:         GANTT_ENGINE_VERSION,
     constructionCompletionDate: constructionCompletionDate?.toISOString().split('T')[0] || null,
     forecastOpeningDate:        projectedOpeningDate?.toISOString().split('T')[0] || null,
   });
@@ -248,6 +250,7 @@ export async function regenerateGantt(projectId) {
   await updateGanttDates(projectId, {
     constructionCompletionDate: constructionCompletionDate?.toISOString().split('T')[0] || null,
     ganttGeneratedAt:           new Date().toISOString(),
+    ganttEngineVersion:         GANTT_ENGINE_VERSION,
   });
 
   return ganttResult;
