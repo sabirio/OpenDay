@@ -47,6 +47,28 @@ async function logout() {
   await supabase.auth.signOut();
 }
 
+// Sends a password-reset email. Always returns { success: true } — never reveals
+// whether the email is registered (prevents user-enumeration attacks).
+async function requestPasswordReset(email) {
+  const redirectTo = typeof window !== 'undefined'
+    ? `${window.location.origin}/reset-password`
+    : '/reset-password';
+  try {
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  } catch (_) {
+    // intentionally suppressed — see comment above
+  }
+  return { success: true };
+}
+
+// Updates the authenticated user's password (called from /reset-password page after
+// the PASSWORD_RECOVERY session is established via the email link).
+async function updatePassword(password) {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 // Restores session from Supabase's own storage on page load
 async function getSession() {
   try {
@@ -68,4 +90,4 @@ async function getSession() {
 // Supabase exposes the raw client for onAuthStateChange in AuthContext
 export { supabase as supabaseClient };
 
-export const authService = { login, logout, getSession };
+export const authService = { login, logout, getSession, requestPasswordReset, updatePassword };

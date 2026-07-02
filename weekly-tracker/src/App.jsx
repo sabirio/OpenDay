@@ -12,6 +12,7 @@ import AdminUsers from "./pages/AdminUsers";
 import TemplateEditor from "./pages/TemplateEditor";
 import WeightAudit from "./pages/WeightAudit";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import Unauthorized from "./pages/Unauthorized";
 import ContractorSelect from "./pages/ContractorSelect";
 import SiteVisitSelect from "./pages/SiteVisitSelect";
@@ -196,6 +197,8 @@ function App() {
             </PublicOnlyRoute>
           }
         />
+
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/unauthorized" element={<Unauthorized />} />
 

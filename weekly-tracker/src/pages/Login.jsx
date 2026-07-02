@@ -1,18 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { authService } from '../auth/authService';
 import { getDefaultRoute } from '../engines/permissionEngine';
-
-const DEMO_CREDENTIALS = [
-  { role: 'Admin',      email: 'admin@construction.com', password: 'Admin' },
-  { role: 'PM',         email: 'pm@construction.com',    password: 'Pm'    },
-  { role: 'Contractor', email: 'gc@construction.com',    password: 'Gc'    },
-];
 
 function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const [stage, setStage]       = useState('login'); // 'login' | 'forgot' | 'sent'
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
@@ -36,14 +32,30 @@ function Login() {
       return;
     }
 
-    // Always use role-based default — avoids sending Contractor to a page they can't access
     navigate(getDefaultRoute(result.user.role), { replace: true });
   }
 
-  function fillDemo(cred) {
-    setEmail(cred.email);
-    setPassword(cred.password);
+  async function handleForgot(e) {
+    e.preventDefault();
+    if (!email) {
+      setError('Enter your email address first.');
+      return;
+    }
     setError('');
+    setLoading(true);
+    await authService.requestPasswordReset(email.trim());
+    setLoading(false);
+    setStage('sent');
+  }
+
+  function goToForgot() {
+    setError('');
+    setStage('forgot');
+  }
+
+  function goToLogin() {
+    setError('');
+    setStage('login');
   }
 
   return (
@@ -58,95 +70,131 @@ function Login() {
             </svg>
           </div>
           <h1 className="login-title">OpenDay</h1>
-          <p className="login-subtitle">Sign in to your account</p>
+          <p className="login-subtitle">
+            {stage === 'forgot' || stage === 'sent'
+              ? 'Reset your password'
+              : 'Sign in to your account'}
+          </p>
         </div>
 
-        {/* Form */}
-        <form className="login-form" onSubmit={handleSubmit} noValidate>
-          {error && (
-            <div className="login-error" role="alert">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="var(--status-alert)" strokeWidth="1.5" />
-                <path d="M8 5v4M8 11v.5" stroke="var(--status-alert)" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-              {error}
-            </div>
-          )}
+        {/* ── Sign-in form ─────────────────────────────────── */}
+        {stage === 'login' && (
+          <form className="login-form" onSubmit={handleSubmit} noValidate>
+            {error && (
+              <div className="login-error" role="alert">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="7" stroke="var(--status-alert)" strokeWidth="1.5" />
+                  <path d="M8 5v4M8 11v.5" stroke="var(--status-alert)" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                {error}
+              </div>
+            )}
 
-          <div className="login-field">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div className="login-field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div className="login-row">
-            <label className="login-checkbox">
+            <div className="login-field">
+              <label htmlFor="email">Email</label>
               <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
               />
-              <span>Remember me</span>
-            </label>
-            <button
-              type="button"
-              className="login-link"
-              onClick={() => alert('Password reset is not configured yet.\nContact your administrator.')}
-            >
-              Forgot password?
+            </div>
+
+            <div className="login-field">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="login-row">
+              <label className="login-checkbox">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  disabled={loading}
+                />
+                <span>Remember me</span>
+              </label>
+              <button type="button" className="login-link" onClick={goToForgot}>
+                Forgot password?
+              </button>
+            </div>
+
+            <button className="login-btn" type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="login-spinner" />
+                  Signing in…
+                </>
+              ) : (
+                'Sign in'
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* ── Forgot-password form ─────────────────────────── */}
+        {stage === 'forgot' && (
+          <form className="login-form" onSubmit={handleForgot} noValidate>
+            {error && (
+              <div className="login-error" role="alert">
+                {error}
+              </div>
+            )}
+            <p className="login-hint">
+              Enter your email and we'll send a reset link if an account exists.
+            </p>
+            <div className="login-field">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <button className="login-btn" type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="login-spinner" />
+                  Sending…
+                </>
+              ) : (
+                'Send reset link'
+              )}
+            </button>
+            <button type="button" className="login-link" onClick={goToLogin}>
+              ← Back to sign in
+            </button>
+          </form>
+        )}
+
+        {/* ── Sent confirmation ─────────────────────────────── */}
+        {stage === 'sent' && (
+          <div className="login-form">
+            <div className="login-info">
+              If that email is registered, a reset link has been sent. Check your inbox
+              (and spam folder).
+            </div>
+            <button type="button" className="login-link" onClick={goToLogin}>
+              ← Back to sign in
             </button>
           </div>
-
-          <button className="login-btn" type="submit" disabled={loading}>
-            {loading ? (
-              <>
-                <span className="login-spinner" />
-                Signing in…
-              </>
-            ) : (
-              'Sign in'
-            )}
-          </button>
-        </form>
-
-        {/* Demo credentials */}
-        <div className="login-demo">
-          <p className="login-demo-title">Demo accounts</p>
-          <div className="login-demo-grid">
-            {DEMO_CREDENTIALS.map((c) => (
-              <button
-                key={c.role}
-                type="button"
-                className="login-demo-btn"
-                onClick={() => fillDemo(c)}
-                disabled={loading}
-              >
-                {c.role}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
         <p className="login-footer">by Sabir Khairullin</p>
       </div>

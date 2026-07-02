@@ -2,26 +2,13 @@ import { test, expect } from '@playwright/test';
 import { CREDENTIALS, login, logout } from './helpers.js';
 
 test.describe('Login page', () => {
-  test('loads with email/password fields and demo buttons', async ({ page }) => {
+  test('loads with email/password fields', async ({ page }) => {
     await page.goto('/login');
 
-    await expect(page.locator('h1')).toContainText('Construction PM Portal');
+    await expect(page.locator('h1')).toContainText('OpenDay');
     await expect(page.locator('#email')).toBeVisible();
     await expect(page.locator('#password')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toContainText('Sign in');
-
-    // Three demo account buttons
-    for (const label of ['Admin', 'PM', 'Contractor']) {
-      await expect(page.locator(`.login-demo-btn`, { hasText: label })).toBeVisible();
-    }
-  });
-
-  test('demo buttons pre-fill credentials', async ({ page }) => {
-    await page.goto('/login');
-
-    await page.locator('.login-demo-btn', { hasText: 'PM' }).click();
-    await expect(page.locator('#email')).toHaveValue(CREDENTIALS.pm.email);
-    await expect(page.locator('#password')).toHaveValue(CREDENTIALS.pm.password);
   });
 
   test('shows error on blank submit', async ({ page }) => {
@@ -102,6 +89,6 @@ test.describe('Logout', () => {
     await logout(page);
 
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.locator('h1')).toContainText('Construction PM Portal');
+    await expect(page.locator('h1')).toContainText('OpenDay');
   });
 });
