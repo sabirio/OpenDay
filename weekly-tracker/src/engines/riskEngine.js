@@ -1,5 +1,6 @@
 import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore, DAY_MS, daysSince, daysUntil, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
 import { calculateProjectProgressResult } from "./progressEngine";
+import { computeExpectedPct } from "../utils/scheduleUtils";
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER } from "../config/riskConfig";
 import { RISK_WEIGHTS } from "../config/riskWeights";
@@ -65,7 +66,7 @@ export function computeScheduleDeviation(project, progress) {
   if (!start || !end || end <= start) return null;
   const totalDays   = Math.ceil((end - start) / DAY_MS);
   const elapsedDays = Math.max(0, Math.ceil((now - start) / DAY_MS));
-  const expectedPct = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+  const expectedPct = computeExpectedPct(project, now);
   const deviationPct = Math.max(0, expectedPct - progress);
   const predictedDelayDays = deviationPct > 0 && progress < 100
     ? Math.round((deviationPct / 100) * totalDays) : 0;
@@ -120,7 +121,7 @@ function computeNoReportsRisk(project) {
   if (start && schedEnd && schedEnd > start) {
     const totalDays   = Math.ceil((schedEnd - start) / DAY_MS);
     const elapsedDays = Math.max(0, Math.ceil((now - start) / DAY_MS));
-    const expectedPct = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+    const expectedPct = computeExpectedPct(project, now);
 
     // Absence of data grows riskier as more time passes without updates
     if (expectedPct > 75) {
@@ -181,15 +182,14 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
   const factors = [];
 
   // 1. Schedule deviation — configurable thresholds (deviation % → pts)
-  const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;
-  const end   = project.constructionEndDate   ? new Date(project.constructionEndDate)
-              : project.targetOpeningDate     ? new Date(project.targetOpeningDate) : null;
-  if (start && end && end > start && now > start) {
-    const expectedPct = Math.round((Math.min(end - start, Math.max(0, now - start)) / (end - start)) * 100);
-    const deviation   = Math.max(0, expectedPct - progress);
-    const pts = RISK_WEIGHTS.scheduleDeviation.find(t => deviation > t.above)?.pts ?? 0;
-    score += pts;
-    if (pts > 0) factors.push({ name: "Schedule deviation", value: `${deviation}% behind expected`, pts });
+  {
+    const expectedPct = computeExpectedPct(project, now);
+    if (expectedPct !== null) {
+      const deviation   = Math.max(0, expectedPct - progress);
+      const pts = RISK_WEIGHTS.scheduleDeviation.find(t => deviation > t.above)?.pts ?? 0;
+      score += pts;
+      if (pts > 0) factors.push({ name: "Schedule deviation", value: `${deviation}% behind expected`, pts });
+    }
   }
 
   // 2. Reported risk scale
@@ -239,19 +239,12 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
   // Computed inline to avoid circular import with evmEngine.
   // Skipped for completed projects — SPI < 1 is expected as work winds down.
   if (progress < 100) {
-    const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;
-    const end   = project.constructionEndDate   ? new Date(project.constructionEndDate)
-                : project.targetOpeningDate     ? new Date(project.targetOpeningDate) : null;
-    if (start && end && end > start) {
-      const totalDays   = Math.ceil((end - start) / DAY_MS);
-      const elapsedDays = Math.max(0, Math.ceil((now - start) / DAY_MS));
-      const pv = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
-      if (pv > 0) {
-        const spi = progress / pv;
-        if (spi < 0.85) {
-          score += RISK_WEIGHTS.evmSpi;
-          factors.push({ name: "EVM SPI critical", value: `SPI ${Math.round(spi * 100) / 100}`, pts: RISK_WEIGHTS.evmSpi });
-        }
+    const pv = computeExpectedPct(project, now);
+    if (pv !== null && pv > 0) {
+      const spi = progress / pv;
+      if (spi < 0.85) {
+        score += RISK_WEIGHTS.evmSpi;
+        factors.push({ name: "EVM SPI critical", value: `SPI ${Math.round(spi * 100) / 100}`, pts: RISK_WEIGHTS.evmSpi });
       }
     }
   }

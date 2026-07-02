@@ -3,16 +3,10 @@
 import { computeScheduleDeviation } from './riskEngine';
 import { DAY_MS } from '../utils/reportUtils';
 import { progressAtIndex } from './progressEngine';
+import { computeExpectedPct } from '../utils/scheduleUtils';
 
 function pvAtDate(project, date) {
-  const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;
-  const end   = project.constructionEndDate
-    ? new Date(project.constructionEndDate)
-    : project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
-  if (!start || !end || end <= start) return 0;
-  const totalDays   = Math.ceil((end - start) / DAY_MS);
-  const elapsedDays = Math.max(0, Math.ceil((date - start) / DAY_MS));
-  return Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+  return computeExpectedPct(project, date) ?? 0;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
