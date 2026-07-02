@@ -10,7 +10,7 @@
  *   Only project-scoped insights with a matching projectId are affected.
  *
  * @param {import('../insight.js').Insight[]} insights
- * @param {Record<string, {level:'HIGH'|'MEDIUM'|'LOW', label:string}>} confidenceByProjectId
+ * @param {Record<string, {level:'HIGH'|'MEDIUM'|'LOW', label:string, pts:number, maxPts:number, breakdown:Array}>} confidenceByProjectId
  * @returns {import('../insight.js').Insight[]}
  */
 export function applyConfidence(insights, confidenceByProjectId) {
@@ -28,9 +28,12 @@ export function applyConfidence(insights, confidenceByProjectId) {
       return {
         ...ins,
         confidence: {
-          level:  conf.level,
-          label:  conf.label,
-          reason: 'Indicative only — data coverage is partial',
+          level:     conf.level,
+          label:     conf.label,
+          reason:    'Indicative only — data coverage is partial',
+          pts:       conf.pts,
+          maxPts:    conf.maxPts,
+          breakdown: conf.breakdown,
         },
       };
     }
@@ -43,9 +46,12 @@ export function applyConfidence(insights, confidenceByProjectId) {
       severity:      stepDownSeverity(ins.severity),
       priorityScore: ins.priorityScore + 0.5,
       confidence: {
-        level:  conf.level,
-        label:  conf.label,
-        reason: 'Severity dampened — insufficient submission history',
+        level:     conf.level,
+        label:     conf.label,
+        reason:    'Severity dampened — insufficient submission history',
+        pts:       conf.pts,
+        maxPts:    conf.maxPts,
+        breakdown: conf.breakdown,
       },
     };
   });

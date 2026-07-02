@@ -10,9 +10,14 @@ const check = (name, cond) => {
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
 
-const LOW_CONF  = { level: 'LOW',    label: 'Limited data' };
-const MED_CONF  = { level: 'MEDIUM', label: 'Moderate confidence' };
-const HIGH_CONF = { level: 'HIGH',   label: 'High confidence' };
+const BD = [
+  { dimension: 'Report history',   earned: 0, max: 3, detail: 'No reports' },
+  { dimension: 'PM site visits',   earned: 2, max: 3, detail: '1 visit' },
+  { dimension: 'Report freshness', earned: 1, max: 2, detail: '10d ago' },
+];
+const LOW_CONF  = { level: 'LOW',    label: 'Limited data',       pts: 3, maxPts: 8, breakdown: BD };
+const MED_CONF  = { level: 'MEDIUM', label: 'Moderate confidence', pts: 4, maxPts: 8, breakdown: BD };
+const HIGH_CONF = { level: 'HIGH',   label: 'High confidence',     pts: 7, maxPts: 8, breakdown: BD };
 
 function ins(overrides) {
   return {
@@ -52,13 +57,18 @@ check('penalty < 1',  (crit[0].priorityScore - 0) < 1);
 // stays within band: dampened critical (now warning) at 0.5 < next band start (2.0 for info)
 check('dampened-critical sinks below confident warning (score 0.5 > normal warning 1? no, 0.5 < 1 — still in warning band)', crit[0].priorityScore < 1);
 
-// ── 3. LOW confidence — confidence badge attached ─────────────────────────
+// ── 3. LOW confidence — confidence badge attached with rich payload ────────
 
-console.log('\n3) LOW confidence — badge attached');
-check('critical: badge has level LOW',    crit[0].confidence?.level === 'LOW');
-check('critical: badge has label',        typeof crit[0].confidence?.label === 'string');
-check('critical: badge has reason',       typeof crit[0].confidence?.reason === 'string');
-check('positive: NO badge (untouched)',   pos[0].confidence === undefined);
+console.log('\n3) LOW confidence — badge attached with rich payload');
+check('critical: badge has level LOW',     crit[0].confidence?.level === 'LOW');
+check('critical: badge has label',         typeof crit[0].confidence?.label === 'string');
+check('critical: badge has reason',        typeof crit[0].confidence?.reason === 'string');
+check('critical: badge has pts (number)',  typeof crit[0].confidence?.pts === 'number');
+check('critical: badge has maxPts',        typeof crit[0].confidence?.maxPts === 'number');
+check('critical: badge has breakdown[]',   Array.isArray(crit[0].confidence?.breakdown));
+check('critical: breakdown length = 3',    crit[0].confidence?.breakdown?.length === 3);
+check('critical: breakdown[0] has dimension', typeof crit[0].confidence?.breakdown?.[0]?.dimension === 'string');
+check('positive: NO badge (untouched)',    pos[0].confidence === undefined);
 
 // ── 4. MEDIUM confidence — badge only, no severity/priority change ─────────
 
@@ -70,6 +80,8 @@ check('MEDIUM: priorityScore unchanged (0)',   medIns[0].priorityScore === 0);
 check('MEDIUM: badge attached',                !!medIns[0].confidence);
 check('MEDIUM: badge level = MEDIUM',          medIns[0].confidence?.level === 'MEDIUM');
 check('MEDIUM: badge has reason',              typeof medIns[0].confidence?.reason === 'string');
+check('MEDIUM: badge has pts',                 typeof medIns[0].confidence?.pts === 'number');
+check('MEDIUM: badge has breakdown[]',         Array.isArray(medIns[0].confidence?.breakdown));
 
 // ── 5. HIGH confidence — no change, no badge ──────────────────────────────
 

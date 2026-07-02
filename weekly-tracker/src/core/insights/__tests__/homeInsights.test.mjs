@@ -133,5 +133,9 @@ check('data-absence card emitted for ST01',      !!confCard);
 check('data-absence card severity = warning',    confCard?.severity === 'warning');
 check('data-absence card priorityScore = 5',     confCard?.priorityScore === 5);
 
+// Enriched badge payload: pts and breakdown must flow through to the insight
+check('ST01 badge has pts (number)',             typeof st01?.confidence?.pts === 'number');
+check('ST01 badge has breakdown array',          Array.isArray(st01?.confidence?.breakdown));
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

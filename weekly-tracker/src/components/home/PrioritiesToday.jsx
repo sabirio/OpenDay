@@ -1,3 +1,5 @@
+import ConfidenceBadge from './ConfidenceBadge.jsx';
+
 const SEV_STYLE = {
   critical: { label: 'Critical', color: 'var(--status-alert)',    bg: 'var(--status-alert-bg)'  },
   warning:  { label: 'Warning',  color: 'var(--status-warn)',     bg: 'var(--status-warn-bg)'   },
@@ -37,7 +39,7 @@ function PrioritiesToday({ insights }) {
               borderLeft: `4px solid ${sev.color}`,
               borderRadius: 10,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{
                   fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8,
                   color: sev.color, background: sev.bg,
@@ -48,6 +50,7 @@ function PrioritiesToday({ insights }) {
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
                   {ins.title}
                 </span>
+                <ConfidenceBadge confidence={ins.confidence} />
               </div>
               {ins.detail && (
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{ins.detail}</div>
@@ -55,11 +58,6 @@ function PrioritiesToday({ insights }) {
               {ins.recommendedAction && (
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
                   → {ins.recommendedAction}
-                </div>
-              )}
-              {ins.confidence && (
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  ⚠ {ins.confidence.label} · {ins.confidence.reason}
                 </div>
               )}
             </div>
