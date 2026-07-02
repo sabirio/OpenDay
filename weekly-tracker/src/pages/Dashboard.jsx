@@ -1,8 +1,8 @@
 import { useMemo, useState, useCallback } from "react";
 import {
-  computePortfolioAlerts, computeContractorPerf,
-  computePortfolioKpis, computeSiteVisitData, computeSiteVisitKpis,
+  computePortfolioAlerts, computeContractorPerf, computePortfolioKpis,
 } from "../engines/portfolioEngine";
+import { computeSiteVisitData, computeSiteVisitKpis } from "../engines/siteVisitEngine";
 import { regenerateGantt } from "../services/ganttService";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
 import SummaryPanel from "../components/dashboard/SummaryPanel";

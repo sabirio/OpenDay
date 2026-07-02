@@ -11,7 +11,7 @@ import { RISK_LEVEL_COLORS, SPI_STATUS } from "../config/statusColors";
 import { getProjectTrend } from "../services/ganttService";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { getDiscrepancyHistory, getContractorReliability } from "../services/dashboardService";
-import { computeRiskSummaryStats } from "../engines/portfolioEngine";
+import { computeRiskSummaryStats } from "../engines/portfolioRiskEngine";
 import EvmWidget from "../components/analytics/EvmWidget";
 import MonteCarloWidget from "../components/analytics/MonteCarloWidget";
 import DriftChart from "../components/analytics/DriftChart";

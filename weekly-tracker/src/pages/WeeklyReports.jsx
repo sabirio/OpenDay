@@ -18,7 +18,8 @@ import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhase
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { deriveWPStatusesFromOldReport, mergeOldDerivedStatuses } from "../engines/legacyReportEngine";
-import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
+import { computePortfolioMissing } from "../engines/portfolioEngine";
+import { computeSiteVisitData, computeSiteVisitKpis } from "../engines/siteVisitEngine";
 import { getProjectGantt, updateWPDates } from "../services/ganttService";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
 import { isTemplateValid, validateTemplate, explainFromSnapshot, explainLive, taskProgressFromStatuses } from "../core/projects";
