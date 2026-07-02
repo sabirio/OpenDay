@@ -29,18 +29,21 @@ const PHASE_WEIGHTS = Object.fromEntries(
  * Data shape: flat array of tasks with { id, label, phaseId, duration_pct, isBlocker, defaultLag_days }
  */
 
+// phaseWeight = share of the total schedule window (duration), distinct from progressWeight.
+// Normalized per-project over included phases (projects that exclude phases re-sum to 1.0).
+// All 11 weights sum to 1.0.
 export const PHASES = [
-  { id: 'demolition',   label: 'Demolition',              order: 1   },
-  { id: 'floor_prep',   label: 'Floor Preparation',       order: 2   },
-  { id: 'rough_in',     label: 'Installation Works',       order: 3   },
-  { id: 'floor_tiling', label: 'Floor Tiling',            order: 3.5 },
-  { id: 'testing',      label: 'Systems Testing',         order: 4   },
-  { id: 'wall_closing', label: 'Wall Closing',            order: 5   },
-  { id: 'finishes',     label: 'Finishing Works',         order: 6   },
-  { id: 'end_devices',  label: 'End Devices & Furniture', order: 7   },
-  { id: 'commissioning',label: 'Commissioning',           order: 8   },
-  { id: 'pre_opening',  label: 'Pre-Opening',             order: 9   },
-  { id: 'handover',     label: 'Handover',                order: 10  },
+  { id: 'demolition',    label: 'Demolition',              order: 1,   phaseWeight: 0.08 },
+  { id: 'floor_prep',    label: 'Floor Preparation',       order: 2,   phaseWeight: 0.06 },
+  { id: 'rough_in',      label: 'Installation Works',      order: 3,   phaseWeight: 0.20 },
+  { id: 'floor_tiling',  label: 'Floor Tiling',            order: 3.5, phaseWeight: 0.08 },
+  { id: 'testing',       label: 'Systems Testing',         order: 4,   phaseWeight: 0.06 },
+  { id: 'wall_closing',  label: 'Wall Closing',            order: 5,   phaseWeight: 0.08 },
+  { id: 'finishes',      label: 'Finishing Works',         order: 6,   phaseWeight: 0.15 },
+  { id: 'end_devices',   label: 'End Devices & Furniture', order: 7,   phaseWeight: 0.10 },
+  { id: 'commissioning', label: 'Commissioning',           order: 8,   phaseWeight: 0.06 },
+  { id: 'pre_opening',   label: 'Pre-Opening',             order: 9,   phaseWeight: 0.08 },
+  { id: 'handover',      label: 'Handover',                order: 10,  phaseWeight: 0.05 },
 ];
 
 export const WORK_PACKAGES = [

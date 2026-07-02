@@ -53,12 +53,20 @@ export function buildProjectWPs(templateId, projectStart, targetOpeningDate, sto
 
   const wpIds = resolveTemplateWPs(templateId, options);
   const wpIdSet = new Set(wpIds);
+  const activeWPs = WORK_PACKAGES.filter(wp => wpIdSet.has(wp.id));
 
-  return WORK_PACKAGES
-    .filter(wp => wpIdSet.has(wp.id))
-    .map(wp => {
+  // Normalize phase weights over included phases so excluded phases don't shrink the window.
+  const includedPhaseIds = new Set(activeWPs.map(wp => wp.phaseId));
+  const sumIncluded = PHASES
+    .filter(p => includedPhaseIds.has(p.id))
+    .reduce((s, p) => s + (p.phaseWeight || 0), 0);
+  const phaseWeightNorm = Object.fromEntries(
+    PHASES.map(p => [p.id, sumIncluded > 0 ? p.phaseWeight / sumIncluded : 0])
+  );
+
+  return activeWPs.map(wp => {
       const phase = getPhaseById(wp.phaseId);
-      const raw = total_days * wp.duration_pct * sizeModifier;
+      const raw = total_days * phaseWeightNorm[wp.phaseId] * wp.duration_pct * sizeModifier;
       const duration_days = Math.max(1, Math.round(raw));
 
       return {

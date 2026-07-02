@@ -8,6 +8,10 @@ import {
   test3_customSmallShop,
   test4_delayPropagation,
   test5_forecastCalculation,
+  test6_criticalPathFitsWindow,
+  test7_noDemorNormalizationSumsToOne,
+  test8_proportionalScaling,
+  test9_withinPhaseSplit,
 } from './ganttEngine.test.js';
 
 import {
@@ -34,8 +38,12 @@ const tests = [
   { name: 'Gantt Test 1: Nike Renovation (standard_with_demo, 120 days, 850sqm)',       fn: test1_nikeRenovation },
   { name: 'Gantt Test 2: Zara New Space (standard_no_demo, 105 days, 2200sqm)',         fn: test2_zaraNewSpace },
   { name: 'Gantt Test 3: Custom Small Shop (selected phases, 61 days, 320sqm)',         fn: test3_customSmallShop },
-  { name: 'Gantt Test 4: Delay Propagation (floor.screed 50% at day 20)',               fn: test4_delayPropagation },
+  { name: 'Gantt Test 4: Delay Propagation (floor.screed 10% at day 20)',               fn: test4_delayPropagation },
   { name: 'Gantt Test 5: Forecast Calculation (3 WPs with data)',                       fn: test5_forecastCalculation },
+  { name: 'Gantt Test 6: Critical path fits within 90-day window after phase weights',  fn: test6_criticalPathFitsWindow },
+  { name: 'Gantt Test 7: No-demo excluded phase — normalization sums to 1.0',           fn: test7_noDemorNormalizationSumsToOne },
+  { name: 'Gantt Test 8: Proportional scaling — 300d project is 3× the 100d project',  fn: test8_proportionalScaling },
+  { name: 'Gantt Test 9: Within-phase split preserved (walls.framing = 3× marking)',   fn: test9_withinPhaseSplit },
   { name: 'Discrepancy Test 1: All scenarios (ok / warning / critical)',                fn: test1_allScenarios },
   { name: 'Discrepancy Test 2: Boundary edge cases (delta 10, 25, 26, 0, 9)',          fn: test2_boundaries },
   { name: 'Weights Test 1: getDefaultPhaseWeights returns protected copy',             fn: test1_getDefaultPhaseWeights },

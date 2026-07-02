@@ -12,6 +12,7 @@ import {
   diffDays,
 } from '../engines/ganttEngine.js';
 import { DEPENDENCY_RULES } from '../config/dependencyRules.js';
+import { PHASES } from '../config/masterTaskLibrary.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -203,7 +204,7 @@ export function test4_delayPropagation() {
   const originalTilingStart = gantt.find(w => w.id === 'floor.tiling')?.earlyStart;
   const originalHandoverFinish = gantt.find(w => w.id === 'handover.keys')?.earlyFinish;
 
-  // Simulate floor.screed at 10% at day 20 — behind schedule (planned ~17% for 120-day task)
+  // Simulate floor.screed at 10% progress at day 20 past its start — heavily delayed (planned finish was just days away)
   const today = addDays(screed.earlyStart, 20);
   const updated = recalculateOnDelay(gantt, 'floor.screed', 10, today);
 
@@ -274,5 +275,118 @@ export function test5_forecastCalculation() {
   assert(
     confidence === 'medium' || confidence === 'low',
     `Confidence should be medium or low with only 3 WPs having data, got: ${confidence}`
+  );
+}
+
+// ─── Test 6: Critical path fits within the schedule window ───────────────────
+
+export function test6_criticalPathFitsWindow() {
+  const projectStart  = new Date('2025-01-01');
+  const targetOpening = new Date('2025-04-01'); // exactly 90 days
+  const sqm = 1000; // modifier = 1.0
+
+  const wps  = buildProjectWPs('standard_with_demo', projectStart, targetOpening, sqm);
+  const gantt = calculateGantt(wps, DEPENDENCY_RULES, projectStart);
+
+  const { feasible, projectedOpeningDate, daysOver } = checkFeasibility(gantt, targetOpening);
+  assert(
+    feasible,
+    `90-day standard_with_demo project must be feasible. Projected: ${isoDate(projectedOpeningDate)}, daysOver=${daysOver}`
+  );
+  assert(daysOver === 0, `daysOver must be 0, got ${daysOver}`);
+
+  // Total lag on critical path: only floor.screed→floor.tiling = 10 days
+  const critical = gantt.filter(w => w.isCritical);
+  assert(critical.length > 0, 'At least one WP must be on the critical path');
+  assert(
+    gantt.find(w => w.id === 'floor.screed')?.isCritical,
+    'floor.screed must remain critical after phase-weight normalization'
+  );
+}
+
+// ─── Test 7: No-demo excluded phase — normalization re-sums to 1.0 ───────────
+
+export function test7_noDemorNormalizationSumsToOne() {
+  const projectStart  = new Date('2025-01-01');
+  const targetOpening = new Date('2025-04-01'); // 90 days
+  const sqm = 1000;
+
+  const wps = buildProjectWPs('standard_no_demo', projectStart, targetOpening, sqm);
+
+  // No demolition WPs
+  assert(!wps.some(w => w.phaseId === 'demolition'), 'No demo WPs in no-demo project');
+
+  // PHASES weights for included phases must normalize to 1.0
+  const includedPhaseIds = new Set(wps.map(w => w.phaseId));
+  assert(!includedPhaseIds.has('demolition'), 'demolition not in included phases');
+
+  const sumIncluded = PHASES
+    .filter(p => includedPhaseIds.has(p.id))
+    .reduce((s, p) => s + p.phaseWeight, 0);
+
+  const normSum = PHASES
+    .filter(p => includedPhaseIds.has(p.id))
+    .reduce((s, p) => s + p.phaseWeight / sumIncluded, 0);
+
+  assert(
+    Math.abs(normSum - 1.0) < 0.0001,
+    `Normalized phase weights must sum to 1.0, got ${normSum.toFixed(6)}`
+  );
+
+  // Feasible within its own window
+  const gantt = calculateGantt(wps, DEPENDENCY_RULES, projectStart);
+  const { feasible, projectedOpeningDate, daysOver } = checkFeasibility(gantt, targetOpening);
+  assert(
+    feasible,
+    `No-demo 90-day project must be feasible. Projected: ${isoDate(projectedOpeningDate)}, daysOver=${daysOver}`
+  );
+}
+
+// ─── Test 8: Proportional scaling — 3× window → 3× WP durations ─────────────
+
+export function test8_proportionalScaling() {
+  const start  = new Date('2025-01-01');
+  const end100 = new Date('2025-04-11'); // 100 days (31+28+31+10)
+  const end300 = new Date('2025-10-28'); // 300 days
+
+  const wps100 = buildProjectWPs('standard_with_demo', start, end100, 1000);
+  const wps300 = buildProjectWPs('standard_with_demo', start, end300, 1000);
+
+  // walls.framing: total * 0.20 * 0.30 — large enough to avoid Math.max(1) distortion
+  const framing100 = wps100.find(w => w.id === 'walls.framing');
+  const framing300 = wps300.find(w => w.id === 'walls.framing');
+
+  assert(framing100, 'walls.framing must exist in 100-day project');
+  assert(framing300, 'walls.framing must exist in 300-day project');
+
+  // Expected: round(100 × 0.20 × 0.30) = 6, round(300 × 0.20 × 0.30) = 18
+  assert(framing100.duration_days === 6,  `walls.framing 100d: expected 6, got ${framing100.duration_days}`);
+  assert(framing300.duration_days === 18, `walls.framing 300d: expected 18, got ${framing300.duration_days}`);
+  assert(
+    framing300.duration_days === 3 * framing100.duration_days,
+    `300d WP should be exactly 3× 100d WP (got ${framing300.duration_days} vs ${framing100.duration_days})`
+  );
+}
+
+// ─── Test 9: Within-phase split preserved — duration_pct ratio intact ─────────
+
+export function test9_withinPhaseSplit() {
+  const start = new Date('2025-01-01');
+  const end   = new Date('2025-04-11'); // 100 days
+  const wps   = buildProjectWPs('standard_with_demo', start, end, 1000);
+
+  // Within rough_in: walls.marking (0.10) and walls.framing (0.30) → ratio = 3×
+  const marking = wps.find(w => w.id === 'walls.marking');
+  const framing = wps.find(w => w.id === 'walls.framing');
+
+  assert(marking, 'walls.marking must exist');
+  assert(framing, 'walls.framing must exist');
+
+  // round(100 × 0.20 × 0.10) = 2, round(100 × 0.20 × 0.30) = 6
+  assert(marking.duration_days === 2, `walls.marking: expected 2d, got ${marking.duration_days}`);
+  assert(framing.duration_days === 6, `walls.framing: expected 6d, got ${framing.duration_days}`);
+  assert(
+    framing.duration_days === 3 * marking.duration_days,
+    `walls.framing should be 3× walls.marking (duration_pct 0.30/0.10=3)`
   );
 }
