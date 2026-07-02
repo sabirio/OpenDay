@@ -21,21 +21,3 @@ export function computeRiskSummaryStats(allRows) {
   return { ...c, avgScore, avgHealth, opening30, pmMismatch };
 }
 
-/**
- * SPI schedule-alert list: projects where SPI is critical/at_risk, not yet
- * complete, and the Gantt has a real SPI value (null = no usable schedule data).
- *
- * @param {Array} ganttRows - rows already enriched with a `gantt` property
- *   (the Map value from useGanttMetrics), e.g.:
- *   allRows.map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
- * @returns {Array} sorted worst-SPI first
- */
-export function computeSpiAlerts(ganttRows) {
-  return ganttRows
-    .filter(row =>
-      (row.gantt?.spiStatus === 'critical' || row.gantt?.spiStatus === 'at_risk') &&
-      row.gantt?.spi != null &&
-      row.progress < 100
-    )
-    .sort((a, b) => (a.gantt.spi ?? 1) - (b.gantt.spi ?? 1));
-}
