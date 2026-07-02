@@ -25,7 +25,7 @@ const STUB_CONT   = { score: 80, reliability: 'high' };
 const STUB_ESC    = [];
 const STUB_DIMS   = { schedule: 'LOW', contractor: 'LOW' };
 const STUB_EVO    = [];
-const STUB_CONF   = { level: 'high', score: 90 };
+const STUB_CONF   = { level: 'HIGH', label: 'High confidence', pts: 7, maxPts: 8, breakdown: [] };
 const STUB_ACTS   = [];
 const STUB_HEALTH = { score: 85, label: 'Healthy' };
 const STUB_EVM    = { spi: 1.0, cpi: 1.0 };
@@ -36,6 +36,8 @@ function makeDrift(name) { return { contractor: name, avgDelay: 0 }; }
 // Inline implementation of computeRiskRows with stub engines injected.
 // This mirrors the EXACT logic in computeRiskRows.js — tested via structural assertion,
 // not by re-importing the Vite-only source.
+// NOTE: confidence is no longer computed here; it is pre-computed in useAllRows and
+// flows through via ...base spread (single source of truth).
 function computeRiskRows(baseRows, projects, reports, siteVisits, {
   computeScheduleDeviation   = () => STUB_SCHED,
   computeTrend               = () => STUB_TREND,
@@ -43,7 +45,6 @@ function computeRiskRows(baseRows, projects, reports, siteVisits, {
   computeEscalations         = () => STUB_ESC,
   computeDimensionRisk       = () => STUB_DIMS,
   computeWeeklyEvolution     = () => STUB_EVO,
-  computeConfidenceLevel     = () => STUB_CONF,
   computeRecommendedActions  = () => STUB_ACTS,
   computeProjectHealth       = () => STUB_HEALTH,
   computeEVM                 = () => STUB_EVM,
@@ -60,7 +61,6 @@ function computeRiskRows(baseRows, projects, reports, siteVisits, {
     const escalations    = computeEscalations(sorted, projSiteVisits);
     const dims           = computeDimensionRisk(project, latestReport, riskScore, schedDev, contScore, projSiteVisits);
     const evolution      = computeWeeklyEvolution(sorted, project);
-    const confidence     = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
     const actions        = computeRecommendedActions(riskScore, contScore, schedDev, latestReport, projSiteVisits, project);
     const health         = computeProjectHealth(riskScore, progress, contScore);
     const contractorName = project.generalContractor || latestReport?.contractor || "";
@@ -76,7 +76,7 @@ function computeRiskRows(baseRows, projects, reports, siteVisits, {
 
     const monteCarlo = computeMonteCarloForecast(project, sorted, null);
 
-    return { ...base, schedDev, trend, contScore, escalations, dims, evolution, confidence, actions, health, contractorName, evm, driftProfile, monteCarlo };
+    return { ...base, schedDev, trend, contScore, escalations, dims, evolution, actions, health, contractorName, evm, driftProfile, monteCarlo };
   });
 }
 
@@ -89,11 +89,12 @@ const BASE_FIELDS = [
   'progress', 'projReports', 'projSiteVisits', 'sorted', 'color',
   'progressPoints', 'daysSinceReport', 'missingReport', 'daysToOpening',
   'riskScore', 'riskLevel', 'priorityScore',
+  'confidence', // computed in useAllRows, flows through ...base
 ];
 
 const RISK_FIELDS = [
   'schedDev', 'trend', 'contScore', 'escalations', 'dims',
-  'evolution', 'confidence', 'actions', 'health', 'contractorName',
+  'evolution', 'actions', 'health', 'contractorName',
   'evm', 'driftProfile', 'monteCarlo',
 ];
 
@@ -120,6 +121,7 @@ const baseRow = {
   riskScore:            RISK_SCORE,
   riskLevel:            'HIGH',
   priorityScore:        1,
+  confidence:           STUB_CONF, // pre-computed in useAllRows, not in computeRiskRows
 };
 
 // ── 1. Output shape ───────────────────────────────────────────────────────────
@@ -134,7 +136,7 @@ for (const f of BASE_FIELDS) {
   check(`has base field: ${f}`, f in rows[0]);
 }
 
-console.log('\n3) All 13 risk-only fields added');
+console.log('\n3) All 12 risk-only fields added');
 for (const f of RISK_FIELDS) {
   check(`has risk field: ${f}`, f in rows[0]);
 }

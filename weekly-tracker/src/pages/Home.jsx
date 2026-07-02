@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useAllRows } from '../hooks/useAllRows';
 import { computePortfolioAlerts, computePortfolioKpis } from '../engines/portfolioEngine';
-import { calculateProgressComparison } from '../engines/progressEngine';
 import { computeOpeningReadiness } from '../engines/openingReadinessEngine';
 import { getCommands } from '../engines/commandEngine';
 import { buildHomeInsights, summarizeInsights } from '../core/insights/selectors/homeInsights';
@@ -15,13 +14,13 @@ function Home({ projects, reports, siteVisits = [] }) {
   const alerts = useMemo(() => computePortfolioAlerts(allRows), [allRows]);
 
   const allCommands = useMemo(() =>
-    allRows.flatMap(({ project, progress, riskScore, wpCumulativeStatuses, latestReport, missingReport }) =>
+    allRows.flatMap(({ project, riskScore, wpCumulativeStatuses, latestReport, missingReport, progressComparison, prevProgressComparison }) =>
       getCommands({
         project,
-        progressComparison:     calculateProgressComparison(project, progress, []),
-        prevProgressComparison: null,
+        progressComparison,
+        prevProgressComparison,
         riskScore,
-        openingReadiness:       computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate),
+        openingReadiness: computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate),
         latestReport,
         missingReport,
       })

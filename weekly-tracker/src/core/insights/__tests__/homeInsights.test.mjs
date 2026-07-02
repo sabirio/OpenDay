@@ -84,5 +84,54 @@ check('warning = 0',    z.warning  === 0);
 check('info = 0',       z.info     === 0);
 check('total = 0',      z.total    === 0);
 
+// ── 6. Integration: confidence dampening in buildHomeInsights ─────────────
+console.log('\n6) Confidence dampening — LOW critical → warning, sinks below confident critical');
+
+function makeConf(level, label) {
+  return {
+    level, label,
+    pts: level === 'HIGH' ? 7 : 1,
+    maxPts: 8,
+    breakdown: [
+      { dimension: 'Report history',   earned: level === 'HIGH' ? 3 : 0, max: 3, detail: level === 'HIGH' ? '8+ reports' : 'No reports submitted' },
+      { dimension: 'PM site visits',   earned: 0, max: 3, detail: 'No site visits' },
+      { dimension: 'Report freshness', earned: level === 'HIGH' ? 2 : 2, max: 2, detail: 'Last report 3d ago' },
+    ],
+  };
+}
+
+// p1 = LOW confidence, p2 = HIGH confidence; both have a critical command
+const confRows = [
+  { project: PROJECTS[0], confidence: makeConf('LOW',  'Limited data') },
+  { project: PROJECTS[1], confidence: makeConf('HIGH', 'High confidence') },
+];
+const confCommands = [
+  { id: 'behind_schedule', severity: 'critical', title: 'ST01 is 30% behind', reason: 'Behind schedule', action: 'Escalate', projectCode: 'ST01' },
+  { id: 'behind_schedule', severity: 'critical', title: 'ST02 is 20% behind', reason: 'Behind schedule', action: 'Escalate', projectCode: 'ST02' },
+];
+const confInsights = buildHomeInsights({ rows: confRows, alerts: [], commands: confCommands, projects: PROJECTS });
+
+const st01 = confInsights.find(i => i.projectId === 'uuid-p1' && i.source === 'command');
+const st02 = confInsights.find(i => i.projectId === 'uuid-p2' && i.source === 'command');
+
+check('ST01 (LOW conf) critical → warning',      st01?.severity === 'warning');
+check('ST01 has confidence badge',               !!st01?.confidence);
+check('ST01 badge level = LOW',                  st01?.confidence?.level === 'LOW');
+check('ST01 priorityScore = 0.5 (0 + 0.5)',     st01?.priorityScore === 0.5);
+check('ST02 (HIGH conf) stays critical',         st02?.severity === 'critical');
+check('ST02 no confidence badge',                !st02?.confidence);
+check('ST02 priorityScore = 0 (untouched)',      st02?.priorityScore === 0);
+
+// After buildHomeInsights sorts by priorityScore: ST02 (0) before ST01 (0.5)
+const idxST01 = confInsights.indexOf(st01);
+const idxST02 = confInsights.indexOf(st02);
+check('confident critical (ST02, score=0) before LOW-conf dampened (ST01, score=0.5)', idxST02 < idxST01);
+
+// Confidence card for ST01 (no reports) should also appear (rule A)
+const confCard = confInsights.find(i => i.projectId === 'uuid-p1' && i.source === 'confidence');
+check('data-absence card emitted for ST01',      !!confCard);
+check('data-absence card severity = warning',    confCard?.severity === 'warning');
+check('data-absence card priorityScore = 5',     confCard?.priorityScore === 5);
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

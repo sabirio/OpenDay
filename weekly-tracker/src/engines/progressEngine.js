@@ -329,6 +329,34 @@ export function calculateProgressComparison(project, actualPct, historyRows, con
 }
 
 /**
+ * Compute current-week and previous-week progress comparisons from stored history.
+ *
+ * Graceful degradation: fewer than 2 history rows → prevProgressComparison = null
+ * (commandEngine falls back to non-worsening 'warning', no crash).
+ *
+ * @param {object}    project         — project row (dates needed by calculateProgressComparison)
+ * @param {number}    currentProgress — live overall progress (0-100)
+ * @param {Array}     progressHistory — rows from progress_history table (any order)
+ * @param {object}    config          — defaults to SCHEDULE_CONFIG
+ * @param {Date|null} now             — reference date; null = today
+ * @returns {{ progressComparison, prevProgressComparison }}
+ */
+export function buildWeekOverWeekComparison(project, currentProgress, progressHistory = [], config = SCHEDULE_CONFIG, now = null) {
+  const history = [...(progressHistory ?? [])]
+    .filter(r => r && r.recorded_at)
+    .sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at)); // oldest → newest
+
+  const progressComparison = calculateProgressComparison(project, currentProgress, history.slice(-2), config, now);
+
+  const prevRow = history.length >= 2 ? history[history.length - 2] : null;
+  const prevProgressComparison = prevRow
+    ? calculateProgressComparison(project, prevRow.overall_progress, history.slice(-3, -1), config, new Date(prevRow.recorded_at))
+    : null;
+
+  return { progressComparison, prevProgressComparison };
+}
+
+/**
  * Transforms project.progressHistory into a date-ordered series for the progress chart.
  * @param {Array} progressHistory — rows from progress_history table
  * @returns {Array<{date: string, pct: number}>} oldest → newest

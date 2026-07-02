@@ -57,6 +57,11 @@ function PrioritiesToday({ insights }) {
                   → {ins.recommendedAction}
                 </div>
               )}
+              {ins.confidence && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  ⚠ {ins.confidence.label} · {ins.confidence.reason}
+                </div>
+              )}
             </div>
           );
         })}

@@ -1,7 +1,6 @@
 import { computeScheduleDeviation, computeTrend, computeDimensionRisk, computeWeeklyEvolution } from '../engines/riskEngine';
 import { computeProjectHealth } from '../engines/projectHealthEngine';
 import { computeContractorScores } from '../engines/contractorEngine';
-import { computeConfidenceLevel } from '../engines/pmAlignmentEngine';
 import { computeEscalations } from '../engines/escalationEngine';
 import { computeRecommendedActions } from '../engines/actionEngine';
 import { computeEVM } from '../engines/evmEngine';
@@ -28,7 +27,6 @@ export function computeRiskRows(baseRows, projects, reports, siteVisits) {
     const escalations    = computeEscalations(sorted, projSiteVisits);
     const dims           = computeDimensionRisk(project, latestReport, riskScore, schedDev, contScore, projSiteVisits);
     const evolution      = computeWeeklyEvolution(sorted, project);
-    const confidence     = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
     const actions        = computeRecommendedActions(riskScore, contScore, schedDev, latestReport, projSiteVisits, project);
     const health         = computeProjectHealth(riskScore, progress, contScore);
     const contractorName = project.generalContractor || latestReport?.contractor || "";
@@ -44,6 +42,7 @@ export function computeRiskRows(baseRows, projects, reports, siteVisits) {
 
     const monteCarlo = computeMonteCarloForecast(project, sorted, null);
 
-    return { ...base, schedDev, trend, contScore, escalations, dims, evolution, confidence, actions, health, contractorName, evm, driftProfile, monteCarlo };
+    // confidence comes from base (computed in useAllRows — single source of truth)
+    return { ...base, schedDev, trend, contScore, escalations, dims, evolution, actions, health, contractorName, evm, driftProfile, monteCarlo };
   });
 }

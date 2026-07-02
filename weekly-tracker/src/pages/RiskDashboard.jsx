@@ -8,7 +8,8 @@ import { RiskGauge, RiskBadge, HealthBadge, DimCell } from "../components/RiskGa
 import { FactorPill, MiniRiskSparkline, ScoreBar } from "../components/ScoreBar";
 import { RiskTable } from "../components/RiskTable";
 import { RISK_LEVEL_COLORS, SPI_STATUS } from "../config/statusColors";
-import { loadAllGanttMetrics, getProjectTrend } from "../services/ganttService";
+import { getProjectTrend } from "../services/ganttService";
+import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { getDiscrepancyHistory, getContractorReliability } from "../services/dashboardService";
 import { computeRiskSummaryStats } from "../engines/portfolioEngine";
 import EvmWidget from "../components/analytics/EvmWidget";
@@ -106,7 +107,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
   const [filterReport, setFilterReport] = useState("");
 
   // Gantt SPI tab state (loaded lazily)
-  const [ganttMetricsMap, setGanttMetricsMap] = useState(new Map());
+  const ganttMetricsMap = useGanttMetrics(projects, activeView === 'gantt-spi');
   const [projectTrends,   setProjectTrends]   = useState({});    // projectId → trend[]
   const [discHistory,     setDiscHistory]     = useState({});    // projectId → disc[]
   const [reliabilityMap,  setReliabilityMap]  = useState(new Map());
@@ -114,16 +115,13 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
 
   useEffect(() => {
     if (activeView !== 'gantt-spi' || !projects || projects.length === 0) return;
-    if (ganttMetricsMap.size > 0) return; // already loaded
     setGanttSpiLoading(true);
     const ids = projects.map(p => p.id);
     Promise.all([
-      loadAllGanttMetrics(ids),
       getContractorReliability(ids),
       Promise.all(ids.map(id => getProjectTrend(id, 8).then(t => [id, t]))),
       Promise.all(ids.map(id => getDiscrepancyHistory(id, 10).then(d => [id, d]))),
-    ]).then(([metrics, reliability, trends, discs]) => {
-      setGanttMetricsMap(metrics);
+    ]).then(([reliability, trends, discs]) => {
       setReliabilityMap(reliability);
       setProjectTrends(Object.fromEntries(trends));
       setDiscHistory(Object.fromEntries(discs));

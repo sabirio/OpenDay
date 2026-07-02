@@ -4,9 +4,10 @@ import {
   computeCumulativeStatuses, computeWPCumulativeStatuses,
   daysSince, isMissingReport, daysUntil,
 } from '../utils/reportUtils';
-import { calculateProjectProgress, progressAtIndex } from '../engines/progressEngine';
+import { calculateProjectProgress, progressAtIndex, buildWeekOverWeekComparison } from '../engines/progressEngine';
 import { PROJECT_COLORS, computePriorityScore } from '../config/dashboardConstants';
 import { computeProjectRiskScore } from '../engines/riskEngine';
+import { computeConfidenceLevel } from '../engines/pmAlignmentEngine';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
 import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
 
@@ -42,11 +43,14 @@ export function useAllRows(projects, reports, siteVisits = []) {
     const riskScore       = computeProjectRiskScore(project, projReports, progress, projSiteVisits);
     const riskLevel       = riskScore.level;
     const priorityScore   = computePriorityScore(riskLevel, daysToOpening, missingReport);
+    const { progressComparison, prevProgressComparison } = buildWeekOverWeekComparison(project, progress, project.progressHistory ?? []);
+    const confidence      = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
 
     return {
       project, latestReport, cumulativeStatuses, wpCumulativeStatuses, progress,
       projReports, projSiteVisits, sorted, color, progressPoints,
       daysSinceReport, missingReport, daysToOpening, riskScore, riskLevel, priorityScore,
+      progressComparison, prevProgressComparison, confidence,
     };
   }), [projects, reports, siteVisits]);
 }
