@@ -1,6 +1,6 @@
 # OpenDay — Architecture Map
 
-> Last updated: 2026-07-02  
+> Last updated: 2026-07-02 (rev 2 — synced to commits d575a7d through efe41a2)  
 > Stack: React 19 · Vite · Supabase (PostgreSQL + Auth)  
 > Root: `weekly-tracker/`
 
@@ -99,7 +99,7 @@ Side-effect paths that bypass App.jsx state:
 ### Dashboard (`src/pages/Dashboard.jsx`)
 **Question:** What is the current state of the portfolio?  
 **Data:** `projects`, `reports`, `siteVisits`  
-**Engines/hooks:** `useAllRows` → `useGanttMetrics` → `computePortfolioAlerts`, `computeRiskSummaryStats`; `getProgressSnapshot` on drill-down  
+**Engines/hooks:** `useAllRows` → `useGanttMetrics` → `computePortfolioAlerts`, `computeContractorPerf`, `computePortfolioKpis` (portfolioEngine); `computeSiteVisitData`, `computeSiteVisitKpis` (siteVisitEngine); `getProgressSnapshot` on drill-down  
 **Services called directly:** `regenerateGantt` (Regen Gantt button)  
 **Output:** Portfolio summary panel, status matrix, heatmap, progress tab, contractors tab, per-project detail drawer (with SPI, Gantt staleness indicator, Regen button)
 
@@ -118,7 +118,7 @@ Side-effect paths that bypass App.jsx state:
 ### WeeklyReports (`src/pages/WeeklyReports.jsx`)
 **Question:** What does the full picture look like for a single project this week?  
 **Data:** `projects`, `reports`, `siteVisits`  
-**Engines:** `progressEngine`, `progressDeltaEngine`, `riskEngine`, `contractorEngine`, `projectHealthEngine`, `openingReadinessEngine`, `portfolioEngine` (missing + site visit)  
+**Engines:** `progressEngine`, `progressDeltaEngine`, `riskEngine`, `contractorEngine`, `projectHealthEngine`, `openingReadinessEngine`, `portfolioEngine` (missing report), `siteVisitEngine` (site visit comparison), `legacyReportEngine` (old-format compat)  
 **Services called directly:** `getProjectGantt`  
 **Core:** `getScopeWPIds`, `isTemplateValid`, `explainFromSnapshot`, `explainLive`  
 **Output:** Full weekly report view — KPI strip, phase stepper, Gantt chart, progress chart, site visit comparison, risk summary, contractor alignment
@@ -147,7 +147,7 @@ Side-effect paths that bypass App.jsx state:
 ### RiskDashboard (`src/pages/RiskDashboard.jsx`)
 **Question:** Which projects are at risk and why?  
 **Data:** `projects`, `reports`, `siteVisits`  
-**Engines/hooks:** `useRiskRows` (= `useAllRows` + risk augmentation), `useGanttMetrics`, `computePortfolioContractorScores`, `computePmAlignmentItems`, `computeRiskSummaryStats`  
+**Engines/hooks:** `useRiskRows` (= `useAllRows` + risk augmentation), `useGanttMetrics`, `computePortfolioContractorScores`, `computePmAlignmentItems`, `computeRiskSummaryStats` (portfolioRiskEngine)  
 **Services called directly:** `getProjectTrend` (ganttService), `getDiscrepancyHistory`, `getContractorReliability` (dashboardService)  
 **Components:** `EvmWidget`, `MonteCarloWidget`, `DriftChart`, `RiskGauge`, `RiskTable`  
 **Output:** Risk table, EVM widget, Monte Carlo forecast, contractor drift chart, discrepancy history
@@ -191,9 +191,10 @@ All engines in `src/engines/` are **pure functions** — no React imports, no Su
 
 ### `spiEngine.js`
 **Responsibility:** Pure SPI / schedule-performance calculations, extracted from ganttService so they are testable without Supabase.  
-**Inputs:** task rows (with `planned_start`, `planned_end`, `actual_progress`, `is_critical`, `is_archived`)  
-**Outputs:** `computePlannedPct`, `computeSPIFromTasks`, `computeCriticalHealth`  
-**Consumers:** `ganttService` (loadAllGanttMetrics, getProjectMetrics), `spiEngine.test.mjs`
+**Inputs:** task rows (with `planned_start`, `planned_end`, `actual_progress`, `is_critical`, `is_archived`); also (actualPct, expectedPct) for calendar SPI  
+**Outputs:** `computeCalendarSpi` (project-level time-based SPI = actualPct/expectedPct), `computePlannedPct`, `computeSPIFromTasks` (Gantt task-level), `computeCriticalHealth`  
+**Consumers:** `ganttService`, `progressEngine`, `riskEngine`, `evmEngine`, `spiEngine.test.mjs`  
+**Note (AD-002):** Two distinct SPI concepts: `computeCalendarSpi` (report/time-based, single source of truth) vs `computeSPIFromTasks` (Gantt task row average). The canonical schedule-status converter is `getSPIStatus(spi)` in `config/statusColors.js`.
 
 ### `ganttLayout.js`
 **Responsibility:** Converts a ganttResult (dates + durations) into SVG pixel positions for the Gantt chart renderer.  
@@ -214,10 +215,22 @@ All engines in `src/engines/` are **pure functions** — no React imports, no Su
 **Consumers:** `useAllRows`, `contractorEngine`, `riskEngine`, `portfolioEngine`, `WeeklyReports`, `ContractorReport`, `progressEngine.test.mjs`
 
 ### `portfolioEngine.js`
-**Responsibility:** Portfolio-level aggregations over pre-computed project rows. All functions are stateless (in → out).  
-**Inputs:** rows (from useAllRows/useRiskRows), projects, reports, siteVisits  
-**Outputs:** `computePortfolioAlerts` (includes SPI alerts), `computeContractorPerf`, `computePortfolioKpis`, `computePortfolioMissing`, `computeSiteVisitData`, `computeSiteVisitKpis`, `computePortfolioCommands`, `computeRiskSummaryStats`, `computeSpiAlerts`  
+**Responsibility:** Portfolio-level alert and KPI aggregation over pre-computed project rows. (AD-004: split; site-visit and risk-summary functions moved to dedicated engines.)  
+**Inputs:** rows (from useAllRows/useRiskRows), projects, reports  
+**Outputs:** `computePortfolioAlerts`, `computeContractorPerf`, `computePortfolioKpis`, `computePortfolioMissing`, `computePortfolioCommands`  
 **Consumers:** `Home`, `Dashboard`, `WeeklyReports`, `portfolioEngineAlerts.test.mjs`
+
+### `siteVisitEngine.js`
+**Responsibility:** PM site-visit data aggregation — per-visit PM vs GC comparison across all three historical report formats (Gantt WP, legacy WP status, flat fields). (AD-004: extracted from portfolioEngine.)  
+**Inputs:** siteVisits, projects, reports  
+**Outputs:** `computeSiteVisitData`, `computeSiteVisitKpis`  
+**Consumers:** `Dashboard`, `WeeklyReports`
+
+### `portfolioRiskEngine.js`
+**Responsibility:** Risk-level breakdown and health statistics for the Risk Dashboard header. (AD-004: extracted from portfolioEngine.)  
+**Inputs:** allRows (RiskDashboard rows with riskScore, health, project)  
+**Outputs:** `computeRiskSummaryStats`  
+**Consumers:** `RiskDashboard`
 
 ### `contractorEngine.js`
 **Responsibility:** Contractor scoring — reliability, pace, alignment — per project and aggregated across portfolio.  
@@ -238,16 +251,22 @@ All engines in `src/engines/` are **pure functions** — no React imports, no Su
 **Consumers:** `riskEngine`, `contractorEngine`, `escalationEngine`, `useAllRows`, `RiskDashboard`, `pmAlignmentEngine.test.mjs`
 
 ### `discrepancyEngine.js`
-**Responsibility:** Compares contractor-reported WP progress against PM site-visit observations. Classifies deltas as ok / warning / critical.  
-**Inputs:** contractorReportWPs, siteVisitWPs  
-**Outputs:** `calculateDiscrepancy`, `getLatestDiscrepancies`, `mergeDiscrepanciesIntoGantt`  
-**Consumers:** `ganttService` (discrepancy update), `SiteVisitReport`, `discrepancyEngine.test.js`
+**Responsibility:** PM vs GC progress discrepancy calculation and classification. Single source of truth for what "match", "pm-higher", and "discrepancy" mean — used by all engines that compare PM observations to contractor reports. (AD-005: `discrepancySeverity` and `classifyDiscrepancy` extracted here; previously duplicated inline in portfolioEngine and projectSummaryEngine.)  
+**Inputs:** contractorReportWPs, siteVisitWPs; or `{ pmRank, gcRank, delta }` for classification  
+**Outputs:** `discrepancySeverity`, `classifyDiscrepancy`, `calculateDiscrepancy`, `getLatestDiscrepancies`, `mergeDiscrepanciesIntoGantt`  
+**Consumers:** `ganttService`, `siteVisitEngine`, `projectSummaryEngine`, `SiteVisitReport`, `discrepancyClassify.test.mjs`
+
+### `legacyReportEngine.js`
+**Responsibility:** Adapters for converting old-format contractor reports (pre-WP-status schema) into the current work-package status format. (AD-003: extracted from WeeklyReports.jsx.)  
+**Inputs:** old-format report objects  
+**Outputs:** `OLD_TO_WP_WEEKLY` (mapping const), `mapOldToWPStatus`, `deriveWPStatusesFromOldReport`, `mergeOldDerivedStatuses`  
+**Consumers:** `WeeklyReports`, `legacyReportEngine.test.mjs`
 
 ### `evmEngine.js`
-**Responsibility:** Earned Value Management with BAC normalised to 100 (progress % as the unit — no monetary budget).  
+**Responsibility:** Earned Value Management with BAC normalised to 100 (progress % as the unit — no monetary budget). Uses `computeCalendarSpi` from spiEngine as the single formula for calendar SPI. (AD-015: not_started guard prevents future projects with PV=0 EV=0 from showing as critical.)  
 **Inputs:** project, sortedReports, progress  
-**Outputs:** `computeEVM` → `{ PV, EV, AC, CPI, SPI, EAC, VAC, CV, SV }`  
-**Consumers:** `EvmWidget`, `evmEngine.test.mjs`
+**Outputs:** `computeEVM` → `{ BAC, EV, PV, SPI, EAC, EACdays, TCPI, spiStatus, tcpiStatus, tcpiWarning, spiHistory }`  
+**Consumers:** `useRiskRows` (via computeRiskRows), `EvmWidget`, `evmEngine.test.mjs`
 
 ### `monteCarloEngine.js`
 **Responsibility:** Probabilistic opening-date forecast using Monte Carlo simulation with Box-Muller normal variates.  
@@ -370,7 +389,7 @@ These rules are active and must be respected in all future changes:
 | **Hooks/selectors should prepare data for pages** | Memoised derivation layer; wire engines to React state |
 | **Services should only handle persistence/API** | All Supabase calls live in `src/services/`; no direct `supabase.*` in pages or components |
 | **New business logic must not be placed directly inside components** | Extract to engines first, then consume from the component |
-| **Prefer extending existing engines over creating new ones** | 21 engines already exist; check before adding a 22nd |
+| **Prefer extending existing engines over creating new ones** | 24 engines now exist; check before adding a 25th |
 | **Add tests for every new calculation** | Engines are pure functions — they are straightforward to test in Node.js without a browser |
 | **No service_role key anywhere in the frontend** | All auth goes through `authService.js` using the public anon key |
 | **All supabase calls go through services** | `authService.js` for auth; service files for data |
@@ -388,24 +407,31 @@ Runs `node src/tests/runAll.mjs`, which is the **aggregate discovery runner**:
 1. Spawns `src/tests/runTests.js` — 18 in-process checks covering ganttEngine (tests 1–9), discrepancyEngine (2), phase weights (4), and progressWeights (2)
 2. Discovers every `*.test.mjs` recursively under `src/` and spawns each as a child process
 
-Current test suites (auto-discovered):
-| Suite | Checks |
-|-------|--------|
-| `runTests.js` | 18 |
-| `spiEngine.test.mjs` | 22 |
-| `portfolioEngineAlerts.test.mjs` | 21 |
-| `riskEngine.test.mjs` | 29 |
-| `contractorEngine.test.mjs` | (in suite) |
-| `contractorDriftEngine.test.mjs` | (in suite) |
-| `evmEngine.test.mjs` | (in suite) |
-| `monteCarloEngine.test.mjs` | (in suite) |
-| `pmAlignmentEngine.test.mjs` | (in suite) |
-| `progressEngine.test.mjs` | (in suite) |
-| `mergeGanttWPStatuses.test.mjs` | (in suite) |
-| `authService.test.mjs` | (in suite) |
-| `useRiskRows.test.mjs` | (in suite) |
-| `core/insights/__tests__/*.test.mjs` | (in suite) |
-| `core/projects/**.test.mjs` | (in suite) |
+Current test suites (auto-discovered): **30 suites · 890 checks**
+
+| Suite | Checks | Added |
+|-------|--------|-------|
+| `tests/runTests.js` | 18 | original |
+| `tests/spiEngine.test.mjs` | 39 | original + AD-002 |
+| `tests/portfolioEngineAlerts.test.mjs` | 21 | original |
+| `tests/riskEngine.test.mjs` | 29 | original |
+| `tests/evmEngine.test.mjs` | 33 | original |
+| `tests/monteCarloEngine.test.mjs` | 34 | original |
+| `tests/contractorEngine.test.mjs` | 41 | original |
+| `tests/contractorDriftEngine.test.mjs` | 44 | original |
+| `tests/pmAlignmentEngine.test.mjs` | 79 | original |
+| `tests/progressEngine.test.mjs` | 26 | original |
+| `tests/mergeGanttWPStatuses.test.mjs` | 14 | original |
+| `tests/authService.test.mjs` | 21 | original |
+| `engines/riskEngine.test.mjs` | 48 | AD-013 |
+| `engines/evmEngine.test.mjs` | 45 | AD-013 |
+| `engines/monteCarloEngine.test.mjs` | 42 | AD-013 |
+| `engines/__tests__/discrepancyClassify.test.mjs` | 29 | AD-005 |
+| `engines/__tests__/legacyReportEngine.test.mjs` | 30 | AD-003 |
+| `engines/__tests__/scheduleUtils.test.mjs` | 16 | AD-001 |
+| `hooks/useRiskRows.test.mjs` | 45 | original |
+| `core/insights/__tests__/*.test.mjs` (5 files) | 148 | original |
+| `core/projects/**/*.test.mjs` (4 files) | 61 | original |
 
 All suites must pass before any PR lands.
 
