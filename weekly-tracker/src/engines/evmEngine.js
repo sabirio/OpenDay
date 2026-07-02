@@ -53,11 +53,13 @@ export function computeEVM(project, sortedReports, progress) {
   const TCPI = remainingTime > 0 ? Math.round((remainingWork / remainingTime) * 100) / 100 : null;
 
   // AD-002: presentational EVM detail; canonical schedule status = getSPIStatus(SPI).
+  // AD-015: guard not-yet-started projects (PV=0 and EV=0 → SPI=0 is not "critical").
   let spiStatus;
-  if (SPI >= 1.0)       spiStatus = 'on_track';
-  else if (SPI >= 0.95) spiStatus = 'minor_delay';
-  else if (SPI >= 0.85) spiStatus = 'significant_delay';
-  else                  spiStatus = 'critical';
+  if (PV === 0 && EV === 0) spiStatus = 'not_started';
+  else if (SPI >= 1.0)      spiStatus = 'on_track';
+  else if (SPI >= 0.95)     spiStatus = 'minor_delay';
+  else if (SPI >= 0.85)     spiStatus = 'significant_delay';
+  else                      spiStatus = 'critical';
 
   let tcpiStatus   = 'achievable';
   let tcpiWarning  = null;

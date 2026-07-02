@@ -97,7 +97,7 @@ console.log('\nB) SPI math');
 }
 
 // PV=0 edge: future project → falls back to EV>0?1:0
-// Behavioral note: SPI=0 when both PV=0 and EV=0 → spiStatus 'critical' even for not-yet-started project.
+// AD-015: SPI=0 when both PV=0 and EV=0 → spiStatus 'not_started' (not 'critical').
 {
   const rF50 = computeEVM(future, [], 50);
   const rF0  = computeEVM(future, [], 0);

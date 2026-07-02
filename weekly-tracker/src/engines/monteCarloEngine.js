@@ -111,7 +111,7 @@ export function computeMonteCarloForecast(project, sortedReports, ganttTasks) {
   const pOnTime   = pct(onTime);
   const pDelay2Weeks = pct(delay2Weeks);
   const pDelayMonth  = pct(delayMonth);
-  const pDelayCritical = pct(delayCrit);
+  const pDelayCritical = 100 - pOnTime - pDelay2Weeks - pDelayMonth;
 
   return {
     insufficient_data:  false,

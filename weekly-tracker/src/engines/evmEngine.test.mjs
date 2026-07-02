@@ -106,7 +106,7 @@ check('C4: 1/3 → SPI=0.33 (2dp rounding)',
 // C6: PV=0, EV>0 → SPI=1 (fallback, not null)
 check('C6: future PV=0, EV=50 → SPI=1',  computeEVM(future, [], 50)?.SPI === 1);
 
-// C7: PV=0, EV=0 → SPI=0 (both-zero path; spiStatus will be "critical" — known design quirk)
+// C7: PV=0, EV=0 → SPI=0 (both-zero path; AD-015 gives spiStatus 'not_started')
 check('C7: future PV=0, EV=0  → SPI=0',  computeEVM(future, [], 0)?.SPI  === 0);
 
 // ── D) spiStatus tiers ────────────────────────────────────────────────────────
@@ -122,6 +122,8 @@ check('D4: SPI=0.85 (EV=85)  → significant_delay (boundary, not critical)',
   computeEVM(ovd, [], 85)?.spiStatus === 'significant_delay');
 check('D5: SPI=0.84 (EV=84)  → critical',          computeEVM(ovd, [], 84)?.spiStatus  === 'critical');
 check('D6: SPI=0.00 (EV=0)   → critical',          computeEVM(ovd, [], 0)?.spiStatus   === 'critical');
+// D7: AD-015 — future project not yet started (PV=0, EV=0) → not_started, not critical
+check('D7: future PV=0, EV=0 → not_started',       computeEVM(future, [], 0)?.spiStatus === 'not_started');
 
 // ── E) TCPI ───────────────────────────────────────────────────────────────────
 // TCPI = (BAC-EV)/(BAC-PV). Null when remainingTime (BAC-PV) <= 0.

@@ -127,10 +127,10 @@ console.log('\nC) Probability invariants (seed-independent)');
   check('C5: pDelayMonth in [0,100]',  r.pDelayMonth  >= 0 && r.pDelayMonth  <= 100);
   check('C6: pDelayCritical in [0,100]',r.pDelayCritical >= 0 && r.pDelayCritical <= 100);
 
-  // C3: probability sum ≈ 100 (±2 tolerance due to independent Math.round per bucket).
-  // NOTE: asserting === 100 would be flaky — see file header comment for explanation.
+  // C3: probability sum === 100 exactly. AD-014 changed pDelayCritical to a remainder
+  // (100 - pOnTime - pDelay2Weeks - pDelayMonth) so the four values always sum to 100.
   const psum = r.pOnTime + r.pDelay2Weeks + r.pDelayMonth + r.pDelayCritical;
-  check('C7: pct-sum in [98, 102] (rounding tolerance)', psum >= 98 && psum <= 102);
+  check('C7: pct-sum === 100 (remainder bucket)', psum === 100);
 
   // C4: highRisk definition — exactly pOnTime < 25
   check('C8: highRisk === (pOnTime < 25)', r.highRisk === (r.pOnTime < 25));

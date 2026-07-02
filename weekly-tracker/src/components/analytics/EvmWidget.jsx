@@ -5,6 +5,7 @@ function spiColor(spi) {
 }
 
 const SPI_BADGE = {
+  not_started:       { color: 'var(--text-muted)',   bg: 'var(--accent-subtle)',   border: 'var(--border)' },
   on_track:          { color: 'var(--status-done)',  bg: 'var(--status-done-bg)',  border: 'var(--border)' },
   minor_delay:       { color: 'var(--status-warn)',  bg: 'var(--status-warn-bg)',  border: 'var(--border)' },
   significant_delay: { color: 'var(--status-warn)',  bg: 'var(--status-warn-bg)',  border: 'var(--border)' },
@@ -84,7 +85,8 @@ export default function EvmWidget({ evm }) {
           </div>
         </div>
         <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
-          {evm.spiStatus === 'on_track'           ? 'On Track'
+          {evm.spiStatus === 'not_started'         ? 'Not Started'
+           : evm.spiStatus === 'on_track'          ? 'On Track'
            : evm.spiStatus === 'minor_delay'       ? 'Minor Delay'
            : evm.spiStatus === 'significant_delay' ? 'Significant'
            : 'Critical'}
