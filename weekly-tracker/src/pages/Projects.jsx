@@ -3,7 +3,7 @@ import { formatDate } from "../utils/reportUtils";
 import { supabase } from "../lib/supabase";
 import { PHASES } from "../config/masterTaskLibrary";
 import { TEMPLATES } from "../config/projectTemplates";
-import { generateAndSaveGantt } from "../services/ganttService";
+import { generateAndSaveGantt, regenerateGantt } from "../services/ganttService";
 import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
 
 // phaseId → { id, label, bg, border } — colour driven by status, not phase
@@ -344,17 +344,23 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
 
       if (savedProject?.id && newProject.constructionStartDate && newProject.targetOpeningDate) {
         try {
-          const tOptions = newProject.templateType === 'custom'
-            ? { selectedPhases: newProject.phases }
-            : {};
-          await generateAndSaveGantt(
-            savedProject.id,
-            newProject.templateType || 'standard_with_demo',
-            newProject.constructionStartDate,
-            newProject.targetOpeningDate,
-            parseFloat(newProject.storeSizeSqm) || 1000,
-            tOptions,
-          );
+          if (savedProject.ganttGeneratedAt) {
+            // Gantt already exists — refresh planned dates without wiping actual_progress.
+            await regenerateGantt(savedProject.id);
+          } else {
+            // First-time generation — tasks start at 0 (correct for new projects).
+            const tOptions = newProject.templateType === 'custom'
+              ? { selectedPhases: newProject.phases }
+              : {};
+            await generateAndSaveGantt(
+              savedProject.id,
+              newProject.templateType || 'standard_with_demo',
+              newProject.constructionStartDate,
+              newProject.targetOpeningDate,
+              parseFloat(newProject.storeSizeSqm) || 1000,
+              tOptions,
+            );
+          }
         } catch (ganttErr) {
           console.warn('[gantt] generation failed (non-fatal):', ganttErr);
         }

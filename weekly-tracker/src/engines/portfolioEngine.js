@@ -26,7 +26,7 @@ const SV_RESULT_STYLE = {
  */
 export function computePortfolioAlerts(rows) {
   const list = [];
-  rows.forEach(({ project, latestReport, progress, daysToOpening, riskLevel }) => {
+  rows.forEach(({ project, latestReport, progress, daysToOpening, riskLevel, gantt }) => {
     if (daysToOpening !== null && daysToOpening < 30 && progress < 80)
       list.push({ sev: "CRITICAL", pid: project.id, code: project.storeCode, mall: project.shoppingMallName, reason: "Opening approaching — low progress", detail: `${daysToOpening < 0 ? "OVERDUE" : daysToOpening + "d to open"} · Progress ${progress}%`, action: "Immediate escalation required" });
     if (latestReport?.activitiesBlocked === "Yes")
@@ -37,6 +37,26 @@ export function computePortfolioAlerts(rows) {
       list.push({ sev: "HIGH", pid: project.id, code: project.storeCode, mall: project.shoppingMallName, reason: "Project delayed", detail: latestReport.riskDescription || "Schedule confirmed delayed", action: "Review recovery plan" });
     if (riskLevel === "CRITICAL" && latestReport && !list.some(a => a.pid === project.id && a.sev === "CRITICAL"))
       list.push({ sev: "CRITICAL", pid: project.id, code: project.storeCode, mall: project.shoppingMallName, reason: "Project classified CRITICAL", detail: "Risk Level: CRITICAL", action: "Immediate PM review required" });
+    // SPI schedule-performance alert — only when Gantt data is present and project is incomplete.
+    // alertsToInsights ignores the extra spi/spiStatus/criticalTasksBehind fields; Dashboard
+    // banner uses them directly via alerts.filter(a => a.type === 'spi').
+    if (gantt?.spi != null &&
+        (gantt.spiStatus === 'critical' || gantt.spiStatus === 'at_risk') &&
+        progress < 100) {
+      list.push({
+        sev:                 gantt.spiStatus === 'critical' ? 'CRITICAL' : 'HIGH',
+        pid:                 project.id,
+        code:                project.storeCode,
+        mall:                project.shoppingMallName,
+        reason:              gantt.spiStatus === 'critical' ? 'SPI critical' : 'SPI at risk',
+        detail:              `SPI ${gantt.spi.toFixed(2)} — schedule behind plan`,
+        action:              'Review Gantt and contractor progress',
+        type:                'spi',
+        spi:                 gantt.spi,
+        spiStatus:           gantt.spiStatus,
+        criticalTasksBehind: gantt.criticalHealth?.behind ?? 0,
+      });
+    }
   });
   return list.sort((a, b) => SEV_ORDER[a.sev] - SEV_ORDER[b.sev]);
 }
@@ -247,4 +267,23 @@ export function computeRiskSummaryStats(allRows) {
     r.riskScore.factors.some(f => f.name === "PM Site Visit mismatch" || f.name === "Hidden risk (PM vs GC)")
   ).length;
   return { ...c, avgScore, avgHealth, opening30, pmMismatch };
+}
+
+/**
+ * SPI schedule-alert list: projects where SPI is critical/at_risk, not yet
+ * complete, and the Gantt has a real SPI value (null = no usable schedule data).
+ *
+ * @param {Array} ganttRows - rows already enriched with a `gantt` property
+ *   (the Map value from useGanttMetrics), e.g.:
+ *   allRows.map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
+ * @returns {Array} sorted worst-SPI first
+ */
+export function computeSpiAlerts(ganttRows) {
+  return ganttRows
+    .filter(row =>
+      (row.gantt?.spiStatus === 'critical' || row.gantt?.spiStatus === 'at_risk') &&
+      row.gantt?.spi != null &&
+      row.progress < 100
+    )
+    .sort((a, b) => (a.gantt.spi ?? 1) - (b.gantt.spi ?? 1));
 }

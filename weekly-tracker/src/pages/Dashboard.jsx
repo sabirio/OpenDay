@@ -3,6 +3,7 @@ import {
   computePortfolioAlerts, computeContractorPerf,
   computePortfolioKpis, computeSiteVisitData, computeSiteVisitKpis,
 } from "../engines/portfolioEngine";
+import { regenerateGantt } from "../services/ganttService";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
 import SummaryPanel from "../components/dashboard/SummaryPanel";
 import StatusMatrix from "../components/dashboard/StatusMatrix";
@@ -83,21 +84,27 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
   const kpis = useMemo(() => computePortfolioKpis(projects, allRows, reports), [projects, allRows, reports]);
 
-  // Rows enriched with gantt SPI — passed to SummaryPanel for avgSPI card
-  const spiRows = useMemo(() => allRows.map(row => {
-    const gm = ganttMetrics.get(row.project.id);
-    return { evm: gm?.spi != null ? { SPI: gm.spi } : null, monteCarlo: null };
-  }), [allRows, ganttMetrics]);
+  // Single gantt-enriched row set — reused for alerts, SPI banner, and SummaryPanel.
+  const ganttEnrichedRows = useMemo(() =>
+    allRows.map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
+  , [allRows, ganttMetrics]);
 
-  // SPI alert list (critical first, then at_risk, undismissed)
-  const spiAlerts = useMemo(() => allRows
-    .map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
-    .filter(row => row.gantt?.spiStatus === 'critical' || row.gantt?.spiStatus === 'at_risk')
-    .filter(row => !dismissedAlertIds.has(row.project.id))
-    .sort((a, b) => (a.gantt?.spi ?? 1) - (b.gantt?.spi ?? 1))
-  , [allRows, ganttMetrics, dismissedAlertIds]);
+  // SummaryPanel avg-SPI card shape
+  const spiRows = useMemo(() => ganttEnrichedRows.map(row => ({
+    evm: row.gantt?.spi != null ? { SPI: row.gantt.spi } : null,
+    monteCarlo: null,
+  })), [ganttEnrichedRows]);
 
-  const alerts = useMemo(() => computePortfolioAlerts(allRows), [allRows]);
+  // Unified alert source — SPI alerts are now PART of computePortfolioAlerts output
+  // when gantt data is present (type: 'spi' items, worst-SPI first within CRITICAL/HIGH tier).
+  const alerts = useMemo(() => computePortfolioAlerts(ganttEnrichedRows), [ganttEnrichedRows]);
+
+  // SPI banner items: pulled from unified alerts, undismissed, worst SPI first.
+  const spiAlerts = useMemo(() =>
+    alerts
+      .filter(a => a.type === 'spi' && !dismissedAlertIds.has(a.pid))
+      .sort((x, y) => (x.spi ?? 1) - (y.spi ?? 1))
+  , [alerts, dismissedAlertIds]);
 
   const heatmapRows = useMemo(()=>{
     const WEEKS=16; const now=new Date();
@@ -158,27 +165,27 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       {/* ── SPI Alert Banner ── */}
       {spiAlerts.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          {spiAlerts.slice(0, 5).map(row => {
-            const st = SPI_STATUS[row.gantt.spiStatus];
+          {spiAlerts.slice(0, 5).map(a => {
+            const st = SPI_STATUS[a.spiStatus];
             return (
-              <div key={row.project.id} style={{
+              <div key={a.pid} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px',
-                background: row.gantt.spiStatus === 'critical' ? 'var(--status-alert-bg)' : 'var(--status-warn-bg)',
+                background: a.spiStatus === 'critical' ? 'var(--status-alert-bg)' : 'var(--status-warn-bg)',
                 border: '1.5px solid var(--border)', borderRadius: 9, marginBottom: 5, fontSize: 12,
                 borderLeft: `4px solid ${st.color}`,
               }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, color: st.color }}>
-                  <Icon name={row.gantt.spiStatus === 'critical' ? 'block' : 'warning'} size={14} /> {st.label}
+                  <Icon name={a.spiStatus === 'critical' ? 'block' : 'warning'} size={14} /> {st.label}
                 </span>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{row.project.storeCode}</span>
-                <span style={{ color: 'var(--text-muted)' }}>{row.project.shoppingMallName}</span>
-                <span style={{ color: st.color, fontWeight: 700 }}>SPI {row.gantt.spi?.toFixed(2) ?? '—'}</span>
-                {row.gantt.criticalHealth?.behind > 0 && (
-                  <span style={{ color: 'var(--status-alert)' }}>{row.gantt.criticalHealth.behind} critical tasks behind</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{a.code}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{a.mall}</span>
+                <span style={{ color: st.color, fontWeight: 700 }}>SPI {a.spi?.toFixed(2) ?? '—'}</span>
+                {a.criticalTasksBehind > 0 && (
+                  <span style={{ color: 'var(--status-alert)' }}>{a.criticalTasksBehind} critical tasks behind</span>
                 )}
                 <button
                   type="button"
-                  onClick={() => setDismissedAlertIds(prev => new Set([...prev, row.project.id]))}
+                  onClick={() => setDismissedAlertIds(prev => new Set([...prev, a.pid]))}
                   style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                 ><Icon name="close" size={14} /></button>
               </div>
@@ -267,7 +274,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       )}
 
       {/* ── Project Detail Drawer ── */}
-      <ProjectDetailDrawer row={drawerRow} projSiteVisits={drawerSiteVisits} onClose={()=>setDrawerProjectId(null)}/>
+      <ProjectDetailDrawer row={drawerRow} projSiteVisits={drawerSiteVisits} onClose={()=>setDrawerProjectId(null)} onRegenerateGantt={regenerateGantt}/>
     </div>
   );
 }

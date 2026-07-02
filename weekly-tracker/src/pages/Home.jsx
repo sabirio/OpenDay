@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useAllRows } from '../hooks/useAllRows';
+import { useGanttMetrics } from '../hooks/useGanttMetrics';
 import { computePortfolioAlerts, computePortfolioKpis } from '../engines/portfolioEngine';
 import { computeOpeningReadiness } from '../engines/openingReadinessEngine';
 import { getCommands } from '../engines/commandEngine';
@@ -9,9 +10,14 @@ import PrioritiesToday from '../components/home/PrioritiesToday';
 import PortfolioHealth from '../components/home/PortfolioHealth';
 
 function Home({ projects, reports, siteVisits = [] }) {
-  const allRows = useAllRows(projects, reports, siteVisits);
+  const allRows     = useAllRows(projects, reports, siteVisits);
+  const ganttMetrics = useGanttMetrics(projects);
 
-  const alerts = useMemo(() => computePortfolioAlerts(allRows), [allRows]);
+  const ganttRows = useMemo(() =>
+    allRows.map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
+  , [allRows, ganttMetrics]);
+
+  const alerts = useMemo(() => computePortfolioAlerts(ganttRows), [ganttRows]);
 
   const allCommands = useMemo(() =>
     allRows.flatMap(({ project, riskScore, wpCumulativeStatuses, latestReport, missingReport, progressComparison, prevProgressComparison }) =>

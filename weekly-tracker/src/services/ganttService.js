@@ -9,6 +9,7 @@ import {
   calculateForecastOpening,
 } from '../engines/ganttEngine';
 import { DEPENDENCY_RULES } from '../config/dependencyRules';
+import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth } from '../engines/spiEngine';
 
 // ─── Generate & save ──────────────────────────────────────────────────────────
 
@@ -354,46 +355,6 @@ export async function refreshPlannedProgress(projectId) {
       .update({ planned_progress: u.planned_progress })
       .eq('id', u.id);
   }
-}
-
-// ─── Schedule performance (SPI) ───────────────────────────────────────────────
-
-function computePlannedPct(plannedStart, plannedEnd, referenceDate = new Date()) {
-  const start = new Date(plannedStart);
-  const end   = new Date(plannedEnd);
-  const ref   = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
-  if (isNaN(start) || isNaN(end) || end <= start) return 100;
-  if (ref <= start) return 0;
-  if (ref >= end)   return 100;
-  return Math.min(100, (ref - start) / (end - start) * 100);
-}
-
-function computeSPIFromTasks(tasks, referenceDate = new Date()) {
-  const active = tasks.filter(t => !t.is_archived);
-  if (active.length === 0) return null;
-  let sumActual = 0, sumPlanned = 0;
-  for (const t of active) {
-    sumActual  += (t.actual_progress ?? 0);
-    sumPlanned += computePlannedPct(t.planned_start, t.planned_end, referenceDate);
-  }
-  const avgPlanned = sumPlanned / active.length;
-  if (avgPlanned < 1) return null;
-  return Math.round((sumActual / sumPlanned) * 100) / 100;
-}
-
-function computeCriticalHealth(tasks, referenceDate = new Date()) {
-  const critical = tasks.filter(t => t.is_critical && !t.is_archived);
-  if (critical.length === 0) return { total: 0, behind: 0, ratio: 0 };
-  const behind = critical.filter(t => {
-    const planned = computePlannedPct(t.planned_start, t.planned_end, referenceDate);
-    return (t.actual_progress ?? 0) < planned - 5;
-  }).length;
-  return {
-    total: critical.length,
-    behind,
-    ratio: behind / critical.length,
-    label: behind === 0 ? 'healthy' : behind / critical.length <= 0.5 ? 'warning' : 'critical',
-  };
 }
 
 /**

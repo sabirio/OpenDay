@@ -187,5 +187,56 @@ console.log('\nC) computeTrend — guards + behavioral sequences');
     ['Stalling', 'Deteriorating'].includes(r.trend));
 }
 
+// ── D) computeProjectRiskScore — EVM SPI completion guard ─────────────────────
+
+const { computeProjectRiskScore } = await import('../engines/riskEngine.js');
+
+console.log('\nD) computeProjectRiskScore — progress=100 skips EVM SPI factor');
+
+// D1: progress=100 with a project that is well behind schedule (start 200d ago, end 100d ago).
+// Without the guard, SPI = 100/100 = 1.0 (ok) but with progress=30 it would fire.
+// More importantly: with progress=100 the "EVM SPI critical" factor must NEVER appear,
+// even if the project date window gives pv > 0.
+{
+  const project100 = {
+    id: 'test-complete',
+    constructionStartDate: iso(now - 200 * DAY),
+    targetOpeningDate:     iso(now - 100 * DAY),  // overdue project, but complete
+    projectStatus: 'Active',
+    projectType: 'Standard',
+  };
+  const minimalReport = {
+    projectScheduleStatus: 'On Track',
+    supportRequired: 'No',
+    activitiesBlocked: 'No',
+    reportingDate: iso(now - 7 * DAY),
+    risks: [], riskOwners: [],
+  };
+  const result100 = computeProjectRiskScore(project100, [minimalReport], 100, []);
+  const hasEVMFactor = (result100.factors || []).some(f => f.name === 'EVM SPI critical');
+  check('D1: progress=100 → no EVM SPI critical factor', !hasEVMFactor);
+}
+
+// D2: same project with progress=30 → EVM SPI critical factor IS present (guard works both ways)
+{
+  const project30 = {
+    id: 'test-behind',
+    constructionStartDate: iso(now - 200 * DAY),
+    targetOpeningDate:     iso(now + 50 * DAY),
+    projectStatus: 'Active',
+    projectType: 'Standard',
+  };
+  const minimalReport = {
+    projectScheduleStatus: 'On Track',
+    supportRequired: 'No',
+    activitiesBlocked: 'No',
+    reportingDate: iso(now - 7 * DAY),
+    risks: [], riskOwners: [],
+  };
+  const result30 = computeProjectRiskScore(project30, [minimalReport], 30, []);
+  const hasEVMFactor = (result30.factors || []).some(f => f.name === 'EVM SPI critical');
+  check('D2: progress=30 on overdue project → EVM SPI critical factor present', hasEVMFactor);
+}
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabase";
 import { calculateProjectProgress } from "../engines/progressEngine";
 import { fetchTemplateById } from "../data/templatesApi";
 import { computeEffectiveWeights } from "../core/projects/weights/computeEffectiveWeights";
+import { getProjectGantt, batchUpdateWPProgress } from "./ganttService";
 
 const DEFAULT_REPORT_VALUES = {
   projectScheduleStatus: "On Track",
@@ -329,6 +330,29 @@ export async function create(report, cumulativeProgress = null) {
     // Surface the error — a missing history row breaks the Weekly Reports narrative.
     // Root cause was RLS (migration 008 fixes it); don't silently swallow future failures.
     throw new Error(`Report saved but progress history write failed: ${histErr.message}`);
+  }
+
+  // Sync Gantt actual_progress from workPackageStatuses so SPI stays current.
+  // Non-fatal: if the project has no Gantt yet or sync fails, the report is still saved.
+  if (normalized.workPackageStatuses && Object.keys(normalized.workPackageStatuses).length > 0) {
+    try {
+      const ganttTasks = await getProjectGantt(normalized.projectId);
+      if (ganttTasks.length > 0) {
+        const STATUS_MAP = { 'Completed': 'completed', 'In Progress': 'in_progress', 'Not Started': 'not_started' };
+        const wpUpdates = ganttTasks
+          .map(task => {
+            const entry = (normalized.workPackageStatuses[task.phaseId] || {})[task.label];
+            if (!entry) return null;
+            const pct    = typeof entry.progress === 'number' ? entry.progress : 0;
+            const status = STATUS_MAP[entry.status] ?? (pct >= 100 ? 'completed' : pct > 0 ? 'in_progress' : 'not_started');
+            return { wpId: task.id, progress_pct: pct, status };
+          })
+          .filter(Boolean);
+        if (wpUpdates.length > 0) await batchUpdateWPProgress(normalized.projectId, wpUpdates);
+      }
+    } catch (syncErr) {
+      console.warn('[reportService] gantt sync failed (non-fatal):', syncErr);
+    }
   }
 
   return savedReport;

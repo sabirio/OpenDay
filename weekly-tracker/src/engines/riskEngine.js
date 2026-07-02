@@ -237,7 +237,8 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
 
   // 7. EVM Schedule Performance Index (SPI = progress / expected %)
   // Computed inline to avoid circular import with evmEngine.
-  {
+  // Skipped for completed projects — SPI < 1 is expected as work winds down.
+  if (progress < 100) {
     const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;
     const end   = project.constructionEndDate   ? new Date(project.constructionEndDate)
                 : project.targetOpeningDate     ? new Date(project.targetOpeningDate) : null;

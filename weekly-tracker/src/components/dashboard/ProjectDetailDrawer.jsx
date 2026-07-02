@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { computeProjectSummary } from '../../engines/projectSummaryEngine';
 import { computeConfidenceLevel } from '../../engines/pmAlignmentEngine';
 import { formatDate } from '../../utils/reportUtils';
@@ -23,7 +23,19 @@ function StatusDot({ ok, critical }) {
   return <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: c, flexShrink: 0 }} />;
 }
 
-export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
+export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRegenerateGantt }) {
+  const [regenerating, setRegenerating] = useState(false);
+
+  async function handleRegenGantt() {
+    if (!row?.project?.id || regenerating) return;
+    setRegenerating(true);
+    try {
+      await onRegenerateGantt(row.project.id);
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   useEffect(() => {
     const h = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', h);
@@ -73,6 +85,13 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose }) {
                 title="Copy contractor report link">
                 Copy link
               </button>
+              {onRegenerateGantt && (
+                <button type="button" onClick={handleRegenGantt} disabled={regenerating}
+                  style={{ padding: '5px 11px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: regenerating ? 'var(--text-muted)' : 'var(--text-secondary)', fontSize: 11, fontWeight: 600, cursor: regenerating ? 'not-allowed' : 'pointer' }}
+                  title="Refresh Gantt planned dates without wiping progress">
+                  {regenerating ? 'Updating…' : 'Regen Gantt'}
+                </button>
+              )}
               <button type="button" onClick={onClose}
                 style={{ padding: '5px 13px', borderRadius: 8, border: 'none', background: 'var(--border)', color: 'var(--text-primary)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                 Close ×
