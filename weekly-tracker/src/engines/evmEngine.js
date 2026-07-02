@@ -4,6 +4,7 @@ import { computeScheduleDeviation } from './riskEngine';
 import { DAY_MS } from '../utils/reportUtils';
 import { progressAtIndex } from './progressEngine';
 import { computeExpectedPct } from '../utils/scheduleUtils';
+import { computeCalendarSpi } from './spiEngine';
 
 function pvAtDate(project, date) {
   return computeExpectedPct(project, date) ?? 0;
@@ -31,7 +32,7 @@ export function computeEVM(project, sortedReports, progress) {
   const PV  = schedDev.expectedPct;
 
   // SPI — schedule performance index
-  const SPI = PV > 0 ? Math.round((EV / PV) * 100) / 100 : (EV > 0 ? 1 : 0);
+  const SPI = computeCalendarSpi(EV, PV) ?? (EV > 0 ? 1 : 0);
 
   // EAC forecast delay in days: project takes totalDays/SPI instead of totalDays
   let EACdays = 0;
@@ -51,7 +52,7 @@ export function computeEVM(project, sortedReports, progress) {
   const remainingTime = BAC - PV;  // how much "planned time" is left
   const TCPI = remainingTime > 0 ? Math.round((remainingWork / remainingTime) * 100) / 100 : null;
 
-  // Interpretation
+  // AD-002: presentational EVM detail; canonical schedule status = getSPIStatus(SPI).
   let spiStatus;
   if (SPI >= 1.0)       spiStatus = 'on_track';
   else if (SPI >= 0.95) spiStatus = 'minor_delay';

@@ -3,6 +3,23 @@
 // ganttService imports these and wires them to DB calls.
 
 /**
+ * Calendar SPI: actualPct / expectedPct (time-based progress ratio).
+ *
+ * Distinct from Gantt SPI (computeSPIFromTasks), which averages
+ * actual_progress / planned_progress across individual task date windows.
+ * This function measures how far actual project progress is relative to the
+ * linear time expectation (from computeExpectedPct / scheduleUtils).
+ *
+ * @param {number}      actualPct   — actual project progress (0–100)
+ * @param {number|null} expectedPct — planned progress at reference date (0–100)
+ * @returns {number|null} SPI rounded to 2dp, or null when expectedPct is unavailable/zero
+ */
+export function computeCalendarSpi(actualPct, expectedPct) {
+  if (expectedPct == null || expectedPct <= 0) return null;
+  return Math.round((actualPct / expectedPct) * 100) / 100;
+}
+
+/**
  * Fraction (0–100) of a task that is planned to be complete by referenceDate,
  * based on its planned_start → planned_end window.
  */

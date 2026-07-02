@@ -34,6 +34,7 @@ import {
   computeCumulativeStatuses,
 } from '../utils/reportUtils.js';
 import { computeExpectedPct } from '../utils/scheduleUtils.js';
+import { computeCalendarSpi } from './spiEngine.js';
 import { calculateProgressDelta } from './progressDeltaEngine.js';
 import { SCHEDULE_CONFIG } from '../config/scheduleConfig.js';
 import { sortReasons } from '../utils/reasonUtils.js';
@@ -304,9 +305,7 @@ export function calculateProgressComparison(project, actualPct, historyRows, con
     }
   }
 
-  const spi = expectedPct != null && expectedPct > 0
-    ? +(actualPct / expectedPct).toFixed(2)
-    : null;
+  const spi = computeCalendarSpi(actualPct, expectedPct);
 
   return {
     actualPct,

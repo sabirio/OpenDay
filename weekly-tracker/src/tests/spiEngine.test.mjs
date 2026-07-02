@@ -2,7 +2,8 @@
 // No Supabase dependency; spiEngine.js has no imports at all.
 // Run: node src/tests/spiEngine.test.mjs
 
-import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth } from '../engines/spiEngine.js';
+import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth, computeCalendarSpi } from '../engines/spiEngine.js';
+import { getSPIStatus } from '../config/statusColors.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -173,6 +174,51 @@ console.log('\nD) computeCriticalHealth');
   const h = computeCriticalHealth(tasks);
   check('D4: archived critical excluded → total=0', h.total === 0);
 }
+
+// ── E) computeCalendarSpi ─────────────────────────────────────────────────────
+
+console.log('\nE) computeCalendarSpi');
+
+// E1: normal case — rounds to 2dp
+check('E1: 75/100 → 0.75',  computeCalendarSpi(75, 100) === 0.75);
+check('E2: 1/3 → 0.33',     computeCalendarSpi(1, 3) === 0.33);
+check('E3: 100/100 → 1',    computeCalendarSpi(100, 100) === 1);
+
+// E4: expectedPct = 0 → null
+check('E4: expectedPct=0 → null', computeCalendarSpi(50, 0) === null);
+
+// E5: expectedPct = null → null
+check('E5: expectedPct=null → null', computeCalendarSpi(50, null) === null);
+
+// E6: expectedPct undefined → null
+check('E6: expectedPct=undefined → null', computeCalendarSpi(50, undefined) === null);
+
+// E7: actualPct = 0, expectedPct > 0 → 0 (not null)
+check('E7: actualPct=0, expectedPct=50 → 0', computeCalendarSpi(0, 50) === 0);
+
+// E8: rounding to 2dp
+check('E8: 2/3 rounds to 0.67', computeCalendarSpi(2, 3) === 0.67);
+
+// ── F) getSPIStatus boundaries ────────────────────────────────────────────────
+
+console.log('\nF) getSPIStatus');
+
+// F1: >= 0.95 → on_schedule
+check('F1: 0.95 → on_schedule', getSPIStatus(0.95) === 'on_schedule');
+check('F2: 1.0 → on_schedule',  getSPIStatus(1.0)  === 'on_schedule');
+check('F3: 1.5 → on_schedule',  getSPIStatus(1.5)  === 'on_schedule');
+
+// F4: >= 0.80 and < 0.95 → at_risk
+check('F4: 0.80 → at_risk',     getSPIStatus(0.80) === 'at_risk');
+check('F5: 0.94 → at_risk',     getSPIStatus(0.94) === 'at_risk');
+
+// F6: < 0.80 → critical
+check('F6: 0.79 → critical',    getSPIStatus(0.79) === 'critical');
+check('F7: 0 → critical',       getSPIStatus(0)    === 'critical');
+
+// F8: null / undefined → no_schedule
+check('F8: null → no_schedule',      getSPIStatus(null)      === 'no_schedule');
+check('F9: undefined → no_schedule', getSPIStatus(undefined) === 'no_schedule');
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

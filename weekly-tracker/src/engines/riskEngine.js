@@ -1,6 +1,8 @@
 import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore, DAY_MS, daysSince, daysUntil, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
 import { calculateProjectProgressResult } from "./progressEngine";
 import { computeExpectedPct } from "../utils/scheduleUtils";
+import { computeCalendarSpi } from "./spiEngine";
+import { getSPIStatus } from "../config/statusColors";
 import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER } from "../config/riskConfig";
 import { RISK_WEIGHTS } from "../config/riskWeights";
@@ -235,17 +237,15 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
     if (openPts > 0) factors.push({ name: "Opening proximity", value: daysToOpen < 0 ? `${Math.abs(daysToOpen)}d overdue` : `${daysToOpen}d remaining`, pts: openPts });
   }
 
-  // 7. EVM Schedule Performance Index (SPI = progress / expected %)
-  // Computed inline to avoid circular import with evmEngine.
+  // 7. EVM Schedule Performance Index — calendar SPI (actualPct / expectedPct).
+  // Threshold tied to getSPIStatus 'critical' boundary (< 0.80) for consistency.
   // Skipped for completed projects — SPI < 1 is expected as work winds down.
   if (progress < 100) {
-    const pv = computeExpectedPct(project, now);
-    if (pv !== null && pv > 0) {
-      const spi = progress / pv;
-      if (spi < 0.85) {
-        score += RISK_WEIGHTS.evmSpi;
-        factors.push({ name: "EVM SPI critical", value: `SPI ${Math.round(spi * 100) / 100}`, pts: RISK_WEIGHTS.evmSpi });
-      }
+    const pv  = computeExpectedPct(project, now);
+    const spi = computeCalendarSpi(progress, pv);
+    if (getSPIStatus(spi) === 'critical') {
+      score += RISK_WEIGHTS.evmSpi;
+      factors.push({ name: "EVM SPI critical", value: `SPI ${spi}`, pts: RISK_WEIGHTS.evmSpi });
     }
   }
 
