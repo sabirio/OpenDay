@@ -29,8 +29,8 @@ export const ROLE_REDIRECTS = {
 
 // Sidebar nav items with their required resource permission
 export const NAV_ITEMS = [
-  { to: '/home',               label: 'Home',             resource: 'dashboard'      },
-  { to: '/',                   label: 'Dashboard',        resource: 'dashboard'      },
+  { to: '/home',               label: 'Today',            resource: 'dashboard'      },
+  { to: '/',                   label: 'Portfolio',        resource: 'dashboard'      },
   { to: '/projects',           label: 'Projects',         resource: 'projects'       },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
   { to: '/site-visit-select',  label: 'Site Visit',       resource: 'site_visit'     },

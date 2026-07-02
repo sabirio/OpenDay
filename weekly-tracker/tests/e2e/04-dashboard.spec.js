@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { CREDENTIALS, login, logout } from './helpers.js';
 
-test.describe('Dashboard — Admin', () => {
+test.describe('Portfolio — Admin', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/');
-    await expect(page.locator('h1')).toContainText('Dashboard', { timeout: 10_000 });
+    await expect(page.locator('h1')).toContainText('Portfolio', { timeout: 10_000 });
   });
 
   test.afterEach(async ({ page }) => {
@@ -41,11 +41,11 @@ test.describe('Dashboard — Admin', () => {
   });
 });
 
-test.describe('Dashboard — PM', () => {
-  test('PM sees Dashboard with no Users nav item', async ({ page }) => {
+test.describe('Portfolio — PM', () => {
+  test('PM sees Portfolio with no Users nav item', async ({ page }) => {
     await login(page, CREDENTIALS.pm);
     await page.goto('/');
-    await expect(page.locator('h1')).toContainText('Dashboard', { timeout: 10_000 });
+    await expect(page.locator('h1')).toContainText('Portfolio', { timeout: 10_000 });
     await expect(page.locator('aside nav').getByRole('link', { name: 'Users', exact: true })).not.toBeVisible();
     await logout(page);
   });

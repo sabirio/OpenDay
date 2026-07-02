@@ -8,6 +8,7 @@ import { calculateProjectProgress, progressAtIndex } from '../engines/progressEn
 import { PROJECT_COLORS, computePriorityScore } from '../config/dashboardConstants';
 import { computeProjectRiskScore } from '../engines/riskEngine';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
+import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
 
 /**
  * Shared allRows computation — same logic as Dashboard's internal useMemo,
@@ -26,14 +27,8 @@ export function useAllRows(projects, reports, siteVisits = []) {
     const wpCumulativeStatuses  = computeWPCumulativeStatuses(projReports) || null;
     const latestReport = sorted[sorted.length - 1] || null;
 
-    const s = project?.scope ?? null;
-    const scopeWPIds = s
-      ? GANTT_WPS
-          .filter(wp => (!s.phases?.length      || s.phases.includes(wp.phaseId))
-                     && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
-          .map(wp => wp.id)
-      : null;
-    const phaseWeightOverrides = s?.weightOverrides ?? null;
+    const scopeWPIds = getScopeWPIds(project?.scope, GANTT_WPS);
+    const phaseWeightOverrides = project?.scope?.weightOverrides ?? null;
 
     const progress = wpCumulativeStatuses
       ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides)
@@ -44,13 +39,14 @@ export function useAllRows(projects, reports, siteVisits = []) {
     const daysSinceReport = latestReport ? daysSince(latestReport.reportingDate || latestReport.submittedAt) : null;
     const missingReport   = isMissingReport(latestReport);
     const daysToOpening   = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
-    const riskLevel       = computeProjectRiskScore(project, projReports, progress, projSiteVisits).level;
+    const riskScore       = computeProjectRiskScore(project, projReports, progress, projSiteVisits);
+    const riskLevel       = riskScore.level;
     const priorityScore   = computePriorityScore(riskLevel, daysToOpening, missingReport);
 
     return {
       project, latestReport, cumulativeStatuses, wpCumulativeStatuses, progress,
       projReports, projSiteVisits, sorted, color, progressPoints,
-      daysSinceReport, missingReport, daysToOpening, riskLevel, priorityScore,
+      daysSinceReport, missingReport, daysToOpening, riskScore, riskLevel, priorityScore,
     };
   }), [projects, reports, siteVisits]);
 }

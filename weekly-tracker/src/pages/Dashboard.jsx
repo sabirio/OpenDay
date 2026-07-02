@@ -1,13 +1,5 @@
 import { useMemo, useState, useCallback } from "react";
 import {
-  estimateProgressFromStatuses,
-  computeCumulativeStatuses, computeWPCumulativeStatuses,
-  daysSince, isMissingReport, daysUntil,
-} from "../utils/reportUtils";
-import { calculateProjectProgress, progressAtIndex } from "../engines/progressEngine";
-import { PROJECT_COLORS, computePriorityScore } from "../config/dashboardConstants";
-import { computeProjectRiskScore } from "../engines/riskEngine";
-import {
   computePortfolioAlerts, computeContractorPerf,
   computePortfolioKpis, computeSiteVisitData, computeSiteVisitKpis,
 } from "../engines/portfolioEngine";
@@ -20,9 +12,9 @@ import ProgressTab from "../components/dashboard/ProgressTab";
 import ContractorsTab from "../components/dashboard/ContractorsTab";
 import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
+import { useAllRows } from "../hooks/useAllRows";
 import { SPI_STATUS } from "../config/statusColors";
 import { getProgressSnapshot } from "../services/projectService";
-import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
 import Icon from "../components/shared/Icon";
 
 function isoWeekLabel(isoWeekStr) {
@@ -71,33 +63,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
   const ganttMetrics = useGanttMetrics(projects);
 
-  const allRows = useMemo(() => projects.map((project, idx) => {
-    const projReports = reports.filter(r=>r.projectId===project.id);
-    const projSiteVisits = siteVisits.filter(sv=>String(sv.projectId)===String(project.id));
-    const sorted = [...projReports].sort((a,b)=>new Date(a.reportingDate||a.submittedAt)-new Date(b.reportingDate||b.submittedAt));
-    const cumulativeStatuses = computeCumulativeStatuses(projReports)||{};
-    const wpCumulativeStatuses = computeWPCumulativeStatuses(projReports)||null;
-    const latestReport = sorted[sorted.length-1]||null;
-    const s = project?.scope ?? null;
-    const scopeWPIds = s
-      ? GANTT_WPS
-          .filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
-                     && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
-          .map(wp => wp.id)
-      : null;
-    const phaseWeightOverrides = s?.weightOverrides ?? null;
-    const progress = wpCumulativeStatuses
-      ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides)
-      : estimateProgressFromStatuses(cumulativeStatuses);
-    const color = PROJECT_COLORS[idx%PROJECT_COLORS.length];
-    const progressPoints = sorted.map((r,i)=>({ date:r.reportingDate||r.submittedAt, value:progressAtIndex(sorted,i) }));
-    const daysSinceReport = latestReport ? daysSince(latestReport.reportingDate||latestReport.submittedAt) : null;
-    const missingReport = isMissingReport(latestReport);
-    const daysToOpening = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
-    const riskLevel = computeProjectRiskScore(project, projReports, progress, projSiteVisits).level;
-    const priorityScore = computePriorityScore(riskLevel,daysToOpening,missingReport);
-    return { project,latestReport,cumulativeStatuses,wpCumulativeStatuses,progress,projReports,sorted,color,progressPoints,daysSinceReport,missingReport,daysToOpening,riskLevel,priorityScore };
-  }), [projects,reports,siteVisits]);
+  const allRows = useAllRows(projects, reports, siteVisits);
 
   const filteredRows = useMemo(()=>allRows.filter(({project,latestReport,missingReport})=>{
     if (searchQuery) {
@@ -181,7 +147,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       {/* ── Header ── */}
       <div className="page-header">
         <div>
-          <h1>Construction Dashboard</h1>
+          <h1>Portfolio</h1>
           <p>PM Command Center — portfolio health, risks, blockers, actions, and opening readiness.</p>
         </div>
         <div style={{ fontSize:13,color:"var(--text-secondary)",alignSelf:"center" }}>

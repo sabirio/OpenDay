@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useAllRows } from '../hooks/useAllRows';
 import { computePortfolioAlerts, computePortfolioKpis } from '../engines/portfolioEngine';
-import { computeProjectRiskScore } from '../engines/riskEngine';
 import { calculateProgressComparison } from '../engines/progressEngine';
 import { computeOpeningReadiness } from '../engines/openingReadinessEngine';
 import { getCommands } from '../engines/commandEngine';
@@ -16,12 +15,12 @@ function Home({ projects, reports, siteVisits = [] }) {
   const alerts = useMemo(() => computePortfolioAlerts(allRows), [allRows]);
 
   const allCommands = useMemo(() =>
-    allRows.flatMap(({ project, progress, projReports, projSiteVisits, wpCumulativeStatuses, latestReport, missingReport }) =>
+    allRows.flatMap(({ project, progress, riskScore, wpCumulativeStatuses, latestReport, missingReport }) =>
       getCommands({
         project,
         progressComparison:     calculateProgressComparison(project, progress, []),
         prevProgressComparison: null,
-        riskScore:              computeProjectRiskScore(project, projReports, progress, projSiteVisits),
+        riskScore,
         openingReadiness:       computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate),
         latestReport,
         missingReport,
@@ -38,8 +37,8 @@ function Home({ projects, reports, siteVisits = [] }) {
     <div>
       <div className="page-header">
         <div>
-          <h1>Home</h1>
-          <p>Portfolio overview — today's priorities and health at a glance.</p>
+          <h1>Today</h1>
+          <p>Your daily focus — today's priorities and portfolio health at a glance.</p>
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', alignSelf: 'center' }}>
           {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}

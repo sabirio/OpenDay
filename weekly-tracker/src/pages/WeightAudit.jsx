@@ -3,6 +3,7 @@ import { fetchActiveTemplate, fetchTemplateById } from '../data/templatesApi';
 import { computeEffectiveWeights, validateTemplate } from '../core/projects';
 import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
+import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
 
 // Domain label maps — resolved once at module load, never in core
 const PHASE_LABELS = Object.fromEntries(
@@ -96,15 +97,9 @@ export default function WeightAudit({ projects }) {
 
   const selectedProject = projects.find(p => String(p.id) === selectedProjectId) ?? null;
 
-  // Mirror WeeklyReports scopeWPIds derivation exactly so the audit matches the engine
   const scopeWPIds = useMemo(() => {
     if (mode !== 'project' || !selectedProject) return null;
-    const s = selectedProject.scope ?? null;
-    if (!s) return null;
-    return GANTT_WPS
-      .filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
-                 && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
-      .map(wp => wp.id);
+    return getScopeWPIds(selectedProject.scope, GANTT_WPS);
   }, [mode, selectedProject]);
 
   useEffect(() => {

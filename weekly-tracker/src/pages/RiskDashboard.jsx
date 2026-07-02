@@ -1,20 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { computeCumulativeStatuses, estimateProgressFromStatuses, computeWPCumulativeStatuses, isSevereScheduleStatus, daysUntil } from "../utils/reportUtils";
-import { calculateProjectProgress } from "../engines/progressEngine";
-import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
-import {
-  RISK_COLORS, RISK_DIMENSIONS,
-  computeScheduleDeviation,
-  computeTrend, computeProjectRiskScore, computeDimensionRisk, computeWeeklyEvolution,
-} from "../engines/riskEngine";
-import { computeProjectHealth } from "../engines/projectHealthEngine";
-import { computeContractorScores, computePortfolioContractorScores } from "../engines/contractorEngine";
-import { computePmAlignmentItems, computeConfidenceLevel, summarizeAlignmentItems } from "../engines/pmAlignmentEngine";
-import { computeEscalations } from "../engines/escalationEngine";
-import { computeRecommendedActions } from "../engines/actionEngine";
-import { computeEVM } from "../engines/evmEngine";
-import { computeContractorDriftProfile } from "../engines/contractorDriftEngine";
-import { computeMonteCarloForecast } from "../engines/monteCarloEngine";
+import { isSevereScheduleStatus, daysUntil } from "../utils/reportUtils";
+import { RISK_COLORS, RISK_DIMENSIONS } from "../engines/riskEngine";
+import { computePortfolioContractorScores } from "../engines/contractorEngine";
+import { computePmAlignmentItems, summarizeAlignmentItems } from "../engines/pmAlignmentEngine";
+import { useRiskRows } from "../hooks/useRiskRows";
 import { RiskGauge, RiskBadge, HealthBadge, DimCell } from "../components/RiskGauge";
 import { FactorPill, MiniRiskSparkline, ScoreBar } from "../components/ScoreBar";
 import { RiskTable } from "../components/RiskTable";
@@ -142,48 +131,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       .finally(() => setGanttSpiLoading(false));
   }, [activeView, projects]);
 
-  const allRows = useMemo(() => {
-    const driftCache = new Map();
-    return projects.map(project => {
-    const projReports    = reports.filter(r => String(r.projectId) === String(project.id));
-    const projSiteVisits = siteVisits.filter(v => String(v.projectId) === String(project.id));
-    const sorted         = [...projReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
-    const cumStatuses    = computeCumulativeStatuses(projReports) || {};
-    const latestReport   = sorted[sorted.length - 1] || null;
-    const wpCumStatuses  = computeWPCumulativeStatuses(projReports);
-    const s              = project?.scope ?? null;
-    const scopeWPIds     = s
-      ? GANTT_WPS.filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
-                             && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
-                 .map(wp => wp.id)
-      : null;
-    const phaseWeightOverrides = s?.weightOverrides ?? null;
-    const progress       = wpCumStatuses?.workPackageStatuses
-      ? calculateProjectProgress(wpCumStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides)
-      : estimateProgressFromStatuses(cumStatuses);
-    const riskScore      = computeProjectRiskScore(project, projReports, progress, projSiteVisits);
-    const schedDev       = computeScheduleDeviation(project, progress);
-    const trend          = computeTrend(sorted);
-    const contScore      = computeContractorScores(project, projReports, projSiteVisits);
-    const escalations    = computeEscalations(sorted, projSiteVisits);
-    const dims           = computeDimensionRisk(project, latestReport, riskScore, schedDev, contScore, projSiteVisits);
-    const evolution      = computeWeeklyEvolution(sorted, project);
-    const confidence     = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
-    const actions        = computeRecommendedActions(riskScore, contScore, schedDev, latestReport, projSiteVisits, project);
-    const health         = computeProjectHealth(riskScore, progress, contScore);
-    const contractorName = project.generalContractor || latestReport?.contractor || "";
-    const evm            = computeEVM(project, sorted, progress);
-    let driftProfile;
-    if (driftCache.has(contractorName)) {
-      driftProfile = driftCache.get(contractorName);
-    } else {
-      driftProfile = computeContractorDriftProfile(projects, reports, siteVisits, contractorName);
-      driftCache.set(contractorName, driftProfile);
-    }
-    const monteCarlo     = computeMonteCarloForecast(project, sorted, null);
-    return { project, latestReport, progress, projReports, projSiteVisits, sorted, riskScore, schedDev, trend, contScore, escalations, dims, evolution, confidence, actions, health, contractorName, evm, driftProfile, monteCarlo };
-  });
-  }, [projects, reports, siteVisits]);
+  const allRows = useRiskRows(projects, reports, siteVisits);
 
   const sortedByRisk   = useMemo(() => [...allRows].sort((a, b) => b.riskScore.score - a.riskScore.score), [allRows]);
   const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === "CRITICAL"), [sortedByRisk]);

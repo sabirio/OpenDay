@@ -15,6 +15,7 @@ import { computeOpeningReadiness } from "../engines/openingReadinessEngine";
 import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from "../config/masterTaskLibrary";
+import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
 import { computePortfolioMissing, computeSiteVisitData, computeSiteVisitKpis } from "../engines/portfolioEngine";
 import { getProjectGantt } from "../services/ganttService";
@@ -190,14 +191,8 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
   const overallProgress = useMemo(() => {
     const wpCum = computeWPCumulativeStatuses(projectReports);
     if (wpCum?.workPackageStatuses) {
-      const s = selectedProject?.scope ?? null;
-      const scopeWPIds = s
-        ? GANTT_WPS
-            .filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
-                       && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
-            .map(wp => wp.id)
-        : null;
-      const phaseWeightOverrides = s?.weightOverrides ?? null;
+      const scopeWPIds = getScopeWPIds(selectedProject?.scope, GANTT_WPS);
+      const phaseWeightOverrides = selectedProject?.scope?.weightOverrides ?? null;
       return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds, phaseWeightOverrides, gatedTemplate);
     }
     return estimateProgressFromStatuses(overallCumulative);
@@ -308,13 +303,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
       if (histRow?.snapshot?.effective_weights && Object.keys(histRow.snapshot.effective_weights).length > 0) {
         return explainFromSnapshot(histRow, taskProgress, EXPLAIN_TEMPLATE);
       }
-      const s = selectedProject?.scope ?? null;
-      const scopeWPIds = s
-        ? GANTT_WPS
-            .filter(wp => (!s.phases?.length    || s.phases.includes(wp.phaseId))
-                       && (!s.workPackages?.length || s.workPackages.includes(wp.id)))
-            .map(wp => wp.id)
-        : null;
+      const scopeWPIds = getScopeWPIds(selectedProject?.scope, GANTT_WPS);
       return explainLive(EXPLAIN_TEMPLATE, scopeWPIds, taskProgress, overallProgress);
     } catch { return null; }
   }, [selectedReport, mergedStatuses, engineOutputs, selectedProject, overallProgress]);
