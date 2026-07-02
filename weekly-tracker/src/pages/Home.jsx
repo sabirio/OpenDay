@@ -36,7 +36,7 @@ function Home({ projects, reports, siteVisits = [] }) {
     <div>
       <div className="page-header">
         <div>
-          <h1>Today</h1>
+          <h1>Home</h1>
           <p>Your daily focus — today's priorities and portfolio health at a glance.</p>
         </div>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', alignSelf: 'center' }}>

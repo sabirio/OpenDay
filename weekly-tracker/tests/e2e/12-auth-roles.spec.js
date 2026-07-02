@@ -22,7 +22,7 @@ test.describe('Auth & Role access control', () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
   });
 
-  test('admin can access Dashboard, Projects, Weekly Reports, Risk, Users', async ({ page }) => {
+  test('admin can access Project Dashboard, Portfolio, Weekly Reports, Risk, Users', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
 
     for (const path of ['/', '/projects', '/weekly-reports', '/risk', '/admin/users']) {
@@ -47,7 +47,7 @@ test.describe('Auth & Role access control', () => {
     await logout(page);
   });
 
-  test('PM can access Dashboard, Projects, Weekly Reports, Risk', async ({ page }) => {
+  test('PM can access Project Dashboard, Portfolio, Weekly Reports, Risk', async ({ page }) => {
     await login(page, CREDENTIALS.pm);
 
     for (const path of ['/', '/projects', '/weekly-reports', '/risk']) {

@@ -147,7 +147,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
       {/* ── Header ── */}
       <div className="page-header">
         <div>
-          <h1>Portfolio</h1>
+          <h1>Project Dashboard</h1>
           <p>PM Command Center — portfolio health, risks, blockers, actions, and opening readiness.</p>
         </div>
         <div style={{ fontSize:13,color:"var(--text-secondary)",alignSelf:"center" }}>

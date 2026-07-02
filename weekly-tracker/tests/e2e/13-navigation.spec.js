@@ -16,7 +16,7 @@ test.describe('Navigation & Routing', () => {
     // Check that major nav links exist
     const navLinks = [
       { label: /dashboard/i, expectedUrl: /\/$/ },
-      { label: /projects/i, expectedUrl: /\/projects/ },
+      { label: /portfolio/i, expectedUrl: /\/projects/ },
       { label: /weekly.?reports?/i, expectedUrl: /\/weekly-reports/ },
       { label: /risk/i, expectedUrl: /\/risk/ },
       { label: /users/i, expectedUrl: /\/admin\/users/ },

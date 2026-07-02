@@ -40,11 +40,11 @@ test.describe('Visual / Content regression', () => {
     await logout(page);
   });
 
-  test('Projects page shows no NaN or undefined values', async ({ page }) => {
+  test('Portfolio page shows no NaN or undefined values', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
-    await assertNoCorruptedText(page, 'Projects');
+    await assertNoCorruptedText(page, 'Portfolio');
     await logout(page);
   });
 

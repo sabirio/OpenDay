@@ -412,7 +412,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       {/* ── Page header ──────────────────────────────────────────────────────── */}
       <div className="page-header">
         <div>
-          <h1>Projects</h1>
+          <h1>Portfolio</h1>
           <p>Manage projects and generate contractor report links.</p>
         </div>
         <button

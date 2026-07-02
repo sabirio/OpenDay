@@ -35,13 +35,13 @@ test.describe('Login page', () => {
 });
 
 test.describe('Admin login', () => {
-  test('redirects to Today and shows all nav items', async ({ page }) => {
+  test('redirects to Home and shows all nav items', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
 
     await expect(page).not.toHaveURL(/\/login/);
     await expect(page.locator('aside.sidebar')).toBeVisible();
 
-    for (const label of ['Today', 'Portfolio', 'Projects', 'Weekly Reports', 'Risk Dashboard', 'Users']) {
+    for (const label of ['Home', 'Project Dashboard', 'Portfolio', 'Weekly Reports', 'Risk Dashboard', 'Users']) {
       await expect(page.locator('aside nav').getByRole('link', { name: label, exact: true })).toBeVisible();
     }
 
@@ -53,7 +53,7 @@ test.describe('Admin login', () => {
 });
 
 test.describe('PM login', () => {
-  test('redirects to Today and hides Users nav item', async ({ page }) => {
+  test('redirects to Home and hides Users nav item', async ({ page }) => {
     await login(page, CREDENTIALS.pm);
 
     await expect(page).not.toHaveURL(/\/login/);
@@ -63,7 +63,7 @@ test.describe('PM login', () => {
     await expect(page.locator('aside nav').getByRole('link', { name: 'Users', exact: true })).not.toBeVisible();
 
     // Allowed nav items are visible
-    for (const label of ['Today', 'Portfolio', 'Projects', 'Weekly Reports', 'Risk Dashboard']) {
+    for (const label of ['Home', 'Project Dashboard', 'Portfolio', 'Weekly Reports', 'Risk Dashboard']) {
       await expect(page.locator('aside nav').getByRole('link', { name: label, exact: true })).toBeVisible();
     }
 

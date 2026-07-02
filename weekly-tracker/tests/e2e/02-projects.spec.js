@@ -3,11 +3,11 @@ import { CREDENTIALS, login, logout } from './helpers.js';
 
 const UNIQUE_CODE = `TEST-${Date.now()}`;
 
-test.describe('Projects page', () => {
+test.describe('Portfolio page', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/projects');
-    await expect(page.locator('h1')).toContainText('Projects');
+    await expect(page.locator('h1')).toContainText('Portfolio');
   });
 
   test.afterEach(async ({ page }) => {
