@@ -180,3 +180,12 @@ All FK project_id columns   bigint
 Helper: `public.get_my_role()` — STABLE SECURITY DEFINER, normalises to lowercase via
 `SELECT LOWER(role) ...` so all 53 RLS policies work regardless of how the role is stored.
 Policies check lowercase ('admin'|'pm'|'viewer'|'contractor') — do NOT change the policies.
+
+---
+
+## Known bugs / TODO
+
+- **Sidebar logo + favicon broken since commit 12db36a.** `Sidebar.jsx:44` references
+  `/logo-dark.png`, `index.html:5-6` references `/logo-light.png` + favicon — both files
+  were deleted. Fix: regenerate `logo-dark.png` / `logo-light.png` (and favicon) from
+  `public/openday-logo.png`. Separate bug-fix task, not M1.2.
