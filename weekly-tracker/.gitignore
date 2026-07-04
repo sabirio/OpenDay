@@ -11,8 +11,16 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# Test / report output artifacts — never track
+test-results
+playwright-report
 .env
 .env.*
+!.env.example
+
+# Prevent accidental commit of archives that may contain secrets
+*.zip
 
 # Editor directories and files
 .vscode/*

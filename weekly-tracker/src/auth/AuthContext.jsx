@@ -45,8 +45,16 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    setUser(null);
-    await authService.logout();
+    // Clear the persisted Supabase session BEFORE dropping local state.
+    // If we setUser(null) first, the redirect to /login fires immediately while
+    // signOut() is still clearing localStorage — a fast navigation back to a
+    // protected route would restore the session via getSession(). The `finally`
+    // guarantees local state clears even if the signOut network call fails.
+    try {
+      await authService.logout();
+    } finally {
+      setUser(null);
+    }
   }
 
   const value = {

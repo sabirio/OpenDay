@@ -320,7 +320,7 @@ function App() {
                       <ProtectedRoute resource="admin_users">
                         <TemplateEditor
                           initialTemplate={CONSTRUCTION_TEMPLATE}
-                          onSave={(t) => console.log('SAVE', t)}
+                          onSave={() => {}}
                           onCancel={() => {}}
                         />
                       </ProtectedRoute>
@@ -339,5 +339,3 @@ function App() {
 }
 
 export default App;
-
-console.log(JSON.stringify(CONSTRUCTION_TEMPLATE));

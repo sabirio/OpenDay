@@ -44,16 +44,18 @@ function loadDotEnv(path = '.env.local') {
   }
 }
 
-const env            = loadDotEnv();
-const SUPABASE_URL   = process.env.VITE_SUPABASE_URL      || env.VITE_SUPABASE_URL;
-const SUPABASE_KEY   = process.env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
+const env                  = loadDotEnv();
+const SUPABASE_URL         = process.env.VITE_SUPABASE_URL          || env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY  || env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌  Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.error('❌  Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN6Z2JrZXFvcm5rZG5nb2VneXNvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTcxNTgyNywiZXhwIjoyMDk1MjkxODI3fQ.B3pj2W84CO2ig4FFJ1FKqqTQGjYmkuGKW3Kg9SYBq60');
+// Uses the service-role key to bypass RLS during cleanup + seed.
+// Never use the anon key here — RLS would block DELETE on all tables.
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 // ── 1. Date helpers ───────────────────────────────────────────────────────────
 
@@ -149,7 +151,7 @@ async function preflight() {
 
   if (error) {
     console.error('\n❌  Pre-flight failed — missing columns in `projects` table.');
-    console.error('   Run  migrate.sql  in Supabase SQL Editor first, then retry.\n');
+    console.error('   Run the migrations in src/migrations/ (001…010) in Supabase SQL Editor first, then retry.\n');
     console.error('   Error:', error.message, '\n');
     process.exit(1);
   }
@@ -162,7 +164,7 @@ async function preflight() {
 
   if (tErr) {
     console.error('\n❌  Pre-flight failed — table `project_gantt_tasks` not found.');
-    console.error('   Run  migrate.sql  in Supabase SQL Editor first, then retry.\n');
+    console.error('   Run the migrations in src/migrations/ (001…010) in Supabase SQL Editor first, then retry.\n');
     process.exit(1);
   }
 

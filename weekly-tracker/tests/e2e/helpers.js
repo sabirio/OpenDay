@@ -1,22 +1,33 @@
 /**
  * Shared test helpers and credentials for the Construction PM Portal E2E suite.
+ *
+ * Credentials are read from env vars (process.env) so they can be set per-environment
+ * without touching this file. Fallback values match the default Supabase test accounts.
+ * Set E2E_* vars in .env.local or CI secrets to override.
  */
 
 export const CREDENTIALS = {
   admin: {
-    email: 'admin@construction.com',
-    password: 'Admin',
+    email:    process.env.E2E_ADMIN_EMAIL    ?? 'admin@openday.fit',
+    password: process.env.E2E_ADMIN_PASSWORD ?? 'Admin',
     role: 'Admin',
   },
   pm: {
-    email: 'pm@construction.com',
-    password: 'Pm',
+    email:    process.env.E2E_PM_EMAIL    ?? 'pm@openday.fit',
+    password: process.env.E2E_PM_PASSWORD ?? 'Pm',
     role: 'PM',
   },
   contractor: {
-    email: 'gc@construction.com',
-    password: 'Gc',
+    email:    process.env.E2E_CONTRACTOR_EMAIL    ?? 'gc@openday.fit',
+    password: process.env.E2E_CONTRACTOR_PASSWORD ?? 'Gc',
     role: 'Contractor',
+  },
+  // viewer: requires a viewer@construction.com user in Supabase Auth with role='viewer'.
+  // Create it manually in the Dashboard before running viewer-scoped tests.
+  viewer: {
+    email:    process.env.E2E_VIEWER_EMAIL    ?? 'viewer@construction.com',
+    password: process.env.E2E_VIEWER_PASSWORD ?? 'Viewer',
+    role: 'Viewer',
   },
 };
 
