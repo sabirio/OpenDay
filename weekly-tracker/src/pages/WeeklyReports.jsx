@@ -1,17 +1,12 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   formatDate,
-  computeCumulativeStatuses,
-  estimateProgressFromStatuses,
   computeWPCumulativeStatuses,
   isWPReport,
 } from "../utils/reportUtils";
-import { calculateProjectProgress, calculateProgressComparison, computeProgressSeries } from "../engines/progressEngine";
+import { calculateProgressComparison, computeProgressSeries } from "../engines/progressEngine";
 import { calculateWorkPackageDeltas, computePhaseChangeFlags, classifyPhases } from "../engines/progressDeltaEngine";
-import { computeProjectRiskScore } from "../engines/riskEngine";
-import { computeContractorScores } from "../engines/contractorEngine";
-import { computeProjectHealth } from "../engines/projectHealthEngine";
-import { computeOpeningReadiness } from "../engines/openingReadinessEngine";
+import { useAllRows } from "../hooks/useAllRows";
 import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 // TODO wave4: WORK_PACKAGES here is the intentional legacy-report fallback
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
@@ -26,7 +21,7 @@ import { computePortfolioMissing } from "../engines/portfolioEngine";
 import { computeSiteVisitData, computeSiteVisitKpis } from "../engines/siteVisitEngine";
 import { getProjectGantt, updateWPDates } from "../services/ganttService";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
-import { isTemplateValid, validateTemplate, explainFromSnapshot, explainLive, taskProgressFromStatuses } from "../core/projects";
+import { validateTemplate, explainFromSnapshot, explainLive, taskProgressFromStatuses } from "../core/projects";
 import { constructionRetailV1 } from "../domains/construction/templates/constructionRetailV1";
 import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
@@ -61,7 +56,7 @@ class ErrorBoundary extends React.Component {
 const EXPLAIN_TEMPLATE = { workPackages: GANTT_WPS, phases: constructionRetailV1.phases };
 
 // ─── Main component ───────────────────────────────────────────────────────────
-function WeeklyReports({ projects, reports, siteVisits = [] }) {
+function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedReportId,  setSelectedReportId]  = useState("");
   const [showMissingModal,  setShowMissingModal]  = useState(false);
@@ -116,40 +111,34 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     return idx > 0 ? sorted[idx - 1] : null;
   }, [selectedReport, projectReports, effectiveReportId]);
 
-  const overallCumulative = useMemo(() => computeCumulativeStatuses(projectReports), [projectReports]);
-
   const templateIssues = useMemo(
     () => (activeTemplate ? validateTemplate(activeTemplate) : []),
     [activeTemplate]
   );
-  const gatedTemplate = useMemo(
-    () => (activeTemplate && isTemplateValid(activeTemplate) ? activeTemplate : null),
-    [activeTemplate]
-  );
 
-  const overallProgress = useMemo(() => {
-    const wpCum = computeWPCumulativeStatuses(projectReports);
-    if (wpCum?.workPackageStatuses) {
-      const scopeWPIds = getScopeWPIds(selectedProject?.scope, GANTT_WPS);
-      const phaseWeightOverrides = selectedProject?.scope?.weightOverrides ?? null;
-      return calculateProjectProgress(wpCum.workPackageStatuses, scopeWPIds, phaseWeightOverrides, gatedTemplate);
-    }
-    return estimateProgressFromStatuses(overallCumulative);
-  }, [projectReports, overallCumulative, selectedProject, gatedTemplate]);
+  // Single read model — progress (and risk/contScore/health/readiness, when
+  // needed) comes from useAllRows(), same as Dashboard/Home. No local
+  // recomputation of calculateProjectProgress() here; template resolution
+  // (templatesById/activeTemplateFallback) is shared via useAllRows() so this
+  // page can't silently diverge from Dashboard/Home again.
+  const allRows = useAllRows(projects, reports, siteVisits, templatesById, activeTemplateFallback);
+  const selectedRow = useMemo(
+    () => allRows.find(r => String(r.project.id) === effectiveProjectId) ?? null,
+    [allRows, effectiveProjectId]
+  );
+  const overallProgress = selectedRow?.progress ?? 0;
 
   const portfolioKpis = useMemo(
     () => computePortfolioMissing(selectedProject ? [selectedProject] : [], reports),
     [selectedProject, reports]
   );
 
-  // Engine outputs — wired after overallProgress so we can pass it in.
-  // risk and contScore computed before health because health depends on both.
-  // projSiteVisits filtered here; engines expect pre-filtered arrays (do not filter internally).
+  // Report-specific progress comparison: matched to whichever historical report
+  // is selected in the dropdown (current vs previous history row), not simply
+  // "latest vs previous" — a capability useAllRows() doesn't provide, so this
+  // stays page-local.
   const engineOutputs = useMemo(() => {
     if (!selectedProject) return null;
-    const projSiteVisits = siteVisits.filter(v => String(v.projectId) === String(selectedProject.id));
-    const latestReport   = projectReports[0] ?? null; // projectReports sorted newest-first
-    const wpCum          = computeWPCumulativeStatuses(projectReports);
 
     // Select the two history rows relevant to the selected report:
     // "current" = row whose date matches selectedReport, "previous" = the row just before it.
@@ -176,12 +165,8 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
       SCHEDULE_CONFIG,
       refDate
     );
-    const risk      = computeProjectRiskScore(selectedProject, projectReports, overallProgress, projSiteVisits);
-    const contScore = computeContractorScores(selectedProject, projectReports, projSiteVisits);
-    const health    = computeProjectHealth(risk, overallProgress, contScore, latestReport);
-    const readiness = computeOpeningReadiness(wpCum, selectedProject.targetOpeningDate ?? null);
-    return { progressComparison, risk, contScore, health, readiness, selectedProgress, currentHistRow };
-  }, [selectedProject, selectedReport, overallProgress, projectReports, siteVisits]);
+    return { progressComparison, selectedProgress, currentHistRow };
+  }, [selectedProject, selectedReport, overallProgress]);
 
   const additionalWorksList = useMemo(() => {
     const sorted = [...projectReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
