@@ -86,6 +86,15 @@ function computePmAlignmentItemsWP(gcReport, pmVisit) {
 
 // ─── Legacy column-based format alignment ────────────────────────────────────
 
+/**
+ * @legacy
+ * This path handles old `reports` format alignment (demolitionStatus /
+ * constructionStatuses / testingStatuses / handoverStatuses flat columns).
+ * Canonical path (computePmAlignmentItemsWP above) uses the Gantt
+ * workPackageStatuses / pmWorkPackageStatuses shape.
+ * Keep for backward compatibility until legacy reports are deprecated.
+ * See: src/engines/COMPARISON_MODEL.md
+ */
 function computePmAlignmentItemsLegacy(gcReport, pmVisit) {
   const items = [];
 
