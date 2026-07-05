@@ -49,6 +49,22 @@ export async function submitReport(projectId, wpProgressArray, meta = {}) {
     .select();
   if (wErr) throw wErr;
 
+  const historyProgress = meta.cumulativeProgress ?? report.overall_progress ?? computeOverallProgress(wpProgressArray);
+  const { error: histErr } = await supabase.from('progress_history').insert({
+    project_id:       projectId,
+    week_number:      weekNumber,
+    overall_progress: historyProgress,
+    spi:              null,
+    recorded_at:      new Date(reportDate).toISOString(),
+    snapshot: {
+      contractor_report_id: report.id,
+      master_report_id:     meta.masterReportId || null,
+      work_packages:        wpProgressArray,
+      legacy_report:        meta.reportSnapshot || null,
+    },
+  });
+  if (histErr) throw new Error(`Contractor report saved but progress history write failed: ${histErr.message}`);
+
   // 3. Update project_gantt_tasks with new progress
   await batchUpdateWPProgress(projectId, wpProgressArray);
 

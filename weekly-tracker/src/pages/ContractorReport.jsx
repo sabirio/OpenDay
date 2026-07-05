@@ -562,7 +562,7 @@ function makeInitialForm(prevReport, cumulativeStatuses) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-function ContractorReport({ projects, reports, onSaveReport }) {
+function ContractorReport({ projects, reports }) {
   const { projectId } = useParams();
   const { user } = useAuth();
   const project = projects.find((p) => String(p.id) === projectId);
@@ -772,31 +772,31 @@ function ContractorReport({ projects, reports, onSaveReport }) {
       const legCum = computeCumulativeStatuses(allReports);
       const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum).progress;
 
-      await onSaveReport(mainReportPayload, cumulativeProgress);
+      const wpProgressArray = ganttTasks.length > 0
+        ? Object.entries(ganttWpProgress).map(([wpId, value]) => ({
+            wpId,
+            progress_pct: value.progress_pct ?? 0,
+            status: value.status ?? "not_started",
+            comment: value.comment ?? "",
+          }))
+        : [];
 
-      if (ganttTasks.length > 0) {
-        const wpProgressArray = Object.entries(ganttWpProgress).map(([wpId, value]) => ({
-          wpId,
-          progress_pct: value.progress_pct ?? 0,
-          status: value.status ?? "not_started",
-          comment: value.comment ?? "",
-        }));
+      const overallProgress =
+        wpProgressArray.length > 0
+          ? Math.round(
+              wpProgressArray.reduce((sum, wp) => sum + wp.progress_pct, 0) /
+                wpProgressArray.length
+            )
+          : cumulativeProgress;
 
-        const overallProgress =
-          wpProgressArray.length > 0
-            ? Math.round(
-                wpProgressArray.reduce((sum, wp) => sum + wp.progress_pct, 0) /
-                  wpProgressArray.length
-              )
-            : 0;
-
-        await submitContractorReport(project.id, wpProgressArray, {
-          reportDate: mainReportPayload.reportingDate,
-          submittedBy: user.id,
-          overallProgress,
-          masterReportId: mainReportPayload.id,
-        });
-      }
+      await submitContractorReport(project.id, wpProgressArray, {
+        reportDate: mainReportPayload.reportingDate,
+        submittedBy: user.id,
+        overallProgress,
+        masterReportId: mainReportPayload.id,
+        reportSnapshot: mainReportPayload,
+        cumulativeProgress,
+      });
 
       setSubmitted(true);
     } catch (err) {

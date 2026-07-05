@@ -219,7 +219,6 @@ function App() {
               <ContractorReport
                 projects={projects}
                 reports={reports}
-                onSaveReport={handleSaveReport}
               />
             </ProtectedRoute>
           }
