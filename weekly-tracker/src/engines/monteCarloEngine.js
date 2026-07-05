@@ -15,6 +15,33 @@ function addDays(date, days) {
   return new Date(date.getTime() + days * DAY_MS);
 }
 
+// ─── S-curve deceleration (Variant 2 — global deceleration coefficient) ───────
+
+/**
+ * Deceleration coefficient k(p): how much of a week's raw μ+σ·N(0,1) delta
+ * actually lands, as a function of current progress. Calibrated for retail
+ * fit-out: rough-in moves fast, commissioning/handover moves slow.
+ *
+ * Linear projection is systematically optimistic near the finish line —
+ * exactly where opening date, marketing, and hiring are already locked in.
+ * This is what makes it optional-opt-in rather than the new default: k(p)
+ * changes the actual simulated dynamics, so every existing percentile/
+ * probability assertion in monteCarloEngine.test.mjs (fixture-exact dates,
+ * computed by hand against the *undamped* random walk) would need
+ * recalculating if this became the default behavior. It doesn't have to be
+ * exercised to be trustworthy — that's what useSCurve defaulting to false
+ * buys: zero risk to ~900 existing checks, opt in explicitly to get it.
+ *
+ * @param {number} p current progress, 0-100 (this codebase's progress scale
+ *                   everywhere — see progressEngine.js — not 0.0-1.0)
+ */
+export function kDeceleration(p) {
+  if (p < 60) return 1.0;
+  if (p < 85) return 0.8;
+  if (p < 95) return 0.6;
+  return 0.4;
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -24,7 +51,8 @@ function addDays(date, days) {
  *  1. Compute weekly progress deltas from sortedReports.
  *  2. Derive μ (mean) and σ (std-dev) of those deltas.
  *  3. Run N=10 000 simulations: from current progress, add μ + σ·N(0,1) each
- *     "week" until progress ≥ 100 — record weeks-to-completion → opening date.
+ *     "week" (scaled by kDeceleration(p) when useSCurve is on) until progress
+ *     ≥ 100 — record weeks-to-completion → opening date.
  *  4. Sort results, compute percentiles and probability buckets.
  *
  * Returns { insufficient_data: true } when fewer than 3 reports are available.
@@ -32,9 +60,14 @@ function addDays(date, days) {
  * @param {object}   project        — project row (targetOpeningDate required)
  * @param {object[]} sortedReports  — GC reports sorted oldest-first
  * @param {object[]} [ganttTasks]   — reserved for future cone enhancements
+ * @param {object}   [options]
+ * @param {boolean}  [options.useSCurve=false] — apply kDeceleration(p) to each
+ *   step's delta. Defaults to false (linear, existing behavior) — see
+ *   kDeceleration's doc comment for why this isn't opt-out.
  * @returns Monte Carlo result or { insufficient_data: true }
  */
-export function computeMonteCarloForecast(project, sortedReports, _ganttTasks) {
+export function computeMonteCarloForecast(project, sortedReports, _ganttTasks, options = {}) {
+  const { useSCurve = false } = options;
   if (!sortedReports || sortedReports.length < 3 || !project?.targetOpeningDate) {
     return { insufficient_data: true };
   }
@@ -73,7 +106,8 @@ export function computeMonteCarloForecast(project, sortedReports, _ganttTasks) {
     const MAX_WEEKS = 520; // safety cap — ~10 years
 
     while (p < 100 && weeks < MAX_WEEKS) {
-      const delta = mu + effectiveSigma * randomNormal();
+      const rawDelta = mu + effectiveSigma * randomNormal();
+      const delta    = useSCurve ? rawDelta * kDeceleration(p) : rawDelta;
       p    += Math.max(0, delta); // progress can't go backwards in aggregate
       weeks++;
     }
@@ -125,5 +159,8 @@ export function computeMonteCarloForecast(project, sortedReports, _ganttTasks) {
     pDelayCritical,
     highRisk: pOnTime < 25,
     cone: { optimistic: p10, median: p50, pessimistic: p90 },
+    model: useSCurve ? 's-curve' : 'linear',
+    mu:    +mu.toFixed(4),
+    sigma: +sigma.toFixed(4),
   };
 }

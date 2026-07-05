@@ -15,8 +15,9 @@ import { computeMonteCarloForecast } from '../engines/monteCarloEngine';
  * @param {Array}  projects  — full project list (needed by computeContractorDriftProfile)
  * @param {Array}  reports   — full reports list
  * @param {Array}  siteVisits
+ * @param {boolean} [useSCurve=false] — Monte Carlo deceleration model toggle (RiskDashboard)
  */
-export function computeRiskRows(baseRows, projects, reports, siteVisits) {
+export function computeRiskRows(baseRows, projects, reports, siteVisits, useSCurve = false) {
   const driftCache = new Map();
   return baseRows.map(base => {
     const { project, latestReport, progress, projReports, projSiteVisits, sorted, riskScore } = base;
@@ -40,7 +41,7 @@ export function computeRiskRows(baseRows, projects, reports, siteVisits) {
       driftCache.set(contractorName, driftProfile);
     }
 
-    const monteCarlo = computeMonteCarloForecast(project, sorted, null);
+    const monteCarlo = computeMonteCarloForecast(project, sorted, null, { useSCurve });
 
     // confidence comes from base (computed in useAllRows — single source of truth)
     return { ...base, schedDev, trend, contScore, escalations, dims, evolution, actions, health, contractorName, evm, driftProfile, monteCarlo };

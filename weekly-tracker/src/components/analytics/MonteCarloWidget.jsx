@@ -71,6 +71,12 @@ export default function MonteCarloWidget({ mc }) {
         {mc.pOnTime}%
         <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 400, marginTop: 2 }}>on-time probability</div>
       </div>
+
+      {mc.model && (
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center' }}>
+          μ = {mc.mu}pp/wk · σ = {mc.sigma}pp · model: {mc.model}
+        </div>
+      )}
     </div>
   );
 }

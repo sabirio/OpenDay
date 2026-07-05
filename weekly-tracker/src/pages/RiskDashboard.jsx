@@ -37,6 +37,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
   const [filterStore, setFilterStore] = useState("");
   const [filterContractor, setFilterContractor] = useState("");
   const [filterReport, setFilterReport] = useState("");
+  const [useSCurve, setUseSCurve] = useState(false);
 
   // Gantt SPI tab state (loaded lazily)
   const ganttMetricsMap = useGanttMetrics(projects, activeView === 'gantt-spi');
@@ -61,7 +62,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       .finally(() => setGanttSpiLoading(false));
   }, [activeView, projects]);
 
-  const allRows = useRiskRows(projects, reports, siteVisits);
+  const allRows = useRiskRows(projects, reports, siteVisits, useSCurve);
 
   const sortedByRisk   = useMemo(() => [...allRows].sort((a, b) => b.riskScore.score - a.riskScore.score), [allRows]);
   const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === "CRITICAL"), [sortedByRisk]);
@@ -129,6 +130,42 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       </div>
 
       <PrintHeader title="Risk & Readiness Dashboard" exportedBy={user?.email} />
+
+      {/* Monte Carlo forecast model toggle — affects every project's forecast
+          (CRITICAL/HIGH cards in the Overview tab), not just one widget, since
+          all rows share one useRiskRows() computation. */}
+      <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Forecast model:</span>
+        <button
+          type="button"
+          onClick={() => setUseSCurve(false)}
+          style={{
+            padding: "4px 12px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+            background: !useSCurve ? "var(--accent)" : "var(--accent-subtle)",
+            color:      !useSCurve ? "var(--text-inverse)" : "var(--text-secondary)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          Linear
+        </button>
+        <button
+          type="button"
+          onClick={() => setUseSCurve(true)}
+          style={{
+            padding: "4px 12px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+            background: useSCurve ? "var(--accent)" : "var(--accent-subtle)",
+            color:      useSCurve ? "var(--text-inverse)" : "var(--text-secondary)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          S-curve
+        </button>
+        {useSCurve && (
+          <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
+            accounts for deceleration in final phases
+          </span>
+        )}
+      </div>
 
       {/* Critical early warnings (always visible) */}
       <CriticalWarnings rows={criticalRows} Glyph={Glyph} />
