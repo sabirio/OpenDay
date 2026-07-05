@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { updateGanttDiscrepancy } from './ganttService';
 import { SiteVisitSchema, SiteVisitWPSchema } from '../schemas/siteVisitSchema';
 import { validateArray } from '../schemas/validate';
+import { computeWPObservationDiscrepancy } from '../engines/discrepancyEngine';
 
 // ─── Submit site visit ────────────────────────────────────────────────────────
 
@@ -36,25 +37,9 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
 
   // 2. Insert site_visit_wps observations (calculate discrepancy live)
   // gc_progress and gc_status are passed per-task from the caller (SiteVisitReport.jsx).
-  // Progress delta is primary when either side has progress; status-rank delta (×10) is the fallback.
-  const STATUS_RANK = { completed: 2, in_progress: 1, not_started: 0, delayed: -1, blocked: -2 };
   const discrepancies = [];
   const observationRows = wpObservationsArray.map(w => {
-    const gcProgress  = w.gc_progress  ?? 0;
-    const pmProgress  = w.observed_progress ?? 0;
-    const gcStatus    = w.gc_status    ?? 'not_started';
-    const pmStatus    = w.observed_status ?? gcStatus;
-
-    const gcRank    = STATUS_RANK[gcStatus] ?? 0;
-    const pmRank    = STATUS_RANK[pmStatus] ?? 0;
-    const rankDelta = pmRank - gcRank;
-
-    const progressDelta = pmProgress - gcProgress;
-    const signedDelta = (pmProgress !== 0 || gcProgress !== 0)
-      ? progressDelta
-      : rankDelta * 10;
-    const absDelta    = Math.abs(signedDelta);
-    const discStatus  = absDelta >= 20 ? 'critical' : absDelta >= 10 ? 'warning' : 'ok';
+    const { gcProgress, pmProgress, gcStatus, signedDelta, absDelta, discStatus } = computeWPObservationDiscrepancy(w);
 
     if (absDelta > 0) {
       discrepancies.push({
@@ -62,6 +47,15 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
         contractor_progress: gcProgress,
         site_visit_progress: pmProgress,
         delta:               absDelta,
+        // P2.2: signedDelta preserves direction (negative = PM found LESS
+        // than the contractor claimed, i.e. an overstatement; positive = PM
+        // found MORE). `delta` above is abs-only, which loses this — needed
+        // by GanttSuccessView to bucket "discrepancy" vs "PM ahead" without
+        // re-deriving its own (and previously inconsistent) comparison.
+        // Progress alone can't always tell direction either: when both sides
+        // report 0% but disagree on status rank (e.g. not_started vs
+        // blocked), site_visit_progress === contractor_progress === 0.
+        signedDelta:         signedDelta,
         status:              discStatus,
       });
     }

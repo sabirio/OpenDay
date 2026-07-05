@@ -184,7 +184,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
         project={project}
         form={form}
         ganttTasks={ganttTasks}
-        pmWpObservations={pmWpObservations}
+        discrepancies={savedVisit.discrepancies}
         onNewVisit={() => { setSavedVisit(null); setSubmitted(false); }}
       />
     );

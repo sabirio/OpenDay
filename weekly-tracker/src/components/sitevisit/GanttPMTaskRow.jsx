@@ -1,4 +1,11 @@
+import { computeWPObservationDiscrepancy } from '../../engines/discrepancyEngine';
+
 const ACCENT = "#0891b2";
+
+const DISC_STYLE = {
+  warning:  { bg: '#fef3c7', color: '#92400e', border: '#fde68a', icon: '⚠' },
+  critical: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5', icon: '⚠' },
+};
 
 const GANTT_STATUS_OPTS_SV = [
   { value: 'not_started', label: 'Not Started', bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
@@ -10,8 +17,20 @@ const GANTT_STATUS_OPTS_SV = [
 
 function GanttPMTaskRow({ task, pmEntry, onChange }) {
   const gcStatus = task.status || 'not_started';
+  const gcProgress = task.actual_progress ?? 0;
   const pmStatus = pmEntry?.observed_status ?? gcStatus;
-  const curProgress = pmEntry?.observed_progress ?? task.actual_progress ?? 0;
+  const curProgress = pmEntry?.observed_progress ?? gcProgress;
+
+  // Live mismatch/"suspicious jump" indicator (P2.2) — reuses the exact
+  // function siteVisitService.submitSiteVisit() persists the real
+  // discrepancy with, so what the PM sees while entering data matches what
+  // gets saved. Only surfaces once the PM's entry actually diverges from the
+  // untouched default (observed === GC's own claim shouldn't self-flag).
+  const touched = pmEntry != null;
+  const { discStatus } = touched
+    ? computeWPObservationDiscrepancy({ gc_progress: gcProgress, gc_status: gcStatus, observed_progress: curProgress, observed_status: pmStatus })
+    : { discStatus: 'ok' };
+  const discStyle = discStatus !== 'ok' ? DISC_STYLE[discStatus] : null;
 
   function handleStatusClick(statusValue) {
     const autoPct =
@@ -71,6 +90,16 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', minWidth: 34, textAlign: 'right' }}>
             {curProgress}%
           </span>
+        </div>
+      )}
+      {discStyle && (
+        <div data-testid="pm-task-discrepancy" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          marginTop: 6, marginLeft: 4, padding: '3px 9px', borderRadius: 6,
+          fontSize: 11, fontWeight: 700,
+          background: discStyle.bg, color: discStyle.color, border: `1px solid ${discStyle.border}`,
+        }}>
+          {discStyle.icon} GC claimed {gcProgress}% ({gcStatus.replace('_', ' ')}) — {curProgress !== gcProgress ? `${Math.abs(curProgress - gcProgress)}pp gap` : 'status mismatch'}
         </div>
       )}
     </div>

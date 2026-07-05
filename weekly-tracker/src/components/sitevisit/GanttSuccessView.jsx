@@ -1,44 +1,25 @@
 const ACCENT = "#0891b2";
 
-// TODO wave7: this recalculates discrepancy inline instead of reading
-// savedVisit.discrepancies (the result siteVisitService.submitSiteVisit()
-// already computed and persisted to the DB). It also uses a different
-// tolerance (PROGRESS_TOL = 5 below) than that service's threshold (10/20),
-// so this can show a different discrepancy count than what was actually
-// written. Canonical source: siteVisitService.submitSiteVisit() (per-visit
-// discrepancy) — see src/engines/COMPARISON_MODEL.md.
-// Do not add new comparison logic here; this should be replaced with a
-// read from savedVisit.discrepancies.
-function GanttSuccessView({ project, form, ganttTasks, pmWpObservations, onNewVisit }) {
-  // Status-rank comparison: Delayed/Blocked below Not Started, so marking a task
-  // as Delayed when GC claimed In Progress registers as a discrepancy even if progress % didn't change.
-  const STATUS_RANK = { completed: 2, in_progress: 1, not_started: 0, delayed: -1, blocked: -2 };
-  let confirmed = 0, discrepancyCount = 0, pmAheadCount = 0;
-  for (const task of ganttTasks) {
-    const gcStatus   = task.status ?? 'not_started';
-    const gcProgress = task.actual_progress ?? 0;
-
-    // Skip tasks GC hasn't touched at all
-    if (gcStatus === 'not_started' && gcProgress === 0) continue;
-
-    const pmEntry  = pmWpObservations[task.id] || {};
-    const pmStatus     = pmEntry.observed_status ?? gcStatus;
-    const gcRank       = STATUS_RANK[gcStatus] ?? 0;
-    const pmRank       = STATUS_RANK[pmStatus] ?? 0;
-    const pmProgress   = pmEntry.observed_progress ?? gcProgress;
-    const PROGRESS_TOL = 5;
-
-    if (pmRank === gcRank) {
-      const d = pmProgress - gcProgress;
-      if      (d < -PROGRESS_TOL) discrepancyCount++;
-      else if (d >  PROGRESS_TOL) pmAheadCount++;
-      else                        confirmed++;
-    } else if (pmRank < gcRank) {
-      discrepancyCount++;
-    } else {
-      pmAheadCount++;
-    }
-  }
+// P2.2: reads savedVisit.discrepancies — the exact result
+// siteVisitService.submitSiteVisit() computed and persisted to
+// site_visit_wps/site_visit_discrepancies — instead of recalculating
+// inline. Previously this recomputed with its own STATUS_RANK/tolerance
+// logic (PROGRESS_TOL = 5) that didn't match the service's actual
+// threshold (10/20), so this screen could show a different discrepancy
+// count than what was actually written to the DB. Canonical source:
+// siteVisitService.submitSiteVisit() — see src/engines/COMPARISON_MODEL.md.
+function GanttSuccessView({ project, form, ganttTasks, discrepancies = [], onNewVisit }) {
+  // discrepancies[] includes every task with ANY nonzero delta, even ones the
+  // service itself classifies 'ok' (< 10pp — its own tolerance band). Only
+  // 'warning'/'critical' entries count as a real discrepancy/pmAhead here;
+  // 'ok' entries fold into "confirmed" alongside exact matches, reusing the
+  // service's own threshold rather than inventing a second one on this screen.
+  // signedDelta < 0: PM found LESS progress than the contractor claimed
+  // (overstatement). signedDelta > 0: PM found MORE (contractor understated).
+  const flagged          = discrepancies.filter(d => d.status !== 'ok');
+  const discrepancyCount = flagged.filter(d => d.signedDelta < 0).length;
+  const pmAheadCount     = flagged.filter(d => d.signedDelta > 0).length;
+  const confirmed        = Math.max(0, ganttTasks.length - flagged.length);
 
   return (
     <div style={{ minHeight: '100vh', background: '#f0f7fa', padding: '36px 20px 80px' }}>
