@@ -2,21 +2,38 @@
 
 ## Database Setup (Supabase)
 
-Run the following migrations **in order** in the Supabase SQL Editor:
+### Fresh install
 
-1. `src/migrations/001_initial_schema.sql` — Base schema + report_format column
-2. `src/migrations/002_gantt_system.sql` — Gantt tasks, contractor reports, site visits
-3. `src/migrations/003_task_groups.sql` — Task group structure + seed data
-4. `src/migrations/004_site_visit_pm_assessment.sql` — PM schedule assessment column
-5. `src/migrations/005_site_visit_gc_status.sql` — GC status on site visit WPs
-6. `src/migrations/006_project_scope.sql` — Project scope / store size columns
-7. `src/migrations/007_progress_history.sql` — Progress history table
-8. `src/migrations/008_progress_history_rls.sql` — RLS on progress_history (superseded by 010)
-9. `src/migrations/009_gantt_engine_version.sql` — gantt_engine_version stamp on projects
-10. `src/migrations/010_rls_by_roles.sql` — **RLS by roles (M0.2)** — replaces all `anon_all_*`
-    policies with role-scoped policies across 14 tables. Safe to re-run (idempotent).
+Run this canonical path on a new Supabase database. Do not run historical migrations `001-009` on a fresh database; they were written for an older UUID project schema and are kept only as migration history.
 
-All migrations use `IF NOT EXISTS` / `CREATE OR REPLACE` and are safe to re-run.
+| Order | File | Description |
+|-------|------|-------------|
+| 1 | `src/migrations/000_baseline.sql` | Canonical production schema baseline: current bigint ids, tables, indexes, and RLS-enabled flags. |
+| 2 | `src/migrations/010_rls_by_roles.sql` | Current role-based RLS policies and `public.get_my_role()` helper. Compatible with `000_baseline.sql`. |
+| 3 | `src/migrations/011_ownership_uuid.sql` | Ownership columns hardening: `contractor_reports.submitted_by` and `site_visits.visited_by` as auth user UUIDs. |
+| 4 | `src/migrations/012_invite_contractor.sql` | `public.invite_contractor(text)` RPC. |
+| 5 | `src/migrations/013_auth_user_role.sql` | `public.auth_user_role()` helper used by invite RPC. |
+| 6 | `src/migrations/014_site_photos_storage.sql` | Initial private `site-photos` bucket setup and `photo_urls` columns. |
+| 7 | `src/migrations/015_audit_log.sql` | Audit log table and triggers for projects, contractor reports, and site visits. |
+| 8 | `src/migrations/016_updated_at.sql` | `updated_at` columns and triggers for optimistic conflict detection. |
+| 9 | `src/migrations/017_site_photos_bucket_v2.sql` | Current private `site-photos` bucket limits and storage policies. |
+| 10 | `src/migrations/018_submit_contractor_report_rpc.sql` | Atomic `public.submit_contractor_report(bigint, date, jsonb, jsonb)` RPC. |
+| 11 | `src/migrations/019_primary_key_defaults.sql` | Sequence defaults for fresh-install bigint ids used by app inserts. |
+
+### Existing databases
+
+Do not replay the fresh-install path blindly on production. Apply only missing migrations, in numeric order, after checking which files were already applied. `010_rls_by_roles.sql` is idempotent and may be re-run to replace stale permissive policies, but it intentionally drops and recreates policies on the covered tables.
+
+Historical migrations `001_initial_schema.sql` through `009_gantt_engine_version.sql` are not part of the fresh path. They reference the old UUID project model and are superseded by `000_baseline.sql`.
+
+### Security/function audit notes
+
+- `010_rls_by_roles.sql` installs `get_my_role()` as `SECURITY DEFINER` with `SET search_path = public`; it only reads the caller's profile role for RLS decisions.
+- `012_invite_contractor.sql` is `SECURITY DEFINER` and internally allows only `Admin` or `PM` via `auth_user_role()`.
+- `015_audit_log.sql` uses a `SECURITY DEFINER` trigger function; clients cannot write `audit_log` directly.
+- `018_submit_contractor_report_rpc.sql` is `SECURITY DEFINER`, sets `search_path = public`, requires `auth.uid()`, checks role/company/project assignment, and grants execute only to `authenticated`.
+
+Rollback notes are included in every new migration that changes database behavior.
 
 ---
 

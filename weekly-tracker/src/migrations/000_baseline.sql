@@ -5,13 +5,14 @@
 -- Generated: 2026-07-05
 --
 -- HOW TO USE:
---   Fresh install: run ONLY this file, then run 011+ migrations.
---   DO NOT run 001-010 migrations on a fresh DB - they are
---   HISTORICAL and exist only as a record of past changes.
+--   Fresh install: run this file, then 010_rls_by_roles.sql, then 011+
+--   migrations in order.
+--   DO NOT run 001-009 migrations on a fresh DB - they are HISTORICAL
+--   and exist only as a record of past changes.
 --
 -- Notes:
---   - RLS policies are intentionally not included; keep them in
---     010_rls_by_roles.sql until a future migration replaces them.
+--   - RLS policies are intentionally not included; apply them from
+--     010_rls_by_roles.sql immediately after this baseline.
 --   - Function/RPC definitions are intentionally not included.
 --   - Column types/defaults, indexes, and RLS-enabled flags mirror the
 --     Supabase exports supplied for Wave 0.
