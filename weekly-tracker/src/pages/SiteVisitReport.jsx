@@ -4,6 +4,7 @@ import { WORK_PACKAGES, WP_STATUS_SCORES, makeEmptyPMWPStatuses } from "../confi
 import { getProjectGantt } from "../services/ganttService";
 import { submitSiteVisit } from "../services/siteVisitService";
 import { getLastReport as getLastContractorReport } from "../services/contractorReportService";
+import { useAuth } from "../auth/AuthContext";
 
 const ACCENT = "#0891b2";
 
@@ -266,6 +267,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
 
 function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
   const { projectId } = useParams();
+  const { user } = useAuth();
   const project = projects.find((p) => String(p.id) === projectId);
 
   const projectReports = [...(reports.filter((r) => String(r.projectId) === projectId))]
@@ -377,6 +379,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
         });
         const result = await submitSiteVisit(projectId, lastContractorReportId, wpObservationsArray, {
           visitDate:              form.visitDate,
+          visitedBy:              user.id,
           overallNote:            form.observations || '',
           pmScheduleAssessment:   form.pmScheduleAssessment || null,
         });
@@ -386,6 +389,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
           projectId,
           referenceReportId: form.referenceReportId || null,
           ...form,
+          visitedBy: user.id,
           photos: form.photos.map((p) => p?.name || p),
           submittedAt: new Date().toISOString(),
         };
