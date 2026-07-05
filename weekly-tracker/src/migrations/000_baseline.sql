@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS public.site_visits (
   reference_report_id bigint,
   pm_work_package_statuses jsonb,
   contractor_report_id bigint,
-  visited_by text,
+  visited_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   overall_note text
 );
 
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS public.project_gantt_tasks (
 CREATE TABLE IF NOT EXISTS public.contractor_reports (
   id bigserial PRIMARY KEY,
   project_id bigint NOT NULL,
-  submitted_by text,
+  submitted_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   report_date date NOT NULL DEFAULT CURRENT_DATE,
   week_number integer,
   overall_progress numeric DEFAULT 0,
