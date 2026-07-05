@@ -221,6 +221,7 @@ function ContractorReport({ projects, reports }) {
       errors.push("Delay reason is required when activities are blocked.");
     if (!form.pendingIssues) errors.push("Pending issues summary is required.");
     if (!form.finalComments) errors.push("Final comments are required.");
+    if (!photoUrls.length) errors.push("At least one photo is required.");
     if (!form.declarationConfirmed) errors.push("Declaration confirmation is required.");
     return errors;
   }
