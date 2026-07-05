@@ -1,3 +1,17 @@
+/**
+ * @legacy reportWeights.js
+ *
+ * Legacy status/phase weights for the old 4-phase progress model
+ * (Demolition works / Construction works / Testing & Commissioning / Handover),
+ * with its own flat task-name vocabulary distinct from masterTaskLibrary's WP ids.
+ * Canonical weights are in constructionRetailV1.js (phase.progressWeight, wp weights).
+ *
+ * DO NOT import this file in new engines or services.
+ * Existing imports (utils/reportUtils.js, engines/pmAlignmentEngine.js,
+ * config/dashboardConstants.js) are kept for backward compatibility with the
+ * old (non-Gantt) report shape only. Do not delete.
+ */
+
 export const statusScores = {
   "Not started": 0,
   "In progress": 0.5,

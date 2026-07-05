@@ -1,24 +1,28 @@
 /**
- * workPackages.js — Legacy Weekly Report Work Packages
+ * @legacy workPackages.js
  *
- * @legacy — used only by the old WeeklyReports / PhaseStepper flow.
+ * This file is a legacy work-package list for the old (pre-Gantt) weekly
+ * report model. Canonical WP definitions have moved to:
+ *   src/domains/construction/templates/constructionRetailV1.js
+ *   src/config/masterTaskLibrary.js
  *
- * Currently used by:
- *   - WeeklyReports.jsx       ← WORK_PACKAGES, WP_STATUS_SCORES
- *   - PhaseStepper.jsx        ← WP_STATUS_SCORES, getWPGroups
- *   - SiteVisitReport.jsx     ← WORK_PACKAGES, WP_STATUS_SCORES, makeEmptyPMWPStatuses
- *   - ContractorReport.jsx    ← WORK_PACKAGES, makeEmptyWPStatuses, getWPGroups
- *   - pmAlignmentEngine.js    ← WORK_PACKAGES, WP_STATUS_SCORES
- *   - portfolioEngine.js      ← WORK_PACKAGES (legacy path only)
- *   - projectSummaryEngine.js ← WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress
- *   - dashboardConstants.js   ← WORK_PACKAGES, WP_STATUS_SCORES
- *   - reportUtils.js          ← WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress
+ * DO NOT import this file in new engines, services, or pages.
+ * Existing imports are kept for backward compatibility only — this file is
+ * still the active fallback path when a project has no generated Gantt
+ * schedule (see the "Legacy (old)" header comments in ContractorReport.jsx /
+ * SiteVisitReport.jsx). Do not delete.
  *
- * DO NOT USE for new Gantt-based features.
- * For new code, import from masterTaskLibrary.js instead.
+ * Currently used by (audited Wave 4, Step 4.1/4.2):
+ *   - WeeklyReports.jsx, ContractorReport.jsx, SiteVisitReport.jsx  ← old WP UI flow
+ *   - components/weekly/{PhaseStepper,PhaseTimeline,shared,sharedUtils}.jsx
+ *   - engines/{legacyReportEngine,pmAlignmentEngine,projectSummaryEngine,
+ *     siteVisitEngine,progressDeltaEngine}.js
+ *   - utils/reportUtils.js
+ *   - config/dashboardConstants.js
  *
- * MIGRATION GOAL: Once WeeklyReports is refactored to use Gantt workPackageStatuses,
- *   this file can be deleted. masterTaskLibrary.js will become the single source.
+ * MIGRATION GOAL: Once the above are refactored to read Gantt
+ *   workPackageStatuses exclusively, this file can be deleted.
+ *   masterTaskLibrary.js will become the single source.
  *
  * Data shape: nested array of WPs with { id, name, weight, groups[], tasks[] }
  *   plus WP_STATUS_SCORES, WP_STATUS_OPTIONS, computePackageProgress, etc.
