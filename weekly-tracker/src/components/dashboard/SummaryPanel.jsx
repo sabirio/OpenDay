@@ -64,7 +64,7 @@ function SmallDonut({ counts, total }) {
   );
 }
 
-export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], projects = [], svKpis, lastVisitDate }) {
+export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], svKpis, lastVisitDate }) {
   const analytics = rows && rows.length > 0 ? (() => {
     const evmRows  = rows.filter(r => r.evm?.SPI != null);
     const avgSPI   = evmRows.length

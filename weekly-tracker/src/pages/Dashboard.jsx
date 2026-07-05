@@ -200,7 +200,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
       )}
 
       {/* ── KPI Cards ── */}
-      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} projects={projects} svKpis={svKpis} lastVisitDate={lastVisitDate} />
+      <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} svKpis={svKpis} lastVisitDate={lastVisitDate} />
 
       {/* ── Filters + Snapshot toolbar ── */}
       <div style={{ display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:16 }}>
