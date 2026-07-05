@@ -19,6 +19,7 @@ Run this canonical path on a new Supabase database. Do not run historical migrat
 | 9 | `src/migrations/017_site_photos_bucket_v2.sql` | Current private `site-photos` bucket limits and storage policies. |
 | 10 | `src/migrations/018_submit_contractor_report_rpc.sql` | Atomic `public.submit_contractor_report(bigint, date, jsonb, jsonb)` RPC. |
 | 11 | `src/migrations/019_primary_key_defaults.sql` | Sequence defaults for fresh-install bigint ids used by app inserts. |
+| 12 | `src/migrations/020_rls_company_role_hardening.sql` | Company-aware RLS, contractor direct-write blocking, storage photo project scoping, and SECURITY DEFINER hardening. |
 
 ### Existing databases
 
@@ -29,9 +30,11 @@ Historical migrations `001_initial_schema.sql` through `009_gantt_engine_version
 ### Security/function audit notes
 
 - `010_rls_by_roles.sql` installs `get_my_role()` as `SECURITY DEFINER` with `SET search_path = public`; it only reads the caller's profile role for RLS decisions.
-- `012_invite_contractor.sql` is `SECURITY DEFINER` and internally allows only `Admin` or `PM` via `auth_user_role()`.
-- `015_audit_log.sql` uses a `SECURITY DEFINER` trigger function; clients cannot write `audit_log` directly.
+- `020_rls_company_role_hardening.sql` redefines role/company helper functions with explicit `auth.uid()` guards. `Admin` with `profiles.company_id IS NULL` is the explicit global admin; otherwise Admin/PM/Viewer access is company-scoped.
+- `012_invite_contractor.sql` is hardened by `020` with `SET search_path = public` and internally allows only `Admin` or `PM` via `auth_user_role()`.
+- `015_audit_log.sql` uses a `SECURITY DEFINER` trigger function; `020` revokes public execute and scopes audit-log reads through `can_access_audit_log()`.
 - `018_submit_contractor_report_rpc.sql` is `SECURITY DEFINER`, sets `search_path = public`, requires `auth.uid()`, checks role/company/project assignment, and grants execute only to `authenticated`.
+- Contractors submit reports through `submit_contractor_report()`; direct contractor inserts/updates to `contractor_reports`, `contractor_report_wps`, `progress_history`, or `project_gantt_tasks` are intentionally blocked by `020`.
 
 Rollback notes are included in every new migration that changes database behavior.
 

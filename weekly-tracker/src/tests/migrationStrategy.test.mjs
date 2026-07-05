@@ -20,7 +20,7 @@ console.log('\nmigrationStrategy - fresh install contract');
 
 check('README documents 000_baseline as first fresh install step', /000_baseline\.sql[\s\S]*Canonical production schema baseline/.test(readme));
 check('README documents 010 RLS after baseline', /010_rls_by_roles\.sql[\s\S]*Current role-based RLS policies/.test(readme));
-check('README documents 011+ migrations after RLS', /011_ownership_uuid\.sql[\s\S]*018_submit_contractor_report_rpc\.sql[\s\S]*019_primary_key_defaults\.sql/.test(readme));
+check('README documents 011+ migrations after RLS', /011_ownership_uuid\.sql[\s\S]*018_submit_contractor_report_rpc\.sql[\s\S]*019_primary_key_defaults\.sql[\s\S]*020_rls_company_role_hardening\.sql/.test(readme));
 check('README marks historical 001-009 as not for fresh installs', /Do not run historical migrations `001-009` on a fresh database/i.test(readme));
 check('baseline header points fresh installs to 010 then 011+', /Fresh install: run this file, then 010_rls_by_roles\.sql, then 011\+/.test(baseline));
 
