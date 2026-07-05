@@ -27,6 +27,7 @@ import KpiStrip           from "../components/weekly/KpiStrip";
 import AllClearStrip      from "../components/weekly/AllClearStrip";
 import ReportLinksBlock   from "../components/weekly/ReportLinksBlock";
 import AdditionalWorksBlock from "../components/weekly/AdditionalWorksBlock";
+import AuditLogPanel from "../components/auditlog/AuditLogPanel";
 import ProgressNarrative  from "../components/weekly/ProgressNarrative";
 import ProgressChart      from "../components/weekly/ProgressChart";
 import PhaseTimeline          from "../components/weekly/PhaseTimeline";
@@ -457,6 +458,14 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                     </span>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Audit log — who changed progress and when */}
+            {selectedProject && (
+              <div className="dashboard-summary-card" style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "var(--text-primary)" }}>Change History</div>
+                <AuditLogPanel projectId={selectedProject.id} />
               </div>
             )}
           </>
