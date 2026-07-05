@@ -13,6 +13,10 @@ import { computeContractorScores } from "../engines/contractorEngine";
 import { computeProjectHealth } from "../engines/projectHealthEngine";
 import { computeOpeningReadiness } from "../engines/openingReadinessEngine";
 import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
+// TODO wave4: WORK_PACKAGES here is the intentional legacy-report fallback
+// (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
+// `wpsConfig`/`displayWorkPackages` below, gated on isWPReport(). Audited
+// Wave 4 Step 4.6; not swapped, replacement is non-trivial. See TEMPLATE_MODEL.md.
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from "../config/masterTaskLibrary";
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";

@@ -14,6 +14,8 @@
 import { normalizeReport } from "../services/reportService";
 import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
+// TODO wave4: legacy fallback per the ARCHITECTURE NOTE above (audited Wave 4
+// Step 4.6 — gated on ganttTasks.length === 0, non-trivial to replace).
 import { WORK_PACKAGES, makeEmptyWPStatuses, getWPGroups } from "../config/workPackages";
 import { getProjectGantt } from "../services/ganttService";
 import {

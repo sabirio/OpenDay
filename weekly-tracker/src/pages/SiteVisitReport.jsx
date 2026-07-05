@@ -1,5 +1,9 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
+// TODO wave4: legacy-report fallback (no Gantt plan) — mirrors the same dual-
+// format design documented at the top of ContractorReport.jsx. Non-trivial to
+// replace with masterTaskLibrary (different task-name vocabulary). Audited
+// Wave 4 Step 4.6.
 import { WORK_PACKAGES, WP_STATUS_SCORES, makeEmptyPMWPStatuses } from "../config/workPackages";
 import { getProjectGantt } from "../services/ganttService";
 import { submitSiteVisit } from "../services/siteVisitService";
