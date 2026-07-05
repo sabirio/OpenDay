@@ -65,9 +65,6 @@ function SmallDonut({ counts, total }) {
 }
 
 export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], projects = [], svKpis, lastVisitDate }) {
-  const newOpeningCount = projects.filter(p => p.project_type === 'new_opening').length;
-  const rebuildingCount = projects.filter(p => p.project_type === 'rebuilding').length;
-
   const analytics = rows && rows.length > 0 ? (() => {
     const evmRows  = rows.filter(r => r.evm?.SPI != null);
     const avgSPI   = evmRows.length
@@ -110,8 +107,8 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], p
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16, alignItems: 'stretch' }}>
         <KpiCard label="Total Projects"    value={kpis.total}           color="var(--text-secondary)" />
         <KpiCard label="Active"            value={kpis.active}          color="var(--status-done)"    sub={`${kpis.total - kpis.active} closed`} />
-        <KpiCard label="New Opening"       value={newOpeningCount}      color="var(--accent)"         sub="project type" />
-        <KpiCard label="Rebuilding"        value={rebuildingCount}      color="var(--text-secondary)" sub="project type" />
+        <KpiCard label="New Opening"       value={kpis.newOpening}      color="var(--accent)"         sub="project type" />
+        <KpiCard label="Rebuilding"        value={kpis.rebuilding}      color="var(--text-secondary)" sub="project type" />
         <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)"         sub={`${reportsTotal} total`} />
 
         {svKpis && svKpis.totalVisits > 0 && (

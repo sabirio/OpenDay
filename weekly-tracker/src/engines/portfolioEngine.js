@@ -87,11 +87,26 @@ export function computePortfolioKpis(projects, allRows, allReports) {
   const missing  = allRows.filter(({ missingReport }) => missingReport).length;
   const blocked  = allRows.filter(({ latestReport }) => latestReport?.activitiesBlocked === "Yes").length;
   const support  = allRows.filter(({ latestReport }) => latestReport?.supportRequired === "Yes").length;
+  const newOpening = projects.filter(p => p.projectType === "New Opening").length;
+  const rebuilding = projects.filter(p => p.projectType === "Rebuilding").length;
   const avgProgress = allRows.length ? Math.round(allRows.reduce((s, { progress }) => s + progress, 0) / allRows.length) : 0;
   const weekAgo  = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
   const reportsThisWeek = allReports.filter(r => new Date(r.reportingDate || r.submittedAt) >= weekAgo).length;
   const openingSoon = allRows.filter(({ daysToOpening }) => daysToOpening !== null && daysToOpening >= 0 && daysToOpening < 30).length;
-  return { active, total: projects.length, atRisk, critical, missing, blocked, support, avgProgress, reportsThisWeek, openingSoon };
+  return {
+    active,
+    total: projects.length,
+    atRisk,
+    critical,
+    missing,
+    blocked,
+    support,
+    newOpening,
+    rebuilding,
+    avgProgress,
+    reportsThisWeek,
+    openingSoon,
+  };
 }
 
 /**
