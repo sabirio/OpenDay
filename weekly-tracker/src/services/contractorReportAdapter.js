@@ -39,14 +39,19 @@ function buildWorkPackageStatuses(wps) {
   }, {});
 }
 
-// Human-readable phase names actually reported on, for the "Current Phase" column.
+// Furthest-along phase with actual progress, for the "Current Phase" column —
+// not every phase ever touched, just where the contractor stands right now.
 function deriveCurrentPhases(wps) {
-  const phaseIds = new Set();
+  let furthest = null;
   for (const wp of (wps || [])) {
+    const hasProgress = (wp.progress_pct ?? 0) > 0 || (wp.status && wp.status !== 'not_started');
+    if (!hasProgress) continue;
     const meta = getWPById(wp.wp_id);
-    if (meta?.phaseId) phaseIds.add(meta.phaseId);
+    const phase = meta?.phaseId ? getPhaseById(meta.phaseId) : null;
+    if (!phase) continue;
+    if (!furthest || phase.order > furthest.order) furthest = phase;
   }
-  return [...phaseIds].map(id => getPhaseById(id)?.label).filter(Boolean);
+  return furthest ? [furthest.label] : [];
 }
 
 export function adaptContractorReportToLegacy(contractorReport, wps = []) {
