@@ -146,6 +146,32 @@ export async function getAllReportsForScreens() {
   return adaptContractorReportsToLegacy(reportsRes.data || [], wpsByReportId);
 }
 
+export async function getReportsForProjectForScreens(projectId) {
+  const { data: reports, error } = await supabase
+    .from('contractor_reports')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('report_date', { ascending: false });
+  if (error) throw error;
+
+  const reportIds = (reports || []).map((report) => report.id);
+  if (reportIds.length === 0) return [];
+
+  const { data: wps, error: wpsError } = await supabase
+    .from('contractor_report_wps')
+    .select('*')
+    .in('report_id', reportIds);
+  if (wpsError) throw wpsError;
+
+  const wpsByReportId = {};
+  for (const wp of wps || []) {
+    if (!wpsByReportId[wp.report_id]) wpsByReportId[wp.report_id] = [];
+    wpsByReportId[wp.report_id].push(wp);
+  }
+
+  return adaptContractorReportsToLegacy(reports || [], wpsByReportId);
+}
+
 /**
  * Get a specific report with WP line items.
  */

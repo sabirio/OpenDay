@@ -128,6 +128,16 @@ export async function getAll() {
   }
 }
 
+export async function getById(id) {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return fromDB(data);
+}
+
 export async function getProgressSnapshot(isoWeekStr) {
   const [yearStr, weekStr] = isoWeekStr.split('-W');
   const year = parseInt(yearStr), week = parseInt(weekStr);

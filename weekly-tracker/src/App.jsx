@@ -109,6 +109,7 @@ function PublicOnlyRoute({ children }) {
 
 function App() {
   const { isAuthenticated } = useAuth();
+  const isContractorReportRoute = window.location.pathname.startsWith('/contractor-report/');
 
   const [projects, setProjects] = useState([]);
   const [reports, setReports] = useState([]);
@@ -177,8 +178,8 @@ function App() {
     return saved;
   }
 
-  if (isAuthenticated && dataState === 'loading') return <GlobalLoadingScreen />;
-  if (isAuthenticated && dataState === 'error') return <GlobalErrorScreen error={dataError} onRetry={loadData} />;
+  if (isAuthenticated && dataState === 'loading' && !isContractorReportRoute) return <GlobalLoadingScreen />;
+  if (isAuthenticated && dataState === 'error' && !isContractorReportRoute) return <GlobalErrorScreen error={dataError} onRetry={loadData} />;
 
   return (
     <ErrorBoundary>

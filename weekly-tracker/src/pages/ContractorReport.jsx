@@ -16,7 +16,11 @@ import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { WORK_PACKAGES, makeEmptyWPStatuses, getWPGroups } from "../config/workPackages";
 import { getProjectGantt } from "../services/ganttService";
-import { submitReport as submitContractorReport } from "../services/contractorReportService";
+import {
+  getReportsForProjectForScreens,
+  submitReport as submitContractorReport,
+} from "../services/contractorReportService";
+import { getById as getProjectById } from "../services/projectService";
 import { computeWPCumulativeStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
 import { calculateProjectProgressResult } from "../engines/progressEngine";
 import { useAuth } from "../auth/AuthContext";
@@ -565,11 +569,47 @@ function makeInitialForm(prevReport, cumulativeStatuses) {
 function ContractorReport({ projects, reports }) {
   const { projectId } = useParams();
   const { user } = useAuth();
-  const project = projects.find((p) => String(p.id) === projectId);
+  const [fallbackProject, setFallbackProject] = useState(null);
+  const [fallbackReports, setFallbackReports] = useState([]);
+  const [contextLoading, setContextLoading] = useState(false);
+  const [contextError, setContextError] = useState(null);
+  const project = projects.find((p) => String(p.id) === projectId) || fallbackProject;
+  const reportSource = reports.length > 0 ? reports : fallbackReports;
+
+  useEffect(() => {
+    if (projects.some((p) => String(p.id) === projectId) && reports.length > 0) return;
+
+    let isMounted = true;
+    setContextLoading(true);
+    setContextError(null);
+
+    Promise.all([
+      projects.some((p) => String(p.id) === projectId)
+        ? Promise.resolve(null)
+        : getProjectById(projectId),
+      reports.length > 0
+        ? Promise.resolve(null)
+        : getReportsForProjectForScreens(projectId),
+    ])
+      .then(([loadedProject, loadedReports]) => {
+        if (!isMounted) return;
+        if (loadedProject) setFallbackProject(loadedProject);
+        if (loadedReports) setFallbackReports(loadedReports);
+      })
+      .catch((error) => {
+        console.error("Failed to load contractor report context:", error);
+        if (isMounted) setContextError(error?.message || "Failed to load report context");
+      })
+      .finally(() => {
+        if (isMounted) setContextLoading(false);
+      });
+
+    return () => { isMounted = false; };
+  }, [projectId, projects, reports.length]);
 
   const projectReportsForPrefill = useMemo(() =>
-    reports.filter((r) => String(r.projectId) === projectId),
-    [reports, projectId]
+    reportSource.filter((r) => String(r.projectId) === projectId),
+    [reportSource, projectId]
   );
 
   const prevReport = useMemo(() =>
@@ -805,13 +845,23 @@ function ContractorReport({ projects, reports }) {
     }
   }
 
+  if (!project && contextLoading) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f0f7f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
+          Loading report...
+        </div>
+      </div>
+    );
+  }
+
   if (!project) {
     return (
       <div style={{ minHeight: "100vh", background: "#f0f7f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center", padding: 40 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🏗</div>
           <h2 style={{ color: "#111827", marginBottom: 8 }}>Project not found</h2>
-          <p style={{ color: "#6b7280" }}>This report link is invalid or the project has been removed.</p>
+          <p style={{ color: "#6b7280" }}>{contextError || "This report link is invalid or the project has been removed."}</p>
         </div>
       </div>
     );
