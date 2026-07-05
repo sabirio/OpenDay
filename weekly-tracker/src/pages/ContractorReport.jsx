@@ -261,7 +261,18 @@ function ContractorReport({ projects, reports }) {
           }))
         : [];
 
-      const overallProgress =
+      // P1.4: this is a RAW, unweighted average of this single report's WP
+      // percentages — NOT the canonical phase-weighted progress. It becomes
+      // contractor_reports.overall_progress (the "what the contractor just
+      // submitted" signal), distinct from cumulativeProgress above (canonical
+      // calculateProjectProgressResult() output across all reports to date),
+      // which becomes progress_history.overall_progress — the official number
+      // every other screen treats as "the" project progress. Do not let this
+      // raw average silently become official progress: the RPC
+      // (018_submit_contractor_report_rpc.sql) only falls back to it for
+      // progress_history when cumulativeProgress is missing, so always send
+      // cumulativeProgress explicitly, as this call does.
+      const contractorRawAverageProgress =
         wpProgressArray.length > 0
           ? Math.round(
               wpProgressArray.reduce((sum, wp) => sum + wp.progress_pct, 0) /
@@ -271,7 +282,7 @@ function ContractorReport({ projects, reports }) {
 
       await submitContractorReport(project.id, wpProgressArray, {
         reportDate: mainReportPayload.reportingDate,
-        overallProgress,
+        overallProgress: contractorRawAverageProgress,
         masterReportId: mainReportPayload.id,
         reportSnapshot: mainReportPayload,
         cumulativeProgress,

@@ -146,6 +146,11 @@ BEGIN
     INTO v_photo_urls
   FROM jsonb_array_elements_text(COALESCE(p_meta->'photoUrls', '[]'::jsonb)) AS value;
 
+  -- P1.4: v_overall_progress -> contractor_reports.overall_progress is the
+  -- contractor-submitted RAW signal for this single report: p_meta.overallProgress
+  -- if the client sent it, else an unweighted average of this report's WP
+  -- percentages. It is intentionally NOT phase-weighted and must never be
+  -- treated as "the" official project progress.
   SELECT COALESCE(
       NULLIF(p_meta->>'overallProgress', '')::numeric,
       (SELECT round(avg((item->>'progress_pct')::numeric))
@@ -155,6 +160,15 @@ BEGIN
     )
     INTO v_overall_progress;
 
+  -- v_history_progress -> progress_history.overall_progress is meant to be the
+  -- canonical phase-weighted project progress (calculateProjectProgressResult()
+  -- on the client, computed across ALL reports to date, not just this one).
+  -- The fallback to v_overall_progress below exists only so a client that omits
+  -- cumulativeProgress doesn't fail the insert — every current client
+  -- (ContractorReport.jsx) always sends it explicitly. Do not rely on this
+  -- fallback as a substitute for the real calculation; a client that starts
+  -- omitting cumulativeProgress would silently poison progress_history with
+  -- the unweighted raw average instead.
   v_history_progress := COALESCE(
     NULLIF(p_meta->>'cumulativeProgress', '')::numeric,
     v_overall_progress
