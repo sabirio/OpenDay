@@ -3,6 +3,8 @@
  * shape consumed by screens that have not been migrated yet.
  */
 
+import { getWPById, getPhaseById } from '../config/masterTaskLibrary.js';
+
 const STATUS_TO_LEGACY = {
   completed: "Completed",
   in_progress: "In Progress",
@@ -15,20 +17,36 @@ function toLegacyStatus(status) {
   return STATUS_TO_LEGACY[status] || "Not Started";
 }
 
+// contractor_report_wps.wp_id stores the fine-grained work-package id (e.g.
+// "walls.framing") from the shared masterTaskLibrary — NOT a phase id, and the
+// table has no wp_label/phase_id columns of its own. The legacy shape consumed
+// by progressEngine.calculatePhaseProgress() is keyed [phaseId][taskLabel], so
+// both must be resolved from the static library here.
 function buildWorkPackageStatuses(wps) {
   return (wps || []).reduce((acc, wp) => {
-    const wpId = wp.wp_id;
-    if (!wpId) return acc;
+    const meta    = getWPById(wp.wp_id);
+    const phaseId = meta?.phaseId || wp.wp_id;
+    const label   = meta?.label   || wp.wp_id;
+    if (!phaseId) return acc;
 
-    const label = wp.wp_label || wp.label || wp.name || wpId;
-    if (!acc[wpId]) acc[wpId] = {};
-    acc[wpId][label] = {
+    if (!acc[phaseId]) acc[phaseId] = {};
+    acc[phaseId][label] = {
       status: toLegacyStatus(wp.status),
       progress: wp.progress_pct ?? 0,
       comment: wp.comment || "",
     };
     return acc;
   }, {});
+}
+
+// Human-readable phase names actually reported on, for the "Current Phase" column.
+function deriveCurrentPhases(wps) {
+  const phaseIds = new Set();
+  for (const wp of (wps || [])) {
+    const meta = getWPById(wp.wp_id);
+    if (meta?.phaseId) phaseIds.add(meta.phaseId);
+  }
+  return [...phaseIds].map(id => getPhaseById(id)?.label).filter(Boolean);
 }
 
 export function adaptContractorReportToLegacy(contractorReport, wps = []) {
@@ -51,7 +69,7 @@ export function adaptContractorReportToLegacy(contractorReport, wps = []) {
     riskOwners: [],
     supportTypes: [],
     currentPackages: [],
-    currentPhases: [],
+    currentPhases: deriveCurrentPhases(wps),
     sourceTable: "contractor_reports",
   };
 }
