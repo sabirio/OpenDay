@@ -185,7 +185,11 @@ Policies check lowercase ('admin'|'pm'|'viewer'|'contractor') — do NOT change 
 
 ## Known bugs / TODO
 
-- **Sidebar logo + favicon broken since commit 12db36a.** `Sidebar.jsx:44` references
-  `/logo-dark.png`, `index.html:5-6` references `/logo-light.png` + favicon — both files
-  were deleted. Fix: regenerate `logo-dark.png` / `logo-light.png` (and favicon) from
-  `public/openday-logo.png`. Separate bug-fix task, not M1.2.
+- ✅ **FIXED 2026-07-05 — Sidebar logo + favicon.** Was broken since commit 12db36a
+  (`Sidebar.jsx` referenced deleted `/logo-dark.png` / `/logo-light.png`; `index.html`
+  referenced deleted `/logo-light.png`). Fix: Sidebar now renders an inline theme-adaptive
+  SVG mark (same as the login screen, uses CSS vars) instead of the missing PNGs; favicon
+  now points to the existing `public/favicon.png` (NORYX tree mark). No raster tooling was
+  available and all PNGs are white-background (bad on the dark sidebar), so inline SVG was
+  the clean fix rather than regenerating PNGs. `public/openday-logo.png` (NORYX wordmark)
+  is kept but unused — remove if the brand mark won't be wired into the app.

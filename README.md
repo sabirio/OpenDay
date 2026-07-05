@@ -143,7 +143,7 @@ Build runs with dummy Supabase env vars (it never contacts Supabase at build tim
 
 ## Known issues
 
-- **Sidebar logo + favicon are broken** (since commit `12db36a`): `Sidebar.jsx` references `/logo-dark.png` and `index.html` references `/logo-light.png` + favicon, but those files were deleted. Fix: regenerate them from `public/openday-logo.png`. Tracked in [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md) → *Known bugs / TODO*.
+None currently tracked. Resolved items are logged in [`PROJECT_MEMORY.md`](PROJECT_MEMORY.md) → *Known bugs / TODO*.
 
 ---
 

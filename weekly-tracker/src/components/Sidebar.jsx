@@ -39,12 +39,16 @@ function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div style={{ padding: '12px 0 8px' }}>
-        <img
-          src={theme === 'dark' ? '/logo-dark.png' : '/logo-light.png'}
-          alt="OpenDay"
-          style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
-        />
+      <div style={{ padding: '12px 0 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Inline SVG mark — theme-adaptive via CSS vars, matches the login screen.
+            (Replaces the old /logo-dark.png|/logo-light.png files that were deleted.) */}
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" role="img" aria-label="OpenDay">
+          <rect width="32" height="32" rx="8" fill="var(--bg-elevated)" />
+          <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="var(--accent)" />
+        </svg>
+        <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+          OpenDay
+        </span>
       </div>
 
       {/* User info */}
