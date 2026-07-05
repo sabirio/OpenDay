@@ -1,6 +1,18 @@
+// @ts-check
 // Pure SPI / schedule-performance calculations.
 // Extracted from ganttService.js so they are testable without Supabase.
 // ganttService imports these and wires them to DB calls.
+
+/** @typedef {import('../types').CriticalHealth} CriticalHealth */
+/**
+ * @typedef {object} GanttTask
+ * @property {string} [wp_id]
+ * @property {boolean} [is_archived]
+ * @property {boolean} [is_critical]
+ * @property {number|null} [actual_progress]
+ * @property {string|Date|null} [planned_start]
+ * @property {string|Date|null} [planned_end]
+ */
 
 /**
  * Calendar SPI: actualPct / expectedPct (time-based progress ratio).
@@ -22,15 +34,20 @@ export function computeCalendarSpi(actualPct, expectedPct) {
 /**
  * Fraction (0–100) of a task that is planned to be complete by referenceDate,
  * based on its planned_start → planned_end window.
+ *
+ * @param {string|Date|null|undefined} plannedStart
+ * @param {string|Date|null|undefined} plannedEnd
+ * @param {Date} [referenceDate]
+ * @returns {number}
  */
 export function computePlannedPct(plannedStart, plannedEnd, referenceDate = new Date()) {
-  const start = new Date(plannedStart);
-  const end   = new Date(plannedEnd);
+  const start = new Date(/** @type {string|Date} */ (plannedStart));
+  const end   = new Date(/** @type {string|Date} */ (plannedEnd));
   const ref   = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
-  if (isNaN(start) || isNaN(end) || end <= start) return 100;
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return 100;
   if (ref <= start) return 0;
   if (ref >= end)   return 100;
-  return Math.min(100, (ref - start) / (end - start) * 100);
+  return Math.min(100, (ref.getTime() - start.getTime()) / (end.getTime() - start.getTime()) * 100);
 }
 
 /**
@@ -47,7 +64,7 @@ export function computePlannedPct(plannedStart, plannedEnd, referenceDate = new 
  * AND the schedule is well advanced (≥80% of planned window consumed). It does
  * NOT suppress genuine early-project SPI (avgPlanned < 80 → SPI still returned).
  *
- * @param {object[]}      tasks         rows from project_gantt_tasks
+ * @param {GanttTask[]}   tasks         rows from project_gantt_tasks
  * @param {Date}          referenceDate defaults to today
  * @param {string[]|null} scopeWPIds    active WP ids from getScopeWPIds(project.scope, ...);
  *                                      null = no scope filter (all non-archived tasks).
@@ -56,7 +73,7 @@ export function computePlannedPct(plannedStart, plannedEnd, referenceDate = new 
  * @returns {number|null}
  */
 export function computeSPIFromTasks(tasks, referenceDate = new Date(), scopeWPIds = null) {
-  const active = tasks.filter(t => !t.is_archived && (!scopeWPIds || scopeWPIds.includes(t.wp_id)));
+  const active = tasks.filter(t => !t.is_archived && (!scopeWPIds || scopeWPIds.includes(/** @type {string} */ (t.wp_id))));
   if (active.length === 0) return null;
   let sumActual = 0, sumPlanned = 0;
   for (const t of active) {
@@ -71,14 +88,14 @@ export function computeSPIFromTasks(tasks, referenceDate = new Date(), scopeWPId
 
 /**
  * How many critical-path tasks are behind plan.
- * @param {object[]}      tasks         rows from project_gantt_tasks
+ * @param {GanttTask[]}   tasks         rows from project_gantt_tasks
  * @param {Date}          referenceDate defaults to today
  * @param {string[]|null} scopeWPIds    active WP ids from getScopeWPIds(project.scope, ...);
  *                                      null = no scope filter. See computeSPIFromTasks note.
- * @returns {{ total, behind, ratio, label }}
+ * @returns {CriticalHealth}
  */
 export function computeCriticalHealth(tasks, referenceDate = new Date(), scopeWPIds = null) {
-  const critical = tasks.filter(t => t.is_critical && !t.is_archived && (!scopeWPIds || scopeWPIds.includes(t.wp_id)));
+  const critical = tasks.filter(t => t.is_critical && !t.is_archived && (!scopeWPIds || scopeWPIds.includes(/** @type {string} */ (t.wp_id))));
   if (critical.length === 0) return { total: 0, behind: 0, ratio: 0, label: 'healthy' };
   const behind = critical.filter(t => {
     const planned = computePlannedPct(t.planned_start, t.planned_end, referenceDate);

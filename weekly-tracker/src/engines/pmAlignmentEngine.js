@@ -1,6 +1,10 @@
+// @ts-check
 import { getStatusScore, DAY_MS } from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import { constructionWeights, testingWeights, handoverWeights } from "../config/reportWeights";
+
+/** @typedef {import('../types').AlignmentItem} AlignmentItem */
+/** @typedef {import('../types').AlignmentSummary} AlignmentSummary */
 
 // ─── Legacy key lists (old column-based format) ───────────────────────────────
 export const CONS_KEYS = Object.keys(constructionWeights || {});
@@ -10,6 +14,14 @@ export const HAND_KEYS = Object.keys(handoverWeights || {});
 // ─── Shared comparison helper ─────────────────────────────────────────────────
 
 // AD-005: intentionally separate scale — uses 0–1 status-score diff, not percentage-point delta.
+/**
+ * @param {string} name
+ * @param {string|null} gcS
+ * @param {string|null} pmS
+ * @param {string|null} [wpId]
+ * @param {string|null} [taskName]
+ * @returns {AlignmentItem|null}
+ */
 function buildAlignmentItem(name, gcS, pmS, wpId = null, taskName = null) {
   if (!gcS && !pmS) return null;
 
@@ -56,6 +68,11 @@ function buildAlignmentItem(name, gcS, pmS, wpId = null, taskName = null) {
 
 // ─── New WP format alignment ──────────────────────────────────────────────────
 
+/**
+ * @param {Record<string, any>} gcReport
+ * @param {Record<string, any>} pmVisit
+ * @returns {AlignmentItem[]}
+ */
 function computePmAlignmentItemsWP(gcReport, pmVisit) {
   const items = [];
 
@@ -94,10 +111,15 @@ function computePmAlignmentItemsWP(gcReport, pmVisit) {
  * workPackageStatuses / pmWorkPackageStatuses shape.
  * Keep for backward compatibility until legacy reports are deprecated.
  * See: src/engines/COMPARISON_MODEL.md
+ * @param {Record<string, any>} gcReport
+ * @param {Record<string, any>} pmVisit
+ * @returns {AlignmentItem[]}
  */
 function computePmAlignmentItemsLegacy(gcReport, pmVisit) {
+  /** @type {AlignmentItem[]} */
   const items = [];
 
+  /** @param {string} name @param {string} gcS @param {string} pmS */
   const push = (name, gcS, pmS) => {
     const item = buildAlignmentItem(name, gcS || "", pmS || "");
     if (item) items.push(item);
@@ -120,6 +142,9 @@ function computePmAlignmentItemsLegacy(gcReport, pmVisit) {
  * Returns an array of alignment items, each describing one task comparison.
  * Items where both sides are null, or where either side is "Not Applicable",
  * are excluded from the result.
+ * @param {Record<string, any>|null} gcReport
+ * @param {Record<string, any>|null} pmVisit
+ * @returns {AlignmentItem[]}
  */
 export function computePmAlignmentItems(gcReport, pmVisit) {
   if (!gcReport || !pmVisit) return [];
@@ -146,6 +171,10 @@ export function computePmAlignmentItems(gcReport, pmVisit) {
  *   Report freshness: 1 (≤14d) / 2 (≤7d)
  *
  * Levels: LOW (0–2) | MEDIUM (3–5) | HIGH (6–8)
+ * @param {Array<Record<string, any>>} projReports
+ * @param {Array<Record<string, any>>} projSiteVisits
+ * @param {Record<string, any>|null} latestReport
+ * @returns {{level: 'LOW'|'MEDIUM'|'HIGH', pts: number, maxPts: number, color: string, colorBg: string, label: string, breakdown: Array<{dimension: string, earned: number, max: number, detail: string}>}}
  */
 export function computeConfidenceLevel(projReports, projSiteVisits, latestReport) {
   const breakdown = [];
@@ -209,6 +238,10 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
   return { level, pts, maxPts: 8, color, colorBg, label, breakdown };
 }
 
+/**
+ * @param {AlignmentItem[]} items
+ * @returns {AlignmentSummary}
+ */
 export function summarizeAlignmentItems(items) {
   const overstatements = items.filter(i => i.overstate);
   const matches = items.filter(i => i.match);

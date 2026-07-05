@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * progressEngine.js — Single source of truth for all progress calculations.
  *
@@ -16,6 +17,14 @@
  *   'gantt'  — workPackageStatuses: { phaseId → { taskLabel → { progress, status } } }
  *   'legacy' — demolitionStatus / constructionStatuses / testingStatuses / handoverStatuses
  *   'none'   — no usable data
+ */
+
+/** @typedef {import('../types').ProgressResult} ProgressResult */
+
+/**
+ * @typedef {object} Template
+ * @property {Array<{id: string, label?: string, phaseId: string, duration_pct: number}>} [workPackages]
+ * @property {Array<{id: string, label?: string, order?: number, progressWeight: number}>} [phases]
  */
 
 import {
@@ -40,6 +49,7 @@ import { SCHEDULE_CONFIG } from '../config/scheduleConfig.js';
 import { sortReasons } from '../utils/reasonUtils.js';
 
 // Builds { phaseId → { taskLabel → duration_pct } } from any WP array.
+/** @param {Array<{id: string, label?: string, phaseId: string, duration_pct: number}>} wps */
 function buildTaskWeights(wps) {
   const map = {};
   for (const task of wps) {
@@ -59,6 +69,7 @@ function getTaskWeights() {
 
 // Resolve workPackages + phaseWeights + ordered phases from an optional template.
 // A null/undefined template falls back to the static built-in values — behavior is byte-identical.
+/** @param {Template|null} [template] */
 function resolveTemplate(template) {
   const workPackages = template?.workPackages?.length ? template.workPackages : GANTT_TASKS;
   const phaseWeights = template?.phases?.length
@@ -73,6 +84,8 @@ function resolveTemplate(template) {
 /**
  * Extract 0-100 progress from a single Gantt task entry.
  * Prefers numeric `progress` field; falls back to status text.
+ * @param {{progress?: number, status?: string}|null|undefined} entry
+ * @returns {number}
  */
 export function calculateActivityProgress(entry) {
   if (!entry) return 0;
@@ -94,6 +107,11 @@ export function calculateActivityProgress(entry) {
  *   taken from this map (already normalised). When null, falls back to TASK_WEIGHTS.
  *
  * Returns { pct: 0-100, count: number }.
+ * @param {string} phaseId
+ * @param {Record<string, {progress?: number, status?: string}>} taskMap
+ * @param {Record<string, number>|null} [effectiveWeights]
+ * @param {Template|null} [template]
+ * @returns {{pct: number, count: number}}
  */
 export function calculatePhaseProgress(phaseId, taskMap, effectiveWeights = null, template = null) {
   const entries = Object.entries(taskMap || {});
@@ -154,9 +172,11 @@ export function calculatePhaseProgress(phaseId, taskMap, effectiveWeights = null
 /**
  * Compute overall project progress from Gantt workPackageStatuses.
  *
- * @param {object} wpStatuses  — { phaseId → { taskLabel → entry } }
- * @param {string[]|null} scopeWPIds — active WP id list; null = full scope
- * Returns 0-100.
+ * @param {Record<string, Record<string, {progress?: number, status?: string}>>} wpStatuses  — { phaseId → { taskLabel → entry } }
+ * @param {string[]|null} [scopeWPIds] - active WP id list; null = full scope
+ * @param {Record<string, number>|null} [phaseWeightOverrides]
+ * @param {Template|null} [template]
+ * @returns {number} 0-100
  */
 export function calculateProjectProgress(wpStatuses, scopeWPIds = null, phaseWeightOverrides = null, template = null) {
   const { workPackages, phaseWeights, phases: resolvedPhases } = resolveTemplate(template);
@@ -189,9 +209,10 @@ export function calculateProjectProgress(wpStatuses, scopeWPIds = null, phaseWei
 /**
  * Progress value at a given index in a sorted report array.
  *
- * @param {Array}  sortedReports — reports sorted oldest → newest
+ * @param {Array<Record<string, any>>}  sortedReports — reports sorted oldest → newest
  * @param {number} index         — inclusive upper bound (0-based)
- * @param {string[]|null} scopeWPIds — active WP ids; null = full scope
+ * @param {string[]|null} [scopeWPIds] - active WP ids; null = full scope
+ * @param {Template|null} [template]
  * @returns {number} 0-100
  */
 export function progressAtIndex(sortedReports, index, scopeWPIds = null, template = null) {
@@ -208,10 +229,11 @@ export function progressAtIndex(sortedReports, index, scopeWPIds = null, templat
 /**
  * Format-aware progress breakdown.
  *
- * @param {object|null} wpCumulative     — result of computeWPCumulativeStatuses()
- * @param {object|null} legacyCumulative — result of computeCumulativeStatuses()
- * @param {string[]|null} scopeWPIds     — active WP ids; null = full scope
- * @returns {{ progress: number, format: 'gantt'|'legacy'|'none', phases: Array }}
+ * @param {{workPackageStatuses?: Record<string, any>}|null} wpCumulative     — result of computeWPCumulativeStatuses()
+ * @param {Record<string, any>|null} legacyCumulative — result of computeCumulativeStatuses()
+ * @param {string[]|null} [scopeWPIds]     - active WP ids; null = full scope
+ * @param {Template|null} [template]
+ * @returns {ProgressResult}
  */
 export function calculateProjectProgressResult(wpCumulative, legacyCumulative, scopeWPIds = null, template = null) {
   if (wpCumulative?.workPackageStatuses) {
@@ -259,13 +281,13 @@ export function calculateProjectProgressResult(wpCumulative, legacyCumulative, s
  * where total = constructionStartDate → constructionEndDate (or targetOpeningDate).
  * This matches the formula used in riskEngine.computeScheduleDeviation and evmEngine.
  *
- * @param {object}      project        — project row (constructionStartDate, constructionEndDate, targetOpeningDate)
+ * @param {Record<string, any>} project        — project row (constructionStartDate, constructionEndDate, targetOpeningDate)
  * @param {number}      actualPct      — current overall progress (0-100)
- * @param {Array}       historyRows    — project.progressHistory (last 2 rows from progress_history table)
- * @param {object}      config         — defaults to SCHEDULE_CONFIG
- * @param {Date|null}   referenceDate  — date to evaluate expectedPct against; null = today.
+ * @param {Array<Record<string, any>>} historyRows    — project.progressHistory (last 2 rows from progress_history table)
+ * @param {typeof SCHEDULE_CONFIG}      [config]         - defaults to SCHEDULE_CONFIG
+ * @param {Date|null}   [referenceDate]  - date to evaluate expectedPct against; null = today.
  *                                       Pass a past date to compute a historical comparison.
- * @returns {{ actualPct, expectedPct, scheduleGap, scheduleStatus, deltaVsLastWeek }}
+ * @returns {{ actualPct: number, expectedPct: number|null, scheduleGap: number|null, scheduleStatus: string|null, spi: number|null, deltaVsLastWeek: number|null, reasons: Array<Record<string, any>> }}
  */
 export function calculateProgressComparison(project, actualPct, historyRows, config = SCHEDULE_CONFIG, referenceDate = null) {
   const ref = referenceDate instanceof Date ? referenceDate : new Date();
@@ -324,17 +346,17 @@ export function calculateProgressComparison(project, actualPct, historyRows, con
  * Graceful degradation: fewer than 2 history rows → prevProgressComparison = null
  * (commandEngine falls back to non-worsening 'warning', no crash).
  *
- * @param {object}    project         — project row (dates needed by calculateProgressComparison)
+ * @param {Record<string, any>} project         — project row (dates needed by calculateProgressComparison)
  * @param {number}    currentProgress — live overall progress (0-100)
- * @param {Array}     progressHistory — rows from progress_history table (any order)
- * @param {object}    config          — defaults to SCHEDULE_CONFIG
- * @param {Date|null} now             — reference date; null = today
- * @returns {{ progressComparison, prevProgressComparison }}
+ * @param {Array<Record<string, any>>}     [progressHistory] - rows from progress_history table (any order)
+ * @param {typeof SCHEDULE_CONFIG}    [config]          - defaults to SCHEDULE_CONFIG
+ * @param {Date|null} [now]             - reference date; null = today
+ * @returns {{ progressComparison: ReturnType<typeof calculateProgressComparison>, prevProgressComparison: ReturnType<typeof calculateProgressComparison>|null }}
  */
 export function buildWeekOverWeekComparison(project, currentProgress, progressHistory = [], config = SCHEDULE_CONFIG, now = null) {
   const history = [...(progressHistory ?? [])]
     .filter(r => r && r.recorded_at)
-    .sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at)); // oldest → newest
+    .sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()); // oldest → newest
 
   const progressComparison = calculateProgressComparison(project, currentProgress, history.slice(-2), config, now);
 
@@ -348,13 +370,13 @@ export function buildWeekOverWeekComparison(project, currentProgress, progressHi
 
 /**
  * Transforms project.progressHistory into a date-ordered series for the progress chart.
- * @param {Array} progressHistory — rows from progress_history table
+ * @param {Array<{recorded_at?: string, overall_progress?: number}>} progressHistory — rows from progress_history table
  * @returns {Array<{date: string, pct: number}>} oldest → newest
  */
 export function computeProgressSeries(progressHistory) {
   if (!Array.isArray(progressHistory) || progressHistory.length === 0) return [];
   return [...progressHistory]
-    .sort((a, b) => new Date(a.recorded_at) - new Date(b.recorded_at))
+    .sort((a, b) => new Date(a.recorded_at ?? 0).getTime() - new Date(b.recorded_at ?? 0).getTime())
     .map(row => ({
       date: row.recorded_at?.slice(0, 10) ?? '',
       pct:  row.overall_progress ?? 0,

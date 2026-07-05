@@ -1,17 +1,26 @@
+// @ts-check
 // Pure portfolio-level aggregations over pre-computed project rows.
 // Each function is stateless: in → out, nothing stored.
 
 import { computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isMissingReport, isBadScheduleStatus } from '../utils/reportUtils';
 import { calculateProjectProgressResult } from './progressEngine';
 
+/** @typedef {import('../types').PortfolioKpis} PortfolioKpis */
+/**
+ * @typedef {object} Command
+ * @property {'critical'|'warning'|'info'} severity
+ */
+/** @typedef {{project: Record<string, any>, latestReport: Record<string, any>|null, progress: number, daysToOpening: number|null, daysSinceReport: number|null, riskLevel: string, projReports?: Array<Record<string, any>>, missingReport?: boolean, gantt?: Record<string, any>|null}} PortfolioRow */
+
 const SEV_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2 };
 
 /**
  * Build the PM alert list from a portfolio of project rows.
- * @param {Array} rows - allRows from Dashboard (each with project, latestReport, progress, daysToOpening, daysSinceReport, riskLevel)
- * @returns {Array} alerts sorted by severity
+ * @param {PortfolioRow[]} rows - allRows from Dashboard (each with project, latestReport, progress, daysToOpening, daysSinceReport, riskLevel)
+ * @returns {Array<Record<string, any>>} alerts sorted by severity
  */
 export function computePortfolioAlerts(rows) {
+  /** @type {Array<Record<string, any>>} */
   const list = [];
   rows.forEach(({ project, latestReport, progress, daysToOpening, riskLevel, gantt }) => {
     if (daysToOpening !== null && daysToOpening < 30 && progress < 80)
@@ -50,10 +59,11 @@ export function computePortfolioAlerts(rows) {
 
 /**
  * Aggregate contractor performance across a portfolio of project rows.
- * @param {Array} rows - allRows from Dashboard (each with project, latestReport, progress, projReports, missingReport)
- * @returns {Array} one entry per contractor, sorted by risk severity
+ * @param {PortfolioRow[]} rows - allRows from Dashboard (each with project, latestReport, progress, projReports, missingReport)
+ * @returns {Array<Record<string, any>>} one entry per contractor, sorted by risk severity
  */
 export function computeContractorPerf(rows) {
+  /** @type {Record<string, {projects: string[], totalProg: number, atRisk: number, blockers: number, support: number, missing: number, reportCount: number}>} */
   const map = {};
   rows.forEach(({ project, latestReport, progress, projReports, missingReport }) => {
     const name = project.generalContractor || latestReport?.contractor || "Unknown";
@@ -76,9 +86,10 @@ export function computeContractorPerf(rows) {
 
 /**
  * Portfolio KPI summary for the Dashboard header cards.
- * @param {Array} projects
- * @param {Array} allRows - pre-computed allRows (with riskLevel, missingReport, daysToOpening, progress, latestReport)
- * @param {Array} allReports - all raw reports (for reportsThisWeek count)
+ * @param {Array<Record<string, any>>} projects
+ * @param {PortfolioRow[]} allRows - pre-computed allRows (with riskLevel, missingReport, daysToOpening, progress, latestReport)
+ * @param {Array<Record<string, any>>} allReports - all raw reports (for reportsThisWeek count)
+ * @returns {PortfolioKpis}
  */
 export function computePortfolioKpis(projects, allRows, allReports) {
   const active   = projects.filter(p => p.projectStatus === "Active").length;
@@ -112,13 +123,16 @@ export function computePortfolioKpis(projects, allRows, allReports) {
 /**
  * Missing-report summary for the Weekly Reports page.
  * Recomputes minimal row data from raw projects + reports.
+ * @param {Array<Record<string, any>>} projects
+ * @param {Array<Record<string, any>>} reports
+ * @returns {{missingCount: number, missing: Array<Record<string, any>>, blocked: number, support: number, avgProgress: number}}
  */
 export function computePortfolioMissing(projects, reports) {
   const now  = new Date();
   const rows = projects.map(p => {
     const pReports  = reports.filter(r => String(r.projectId) === String(p.id));
-    const latest    = [...pReports].sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt))[0];
-    const daysSince = latest ? Math.floor((now - new Date(latest.reportingDate || latest.submittedAt).getTime()) / DAY_MS) : null;
+    const latest    = [...pReports].sort((a, b) => new Date(b.reportingDate || b.submittedAt).getTime() - new Date(a.reportingDate || a.submittedAt).getTime())[0];
+    const daysSince = latest ? Math.floor((now.getTime() - new Date(latest.reportingDate || latest.submittedAt).getTime()) / DAY_MS) : null;
     const isMissing = isMissingReport(latest);
     const wpCum     = computeWPCumulativeStatuses(pReports);
     const legCum    = computeCumulativeStatuses(pReports);
@@ -135,8 +149,8 @@ export function computePortfolioMissing(projects, reports) {
 /**
  * Roll up per-project command lists into a portfolio-level summary.
  *
- * @param {Command[][]} allProjectCommands — one Command[] per project (from commandEngine.getCommands)
- * @returns {{ criticalCount, warningCount, mostUrgent: Command|null }}
+ * @param {Command[][]} allProjectCommands - one Command[] per project (from commandEngine.getCommands)
+ * @returns {{ criticalCount: number, warningCount: number, mostUrgent: Command|null }}
  */
 export function computePortfolioCommands(allProjectCommands) {
   const SEV_ORDER = { critical: 0, warning: 1, info: 2 };
