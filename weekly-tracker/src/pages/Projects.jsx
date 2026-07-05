@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { formatDate } from "../utils/reportUtils";
+import { formatDate, daysUntil } from "../utils/reportUtils";
 import { supabase } from "../lib/supabase";
 import { PHASES } from "../config/masterTaskLibrary";
 import { TEMPLATES } from "../config/projectTemplates";
+import { getOpeningColor } from "../config/thresholds";
 import { generateAndSaveGantt, regenerateGantt } from "../services/ganttService";
 import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
 
@@ -85,8 +86,8 @@ function DetailField({ label, value }) {
 function ProjectDetailModal({ project, onClose, onEdit }) {
 
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
-  const daysLeft = openingDate ? Math.ceil((openingDate - new Date()) / 86400000) : null;
-  const openingColor = daysLeft === null ? "var(--text-muted)" : daysLeft < 30 ? "var(--status-alert)" : daysLeft < 90 ? "var(--status-warn)" : "var(--status-done)";
+  const daysLeft = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
+  const openingColor = getOpeningColor(daysLeft);
 
   const stakeholders = [
     { label: "Project Manager",   value: project.projectManager },
@@ -450,8 +451,8 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
               ) : (
                 filteredProjects.map((project) => {
                   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
-                  const daysLeft = openingDate ? Math.ceil((openingDate - new Date()) / 86400000) : null;
-                  const openingColor = daysLeft === null ? "var(--text-muted)" : daysLeft < 30 ? "var(--status-alert)" : daysLeft < 90 ? "var(--status-warn)" : "var(--status-done)";
+                  const daysLeft = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
+                  const openingColor = getOpeningColor(daysLeft);
                   return (
                     <tr key={project.id} style={{ cursor: "pointer", transition: "background 0.15s" }}
                       onMouseEnter={e => e.currentTarget.style.background = "var(--accent-subtle)"}
