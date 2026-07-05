@@ -4,7 +4,7 @@
  * Clicking a phase cell opens its WP detail in a full-width panel below.
  */
 import { useState, Fragment } from 'react';
-import { getWPGroups, WP_STATUS_SCORES } from '../../config/workPackages';
+import { WP_STATUS_SCORES } from '../../config/statusScores';
 import { statusColor, statusStyles } from './sharedUtils';
 
 function DeltaIndicator({ d }) {
@@ -187,7 +187,7 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
 
           {/* WP groups grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-            {(activePhase.groups ?? getWPGroups(activePhase.id)).map(group => (
+            {activePhase.groups.map(group => (
               <div key={group.id ?? group.name}>
                 <div style={{
                   fontSize: 10, fontWeight: 700, color: 'var(--text-muted)',

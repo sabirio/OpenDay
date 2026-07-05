@@ -12,21 +12,33 @@
  * schedule (see the "Legacy (old)" header comments in ContractorReport.jsx /
  * SiteVisitReport.jsx). Do not delete.
  *
- * Currently used by (audited Wave 4, Step 4.1/4.2):
+ * Currently used by (audited P1.1):
  *   - WeeklyReports.jsx, ContractorReport.jsx, SiteVisitReport.jsx  ← old WP UI flow
- *   - components/weekly/{PhaseStepper,PhaseTimeline,shared,sharedUtils}.jsx
+ *     (legacy-report branches only, gated on ganttTasks.length === 0 / isWPReport())
  *   - engines/{legacyReportEngine,pmAlignmentEngine,projectSummaryEngine,
- *     siteVisitEngine,progressDeltaEngine}.js
- *   - utils/reportUtils.js
- *   - config/dashboardConstants.js
+ *     siteVisitEngine}.js  (legacy-format branches only)
+ *   - utils/reportUtils.js, config/dashboardConstants.js (legacy exports only)
  *
  * MIGRATION GOAL: Once the above are refactored to read Gantt
  *   workPackageStatuses exclusively, this file can be deleted.
  *   masterTaskLibrary.js will become the single source.
  *
+ * WP_STATUS_SCORES/WP_STATUS_OPTIONS/getWPStatusScore/compareWPTaskStatus
+ * moved to config/statusScores.js (P1.1) — they are format-agnostic status
+ * scoring, not tied to this file's legacy WP id vocabulary, and canonical
+ * Gantt-format modules need them too. Re-exported below for the legacy
+ * consumers listed above that already import them from this file.
+ *
  * Data shape: nested array of WPs with { id, name, weight, groups[], tasks[] }
- *   plus WP_STATUS_SCORES, WP_STATUS_OPTIONS, computePackageProgress, etc.
  */
+
+export {
+  WP_STATUS_OPTIONS,
+  WP_STATUS_SCORES,
+  getWPStatusScore,
+  compareWPTaskStatus,
+} from './statusScores.js';
+import { WP_STATUS_SCORES } from './statusScores.js';
 
 export const WORK_PACKAGES = [
   {
@@ -206,23 +218,6 @@ export const WORK_PACKAGES = [
   },
 ];
 
-// ─── Status scoring ───────────────────────────────────────────────────────────
-
-export const WP_STATUS_OPTIONS = [
-  'Not Applicable',
-  'Not Started',
-  'In Progress',
-  'Completed',
-];
-
-export const WP_STATUS_SCORES = {
-  'Not Started': 0,
-  'In Progress': 0.5,
-  Delayed: 0.3,
-  Completed: 1,
-  'Not Applicable': null,
-};
-
 // ─── Lookup helpers ───────────────────────────────────────────────────────────
 
 export function getPackageById(id) {
@@ -283,19 +278,4 @@ export function computePackageProgress(wpStatuses, wpId) {
   }
   if (totalWeight === 0) return 0;
   return Math.round((weightedScore / totalWeight) * 100);
-}
-
-// ─── Discrepancy helpers ──────────────────────────────────────────────────────
-
-export function getWPStatusScore(status) {
-  return WP_STATUS_SCORES[status] ?? 0;
-}
-
-export function compareWPTaskStatus(pmStatus, gcStatus) {
-  if (!pmStatus || !gcStatus) return null;
-  const pmScore = getWPStatusScore(pmStatus);
-  const gcScore = getWPStatusScore(gcStatus);
-  if (pmScore === gcScore) return 'match';
-  if (pmScore > gcScore) return 'pm-higher';
-  return 'gc-higher';
 }

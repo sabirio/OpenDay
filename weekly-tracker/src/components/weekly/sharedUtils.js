@@ -1,5 +1,5 @@
 // Pure utility functions for the Weekly Reports feature (no React).
-import { WP_STATUS_SCORES } from '../../config/workPackages';
+import { WP_STATUS_SCORES } from '../../config/statusScores';
 
 export function statusColor(status) {
   const score = WP_STATUS_SCORES[status] ?? 0;

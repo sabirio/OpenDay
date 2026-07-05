@@ -1,4 +1,4 @@
-import { WP_STATUS_SCORES } from '../../config/workPackages';
+import { WP_STATUS_SCORES } from '../../config/statusScores';
 
 const SCHED_COLOR = {
   'On Track': 'var(--status-done)',

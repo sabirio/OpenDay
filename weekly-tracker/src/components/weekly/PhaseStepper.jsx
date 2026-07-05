@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { WP_STATUS_SCORES, getWPGroups } from '../../config/workPackages';
+import { WP_STATUS_SCORES } from '../../config/statusScores';
 import { statusColor, statusStyles } from './sharedUtils';
 
 function wpProgress(wp, mergedStatuses) {
@@ -147,7 +147,7 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey, 
             <button type="button" onClick={() => setActiveId(null)} style={{ padding: '2px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--accent-subtle)', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>Close ×</button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-            {(activeWP.groups ?? getWPGroups(activeWP.id)).map(group => {
+            {activeWP.groups.map(group => {
               const groupTaskNames = group.tasks;
               return (
                 <div key={group.id}>

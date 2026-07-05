@@ -1,4 +1,4 @@
-import { WP_STATUS_SCORES } from '../config/workPackages.js';
+import { WP_STATUS_SCORES } from '../config/statusScores.js';
 import { getDefaultPhaseWeights } from '../config/masterTaskLibrary.js';
 
 // Effective % for a single task entry — mirrors PhaseStepper.wpProgress logic.

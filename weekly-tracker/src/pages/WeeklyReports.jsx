@@ -14,7 +14,10 @@ import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
 // `wpsConfig`/`displayWorkPackages` below, gated on isWPReport(). Audited
 // Wave 4 Step 4.6; not swapped, replacement is non-trivial. See TEMPLATE_MODEL.md.
-import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
+// WP_STATUS_SCORES (P1.1) moved to config/statusScores.js — it scores both
+// canonical and legacy-format statuses, so it's imported separately below.
+import { WORK_PACKAGES } from "../config/workPackages";
+import { WP_STATUS_SCORES } from "../config/statusScores";
 import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from "../config/masterTaskLibrary";
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
 import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";

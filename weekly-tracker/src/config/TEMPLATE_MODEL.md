@@ -8,7 +8,8 @@
 | Flatten adapter | `config/masterTaskLibrary.js` | Flat `WORK_PACKAGES`/`PHASES` lists mirroring `constructionRetailV1` (same ids/labels/phaseIds), plus lookup helpers (`getWPById`, `getPhaseById`, `getWPsByPhase`, `getScopedGanttWorkPackages`). **Correction (Wave 4.5):** despite the "flatten adapter" name and its own header comment claiming to be derived, this is a **hand-maintained parallel literal**, not a programmatic `.flatMap()`/derivation of `constructionRetailV1` — the two files must be kept in sync manually. Confirmed when adding `openingBlocker` to `constructionRetailV1` required no corresponding code change here. | ✅ CANONICAL (but see drift risk note) |
 | Template → WP resolution | `config/projectTemplates.js` | Resolves a template choice (`standard_with_demo` / `standard_no_demo` / `custom`) to a concrete WP-id set. **Already built on top of `masterTaskLibrary`** (imports `PHASES`, `WORK_PACKAGES`, `getWPsByPhase`). Called directly by `engines/ganttEngine.js`'s `buildProjectWPs()` — the function that generates the Gantt schedule for every new project. | ✅ CANONICAL — **not legacy** (see note below) |
 | DB templates | `src/data/templatesApi.js` + Supabase `templates` table | Persisted, project-pinned templates with copy-on-write versioning | ✅ CANONICAL |
-| Legacy compat | `config/workPackages.js` | Old (pre-Gantt) weekly-report WP list, flat task-name vocabulary (e.g. `"HVAC ducts"`, `"Electrical conduits & cabling"`). Still the active fallback path when a project has no Gantt schedule (see `ContractorReport.jsx`/`SiteVisitReport.jsx` header comments). | ⚠️ LEGACY — kept as fallback, do not import in new Gantt-based code |
+| Status scoring | `config/statusScores.js` | `WP_STATUS_SCORES`/`WP_STATUS_OPTIONS`/`getWPStatusScore`/`compareWPTaskStatus` — format-agnostic task-status→score vocabulary (`'Completed'/'In Progress'/'Not Started'/'Delayed'`). Scores both canonical Gantt-format and legacy WP-format statuses; extracted from `workPackages.js` (P1.1) because it was being imported unconditionally by canonical Weekly Reports rendering code despite living in the legacy file. | ✅ CANONICAL |
+| Legacy compat | `config/workPackages.js` | Old (pre-Gantt) weekly-report WP list, flat task-name vocabulary (e.g. `"HVAC ducts"`, `"Electrical conduits & cabling"`). Still the active fallback path when a project has no Gantt schedule (see `ContractorReport.jsx`/`SiteVisitReport.jsx` header comments). Re-exports `config/statusScores.js` for its remaining legacy consumers. | ⚠️ LEGACY — kept as fallback, do not import in new Gantt-based code |
 | Legacy compat | `config/reportWeights.js` | Even older status/phase weights, 4-phase model (`Demolition works` / `Construction works` / `Testing & Commissioning` / `Handover`) with its own flat task-name vocabulary. Used only by `reportUtils.computeCumulativeStatuses()` and `pmAlignmentEngine`/`dashboardConstants` for that same old shape. | ⚠️ LEGACY — kept for historical/compat calculations only |
 
 ## ⚠️ Correction vs. the original wave plan
@@ -23,14 +24,27 @@ The wave-4 brief assumed `projectTemplates.js` was legacy-only ("DO NOT import f
 4. ✅ DONE (Wave 4.5): `openingReadinessEngine.js` reads `constructionRetailV1` directly — see section below.
 5. DB `templates` (via `templatesApi.js`) is canonical for project-pinned custom template persistence (copy-on-write).
 
-## Known remaining `workPackages.js` / `reportWeights.js` importers (not touched this wave)
+## Known remaining `workPackages.js` / `reportWeights.js` importers
 
-Out of scope for Wave 4 (the wave brief only targets `openingReadinessEngine.js` for the engine layer); listed here for future waves:
+Audited P1.1. `src/tests/architectureGuard.test.mjs` enforces this exact list — any new
+importer (or an already-fixed file regressing) fails `npm test` until the allowlist there
+is deliberately updated.
 
 - `engines/legacyReportEngine.js`, `engines/pmAlignmentEngine.js`, `engines/projectSummaryEngine.js`,
-  `engines/siteVisitEngine.js`, `engines/progressDeltaEngine.js` — still import `workPackages.js`.
-- `utils/reportUtils.js` — imports both `workPackages.js` and `reportWeights.js` (its `computeCumulativeStatuses()` is the actual consumer of the old 4-phase model).
-- `components/weekly/*` (`PhaseTimeline.jsx`, `PhaseStepper.jsx`, `sharedUtils.js`, `shared.jsx`) and `pages/WeeklyReports.jsx`, `pages/ContractorReport.jsx`, `pages/SiteVisitReport.jsx` — the old (non-Gantt) weekly-report UI flow, kept as the fallback path for projects without a generated Gantt schedule.
+  `engines/siteVisitEngine.js` — legacy-format branches only (guarded by `ganttTasks.length === 0` /
+  `visit.wps.length === 0` / equivalent checks). `engines/progressDeltaEngine.js` was fixed in P1.1
+  (its `WP_STATUS_SCORES` import moved to `config/statusScores.js`) and no longer appears here.
+- `utils/reportUtils.js`, `config/dashboardConstants.js` — the `@legacy`-marked exports of these
+  files still import both `workPackages.js` and `reportWeights.js`; their canonical exports
+  (`isWPReport`, `mergeGanttWPStatuses`, `WP_COLS`, etc.) do not.
+- `components/contractor/{formHelpers,LegacyWPSection,ReportingWorkPackagesSection,WorkPackageProgressSection}.js(x)`,
+  `components/sitevisit/{ComparisonResultsView,gcReferenceHelpers,SiteVisitFormView}.jsx` — no-Gantt
+  submit/comparison fallback branches for Contractor Report / PM Site Visit.
+- `pages/WeeklyReports.jsx`, `pages/SiteVisitReport.jsx` — the old (non-Gantt) weekly-report UI flow,
+  kept as the fallback path for projects without a generated Gantt schedule. `pages/ContractorReport.jsx`
+  was fixed in P1.1 (delegates entirely to the subcomponents above, no direct import) and no longer
+  appears here. `components/weekly/{PhaseTimeline,PhaseStepper,sharedUtils,shared}.jsx` were fixed in
+  P1.1 (moved to `config/statusScores.js`) and no longer appear here either.
 
 ## `getScopeWPIds()` is the single entry point
 
