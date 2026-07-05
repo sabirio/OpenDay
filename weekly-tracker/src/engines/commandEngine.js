@@ -35,7 +35,7 @@ const SEV_ORDER = { critical: 0, warning: 1, info: 2 };
  * @param {object} config   — defaults to SCHEDULE_CONFIG
  * @returns {Command[]}
  */
-export function getCommands(projectState, config = SCHEDULE_CONFIG) {
+export function getCommands(projectState, _config = SCHEDULE_CONFIG) {
   const {
     project,
     progressComparison,

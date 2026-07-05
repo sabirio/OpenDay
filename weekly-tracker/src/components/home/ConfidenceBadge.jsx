@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export const LEVEL_STYLE = {
+const LEVEL_STYLE = {
   HIGH:   { color: 'var(--status-done)', bg: 'var(--status-done-bg)' },
   MEDIUM: { color: 'var(--status-warn)', bg: 'var(--status-warn-bg)' },
   LOW:    { color: 'var(--text-muted)',  bg: 'var(--bg-elevated)'    },

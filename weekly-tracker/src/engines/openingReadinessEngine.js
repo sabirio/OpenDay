@@ -40,7 +40,6 @@ function isBlocking(status) {
  * }}
  */
 export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate) {
-  const now = new Date();
   const targetDate = targetOpeningDate || null;
 
   const daysToOpening = targetDate ? daysUntil(targetDate) : null;

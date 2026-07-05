@@ -85,7 +85,6 @@ export function calculateLayout(
   }
 
   // ── Group WPs by phase ──────────────────────────────────────────────────
-  const phaseOrder = {};
   const phaseMap = {};
   for (const wp of ganttResult) {
     if (!phaseMap[wp.phaseId]) {

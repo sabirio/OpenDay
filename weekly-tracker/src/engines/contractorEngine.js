@@ -1,4 +1,4 @@
-import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
+import { computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
 import { calculateProjectProgressResult } from "./progressEngine";
 import { computePmAlignmentItems, summarizeAlignmentItems } from "./pmAlignmentEngine";
 import { computeScheduleDeviation } from "./riskEngine";
@@ -32,7 +32,7 @@ export function computeContractorScores(project, projReports, projSiteVisits) {
       const visitDate = new Date(visit.visitDate || visit.submittedAt);
       const gcAtVisit = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || sorted[sorted.length - 1];
       const items = computePmAlignmentItems(gcAtVisit, visit);
-      const { matchRate, overstatements: overstateItems, matches: matchItems } = summarizeAlignmentItems(items);
+      const { matchRate, overstatements: overstateItems } = summarizeAlignmentItems(items);
       pmAlignmentDetails.push({ visitDate: visit.visitDate || visit.submittedAt, matchRate, overstatements: overstateItems.length, total: items.length, items });
       items.forEach(item => {
         if (item.severity === "CRITICAL" || item.severity === "HIGH") pmAlignmentPts -= 4;

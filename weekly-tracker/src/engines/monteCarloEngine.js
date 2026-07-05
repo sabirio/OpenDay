@@ -34,7 +34,7 @@ function addDays(date, days) {
  * @param {object[]} [ganttTasks]   — reserved for future cone enhancements
  * @returns Monte Carlo result or { insufficient_data: true }
  */
-export function computeMonteCarloForecast(project, sortedReports, ganttTasks) {
+export function computeMonteCarloForecast(project, sortedReports, _ganttTasks) {
   if (!sortedReports || sortedReports.length < 3 || !project?.targetOpeningDate) {
     return { insufficient_data: true };
   }
@@ -97,14 +97,12 @@ export function computeMonteCarloForecast(project, sortedReports, ganttTasks) {
   let onTime      = 0;
   let delay2Weeks = 0;
   let delayMonth  = 0;
-  let delayCrit   = 0;
 
   for (const d of completionDates) {
     const diffDays = Math.ceil((d - targetOpeningDate) / DAY_MS);
     if (diffDays <= 0)        onTime++;
     else if (diffDays <= 14)  delay2Weeks++;
     else if (diffDays <= 30)  delayMonth++;
-    else                      delayCrit++;
   }
 
   const pct       = (n) => Math.round((n / N) * 100);

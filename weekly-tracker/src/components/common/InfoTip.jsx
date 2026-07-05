@@ -9,7 +9,6 @@ export default function InfoTip({ topic, breakdown, pts, maxPts }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
   const content = HELP_CONTENT[topic];
-  if (!content) return null;
 
   useEffect(() => {
     if (!open) return;
@@ -22,6 +21,8 @@ export default function InfoTip({ topic, breakdown, pts, maxPts }) {
       document.removeEventListener('mousedown', onDown);
     };
   }, [open]);
+
+  if (!content) return null;
 
   return (
     <span ref={wrapRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>

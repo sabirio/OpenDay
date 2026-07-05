@@ -1,5 +1,5 @@
 // Gantt Engine — pure functions, no React imports, testable in plain Node.js.
-import { WORK_PACKAGES, PHASES, getPhaseById, getWPById } from '../config/masterTaskLibrary.js';
+import { WORK_PACKAGES, PHASES, getPhaseById } from '../config/masterTaskLibrary.js';
 import { filterRulesForWPs } from '../config/dependencyRules.js';
 import { resolveTemplateWPs } from '../config/projectTemplates.js';
 
@@ -488,7 +488,7 @@ export function recalculateOnDelay(ganttResult, delayedWPId, newProgressPct, tod
 
   while (queue.length > 0) {
     const cur = queue.shift();
-    for (const { to, lag_days } of successorsMap[cur]) {
+    for (const { to } of successorsMap[cur]) {
       // Recalculate earlyStart for successor as max of all predecessor earlyFinish + lag
       const preds = predecessorsMap[to];
       let maxFinish = new Date(0);

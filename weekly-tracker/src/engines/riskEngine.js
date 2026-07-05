@@ -1,4 +1,4 @@
-import { estimateProgressFromStatuses, computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore, DAY_MS, daysSince, daysUntil, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
+import { computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore, DAY_MS, daysSince, daysUntil, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
 import { calculateProjectProgressResult } from "./progressEngine";
 import { computeExpectedPct } from "../utils/scheduleUtils";
 import { computeCalendarSpi } from "./spiEngine";
@@ -121,7 +121,6 @@ function computeNoReportsRisk(project) {
 
   // Schedule-based expected progress calculation
   if (start && schedEnd && schedEnd > start) {
-    const totalDays   = Math.ceil((schedEnd - start) / DAY_MS);
     const elapsedDays = Math.max(0, Math.ceil((now - start) / DAY_MS));
     const expectedPct = computeExpectedPct(project, now);
 

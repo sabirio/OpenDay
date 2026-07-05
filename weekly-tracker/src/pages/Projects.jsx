@@ -233,7 +233,6 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const [countryFilter, setCountryFilter] = useState("All");
   const [salesMarketFilter, setSalesMarketFilter] = useState("All");
   const [searchQuery, setSearchQuery]     = useState("");
-  const [inviteStatus, setInviteStatus]       = useState({}); // { [email]: 'sending'|'sent'|'error' }
   const [gcModal, setGcModal]                 = useState(null); // project being invited
   const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
   const [gcEmail, setGcEmail]             = useState('');
@@ -278,35 +277,6 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     } else {
       setGcInviteStatus('sent');
     }
-  }
-
-  async function handleInviteContractor(email) {
-    if (!email || !email.includes('@')) return;
-    setInviteStatus(prev => ({ ...prev, [email]: 'sending' }));
-
-    // Step 1: pre-register role (works for new and existing users)
-    const { data: rpcData, error: rpcError } = await supabase.rpc('invite_contractor', {
-      contractor_email: email,
-    });
-
-    if (rpcError || rpcData?.error) {
-      console.error('[invite]', rpcError || rpcData?.error);
-      setInviteStatus(prev => ({ ...prev, [email]: 'error' }));
-      setTimeout(() => setInviteStatus(prev => ({ ...prev, [email]: null })), 4000);
-      return;
-    }
-
-    // Step 2: send magic link — redirect contractor to their landing page
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/contractor-select`,
-      },
-    });
-
-    setInviteStatus(prev => ({ ...prev, [email]: otpError ? 'error' : 'sent' }));
-    setTimeout(() => setInviteStatus(prev => ({ ...prev, [email]: null })), 4000);
   }
 
   function handleChange(e) {

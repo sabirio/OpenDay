@@ -25,6 +25,11 @@ export default defineConfig([
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
+      // set-state-in-effect flags the standard "async fetch in effect -> setState in
+      // the .then / loading-flag" pattern used across this app. All current cases are
+      // guarded (no render loops). Kept as a warning so it stays visible without
+      // blocking CI; revisit if a data-loading refactor (react-query/SWR) lands.
+      'react-hooks/set-state-in-effect': 'warn',
     },
   },
   {
