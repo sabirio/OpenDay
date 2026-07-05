@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { computeProjectSummary } from '../../engines/projectSummaryEngine';
-import { computeConfidenceLevel } from '../../engines/pmAlignmentEngine';
 import { formatDate } from '../../utils/reportUtils';
 import { RISK_LEVEL_COLORS } from '../../config/statusColors';
 import { SchedBadge } from './DashboardWidgets';
@@ -42,7 +41,7 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
 
-  const { project, progress, projReports, wpCumulativeStatuses, color } = row || {};
+  const { project, progress, projReports, wpCumulativeStatuses, color, confidence } = row || {};
 
   const summary = useMemo(() => {
     if (!row) return null;
@@ -53,11 +52,6 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
 
   const { contractor, pmVisit, risk, opening } = summary;
   const riskStyle = RL[risk.level] || RL.UNKNOWN;
-
-  const latestReport = [...projReports].sort(
-    (a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt)
-  ).slice(-1)[0] || null;
-  const confidence = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
 
   const matchRateColor = pmVisit.matchRate >= 80 ? 'var(--status-done)' : pmVisit.matchRate >= 50 ? 'var(--status-warn)' : 'var(--status-alert)';
 
