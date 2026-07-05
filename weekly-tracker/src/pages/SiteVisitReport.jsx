@@ -38,6 +38,8 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
   const [errors, setErrors]       = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [savedVisit, setSavedVisit] = useState(null);
+  const [photoUrls, setPhotoUrls] = useState([]);
+  const [photoError, setPhotoError] = useState(null);
 
   const [ganttTasks, setGanttTasks]           = useState([]);
   const [ganttLoading, setGanttLoading]       = useState(false);
@@ -112,6 +114,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
     setForm({ visitDate: new Date().toISOString().split("T")[0], referenceReportId: latestReport?.id ? String(latestReport.id) : "", pmWorkPackageStatuses: makeEmptyPMWPStatuses(), pmScheduleAssessment: "", observations: "", photos: [], declarationConfirmed: false });
     setSavedVisit(null);
     setErrors([]);
+    setPhotoUrls([]);
     setSubmitted(false);
   }
 
@@ -139,6 +142,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
           visitedBy:              user.id,
           overallNote:            form.observations || '',
           pmScheduleAssessment:   form.pmScheduleAssessment || null,
+          photoUrls,
         });
         setSavedVisit({ ...form, ...result.siteVisit, discrepancies: result.discrepancies, _ganttFormat: true });
       } else {
@@ -147,7 +151,8 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
           referenceReportId: form.referenceReportId || null,
           ...form,
           visitedBy: user.id,
-          photos: form.photos.map((p) => p?.name || p),
+          photos: photoUrls,
+          photoUrls,
           submittedAt: new Date().toISOString(),
         };
         const saved = await onSaveSiteVisit(visitData);
@@ -211,6 +216,11 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
       pmWpObservations={pmWpObservations}
       updatePMObservation={updatePMObservation}
       onSubmit={submit}
+      photoUrls={photoUrls}
+      projectId={project.id}
+      onPhotoUpload={(path) => setPhotoUrls((prev) => [...prev, path])}
+      onPhotoError={(msg) => setPhotoError(msg)}
+      photoError={photoError}
     />
   );
 }

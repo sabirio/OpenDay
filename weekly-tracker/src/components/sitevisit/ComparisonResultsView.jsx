@@ -84,25 +84,29 @@ function ComparisonResultsView({ project, projectReports, savedVisit, onNewVisit
                     </span>
                   )}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px 110px", gap: 8, padding: "6px 10px", background: "#f8fafc", borderRadius: 8, marginBottom: 4 }}>
-                  {["Task", "GC Report", "PM Observed", "Result"].map((h, i) => (
-                    <div key={h} style={{ fontSize: 10, fontWeight: 700, color: i === 2 ? ACCENT : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</div>
-                  ))}
-                </div>
-                {tasks.map(({ taskName, pmStatus, pmProgress, gcStatus, gcProgress, result: r }) => (
-                  <div key={taskName} style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px 110px", gap: 8, padding: "8px 10px", borderRadius: 8, background: r?.bg || "white", border: `1px solid ${r?.border || "#f3f4f6"}`, marginBottom: 3, alignItems: "center" }}>
-                    <div style={{ fontSize: 12, color: "#374151" }}>{taskName}</div>
-                    <div style={{ fontSize: 12 }}>
-                      <StatusPill status={gcStatus} />
-                      {gcProgress > 0 && <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>{gcProgress}%</span>}
+                <div className="field-form-scroll-x">
+                  <div style={{ minWidth: 480 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px 110px", gap: 8, padding: "6px 10px", background: "#f8fafc", borderRadius: 8, marginBottom: 4 }}>
+                      {["Task", "GC Report", "PM Observed", "Result"].map((h, i) => (
+                        <div key={h} style={{ fontSize: 10, fontWeight: 700, color: i === 2 ? ACCENT : "#94a3b8", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</div>
+                      ))}
                     </div>
-                    <div style={{ fontSize: 12 }}>
-                      <StatusPill status={pmStatus} />
-                      {pmProgress > 0 && <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>{pmProgress}%</span>}
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: r?.color }}>{r?.badge}</div>
+                    {tasks.map(({ taskName, pmStatus, pmProgress, gcStatus, gcProgress, result: r }) => (
+                      <div key={taskName} style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px 110px", gap: 8, padding: "8px 10px", borderRadius: 8, background: r?.bg || "white", border: `1px solid ${r?.border || "#f3f4f6"}`, marginBottom: 3, alignItems: "center" }}>
+                        <div style={{ fontSize: 12, color: "#374151" }}>{taskName}</div>
+                        <div style={{ fontSize: 12 }}>
+                          <StatusPill status={gcStatus} />
+                          {gcProgress > 0 && <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>{gcProgress}%</span>}
+                        </div>
+                        <div style={{ fontSize: 12 }}>
+                          <StatusPill status={pmStatus} />
+                          {pmProgress > 0 && <span style={{ fontSize: 10, color: "#9ca3af", marginLeft: 4 }}>{pmProgress}%</span>}
+                        </div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: r?.color }}>{r?.badge}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
             );
           })}

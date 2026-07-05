@@ -167,6 +167,8 @@ function ContractorReport({ projects, reports }) {
 
   const [validationErrors, setValidationErrors] = useState([]);
   const [submitted, setSubmitted] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState([]);
+  const [photoError, setPhotoError] = useState(null);
 
   function updateField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -219,7 +221,7 @@ function ContractorReport({ projects, reports }) {
       errors.push("Delay reason is required when activities are blocked.");
     if (!form.pendingIssues) errors.push("Pending issues summary is required.");
     if (!form.finalComments) errors.push("Final comments are required.");
-    if (!form.photos.length) errors.push("At least one photo is required.");
+    if (!photoUrls.length) errors.push("At least one photo is required.");
     if (!form.declarationConfirmed) errors.push("Declaration confirmation is required.");
     return errors;
   }
@@ -277,7 +279,7 @@ function ContractorReport({ projects, reports }) {
         currentPhases,
         currentPackages: form.currentPackages || [],
         workPackageStatuses,
-        photos: form.photos.map((p) => (p?.name ? p.name : p)),
+        photos: photoUrls,
       });
 
       // Compute cumulative progress (all prior reports + this one) before saving,
@@ -312,6 +314,7 @@ function ContractorReport({ projects, reports }) {
         masterReportId: mainReportPayload.id,
         reportSnapshot: mainReportPayload,
         cumulativeProgress,
+        photoUrls,
       });
 
       setSubmitted(true);
@@ -358,6 +361,7 @@ function ContractorReport({ projects, reports }) {
               onClick={() => {
                 prefillDone.current = false;
                 setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
+                setPhotoUrls([]);
                 setSubmitted(false);
               }}
               style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "#2f855a", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
@@ -393,7 +397,7 @@ function ContractorReport({ projects, reports }) {
   const activePackages = (form.currentPackages || []).map((id) => WORK_PACKAGES.find((wp) => wp.id === id)).filter(Boolean);
 
   return (
-    <div data-testid="contractor-report-form" style={{ minHeight: "100vh", background: "#f0f7f2", padding: "36px 20px 80px" }}>
+    <div data-testid="contractor-report-form" className="field-form-page" style={{ minHeight: "100vh", background: "#f0f7f2", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
 
         <ReportHeaderCard
@@ -501,23 +505,38 @@ function ContractorReport({ projects, reports }) {
         <SupportWorksSection form={form} updateField={updateField} toggleCheckbox={toggleCheckbox} />
 
         {/* ── 7-8. Look Ahead & Declaration ── */}
-        <LookAheadDeclarationSection form={form} updateField={updateField} />
+        <LookAheadDeclarationSection
+          form={form}
+          updateField={updateField}
+          photoUrls={photoUrls}
+          projectId={project.id}
+          onPhotoUpload={(path) => setPhotoUrls((prev) => [...prev, path])}
+          onPhotoError={(msg) => setPhotoError(msg)}
+        />
+        {photoError && (
+          <div style={{ background: "#fff1f2", border: "1px solid #fca5a5", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#991b1b" }}>
+            {photoError}
+          </div>
+        )}
 
         {/* ── Submit ── */}
-        <button
-          type="button"
-          data-testid="save-contractor-report"
-          onClick={saveReport}
-          style={{
-            width: "100%", padding: "16px", borderRadius: 12, border: "none",
-            background: "linear-gradient(135deg, #2f855a 0%, #22c55e 100%)",
-            color: "white", fontSize: 16, fontWeight: 700,
-            cursor: "pointer", letterSpacing: "0.02em",
-            boxShadow: "0 4px 14px rgba(47, 133, 90, 0.35)",
-          }}
-        >
-          Submit Weekly Report
-        </button>
+        <div className="field-form-sticky-submit-spacer" />
+        <div className="field-form-sticky-submit">
+          <button
+            type="button"
+            data-testid="save-contractor-report"
+            onClick={saveReport}
+            style={{
+              width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none",
+              background: "linear-gradient(135deg, #2f855a 0%, #22c55e 100%)",
+              color: "white", fontSize: 16, fontWeight: 700,
+              cursor: "pointer", letterSpacing: "0.02em",
+              boxShadow: "0 4px 14px rgba(47, 133, 90, 0.35)",
+            }}
+          >
+            Submit Weekly Report
+          </button>
+        </div>
 
       </div>
     </div>

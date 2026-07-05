@@ -1,10 +1,11 @@
 import { FormSection, ToggleGroup, TextAreaField } from "./FormParts";
+import PhotoUpload from "../shared/PhotoUpload";
 
-function LookAheadDeclarationSection({ form, updateField }) {
+function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, onPhotoUpload, onPhotoError }) {
   return (
     <>
       <FormSection title="Look Ahead" accentColor="#0891b2">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="field-form-2col">
           <TextAreaField label="Top 3 Activities — Next Week" value={form.nextWeekTop3} onChange={(v) => updateField("nextWeekTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
           <TextAreaField label="Top 3 Activities — Week +2" value={form.weekAfterTop3} onChange={(v) => updateField("weekAfterTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
         </div>
@@ -25,31 +26,16 @@ function LookAheadDeclarationSection({ form, updateField }) {
       </FormSection>
 
       <FormSection title="Declaration & Comments" accentColor="#475569">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="field-form-2col">
           <TextAreaField label="Pending Issues Summary" value={form.pendingIssues} onChange={(v) => updateField("pendingIssues", v)} placeholder="List any open issues or pending actions..." rows={4} />
           <TextAreaField label="Final Comments" value={form.finalComments} onChange={(v) => updateField("finalComments", v)} placeholder="Any additional comments for this week..." rows={4} />
         </div>
 
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 10 }}>Site Photos</div>
-          <label style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            padding: "10px 18px", borderRadius: 10,
-            border: "2px dashed #d1d5db", cursor: "pointer",
-            color: "#6b7280", fontSize: 13, fontWeight: 500, background: "#fafafa",
-          }}>
-            <span style={{ fontSize: 18 }}>📷</span>
-            {form.photos.length > 0 ? `${form.photos.length} photo${form.photos.length > 1 ? "s" : ""} selected` : "Upload site photos"}
-            <input type="file" multiple accept="image/*" style={{ display: "none" }} onChange={(e) => updateField("photos", Array.from(e.target.files))} />
-          </label>
-          {form.photos.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-              {form.photos.map((p, i) => (
-                <span key={i} style={{ padding: "3px 10px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166634", fontSize: 12 }}>
-                  {p?.name || `Photo ${i + 1}`}
-                </span>
-              ))}
-            </div>
+          <PhotoUpload projectId={projectId} onUpload={onPhotoUpload} onError={onPhotoError} />
+          {photoUrls.length > 0 && (
+            <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>{photoUrls.length} photo{photoUrls.length > 1 ? "s" : ""} attached</p>
           )}
         </div>
 

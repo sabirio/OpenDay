@@ -28,6 +28,7 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
       visit_date:               visitDate,
       overall_note:             meta.overallNote   || null,
       pm_schedule_assessment:   meta.pmScheduleAssessment || null,
+      photo_urls:               meta.photoUrls || [],
     }])
     .select()
     .single();
@@ -210,6 +211,7 @@ export async function create(visit) {
       visited_by:   visitedBy,
       visit_date:   visit.visitDate || new Date().toISOString().split('T')[0],
       overall_note: visit.overallNote || null,
+      photo_urls:   visit.photoUrls || [],
     }])
     .select()
     .single();

@@ -3,15 +3,17 @@ import FormSection, { ACCENT } from "./FormSection";
 import LegacyPMTaskRow from "./LegacyPMTaskRow";
 import GanttPMTaskRow from "./GanttPMTaskRow";
 import { getGCTaskEntry } from "./gcReferenceHelpers";
+import PhotoUpload from "../shared/PhotoUpload";
 
 function SiteVisitFormView({
   project, projectReports, form, set, errors,
   referenceReport, handleReferenceChange, updateWPTask,
   ganttLoading, ganttTasks, pmWpObservations, updatePMObservation,
   onSubmit,
+  photoUrls, projectId, onPhotoUpload, onPhotoError, photoError,
 }) {
   return (
-    <div data-testid="pm-site-visit-form" style={{ minHeight: "100vh", background: "#f0f7fa", padding: "36px 20px 80px" }}>
+    <div data-testid="pm-site-visit-form" className="field-form-page" style={{ minHeight: "100vh", background: "#f0f7fa", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* Header card */}
@@ -67,7 +69,7 @@ function SiteVisitFormView({
 
         {/* 1. Visit Info */}
         <FormSection title="Visit Information" accentColor={ACCENT}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div className="field-form-2col">
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 8 }}>Visit Date</div>
               <input type="date" value={form.visitDate} onChange={(e) => set("visitDate", e.target.value)}
@@ -189,18 +191,13 @@ function SiteVisitFormView({
 
         {/* 4. Photos */}
         <FormSection title="Site Photos" accentColor="#6b7280">
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: "2px dashed #d1d5db", cursor: "pointer", color: "#6b7280", fontSize: 13, fontWeight: 500, background: "#fafafa" }}>
-            <span style={{ fontSize: 18 }}>📷</span>
-            {form.photos.length > 0 ? `${form.photos.length} photo${form.photos.length > 1 ? "s" : ""} selected` : "Upload site photos"}
-            <input type="file" multiple accept="image/*" style={{ display: "none" }} onChange={(e) => set("photos", Array.from(e.target.files))} />
-          </label>
-          {form.photos.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-              {form.photos.map((p, i) => (
-                <span key={i} style={{ padding: "3px 10px", borderRadius: 8, background: "#e0f2fe", border: "1px solid #7dd3fc", color: "#0c4a6e", fontSize: 12 }}>
-                  {p?.name || `Photo ${i + 1}`}
-                </span>
-              ))}
+          <PhotoUpload projectId={projectId} onUpload={onPhotoUpload} onError={onPhotoError} />
+          {photoUrls.length > 0 && (
+            <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>{photoUrls.length} photo{photoUrls.length > 1 ? "s" : ""} attached</p>
+          )}
+          {photoError && (
+            <div style={{ marginTop: 10, background: "#fff1f2", border: "1px solid #fca5a5", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#991b1b" }}>
+              {photoError}
             </div>
           )}
         </FormSection>
@@ -227,10 +224,13 @@ function SiteVisitFormView({
         </FormSection>
 
         {/* Submit */}
-        <button type="button" data-testid="save-site-visit-report" onClick={onSubmit}
-          style={{ width: "100%", padding: "16px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, #06b6d4 100%)`, color: "white", fontSize: 16, fontWeight: 700, cursor: "pointer", letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(8,145,178,0.35)" }}>
-          Submit Site Visit Report
-        </button>
+        <div className="field-form-sticky-submit-spacer" />
+        <div className="field-form-sticky-submit">
+          <button type="button" data-testid="save-site-visit-report" onClick={onSubmit}
+            style={{ width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, #06b6d4 100%)`, color: "white", fontSize: 16, fontWeight: 700, cursor: "pointer", letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(8,145,178,0.35)" }}>
+            Submit Site Visit Report
+          </button>
+        </div>
 
       </div>
     </div>

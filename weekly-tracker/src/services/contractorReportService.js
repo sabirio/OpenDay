@@ -12,7 +12,7 @@ import { validateArray } from '../schemas/validate';
  *
  * @param {string} projectId
  * @param {Array<{ wpId, progress_pct, status, comment }>} wpProgressArray
- * @param {object} [meta] — { reportDate, overallProgress }
+ * @param {object} [meta] — { reportDate, overallProgress, photoUrls }
  * @returns { report, wpLineItems }
  */
 export async function submitReport(projectId, wpProgressArray, meta = {}) {
@@ -31,6 +31,7 @@ export async function submitReport(projectId, wpProgressArray, meta = {}) {
       week_number:      weekNumber,
       overall_progress: meta.overallProgress || computeOverallProgress(wpProgressArray),
       status:           'submitted',
+      photo_urls:       meta.photoUrls || [],
     }])
     .select()
     .single();

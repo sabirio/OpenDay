@@ -1321,3 +1321,56 @@ body {
   .sidebar { width: 200px; padding: 16px 12px; }
   .main-content { padding: 24px 20px; }
 }
+
+/* ============================================================
+   FIELD FORMS — MOBILE (SiteVisitReport / ContractorReport)
+   ============================================================ */
+
+/* Prevents iOS Safari auto-zoom on focus — inputs must render at >=16px.
+   !important is deliberate here: every input in these two forms sets its
+   own inline font-size (13-14px), which otherwise always wins over a class
+   rule regardless of specificity. Scoped narrowly to .field-form-page. */
+.field-form-page input,
+.field-form-page select,
+.field-form-page textarea {
+  font-size: 16px !important;
+}
+
+/* Desktop side-by-side pair → mobile stacked */
+.field-form-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .field-form-2col { grid-template-columns: 1fr; }
+}
+
+/* Horizontally-scrollable wrapper for fixed-column comparison tables,
+   so only the table scrolls sideways, never the page itself. */
+.field-form-scroll-x {
+  overflow-x: auto;
+}
+
+/* Submit button pinned to the bottom of the viewport on mobile only —
+   on desktop it stays in normal document flow. */
+@media (max-width: 640px) {
+  .field-form-sticky-submit {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    background: white;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+  }
+  .field-form-sticky-submit-spacer {
+    /* Reserves scroll room so the fixed bar never covers the last field. */
+    height: 84px;
+  }
+}
+
+@keyframes field-form-spin {
+  to { transform: rotate(360deg); }
+}
