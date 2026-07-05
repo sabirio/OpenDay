@@ -50,6 +50,11 @@ export async function submitReport(projectId, wpProgressArray, meta = {}) {
     .select();
   if (wErr) throw wErr;
 
+  // meta.cumulativeProgress (canonical, from progressEngine) is expected here.
+  // The computeOverallProgress() fallback is dead in practice today — the sole
+  // caller (ContractorReport.jsx) always supplies cumulativeProgress — but a
+  // future caller that omits it would silently write the raw contractor
+  // average into this OFFICIAL snapshot field. See PROGRESS_MODEL.md.
   const historyProgress = meta.cumulativeProgress ?? report.overall_progress ?? computeOverallProgress(wpProgressArray);
   const { error: histErr } = await supabase.from('progress_history').insert({
     project_id:       projectId,
@@ -202,6 +207,8 @@ export async function getReportById(reportId) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Contractor raw average only (unweighted sum/count). For official progress
+// use progressEngine.js — see src/engines/PROGRESS_MODEL.md.
 function computeOverallProgress(wpProgressArray) {
   if (!wpProgressArray.length) return 0;
   const sum = wpProgressArray.reduce((s, wp) => s + (wp.progress_pct || 0), 0);
