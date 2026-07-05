@@ -10,6 +10,8 @@ import {
 } from '../engines/ganttEngine';
 import { DEPENDENCY_RULES } from '../config/dependencyRules';
 import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth } from '../engines/spiEngine';
+import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
+import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
 
 // ─── Generate & save ──────────────────────────────────────────────────────────
 
@@ -397,8 +399,15 @@ export async function getProjectMetrics(projectId) {
     .eq('project_id', projectId);
   if (error) throw error;
 
-  const spi            = computeSPIFromTasks(tasks || [], today);
-  const criticalHealth = computeCriticalHealth(tasks || [], today);
+  const { data: projectRow } = await supabase
+    .from('projects')
+    .select('scope')
+    .eq('id', projectId)
+    .single();
+  const scopeWPIds = getScopeWPIds(projectRow?.scope ?? null, GANTT_WPS);
+
+  const spi            = computeSPIFromTasks(tasks || [], today, scopeWPIds);
+  const criticalHealth = computeCriticalHealth(tasks || [], today, scopeWPIds);
 
   const { data: visits } = await supabase
     .from('site_visits')
@@ -412,7 +421,7 @@ export async function getProjectMetrics(projectId) {
     spiStatus:     getSPIStatus(spi),
     criticalHealth,
     lastVisitDate: visits?.[0]?.visit_date ?? null,
-    taskCount:     (tasks || []).filter(t => !t.is_archived).length,
+    taskCount:     (tasks || []).filter(t => !t.is_archived && (!scopeWPIds || scopeWPIds.includes(t.wp_id))).length,
   };
 }
 
@@ -436,9 +445,19 @@ export async function loadAllGanttMetrics(projectIds) {
     .in('project_id', projectIds)
     .order('visit_date', { ascending: false });
 
+  const { data: allProjects } = await supabase
+    .from('projects')
+    .select('id,scope')
+    .in('id', projectIds);
+
   const lastVisitMap = new Map();
   for (const v of allVisits || []) {
     if (!lastVisitMap.has(v.project_id)) lastVisitMap.set(v.project_id, v.visit_date);
+  }
+
+  const scopeWPIdsMap = new Map();
+  for (const p of allProjects || []) {
+    scopeWPIdsMap.set(p.id, getScopeWPIds(p.scope ?? null, GANTT_WPS));
   }
 
   const tasksByProject = new Map();
@@ -450,14 +469,15 @@ export async function loadAllGanttMetrics(projectIds) {
   const result = new Map();
   for (const pid of projectIds) {
     const tasks          = tasksByProject.get(pid) || [];
-    const spi            = computeSPIFromTasks(tasks, today);
-    const criticalHealth = computeCriticalHealth(tasks, today);
+    const scopeWPIds     = scopeWPIdsMap.get(pid) ?? null;
+    const spi            = computeSPIFromTasks(tasks, today, scopeWPIds);
+    const criticalHealth = computeCriticalHealth(tasks, today, scopeWPIds);
     result.set(pid, {
       spi,
       spiStatus:     getSPIStatus(spi),
       criticalHealth,
       lastVisitDate: lastVisitMap.get(pid) ?? null,
-      taskCount:     tasks.filter(t => !t.is_archived).length,
+      taskCount:     tasks.filter(t => !t.is_archived && (!scopeWPIds || scopeWPIds.includes(t.wp_id))).length,
     });
   }
   return result;

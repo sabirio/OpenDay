@@ -47,12 +47,16 @@ export function computePlannedPct(plannedStart, plannedEnd, referenceDate = new 
  * AND the schedule is well advanced (≥80% of planned window consumed). It does
  * NOT suppress genuine early-project SPI (avgPlanned < 80 → SPI still returned).
  *
- * @param {object[]} tasks         rows from project_gantt_tasks
- * @param {Date}     referenceDate defaults to today
+ * @param {object[]}      tasks         rows from project_gantt_tasks
+ * @param {Date}          referenceDate defaults to today
+ * @param {string[]|null} scopeWPIds    active WP ids from getScopeWPIds(project.scope, ...);
+ *                                      null = no scope filter (all non-archived tasks).
+ *                                      is_archived alone is NOT a reliable scope proxy —
+ *                                      removing a WP from scope does not archive its row.
  * @returns {number|null}
  */
-export function computeSPIFromTasks(tasks, referenceDate = new Date()) {
-  const active = tasks.filter(t => !t.is_archived);
+export function computeSPIFromTasks(tasks, referenceDate = new Date(), scopeWPIds = null) {
+  const active = tasks.filter(t => !t.is_archived && (!scopeWPIds || scopeWPIds.includes(t.wp_id)));
   if (active.length === 0) return null;
   let sumActual = 0, sumPlanned = 0;
   for (const t of active) {
@@ -67,10 +71,14 @@ export function computeSPIFromTasks(tasks, referenceDate = new Date()) {
 
 /**
  * How many critical-path tasks are behind plan.
+ * @param {object[]}      tasks         rows from project_gantt_tasks
+ * @param {Date}          referenceDate defaults to today
+ * @param {string[]|null} scopeWPIds    active WP ids from getScopeWPIds(project.scope, ...);
+ *                                      null = no scope filter. See computeSPIFromTasks note.
  * @returns {{ total, behind, ratio, label }}
  */
-export function computeCriticalHealth(tasks, referenceDate = new Date()) {
-  const critical = tasks.filter(t => t.is_critical && !t.is_archived);
+export function computeCriticalHealth(tasks, referenceDate = new Date(), scopeWPIds = null) {
+  const critical = tasks.filter(t => t.is_critical && !t.is_archived && (!scopeWPIds || scopeWPIds.includes(t.wp_id)));
   if (critical.length === 0) return { total: 0, behind: 0, ratio: 0, label: 'healthy' };
   const behind = critical.filter(t => {
     const planned = computePlannedPct(t.planned_start, t.planned_end, referenceDate);
