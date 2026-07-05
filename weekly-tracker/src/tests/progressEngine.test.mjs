@@ -13,7 +13,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { buildWeekOverWeekComparison, calculateProgressComparison } =
+const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult } =
   await import('../engines/progressEngine.js');
 
 const { getCommands } = await import('../engines/commandEngine.js');
@@ -185,6 +185,47 @@ console.log('\nbuildWeekOverWeekComparison — null progressHistory');
     buildWeekOverWeekComparison(PROJECT, 50, null, undefined, MID_YEAR);
   assert('null history → prevProgressComparison null', prevProgressComparison === null);
   assert('null history → progressComparison computed',  progressComparison !== null);
+}
+
+// ── Test 9: scoped progress excludes out-of-scope work packages ───────────────
+console.log('\ncalculateProjectProgress — scope isolation');
+{
+  const template = {
+    phases: [
+      { id: 'phase_a', label: 'Phase A', progressWeight: 50 },
+      { id: 'phase_b', label: 'Phase B', progressWeight: 50 },
+    ],
+    workPackages: [
+      { id: 'a.1', phaseId: 'phase_a', label: 'A included', duration_pct: 50 },
+      { id: 'a.2', phaseId: 'phase_a', label: 'A excluded', duration_pct: 50 },
+      { id: 'b.1', phaseId: 'phase_b', label: 'B excluded', duration_pct: 100 },
+    ],
+  };
+  const wpStatuses = {
+    phase_a: {
+      'A included': { progress: 100 },
+      'A excluded': { progress: 0 },
+    },
+    phase_b: {
+      'B excluded': { progress: 0 },
+    },
+  };
+
+  const fullProgress = calculateProjectProgress(wpStatuses, null, null, template);
+  const scopedProgress = calculateProjectProgress(wpStatuses, ['a.1'], null, template);
+  const scopedResult = calculateProjectProgressResult(
+    { workPackageStatuses: wpStatuses },
+    null,
+    ['a.1'],
+    template
+  );
+
+  assert('full scope includes all phases → 25%', fullProgress === 25);
+  assert('scope [a.1] ignores a.2 and phase_b → 100%', scopedProgress === 100);
+  assert('result format remains gantt', scopedResult.format === 'gantt');
+  assert('result progress follows scoped total', scopedResult.progress === 100);
+  assert('breakdown includes only one scoped phase', scopedResult.phases.length === 1);
+  assert('breakdown phase is phase_a', scopedResult.phases[0]?.id === 'phase_a');
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
