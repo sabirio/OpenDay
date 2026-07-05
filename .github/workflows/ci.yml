@@ -39,13 +39,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Lint is NON-BLOCKING for now: there are ~86 pre-existing eslint errors
-      # (unused vars, Node globals in scripts/e2e files, react-hooks). Fixing them
-      # is a separate cleanup task, not M1.3. This surfaces them without failing CI.
-      # Flip continue-on-error to false once lint is green.
-      - name: Lint (non-blocking)
+      # Lint is BLOCKING (M1.5): the 86 pre-existing errors were driven to 0.
+      # Remaining lint output is warnings only (set-state-in-effect, exhaustive-deps),
+      # which do not fail `eslint`. Any new error will fail CI.
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
 
       - name: Build
         run: npm run build
