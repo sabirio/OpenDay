@@ -1,3 +1,17 @@
+/**
+ * @deprecated reportService
+ *
+ * The `reports` table is a legacy table. New contractor reports are written
+ * to `contractor_reports` + `contractor_report_wps`.
+ *
+ * This service is kept for:
+ * - Reading historical data from `reports`
+ * - Backward compatibility during migration
+ *
+ * DO NOT use reportService.create() for new contractor report submissions.
+ * Use contractorReportService.submitReport() instead.
+ */
+
 import { supabase } from "../lib/supabase";
 import { calculateProjectProgress } from "../engines/progressEngine";
 import { fetchTemplateById } from "../data/templatesApi";
