@@ -422,6 +422,15 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
 
   // ── GANTT FORMAT SUCCESS VIEW ──────────────────────────────────────────────
 
+  // TODO wave7: this recalculates discrepancy inline instead of reading
+  // savedVisit.discrepancies (the result siteVisitService.submitSiteVisit()
+  // already computed and persisted to the DB). It also uses a different
+  // tolerance (PROGRESS_TOL = 5 below) than that service's threshold (10/20),
+  // so this can show a different discrepancy count than what was actually
+  // written. Canonical source: siteVisitService.submitSiteVisit() (per-visit
+  // discrepancy) — see src/engines/COMPARISON_MODEL.md.
+  // Do not add new comparison logic here; this should be replaced with a
+  // read from savedVisit.discrepancies.
   if (submitted && savedVisit?._ganttFormat) {
     // Status-rank comparison: Delayed/Blocked below Not Started, so marking a task
     // as Delayed when GC claimed In Progress registers as a discrepancy even if progress % didn't change.
@@ -490,6 +499,12 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
 
   // ── COMPARISON RESULTS VIEW ────────────────────────────────────────────────
 
+  // TODO wave7: this is a THIRD independent comparison formula (comparisonResult()
+  // above, status-score based) — distinct from both siteVisitService's per-visit
+  // discrepancy calc and pmAlignmentEngine's cross-time drift formula. This is the
+  // legacy (non-Gantt) fallback path (old workPackages.js WP list), kept per the
+  // established dual-format pattern (TEMPLATE_MODEL.md). Do not add new comparison
+  // logic here. See src/engines/COMPARISON_MODEL.md.
   if (submitted && savedVisit) {
 
     const refRep = projectReports.find((r) => String(r.id) === String(savedVisit.referenceReportId));
