@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, Component, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Layout from "./components/Layout";
 import ProtectedRoute from "./auth/ProtectedRoute";
@@ -108,6 +108,26 @@ function GlobalErrorScreen({ error, onRetry }) {
   );
 }
 
+// Gates portfolio-wide data (reports/siteVisits/templates) behind first
+// navigation to a route that actually needs it. /projects only needs the
+// (already-loaded) projects list, so it renders immediately without
+// waiting. /contractor-report/* is exempt too — it has its own fallback
+// fetch for external links and must keep working even if this load fails.
+function PortfolioDataGate({ isAuthenticated, portfolioState, portfolioError, onLoadPortfolioData, children }) {
+  const location = useLocation();
+  const skipGate = location.pathname === '/projects' || location.pathname.startsWith('/contractor-report/');
+
+  useEffect(() => {
+    if (!isAuthenticated || skipGate) return;
+    if (portfolioState === 'idle') onLoadPortfolioData();
+  }, [isAuthenticated, skipGate, portfolioState, onLoadPortfolioData]);
+
+  if (!isAuthenticated || skipGate) return children;
+  if (portfolioState === 'loading' || portfolioState === 'idle') return <GlobalLoadingScreen />;
+  if (portfolioState === 'error') return <GlobalErrorScreen error={portfolioError} onRetry={onLoadPortfolioData} />;
+  return children;
+}
+
 // Redirect authenticated users away from /login
 function PublicOnlyRoute({ children }) {
   const { isAuthenticated, loading, role } = useAuth();
@@ -124,8 +144,12 @@ function App() {
   const [reports, setReports] = useState([]);
   const [siteVisits, setSiteVisits] = useState([]);
   const [templates, setTemplates] = useState([]);
-  const [dataState, setDataState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'error'
-  const [dataError, setDataError] = useState(null);
+  const [projectsState, setProjectsState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'error'
+  const [projectsError, setProjectsError] = useState(null);
+  // Portfolio data (reports/siteVisits/templates) is heavier — loaded lazily,
+  // only once a route that needs it is actually visited. See PortfolioDataGate.
+  const [portfolioState, setPortfolioState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'error'
+  const [portfolioError, setPortfolioError] = useState(null);
 
   const templatesById = useMemo(
     () => Object.fromEntries(templates.map(t => [t.id, t])),
@@ -136,39 +160,56 @@ function App() {
     [templates]
   );
 
-  function loadData() {
-    setDataState('loading');
-    setDataError(null);
+  function loadProjects() {
+    setProjectsState('loading');
+    setProjectsError(null);
+    projectService.getAll()
+      .then((p) => {
+        setProjects(p);
+        setProjectsState('ready');
+      })
+      .catch((err) => {
+        console.error("Failed to load projects from Supabase:", err);
+        setProjectsError(err?.message || 'Unknown error');
+        setProjectsState('error');
+      });
+  }
+
+  function loadPortfolioData() {
+    if (portfolioState === 'loading' || portfolioState === 'ready') return;
+    setPortfolioState('loading');
+    setPortfolioError(null);
     Promise.all([
-      projectService.getAll(),
       contractorReportService.getAllReportsForScreens(),
       siteVisitService.getAll(),
       fetchAllTemplates(),
-    ]).then(([p, r, s, t]) => {
-      setProjects(p);
+    ]).then(([r, s, t]) => {
       setReports(r);
       setSiteVisits(s);
       setTemplates(t);
-      setDataState('ready');
+      setPortfolioState('ready');
     }).catch((err) => {
-      console.error("Failed to load data from Supabase:", err);
-      setDataError(err?.message || 'Unknown error');
-      setDataState('error');
+      console.error("Failed to load portfolio data from Supabase:", err);
+      setPortfolioError(err?.message || 'Unknown error');
+      setPortfolioState('error');
     });
   }
 
-  // Load all data from Supabase whenever the user logs in
+  // Load the (fast) projects list whenever the user logs in. Reports/siteVisits/
+  // templates load lazily — see PortfolioDataGate.
   useEffect(() => {
     if (!isAuthenticated) {
       setProjects([]);
       setReports([]);
       setSiteVisits([]);
       setTemplates([]);
-      setDataState('idle');
-      setDataError(null);
+      setProjectsState('idle');
+      setProjectsError(null);
+      setPortfolioState('idle');
+      setPortfolioError(null);
       return;
     }
-    loadData();
+    loadProjects();
   }, [isAuthenticated]);
 
   async function handleSaveProject(project) {
@@ -194,8 +235,8 @@ function App() {
     return saved;
   }
 
-  if (isAuthenticated && dataState === 'loading' && !isContractorReportRoute) return <GlobalLoadingScreen />;
-  if (isAuthenticated && dataState === 'error' && !isContractorReportRoute) return <GlobalErrorScreen error={dataError} onRetry={loadData} />;
+  if (isAuthenticated && projectsState === 'loading' && !isContractorReportRoute) return <GlobalLoadingScreen />;
+  if (isAuthenticated && projectsState === 'error' && !isContractorReportRoute) return <GlobalErrorScreen error={projectsError} onRetry={loadProjects} />;
 
   return (
     <ErrorBoundary>
@@ -206,6 +247,12 @@ function App() {
       }}
     >
       <Suspense fallback={<RouteLoadingScreen />}>
+      <PortfolioDataGate
+        isAuthenticated={isAuthenticated}
+        portfolioState={portfolioState}
+        portfolioError={portfolioError}
+        onLoadPortfolioData={loadPortfolioData}
+      >
       <Routes>
         {/* ── Public routes ──────────────────────────────────────── */}
         <Route
@@ -351,6 +398,7 @@ function App() {
           }
         />
       </Routes>
+      </PortfolioDataGate>
       </Suspense>
     </BrowserRouter>
     </ErrorBoundary>
