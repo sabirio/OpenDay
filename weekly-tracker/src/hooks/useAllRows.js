@@ -8,6 +8,9 @@ import { calculateProjectProgress, progressAtIndex, buildWeekOverWeekComparison 
 import { PROJECT_COLORS, computePriorityScore } from '../config/dashboardConstants';
 import { computeProjectRiskScore } from '../engines/riskEngine';
 import { computeConfidenceLevel } from '../engines/pmAlignmentEngine';
+import { computeContractorScores } from '../engines/contractorEngine';
+import { computeProjectHealth } from '../engines/projectHealthEngine';
+import { computeOpeningReadiness } from '../engines/openingReadinessEngine';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
 import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
 
@@ -45,12 +48,20 @@ export function useAllRows(projects, reports, siteVisits = []) {
     const priorityScore   = computePriorityScore(riskLevel, daysToOpening, missingReport);
     const { progressComparison, prevProgressComparison } = buildWeekOverWeekComparison(project, progress, project.progressHistory ?? []);
     const confidence      = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
+    // contScore carries the contractor-vs-PM alignment/drift history (pmAlignmentScore,
+    // pmAlignmentDetails — per-visit match rate over time) alongside performance/reporting
+    // sub-scores. health folds riskScore + progress + contScore into one 0-100 project-health
+    // number. readiness resolves opening blockers from the same wpCumulativeStatuses already
+    // computed above for progress. All three via their canonical engines — no new calc here.
+    const contScore       = computeContractorScores(project, projReports, projSiteVisits);
+    const health          = computeProjectHealth(riskScore, progress, contScore, latestReport);
+    const readiness       = computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate ?? null);
 
     return {
       project, latestReport, cumulativeStatuses, wpCumulativeStatuses, progress,
       projReports, projSiteVisits, sorted, color, progressPoints,
       daysSinceReport, missingReport, daysToOpening, riskScore, riskLevel, priorityScore,
-      progressComparison, prevProgressComparison, confidence,
+      progressComparison, prevProgressComparison, confidence, contScore, health, readiness,
     };
   }), [projects, reports, siteVisits]);
 }
