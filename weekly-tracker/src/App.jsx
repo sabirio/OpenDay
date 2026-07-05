@@ -21,7 +21,6 @@ import ProtectedRoute from "./auth/ProtectedRoute";
 import { useAuth } from "./auth/AuthContext";
 import { getDefaultRoute } from "./engines/permissionEngine";
 import * as projectService from "./services/projectService";
-import * as reportService from "./services/reportService";
 import * as contractorReportService from "./services/contractorReportService";
 import * as siteVisitService from "./services/siteVisitService";
 import { constructionRetailV1 } from "./domains/construction/templates/constructionRetailV1";
@@ -164,12 +163,6 @@ function App() {
   async function handleDeleteProject(id) {
     await projectService.remove(id);
     setProjects((prev) => prev.filter((p) => p.id !== id));
-  }
-
-  async function handleSaveReport(report, cumulativeProgress = null) {
-    const saved = await reportService.create(report, cumulativeProgress);
-    setReports((prev) => [...prev, saved]);
-    return saved;
   }
 
   async function handleSaveSiteVisit(visit) {
