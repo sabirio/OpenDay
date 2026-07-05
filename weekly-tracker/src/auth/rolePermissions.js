@@ -37,7 +37,8 @@ export const NAV_ITEMS = [
   { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine'    },
   { to: '/weight-audit',       label: 'Weight Audit',     resource: 'weight_audit'   },
   { to: '/admin/users',        label: 'Users',            resource: 'admin_users'    },
-  { to: '/admin/template-editor', label: 'Template Editor', resource: 'admin_users' },
+  // Template Editor (/admin/template-editor) route still exists but is hidden from
+  // the nav until its save path (onSave -> templatesApi) is wired. See PROJECT_MEMORY.md.
 ];
 
 // Role badge colours shown in the Sidebar

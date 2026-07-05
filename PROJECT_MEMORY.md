@@ -187,9 +187,16 @@ Policies check lowercase ('admin'|'pm'|'viewer'|'contractor') — do NOT change 
 
 - ✅ **FIXED 2026-07-05 — Sidebar logo + favicon.** Was broken since commit 12db36a
   (`Sidebar.jsx` referenced deleted `/logo-dark.png` / `/logo-light.png`; `index.html`
-  referenced deleted `/logo-light.png`). Fix: Sidebar now renders an inline theme-adaptive
-  SVG mark (same as the login screen, uses CSS vars) instead of the missing PNGs; favicon
-  now points to the existing `public/favicon.png` (NORYX tree mark). No raster tooling was
-  available and all PNGs are white-background (bad on the dark sidebar), so inline SVG was
-  the clean fix rather than regenerating PNGs. `public/openday-logo.png` (NORYX wordmark)
-  is kept but unused — remove if the brand mark won't be wired into the app.
+  referenced deleted `/logo-light.png`). Fix: Sidebar renders an inline theme-adaptive SVG
+  mark (same as the login screen); favicon replaced with `public/favicon.svg` (~200 B,
+  concrete colors since favicons render outside the app CSS context). The heavy raster
+  assets `favicon.png` (819 KB) and `openday-logo.png` (1 MB, unused) were deleted — no
+  raster tooling was available and all PNGs were white-background. `apple-touch-icon`
+  dropped (would need a generated PNG). To use the NORYX brand mark instead, supply a
+  transparent/optimized SVG.
+
+- ⏳ **TemplateEditor save not wired.** `/admin/template-editor` route + component exist,
+  but `App.jsx` passes `onSave={() => {}}` — editing a template does nothing. The nav item
+  was **hidden** (2026-07-05) so users don't hit a dead feature. To finish: wire
+  `onSave` → `templatesApi.saveTemplate(id, data)` (mind the copy-on-write versioning +
+  data-shape match), re-add the NAV_ITEM in `rolePermissions.js`, add e2e coverage.
