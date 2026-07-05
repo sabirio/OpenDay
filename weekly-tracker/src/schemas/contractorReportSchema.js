@@ -23,6 +23,7 @@ export const ContractorReportSchema = z.object({
   submittedBy: z.string().nullable().optional(),
   projectScheduleStatus: z.string().nullable().optional(),
   workPackageStatuses: z.record(z.string(), z.record(z.string(), WPTaskEntrySchema)).optional(),
+  photos: z.array(z.string()).optional(),
 }).passthrough();
 
 export const ContractorReportArraySchema = z.array(ContractorReportSchema);

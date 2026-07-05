@@ -1,4 +1,5 @@
 import { WORK_PACKAGES } from "../../config/workPackages";
+import PhotoGallery from "../shared/PhotoGallery";
 import StatusPill from "./StatusPill";
 import { getGCTaskEntry, comparisonResult } from "./gcReferenceHelpers";
 
@@ -145,6 +146,9 @@ function ComparisonResultsView({ project, projectReports, savedVisit, onNewVisit
             <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.65, whiteSpace: "pre-wrap", background: "#f8fafc", borderRadius: 8, padding: "12px 16px" }}>{savedVisit.observations}</div>
           </div>
         )}
+
+        <PhotoGallery paths={refRep?.photos} title="GC Report Photos" />
+        <PhotoGallery paths={savedVisit.photos || savedVisit.photoUrls} title="PM Site Visit Photos" />
 
         <div style={{ display: "flex", gap: 12 }}>
           <button type="button" onClick={onNewVisit}

@@ -37,6 +37,7 @@ import PhaseTimeline          from "../components/weekly/PhaseTimeline";
 import SiteVisitComparison   from "../components/weekly/SiteVisitComparison";
 import WeeklyReportsToolbar from "../components/weekly/WeeklyReportsToolbar";
 import MissingReportsModal from "../components/weekly/MissingReportsModal";
+import PhotoGallery from "../components/shared/PhotoGallery";
 
 const GanttChart = React.lazy(() => import("../components/GanttChart"));
 
@@ -462,19 +463,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               total={additionalWorksList.total}
             />
 
-            {/* Site photos */}
-            {selectedReport.photos?.length > 0 && (
-              <div className="dashboard-summary-card" style={{ marginBottom: 20 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "var(--text-primary)" }}>Site Photos</div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {selectedReport.photos.map((photo, i) => (
-                    <span key={i} style={{ padding: "4px 12px", borderRadius: 8, fontSize: 13, background: "var(--accent-subtle)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
-                      {typeof photo === "string" ? photo : photo?.name || `Photo ${i + 1}`}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <PhotoGallery paths={selectedReport.photos} title="Site Photos" />
 
             {/* Audit log — who changed progress and when */}
             {selectedProject && (

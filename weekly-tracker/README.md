@@ -56,6 +56,19 @@ Expected:
 
 ---
 
+## P0.2 Private Report Photos
+
+Report photo storage paths are persisted in `photo_urls` and adapted to the UI field `photos`. The `site-photos` bucket remains private; display code signs paths at read time with `src/services/photoService.js` and never stores signed URLs.
+
+Current bucket assumptions are defined in `src/migrations/017_site_photos_bucket_v2.sql`:
+- bucket `site-photos` is private;
+- authenticated users can read site photos;
+- upload/delete are limited to objects whose filename starts with the current `auth.uid()`.
+
+Submit-failure behavior after photos upload: uploaded paths remain in the in-memory form state so the user can retry submit without uploading duplicates. Removing a photo from the form deletes its storage object. If a user abandons the page after upload and before a successful submit, those paths can be cleaned by deleting objects under the user's upload prefix in `site-photos`.
+
+---
+
 ## Secrets
 
 ### Environment variables

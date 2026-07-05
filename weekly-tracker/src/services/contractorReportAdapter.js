@@ -54,6 +54,11 @@ function deriveCurrentPhases(wps) {
   return furthest ? [furthest.label] : [];
 }
 
+function normalizePhotos(photoUrls) {
+  if (!Array.isArray(photoUrls)) return [];
+  return photoUrls.filter((photo) => typeof photo === 'string' && photo.trim().length > 0);
+}
+
 export function adaptContractorReportToLegacy(contractorReport, wps = []) {
   if (!contractorReport) return null;
 
@@ -69,7 +74,7 @@ export function adaptContractorReportToLegacy(contractorReport, wps = []) {
     submittedBy: contractorReport.submitted_by || null,
     projectScheduleStatus: contractorReport.project_schedule_status || "On Track",
     workPackageStatuses: buildWorkPackageStatuses(wps),
-    photos: [],
+    photos: normalizePhotos(contractorReport.photo_urls),
     risks: [],
     riskOwners: [],
     supportTypes: [],
