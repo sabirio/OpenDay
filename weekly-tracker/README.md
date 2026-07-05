@@ -20,6 +20,7 @@ Run this canonical path on a new Supabase database. Do not run historical migrat
 | 10 | `src/migrations/018_submit_contractor_report_rpc.sql` | Atomic `public.submit_contractor_report(bigint, date, jsonb, jsonb)` RPC. |
 | 11 | `src/migrations/019_primary_key_defaults.sql` | Sequence defaults for fresh-install bigint ids used by app inserts. |
 | 12 | `src/migrations/020_rls_company_role_hardening.sql` | Company-aware RLS, contractor direct-write blocking, storage photo project scoping, and SECURITY DEFINER hardening. |
+| 13 | `src/migrations/021_multi_tenant_hardening.sql` | Closes two cross-company gaps left after 020: `invite_contractor()` company-scoped profile guard, and `templates` writes restricted to the explicit global admin. |
 
 ### Existing databases
 
@@ -35,6 +36,7 @@ Historical migrations `001_initial_schema.sql` through `009_gantt_engine_version
 - `015_audit_log.sql` uses a `SECURITY DEFINER` trigger function; `020` revokes public execute and scopes audit-log reads through `can_access_audit_log()`.
 - `018_submit_contractor_report_rpc.sql` is `SECURITY DEFINER`, sets `search_path = public`, requires `auth.uid()`, checks role/company/project assignment, and grants execute only to `authenticated`.
 - Contractors submit reports through `submit_contractor_report()`; direct contractor inserts/updates to `contractor_reports`, `contractor_report_wps`, `progress_history`, or `project_gantt_tasks` are intentionally blocked by `020`.
+- `021_multi_tenant_hardening.sql` closes two gaps 020 left open: (1) `invite_contractor()` previously let any Admin/PM overwrite ANY existing profile's role by email with no company check — a Company A PM could demote a Company B Admin to Contractor just by knowing their email. Now the profile-role UPDATE is refused unless the caller is the global admin, the target profile has no company yet, or the caller and target share a company. (2) `public.templates` has no `company_id` (it's an intentionally shared, cross-company config table per `010`), but its write policies only checked `get_my_role() = 'admin'` — any company-scoped Admin could edit/delete the template every other company's Gantt generation also reads from. Writes now require the new `public.is_global_admin()` (`SECURITY DEFINER`, `role = 'admin' AND company_id IS NULL`); reads are unchanged.
 
 Rollback notes are included in every new migration that changes database behavior.
 
