@@ -20,14 +20,14 @@ TRUNCATE TABLE
 CASCADE;
 
 -- ─── Step 2: Create projects ──────────────────────────────────────────────────
--- Using fixed UUIDs so the gantt INSERT below can reference them without
--- needing RETURNING. Change them if you prefer gen_random_uuid().
+-- Using fixed bigint IDs so the gantt INSERT below can reference them without
+-- needing RETURNING. These match the 000_baseline.sql bigint project identity.
 
 DO $$
 DECLARE
-  p1 uuid := '11111111-0000-0000-0000-000000000001';
-  p2 uuid := '11111111-0000-0000-0000-000000000002';
-  p3 uuid := '11111111-0000-0000-0000-000000000003';
+  p1 bigint := 1;
+  p2 bigint := 2;
+  p3 bigint := 3;
 
   -- Project 1 dates (Healthy — 20 days in, 50 days to go)
   p1_start  date := CURRENT_DATE - INTERVAL '20 days';
