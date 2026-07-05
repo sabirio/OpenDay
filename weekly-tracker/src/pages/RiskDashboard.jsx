@@ -15,6 +15,9 @@ import ContractorsTab from "../components/risk/ContractorsTab";
 import PmAlignmentTab from "../components/risk/PmAlignmentTab";
 import GanttSpiTab from "../components/risk/GanttSpiTab";
 import { RISK_COLORS } from "../engines/riskEngine";
+import { useAuth } from "../auth/AuthContext";
+import PrintHeader from "../components/print/PrintHeader";
+import ExportButton from "../components/print/ExportButton";
 
 const VIEWS = [
   { id: "overview",     label: "Overview" },
@@ -28,6 +31,7 @@ const VIEWS = [
 // ── Main component ────────────────────────────────────────────────────────────
 
 function RiskDashboard({ projects, reports, siteVisits = [] }) {
+  const { user } = useAuth();
   const [expandedRow, setExpandedRow] = useState(null);
   const [activeView, setActiveView] = useState("overview");
   const [filterStore, setFilterStore] = useState("");
@@ -118,8 +122,13 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           <h1>Risk Dashboard</h1>
           <p>Project health - Risk scoring - Contractor performance - PM verification alignment.</p>
         </div>
-        <RiskSummaryKpis summaryStats={summaryStats} riskColors={RISK_COLORS} />
+        <div className="no-break" style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+          <RiskSummaryKpis summaryStats={summaryStats} riskColors={RISK_COLORS} />
+          <ExportButton label="Export Risk Report PDF" />
+        </div>
       </div>
+
+      <PrintHeader title="Risk & Readiness Dashboard" exportedBy={user?.email} />
 
       {/* Critical early warnings (always visible) */}
       <CriticalWarnings rows={criticalRows} Glyph={Glyph} />

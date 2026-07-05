@@ -6,6 +6,9 @@ import {
 import { calculateProgressComparison, computeProgressSeries } from "../engines/progressEngine";
 import { calculateWorkPackageDeltas, computePhaseChangeFlags, classifyPhases } from "../engines/progressDeltaEngine";
 import { useAllRows } from "../hooks/useAllRows";
+import { useAuth } from "../auth/AuthContext";
+import PrintHeader from "../components/print/PrintHeader";
+import ExportButton from "../components/print/ExportButton";
 import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 // TODO wave4: WORK_PACKAGES here is the intentional legacy-report fallback
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
@@ -60,6 +63,7 @@ const EXPLAIN_TEMPLATE = { workPackages: GANTT_WPS, phases: constructionRetailV1
 
 // ─── Main component ───────────────────────────────────────────────────────────
 function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
+  const { user } = useAuth();
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedReportId,  setSelectedReportId]  = useState("");
   const [showMissingModal,  setShowMissingModal]  = useState(false);
@@ -316,7 +320,18 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
             <h1>Weekly Reports</h1>
             <p>Contractor progress reports — detailed operational status by project and week.</p>
           </div>
+          {selectedProject && (
+            <ExportButton label="Export Report PDF" />
+          )}
         </div>
+
+        {selectedProject && (
+          <PrintHeader
+            title="Weekly Progress Report"
+            projectLabel={`${selectedProject.storeCode}${selectedProject.shoppingMallName ? ` — ${selectedProject.shoppingMallName}` : ''}`}
+            exportedBy={user?.email}
+          />
+        )}
 
         {/* Selectors toolbar */}
         <WeeklyReportsToolbar
@@ -350,7 +365,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 </ul>
               </div>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'stretch', marginBottom: 16 }}>
+            <div className="no-break" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'stretch', marginBottom: 16 }}>
               <KpiStrip
                 project={selectedProject}
                 report={selectedReport}

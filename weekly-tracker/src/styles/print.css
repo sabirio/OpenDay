@@ -1,0 +1,108 @@
+@media print {
+  /* This app is CSS-custom-property themed and defaults to a DARK theme
+     (--text-primary etc. resolve near-white — see design-system.css :root).
+     Every component reads these vars for text/background/border color, so
+     without overriding them here, printing in dark mode would render
+     near-white text on the white printed page: unreadable. Force the same
+     values design-system.css already defines for [data-theme="light"],
+     regardless of which theme is active on screen. */
+  :root {
+    --bg-base:           #ffffff;
+    --bg-surface:        #f5f5f5;
+    --bg-elevated:       #ebebeb;
+    --bg-input:          #ffffff;
+    --border:            #e5e5e5;
+    --border-strong:     #d4d4d4;
+    --text-primary:      #0a0a0a;
+    --text-secondary:    #525252;
+    --text-muted:        #a3a3a3;
+    --text-inverse:      #f5f5f5;
+    --accent:            #0a0a0a;
+    --accent-subtle:     rgba(0, 0, 0, 0.04);
+    --status-done:       #0a0a0a;
+    --status-done-bg:    rgba(0, 0, 0, 0.06);
+    --status-active:     #525252;
+    --status-active-bg:  rgba(82, 82, 82, 0.08);
+    --status-todo:       #d4d4d4;
+    --status-todo-bg:    transparent;
+    --status-alert:      #dc2626;
+    --status-alert-bg:   rgba(220, 38, 38, 0.06);
+    --status-warn:       #ea580c;
+    --status-warn-bg:    rgba(234, 88, 12, 0.06);
+  }
+
+  /* Hide UI chrome. .sidebar is the real wrapper (<aside className="sidebar">
+     containing <nav>) — hiding just `nav` would leave its padded/bordered
+     wrapper printing as an empty box. */
+  .sidebar,
+  nav,
+  header,
+  .no-print,
+  button,
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4 portrait;
+    margin: 16mm 12mm;
+  }
+
+  body {
+    font-size: 11pt;
+    color: #000;
+    background: #fff;
+  }
+
+  /* The app shell reserves space for the fixed sidebar via margin/padding
+     on the main content area — without this the printed page keeps that
+     blank gutter on the left even with the sidebar hidden. */
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-before: always;
+  }
+
+  .no-break {
+    page-break-inside: avoid;
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th, td {
+    border: 1px solid #d1d5db;
+    padding: 6px 8px;
+    font-size: 10pt;
+  }
+
+  /* Color badges — force print colors */
+  .badge-red    { background: #fee2e2 !important; color: #991b1b !important; }
+  .badge-amber  { background: #fef3c7 !important; color: #92400e !important; }
+  .badge-green  { background: #d1fae5 !important; color: #065f46 !important; }
+
+  /* Remove shadows */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
+
+/* Screen-only: print-branded header stays out of normal layout flow until print. */
+.print-only {
+  display: none;
+}
+@media print {
+  .print-only {
+    display: block !important;
+  }
+}
