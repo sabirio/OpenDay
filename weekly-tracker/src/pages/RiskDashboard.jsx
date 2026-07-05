@@ -603,7 +603,6 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
             </div>
           )}
 
-          {/* eslint-disable-next-line no-unused-vars */}
           {pmAlignRows.filter(r => r.projSiteVisits.length > 0).map(({ project, projSiteVisits, sorted, contScore }) => {
             const visitsSorted = [...projSiteVisits]
               .sort((a, b) => new Date(b.visitDate || b.submittedAt) - new Date(a.visitDate || a.submittedAt))
