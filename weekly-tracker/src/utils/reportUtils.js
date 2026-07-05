@@ -1,3 +1,21 @@
+/**
+ * reportUtils.js — MIXED file, not purely legacy. See src/engines/PROGRESS_MODEL.md.
+ *
+ * - Legacy (already @legacy-marked below): PHASE_ORDER, getStatusScore(),
+ *   computeCumulativeStatuses(), estimateProgressFromStatuses() — old 4-phase
+ *   flat-status format only. Do not call from new code.
+ * - Canonical-adjacent (NOT legacy): isWPReport(), computeWPCumulativeStatuses().
+ *   progressEngine.js itself imports and calls these directly to build the
+ *   Gantt-format cumulative status object it computes progress from — they
+ *   are part of the canonical pipeline, not a migration target.
+ * - Dead code: getPackageProgressMap() — exported, zero external callers
+ *   (kept per no-delete rule).
+ *
+ * Wave 6: do not add a blanket "do not use this file" banner here — half of
+ * it is load-bearing for progressEngine.js. See PROGRESS_MODEL.md before
+ * assuming any function here should be avoided.
+ */
+
 import {
   constructionWeights,
   testingWeights,
