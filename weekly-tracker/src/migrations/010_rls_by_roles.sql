@@ -546,11 +546,26 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- reportService.create() inserts a row on each PM report submission.
+-- contractorReportService.submitReport() ALSO inserts a row directly from the
+-- contractor's own session (wave3) — contractor branch required here, mirroring
+-- progress_history_select and contractor_reports_insert. Without it, a real
+-- contractor submit throws at this insert (RLS-blocked) even though
+-- contractor_reports + contractor_report_wps already committed successfully.
 -- backfillProgressHistory.js uses service-role (bypasses RLS entirely).
+-- DROP+CREATE (not the usual duplicate_object guard) so re-running this file
+-- actually updates the policy if it was already applied with the old check.
 DO $$ BEGIN
+  DROP POLICY IF EXISTS "progress_history_insert" ON public.progress_history;
   CREATE POLICY "progress_history_insert"
     ON public.progress_history FOR INSERT TO authenticated
-    WITH CHECK ( get_my_role() IN ('admin', 'pm') );
+    WITH CHECK (
+      get_my_role() IN ('admin', 'pm')
+      OR ( get_my_role() = 'contractor'
+           AND project_id = ANY(
+             (SELECT assigned_projects FROM public.profiles
+               WHERE id = auth.uid())::bigint[]
+           ) )
+    );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
