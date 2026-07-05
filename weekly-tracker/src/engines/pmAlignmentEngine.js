@@ -2,6 +2,7 @@
 import { getStatusScore, DAY_MS } from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import { constructionWeights, testingWeights, handoverWeights } from "../config/reportWeights";
+import { CONFIDENCE_WEIGHTS, CONFIDENCE_LEVEL_THRESHOLDS } from "../config/confidenceConfig";
 
 /** @typedef {import('../types').AlignmentItem} AlignmentItem */
 /** @typedef {import('../types').AlignmentSummary} AlignmentSummary */
@@ -177,36 +178,35 @@ export function computePmAlignmentItems(gcReport, pmVisit) {
  * @returns {{level: 'LOW'|'MEDIUM'|'HIGH', pts: number, maxPts: number, color: string, colorBg: string, label: string, breakdown: Array<{dimension: string, earned: number, max: number, detail: string}>}}
  */
 export function computeConfidenceLevel(projReports, projSiteVisits, latestReport) {
+  const W = CONFIDENCE_WEIGHTS;
   const breakdown = [];
+  let maxPts = 0;
 
-  // Report history depth (max 3pts)
-  const reportEarned =
-    projReports.length >= 8 ? 3 :
-    projReports.length >= 4 ? 2 :
-    projReports.length >= 1 ? 1 : 0;
+  // Report history depth
+  const reportEarned = W.reportHistoryThresholds.find(t => projReports.length >= t.count)?.pts ?? 0;
+  maxPts += W.reportHistoryMax;
   breakdown.push({
     dimension: 'Report history',
     earned: reportEarned,
-    max: 3,
+    max: W.reportHistoryMax,
     detail: projReports.length === 0
       ? 'No reports submitted'
       : `${projReports.length} report${projReports.length === 1 ? '' : 's'} submitted`,
   });
 
-  // PM verification coverage (max 3pts)
-  const visitEarned =
-    projSiteVisits.length >= 2 ? 3 :
-    projSiteVisits.length === 1 ? 2 : 0;
+  // PM verification coverage
+  const visitEarned = W.pmSiteVisitsThresholds.find(t => projSiteVisits.length >= t.count)?.pts ?? 0;
+  maxPts += W.pmSiteVisitsMax;
   breakdown.push({
     dimension: 'PM site visits',
     earned: visitEarned,
-    max: 3,
+    max: W.pmSiteVisitsMax,
     detail: projSiteVisits.length === 0
       ? 'No site visits recorded'
       : `${projSiteVisits.length} site visit${projSiteVisits.length === 1 ? '' : 's'} recorded`,
   });
 
-  // Report freshness (max 2pts)
+  // Report freshness
   let freshnessEarned = 0;
   let freshnessDetail = 'No recent report';
   if (latestReport) {
@@ -214,20 +214,60 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
       (Date.now() - new Date(latestReport.reportingDate || latestReport.submittedAt).getTime())
       / DAY_MS
     );
-    freshnessEarned = daysSince <= 7 ? 2 : daysSince <= 14 ? 1 : 0;
+    freshnessEarned = daysSince <= W.reportFreshnessFreshDays ? W.reportFreshnessMax
+      : daysSince <= W.reportFreshnessStaleDays ? Math.ceil(W.reportFreshnessMax / 2) : 0;
     freshnessDetail = `Last report ${daysSince}d ago`;
   }
+  maxPts += W.reportFreshnessMax;
   breakdown.push({
     dimension: 'Report freshness',
     earned: freshnessEarned,
-    max: 2,
+    max: W.reportFreshnessMax,
     detail: freshnessDetail,
   });
 
-  const pts = reportEarned + visitEarned + freshnessEarned;
+  // Photo evidence on the latest report
+  const hasPhotos = (latestReport?.photos?.length ?? 0) > 0;
+  const photoEarned = hasPhotos ? W.photoEvidenceMax : 0;
+  maxPts += W.photoEvidenceMax;
+  breakdown.push({
+    dimension: 'Photo evidence',
+    earned: photoEarned,
+    max: W.photoEvidenceMax,
+    detail: latestReport
+      ? (hasPhotos ? `${latestReport.photos.length} photo${latestReport.photos.length === 1 ? '' : 's'} attached` : 'No photos on latest report')
+      : 'No reports submitted',
+  });
 
-  // LOW 0–2 | MEDIUM 3–5 | HIGH 6–8
-  const level = pts >= 6 ? "HIGH" : pts >= 3 ? "MEDIUM" : "LOW";
+  // Suspicious jump: this report's own claimed overallProgress vs. the report
+  // immediately before it — a self-reported-claim-quality check, distinct
+  // from the official weighted progress engine (see P1.4). A jump this large
+  // in one reporting period isn't necessarily wrong, just worth a second look.
+  let jumpPenalty = 0;
+  let jumpDetail = 'Not enough report history to compare';
+  const sorted = [...projReports].sort((a, b) => Date.parse(a.reportingDate || a.submittedAt) - Date.parse(b.reportingDate || b.submittedAt));
+  const [prev, latest] = sorted.slice(-2);
+  if (prev && latest) {
+    const jump = (latest.overallProgress ?? 0) - (prev.overallProgress ?? 0);
+    if (jump >= W.suspiciousJumpThresholdPct) {
+      jumpPenalty = W.suspiciousJumpPenalty;
+      jumpDetail = `Jumped +${jump}pp in one report (${prev.overallProgress ?? 0}% → ${latest.overallProgress ?? 0}%)`;
+    } else {
+      jumpDetail = `Latest change: ${jump >= 0 ? '+' : ''}${jump}pp`;
+    }
+  }
+  breakdown.push({
+    dimension: 'Reporting pattern',
+    earned: -jumpPenalty,
+    max: 0,
+    detail: jumpDetail,
+  });
+
+  const rawPts = reportEarned + visitEarned + freshnessEarned + photoEarned - jumpPenalty;
+  const pts = Math.max(0, Math.min(maxPts, rawPts));
+
+  const ratio = maxPts > 0 ? pts / maxPts : 0;
+  const level = ratio >= CONFIDENCE_LEVEL_THRESHOLDS.HIGH ? "HIGH" : ratio >= CONFIDENCE_LEVEL_THRESHOLDS.MEDIUM ? "MEDIUM" : "LOW";
   const color   = level === "HIGH" ? "var(--status-done)"  : level === "MEDIUM" ? "var(--status-warn)" : "var(--text-muted)";
   const colorBg = level === "HIGH" ? "var(--status-done-bg)" : level === "MEDIUM" ? "var(--status-warn-bg)" : "var(--bg-elevated)";
   const label =
@@ -235,7 +275,7 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
     level === "MEDIUM" ? "Moderate confidence" :
                          "Limited data";
 
-  return { level, pts, maxPts: 8, color, colorBg, label, breakdown };
+  return { level, pts, maxPts, color, colorBg, label, breakdown };
 }
 
 /**

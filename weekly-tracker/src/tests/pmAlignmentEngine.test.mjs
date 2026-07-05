@@ -243,11 +243,17 @@ console.log('\nB) Format auto-detect — WP path vs legacy path');
 }
 
 // ── C) computeConfidenceLevel ──────────────────────────────────────────────────
-// Points breakdown (max 8):
+// Points breakdown (max 10, P2.3 — was max 8 before photo evidence was added):
 //   reportCount ≥8→+3, ≥4→+2, ≥1→+1, else 0
 //   visitCount  ≥2→+3, =1→+2, else 0
 //   freshness   ≤7d→+2, ≤14d→+1, else 0 (or 0 when latestReport is null)
-// Levels: 0-2 LOW | 3-5 MEDIUM | 6-8 HIGH
+//   photos      latestReport.photos non-empty →+2, else 0
+//   reporting pattern: -3 penalty if overallProgress jumped ≥60pp vs the
+//     previous report in one period (not enough history → no penalty)
+// Levels are ratio-of-maxPts, not fixed cut points (config: HIGH ≥0.75,
+// MEDIUM ≥0.4) — adding photo evidence as a 4th positive dimension means
+// some scenarios that were HIGH/MEDIUM under the old 8pt max legitimately
+// shift down a level here: they didn't get relatively worse, the scale grew.
 console.log('\nC) computeConfidenceLevel — points accumulation + level thresholds');
 
 // C1: no data → 0 pts → LOW
@@ -257,16 +263,16 @@ console.log('\nC) computeConfidenceLevel — points accumulation + level thresho
   check('C1: (0,0,null) → level=LOW', r.level === 'LOW');
 }
 
-// C2: 1 report + 0 visits + today → pts=1+0+2=3 → MEDIUM
-// (proves: report ≥1 → +1; freshness daysSince=0 ≤7 → +2)
+// C2: 1 report + 0 visits + today, no photos → pts=1+0+2+0=3 → 3/10=0.3 → LOW
+// (proves: report ≥1 → +1; freshness daysSince=0 ≤7 → +2; no photos → +0)
 {
   const r = computeConfidenceLevel(nArr(1), nArr(0), lr(0));
   check('C2: (1,0,today) → pts=3',     r.pts   === 3);
-  check('C2: (1,0,today) → MEDIUM',    r.level === 'MEDIUM');
+  check('C2: (1,0,today) → LOW (3/10 ratio, below 0.4 MEDIUM cut)', r.level === 'LOW');
 }
 
 // C3: 1 report + 0 visits + 8d old → pts=1+0+1=2 → LOW
-// (proves: 7 < daysSince ≤ 14 → +1; total 2 is below MEDIUM threshold of 3)
+// (proves: 7 < daysSince ≤ 14 → +1)
 {
   const r = computeConfidenceLevel(nArr(1), nArr(0), lr(8 * DAY));
   check('C3: (1,0,8d) → pts=2',     r.pts   === 2);
@@ -285,25 +291,57 @@ console.log('\nC) computeConfidenceLevel — points accumulation + level thresho
     computeConfidenceLevel(nArr(1), nArr(0), null).pts === 1);
 }
 
-// C6: 8 reports + 2 visits + null → pts=3+3+0=6 → HIGH
-// (proves: reports ≥8 → +3; visits ≥2 → +3)
+// C6: 8 reports + 2 visits + null → pts=3+3+0+0=6 → 6/10=0.6 → MEDIUM
+// (proves: reports ≥8 → +3; visits ≥2 → +3; no report → no photo bonus either)
 {
   const r = computeConfidenceLevel(nArr(8), nArr(2), null);
   check('C6: (8,2,null) → pts=6',    r.pts   === 6);
-  check('C6: (8,2,null) → HIGH',     r.level === 'HIGH');
+  check('C6: (8,2,null) → MEDIUM (6/10 ratio, below 0.75 HIGH cut)', r.level === 'MEDIUM');
 }
 
-// C7: 8 reports + 2 visits + today → pts=8 (maximum), maxPts=8
+// C7: 8 reports + 2 visits + today (no photos on that report) → pts=8, maxPts=10
 {
   const r = computeConfidenceLevel(nArr(8), nArr(2), lr(0));
   check('C7: (8,2,today) → pts=8',  r.pts    === 8);
-  check('C7: maxPts=8',             r.maxPts  === 8);
+  check('C7: maxPts=10 (was 8 before photo evidence dimension)', r.maxPts === 10);
+  check('C7: (8,2,today) → HIGH (8/10=0.8 ratio)', r.level === 'HIGH');
 }
 
-// C8: 1 report + 1 visit + null → pts=1+2=3 → MEDIUM (1 visit → +2, hits MEDIUM threshold)
+// C8: 1 report + 1 visit + null → pts=1+2=3 → 3/10=0.3 → LOW
 {
-  check('C8: (1,1,null) → MEDIUM (1 visit → +2 → total 3)',
-    computeConfidenceLevel(nArr(1), nArr(1), null).level === 'MEDIUM');
+  check('C8: (1,1,null) → LOW (1 visit → +2 → total 3, 0.3 ratio)',
+    computeConfidenceLevel(nArr(1), nArr(1), null).level === 'LOW');
+}
+
+// C9: photo evidence dimension (P2.3)
+{
+  const withPhotos = computeConfidenceLevel(nArr(1), nArr(0), { ...lr(0), photos: ['a.jpg', 'b.jpg'] });
+  const noPhotos    = computeConfidenceLevel(nArr(1), nArr(0), lr(0));
+  check('C9a: latest report with photos earns +2 over one without', withPhotos.pts === noPhotos.pts + 2);
+  check('C9b: photo dimension detail mentions photo count',
+    withPhotos.breakdown.find(b => b.dimension === 'Photo evidence').detail.includes('2 photos'));
+}
+
+// C10: suspicious jump penalty (P2.3) — overallProgress jumping ≥60pp in one report
+{
+  const jumpReports = [
+    { reportingDate: iso(now - 14 * DAY), overallProgress: 10 },
+    { reportingDate: iso(now - 7 * DAY),  overallProgress: 95 },
+  ];
+  const steadyReports = [
+    { reportingDate: iso(now - 14 * DAY), overallProgress: 40 },
+    { reportingDate: iso(now - 7 * DAY),  overallProgress: 55 },
+  ];
+  const jumpResult   = computeConfidenceLevel(jumpReports, nArr(0), jumpReports[1]);
+  const steadyResult = computeConfidenceLevel(steadyReports, nArr(0), steadyReports[1]);
+  check('C10a: an 85pp one-report jump is penalized vs. a steady 15pp change',
+    jumpResult.pts < steadyResult.pts);
+  check('C10b: jump penalty is exactly the configured 3pts (all else equal)',
+    steadyResult.pts - jumpResult.pts === 3);
+  check('C10c: jump detail names the jump size',
+    jumpResult.breakdown.find(b => b.dimension === 'Reporting pattern').detail.includes('+85pp'));
+  check('C10d: single-report history (no prior to compare) never penalizes',
+    computeConfidenceLevel(nArr(1), nArr(0), lr(0)).breakdown.find(b => b.dimension === 'Reporting pattern').earned === 0);
 }
 
 // ── D) summarizeAlignmentItems ─────────────────────────────────────────────────
@@ -330,11 +368,12 @@ check('D1: [] → matchRate=100', summarizeAlignmentItems([]).matchRate === 100)
 // ── E) computeConfidenceLevel — breakdown array (new field) ───────────────────
 console.log('\nE) computeConfidenceLevel — breakdown field');
 
-// E1: breakdown is an array with exactly 3 dimensions
+// E1: breakdown is an array with exactly 5 dimensions (P2.3 added photo
+// evidence and reporting pattern to the original 3)
 {
   const r = computeConfidenceLevel(nArr(0), nArr(0), null);
   check('E1a: breakdown is array',         Array.isArray(r.breakdown));
-  check('E1b: breakdown has 3 items',      r.breakdown.length === 3);
+  check('E1b: breakdown has 5 items',      r.breakdown.length === 5);
 }
 
 // E2: dimension names are correct and in order
@@ -413,7 +452,7 @@ console.log('\nE) computeConfidenceLevel — breakdown field');
   const r = computeConfidenceLevel(nArr(4), nArr(1), lr(8 * DAY));
   check('E7a: level still present',  typeof r.level === 'string');
   check('E7b: pts still present',    typeof r.pts === 'number');
-  check('E7c: maxPts still 8',       r.maxPts === 8);
+  check('E7c: maxPts is now 10 (P2.3 added photo evidence dimension)', r.maxPts === 10);
   check('E7d: color still present',  typeof r.color === 'string');
   check('E7e: colorBg still present', typeof r.colorBg === 'string');
   check('E7f: label still present',  typeof r.label === 'string');
