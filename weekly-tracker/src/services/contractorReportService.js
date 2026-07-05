@@ -2,6 +2,8 @@ import { supabase } from '../lib/supabase';
 import { batchUpdateWPProgress, updateForecast } from './ganttService';
 import { DAY_MS } from '../utils/reportUtils';
 import { adaptContractorReportsToLegacy } from './contractorReportAdapter';
+import { ContractorReportSchema } from '../schemas/contractorReportSchema';
+import { validateArray } from '../schemas/validate';
 
 // ─── Submit contractor report ─────────────────────────────────────────────────
 
@@ -148,7 +150,11 @@ export async function getAllReportsForScreens() {
     wpsByReportId[wp.report_id].push(wp);
   }
 
-  return adaptContractorReportsToLegacy(reportsRes.data || [], wpsByReportId);
+  return validateArray(
+    ContractorReportSchema,
+    adaptContractorReportsToLegacy(reportsRes.data || [], wpsByReportId),
+    'contractor_reports'
+  );
 }
 
 export async function getReportsForProjectForScreens(projectId) {
@@ -174,7 +180,11 @@ export async function getReportsForProjectForScreens(projectId) {
     wpsByReportId[wp.report_id].push(wp);
   }
 
-  return adaptContractorReportsToLegacy(reports || [], wpsByReportId);
+  return validateArray(
+    ContractorReportSchema,
+    adaptContractorReportsToLegacy(reports || [], wpsByReportId),
+    'contractor_reports'
+  );
 }
 
 /**

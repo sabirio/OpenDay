@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { updateGanttDiscrepancy } from './ganttService';
+import { SiteVisitSchema } from '../schemas/siteVisitSchema';
+import { validateArray } from '../schemas/validate';
 
 // ─── Submit site visit ────────────────────────────────────────────────────────
 
@@ -191,7 +193,8 @@ export async function getAll() {
     wpsByVisit[wp.site_visit_id].push(wp);
   }
 
-  return (visitsRes.data || []).map(v => mapRow({ ...v, wps: wpsByVisit[v.id] || [] }));
+  const visits = (visitsRes.data || []).map(v => mapRow({ ...v, wps: wpsByVisit[v.id] || [] }));
+  return validateArray(SiteVisitSchema, visits, 'site_visits');
 }
 
 // Legacy compatibility — used by SiteVisitReport.jsx when no Gantt tasks are loaded.

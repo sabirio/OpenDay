@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabase';
+import { ProjectSchema } from '../schemas/projectSchema';
+import { validateArray, validateOne } from '../schemas/validate';
 
 const LEGACY_PHASE_MAP = {
   'Demolition works':        'demolition',
@@ -122,9 +124,10 @@ export async function getAll() {
       if (!histByProject[row.project_id]) histByProject[row.project_id] = [];
       histByProject[row.project_id].push(row);
     }
-    return projects.map(p => ({ ...p, progressHistory: histByProject[p.id] || [] }));
+    const withHistory = projects.map(p => ({ ...p, progressHistory: histByProject[p.id] || [] }));
+    return validateArray(ProjectSchema, withHistory, 'projects');
   } catch {
-    return projects.map(p => ({ ...p, progressHistory: [] }));
+    return validateArray(ProjectSchema, projects.map(p => ({ ...p, progressHistory: [] })), 'projects');
   }
 }
 
@@ -135,7 +138,7 @@ export async function getById(id) {
     .eq('id', id)
     .single();
   if (error) throw error;
-  return fromDB(data);
+  return validateOne(ProjectSchema, fromDB(data), 'project');
 }
 
 export async function getProgressSnapshot(isoWeekStr) {
