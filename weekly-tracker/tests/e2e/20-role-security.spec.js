@@ -9,8 +9,6 @@ import { CREDENTIALS, login, logout } from './helpers.js';
 
 const ADMIN_ONLY_ROUTES = ['/admin/users'];
 const PM_ACCESSIBLE_ROUTES = ['/', '/projects', '/weekly-reports', '/risk'];
-const CONTRACTOR_ONLY_ROUTES = ['/contractor-select'];
-const RESTRICTED_FROM_CONTRACTOR = ['/', '/projects', '/weekly-reports', '/risk', '/admin/users'];
 
 test.describe('Role security', () => {
   test('contractor cannot access dashboard via direct URL', async ({ page }) => {
@@ -57,7 +55,6 @@ test.describe('Role security', () => {
     const isWeeklyReports = url.includes('weekly-reports');
     if (isWeeklyReports) {
       // If the page is accessible, it must not show admin-level controls
-      const projectSelect = page.locator('[data-testid="project-select"]');
       // Contractor should not see the PM/admin project selection dropdown
       // (their reports are tied to their assigned project)
     } else {
@@ -185,9 +182,6 @@ test.describe('Role security', () => {
 
     // Admin-only nav items must not be visible
     const adminUsersLink = page.locator('a[href="/admin/users"]');
-    const riskDashboardLink = page.locator('a[href="/risk"]');
-    const weeklyReportsLink = page.locator('a[href="/weekly-reports"]');
-    const projectsLink = page.locator('a[href="/projects"]');
 
     await expect(adminUsersLink).not.toBeVisible();
 

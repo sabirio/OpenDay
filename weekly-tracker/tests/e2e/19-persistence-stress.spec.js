@@ -27,8 +27,6 @@ test.describe('Persistence stress', () => {
     await expect(page).toHaveURL(/\/contractor-report\//);
     await page.waitForLoadState('networkidle');
 
-    const url = page.url();
-    const projectId = url.split('/').pop();
     const today = new Date().toISOString().split('T')[0];
 
     await page.locator('[data-testid="reporting-date"]').fill(today);
@@ -106,8 +104,6 @@ test.describe('Persistence stress', () => {
     await page.waitForTimeout(500);
 
     // The form should have at least one WP active from prior report (prefill)
-    const activeWPs = page.locator('[data-testid="wp-toggle"]').filter({ hasText: '✓' });
-    const activeCount = await activeWPs.count();
 
     // After reload, prefill should still be applied
     await page.reload();

@@ -93,7 +93,7 @@ function WeeklyReports({ projects, reports, siteVisits = [] }) {
     if (!selectedProject) { setActiveTemplate(null); return; }
     let alive = true;
     (async () => {
-      let tpl = null;
+      let tpl;
       if (selectedProject.templateId) {
         tpl = await fetchTemplateById(selectedProject.templateId);
         if (!tpl) tpl = await fetchActiveTemplate();

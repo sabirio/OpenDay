@@ -58,8 +58,7 @@ export function resolveTemplateWPs(templateId, { selectedPhases, selectedWPIds }
  * For the Custom template, build phase + WP selector state.
  * Returns: { phases: [{ ...phase, wps: [...], checked: bool }] }
  */
-export function buildCustomSelectorState(selectedPhaseIds = [], selectedWPIds = []) {
-  const phaseIdSet = new Set(selectedPhaseIds);
+export function buildCustomSelectorState(_selectedPhaseIds = [], selectedWPIds = []) {
   const wpIdSet = new Set(selectedWPIds);
 
   return PHASES.map(phase => {

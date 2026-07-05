@@ -1,6 +1,6 @@
 import ProjectCard from './ProjectCard';
 
-export default function ProgressTab({ rows, drawerProjectId, onSelect, ganttMetrics }) {
+export default function ProgressTab({ rows, onSelect, ganttMetrics }) {
   return (
     <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:14 }}>
       {rows.map(({ project, latestReport, progress, color, progressPoints, projReports }) => (

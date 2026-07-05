@@ -264,7 +264,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-function SiteVisitReport({ projects, reports, siteVisits, onSaveSiteVisit }) {
+function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
   const { projectId } = useParams();
   const project = projects.find((p) => String(p.id) === projectId);
 

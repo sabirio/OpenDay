@@ -101,16 +101,6 @@ async function submitContractorReport(page, { scheduleStatus = 'On Track', suppo
   return false;
 }
 
-async function findProjectDrawer(page, projectCode) {
-  const row = page.locator(`[data-testid="dashboard-project-row"]`).filter({ hasText: projectCode });
-  if (await row.count() === 0) return null;
-  await row.first().click();
-  await page.waitForTimeout(400);
-  const drawer = page.locator('[data-testid="project-detail-drawer"]');
-  if (await drawer.isVisible().catch(() => false)) return drawer;
-  return null;
-}
-
 async function verifyDrawerNoCorruption(drawer) {
   const text = await drawer.innerText();
   expect(text).not.toContain('NaN');
@@ -128,7 +118,7 @@ test.describe('Multi-project scenario', () => {
     const nearOpenDate = new Date();
     nearOpenDate.setDate(nearOpenDate.getDate() + 20);
 
-    const results = await Promise.allSettled([
+    await Promise.allSettled([
       createTestProject(page, {
         storeCode: PROJECT_NAMES.healthy,
         mallName: 'E2E Healthy Mall',
@@ -167,8 +157,8 @@ test.describe('Multi-project scenario', () => {
     await page.waitForLoadState('networkidle');
 
     for (const code of Object.values(PROJECT_NAMES)) {
-      const row = page.locator('table tbody tr, [data-testid="project-row"]').filter({ hasText: code });
       // Projects may or may not be in current page view — just verify no crash
+      page.locator('table tbody tr, [data-testid="project-row"]').filter({ hasText: code });
     }
 
     await logout(page);

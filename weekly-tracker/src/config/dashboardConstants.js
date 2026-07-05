@@ -1,4 +1,4 @@
-import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
+import { WP_STATUS_SCORES } from '../config/workPackages';
 import { getStatusScore } from '../utils/reportUtils';
 import { constructionWeights, testingWeights, handoverWeights } from '../config/reportWeights';
 import { getPhasesInOrder } from '../config/masterTaskLibrary';

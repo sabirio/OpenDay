@@ -20,10 +20,6 @@ test.describe('Cross-module data flow', () => {
     await page.locator('.contractor-project-card button.btn-primary').first().click();
     await expect(page).toHaveURL(/\/contractor-report\//);
 
-    // Extract project ID from URL
-    const url = page.url();
-    const projectId = url.split('/').pop();
-
     // Fill required fields
     const today = new Date().toISOString().split('T')[0];
     await page.locator('[data-testid="reporting-date"]').fill(today);
@@ -104,10 +100,6 @@ test.describe('Cross-module data flow', () => {
 
     // The dashboard drawer shows contractor report block + PM visit block + risk + opening
     // Just verify the drawer opened and shows some content
-    const hasDrawerContent = await page.locator('text=Contractor Report, text=PM Site Visit, text=Risk Summary').count() > 0 ||
-      await page.locator('[data-testid*="drawer"]').count() > 0 ||
-      await page.locator('text=Overall Progress, text=Last report, text=Risk Level').count() > 0;
-
     // Even if drawer detection is imprecise, verify we're still on the dashboard
     await expect(page).toHaveURL(/\//);
 

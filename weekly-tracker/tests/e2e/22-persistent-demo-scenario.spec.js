@@ -850,7 +850,7 @@ test.describe.serial('DEMO SEED — Persistent QA Data', () => {
     await login(page, CREDENTIALS.admin);
 
     // Skip project creation if it already exists (idempotent)
-    for (const [key, proj] of Object.entries(PROJECTS)) {
+    for (const [, proj] of Object.entries(PROJECTS)) {
       // Check if already exists
       await page.goto('/projects');
       await page.waitForLoadState('networkidle');
@@ -866,7 +866,7 @@ test.describe.serial('DEMO SEED — Persistent QA Data', () => {
     }
 
     // Now capture all project IDs via contractor-select
-    for (const [key, proj] of Object.entries(PROJECTS)) {
+    for (const [, proj] of Object.entries(PROJECTS)) {
       const id = await getProjectId(page, proj.storeCode);
       if (id) {
         STATE.projectIds[proj.storeCode] = id;
@@ -1133,8 +1133,7 @@ test.describe.serial('DEMO SEED — Persistent QA Data', () => {
     const baseUrl = 'http://localhost:5173';
 
     const projectRows = Object.entries(PROJECTS)
-      .map(([key, proj]) => {
-        const id = STATE.projectIds[proj.storeCode] || '(not captured)';
+      .map(([, proj]) => {
         const reports = REPORT_SCHEDULES[proj.storeCode]?.length || 0;
         const visits = VISIT_SCHEDULES[proj.storeCode]?.length || 0;
         return `| ${proj.storeCode} | ${proj.shoppingMallName.split(' — ')[1] || proj.shoppingMallName} | ${proj.targetOpeningDate} | ${proj.expectedRisk} | ${reports} | ${visits} |`;

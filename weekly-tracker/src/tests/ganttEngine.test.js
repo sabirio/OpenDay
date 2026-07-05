@@ -9,7 +9,6 @@ import {
   calculateForecastOpening,
   recalculateOnDelay,
   addDays,
-  diffDays,
 } from '../engines/ganttEngine.js';
 import { DEPENDENCY_RULES } from '../config/dependencyRules.js';
 import { PHASES } from '../config/masterTaskLibrary.js';

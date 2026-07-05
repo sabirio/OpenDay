@@ -1,7 +1,7 @@
 import { formatDate } from '../../utils/reportUtils';
 import { SchedBadge, RiskBadge } from './DashboardWidgets';
 
-export default function OverviewTab({ allRows, projects, kpis, onSelect }) {
+export default function OverviewTab({ allRows, onSelect }) {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
 

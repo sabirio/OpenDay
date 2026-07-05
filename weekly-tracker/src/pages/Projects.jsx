@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { formatDate } from "../utils/reportUtils";
 import { supabase } from "../lib/supabase";
 import { PHASES } from "../config/masterTaskLibrary";
@@ -83,15 +83,6 @@ function DetailField({ label, value }) {
 // ── Project Detail Modal (read-only) ────────────────────────────────────────
 
 function ProjectDetailModal({ project, onClose, onEdit }) {
-
-  const keyDates = {
-    construction_completion: project.constructionCompletionDate
-      ? new Date(project.constructionCompletionDate) : null,
-    projected_opening: project.forecastOpeningDate
-      ? new Date(project.forecastOpeningDate) : null,
-    target_opening: project.targetOpeningDate
-      ? new Date(project.targetOpeningDate) : null,
-  };
 
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = openingDate ? Math.ceil((openingDate - new Date()) / 86400000) : null;

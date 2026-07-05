@@ -427,7 +427,7 @@ function PhaseSection({ phaseKey, tasks, ganttWpProgress, onUpdateProgress, proj
       const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
       stored[phaseKey] = next;
       localStorage.setItem(storageKey, JSON.stringify(stored));
-    } catch {}
+    } catch { /* ignore corrupt localStorage */ }
   }
 
   const pctColor = phasePct >= 100 ? '#16a34a' : phasePct >= 50 ? '#2f855a' : '#6b7280';

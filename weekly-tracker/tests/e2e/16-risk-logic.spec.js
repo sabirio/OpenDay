@@ -12,15 +12,6 @@ const TINY_PNG = Buffer.from(
   'base64'
 );
 
-async function openFirstProjectDrawer(page) {
-  const rows = page.locator('[data-testid="dashboard-project-row"]');
-  const count = await rows.count();
-  if (count === 0) return false;
-  await rows.first().click();
-  await page.waitForTimeout(400);
-  return page.locator('[data-testid="project-detail-drawer"]').isVisible().catch(() => false);
-}
-
 test.describe('Risk logic', () => {
   test('PM/GC discrepancy is reflected in drawer PM Site Visit block', async ({ page }) => {
     await login(page, CREDENTIALS.admin);

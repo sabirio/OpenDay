@@ -4,7 +4,6 @@ import { getSPIStatus } from '../config/statusColors';
 import {
   buildProjectWPs,
   calculateGantt,
-  checkFeasibility,
   calculateKeyDates,
   calculateForecastOpening,
   GANTT_ENGINE_VERSION,
@@ -226,7 +225,7 @@ export async function regenerateGantt(projectId) {
     templateOptions
   );
   const ganttResult = calculateGantt(wps, DEPENDENCY_RULES, project.construction_start_date);
-  const { constructionCompletionDate, projectedOpeningDate } = calculateKeyDates(ganttResult);
+  const { constructionCompletionDate } = calculateKeyDates(ganttResult);
 
   // Upsert with preserved progress
   const rows = ganttResult.map((wp, i) => {

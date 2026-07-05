@@ -9,7 +9,7 @@ export default async function globalTeardown() {
     fs.mkdirSync(reportDir, { recursive: true });
   }
 
-  let suites = [];
+  let suites;
   let stats = { passed: 0, failed: 0, skipped: 0, total: 0 };
   let criticalFindings = [];
   let warnings = [];

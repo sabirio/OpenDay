@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { WP_STATUS_SCORES, getWPGroups } from '../../config/workPackages';
-import { statusColor, statusStyles, deriveOverallStatus } from './sharedUtils';
+import { statusColor, statusStyles } from './sharedUtils';
 
 function wpProgress(wp, mergedStatuses) {
   const taskMap = mergedStatuses?.[wp.id] || {};
@@ -15,12 +15,6 @@ function wpProgress(wp, mergedStatuses) {
     weightedScore += (task.weight ?? 1) * eff;
   }
   return totalWeight === 0 ? 0 : Math.round((weightedScore / totalWeight) * 100);
-}
-
-function wpOverallStatus(wp, mergedStatuses) {
-  const taskMap = mergedStatuses?.[wp.id] || {};
-  const statuses = wp.tasks.map(t => taskMap[t.name]?.status || 'Not Started');
-  return deriveOverallStatus(statuses);
 }
 
 const SHORT_NAME = name =>
