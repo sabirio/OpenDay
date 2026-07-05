@@ -30,6 +30,23 @@ export default defineConfig([
       // guarded (no render loops). Kept as a warning so it stays visible without
       // blocking CI; revisit if a data-loading refactor (react-query/SWR) lands.
       'react-hooks/set-state-in-effect': 'warn',
+      // Wave 4/5: workPackages.js / reportWeights.js are legacy (pre-Gantt) data
+      // sources — see TEMPLATE_MODEL.md. This warns on every matching import,
+      // including the already-audited legacy-fallback usages (WeeklyReports.jsx,
+      // ContractorReport.jsx, SiteVisitReport.jsx, etc.) — it's a standing reminder
+      // for anyone adding a *new* import, not a signal those existing ones are wrong.
+      'no-restricted-imports': ['warn', {
+        patterns: [
+          {
+            group: ['**/config/workPackages', '**/config/workPackages.js'],
+            message: 'LEGACY: Use masterTaskLibrary or constructionRetailV1 instead. See src/config/TEMPLATE_MODEL.md.',
+          },
+          {
+            group: ['**/config/reportWeights', '**/config/reportWeights.js'],
+            message: 'LEGACY: Use constructionRetailV1 weights instead. See src/config/TEMPLATE_MODEL.md.',
+          },
+        ],
+      }],
     },
   },
   {
