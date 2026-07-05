@@ -1,14 +1,26 @@
-import { WORK_PACKAGES } from "../config/workPackages";
+import { constructionRetailV1 } from "../domains/construction/templates/constructionRetailV1";
 import { daysUntil } from "../utils/reportUtils";
 import { sortReasons } from "../utils/reasonUtils";
 
-// Derived from WORK_PACKAGES[].tasks[].openingBlocker — no hardcoded strings.
-// To change which tasks are blockers, update the openingBlocker flag in workPackages.js.
+// Flat WP list across all phases (canonical source — Wave 4.5).
+const ALL_WPS = constructionRetailV1.phases.flatMap(phase =>
+  phase.workPackages.map(wp => ({ ...wp, phaseId: phase.id }))
+);
+
+// Derived from constructionRetailV1 WP[].openingBlocker — no hardcoded strings.
+// To change which WPs are blockers, update the openingBlocker flag in
+// constructionRetailV1.js (Wave 4.5 — see TEMPLATE_MODEL.md).
+//
+// Keyed by phaseId (not wp.id): wpCumulativeStatuses.workPackageStatuses is a
+// { [phaseId]: { [wpLabel]: {status,progress} } } map (see mergeGanttWPStatuses
+// in reportUtils.js) — wp.id (e.g. "test.electrical") never appears as a key
+// there, only phase ids (e.g. "testing") do.
 function buildBlockerMap(level) {
   const map = {};
-  for (const wp of WORK_PACKAGES) {
-    const names = wp.tasks.filter(t => t.openingBlocker === level).map(t => t.name);
-    if (names.length > 0) map[wp.id] = names;
+  for (const wp of ALL_WPS) {
+    if (wp.openingBlocker !== level) continue;
+    if (!map[wp.phaseId]) map[wp.phaseId] = [];
+    map[wp.phaseId].push(wp.label);
   }
   return map;
 }
