@@ -1,4 +1,4 @@
-import { useState, useEffect, Component } from "react";
+import { useState, useEffect, useMemo, Component } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Dashboard from "./pages/Dashboard";
@@ -23,6 +23,7 @@ import { getDefaultRoute } from "./engines/permissionEngine";
 import * as projectService from "./services/projectService";
 import * as contractorReportService from "./services/contractorReportService";
 import * as siteVisitService from "./services/siteVisitService";
+import { fetchAllTemplates } from "./data/templatesApi";
 import { constructionRetailV1 } from "./domains/construction/templates/constructionRetailV1";
 
 const CONSTRUCTION_TEMPLATE = {
@@ -113,8 +114,18 @@ function App() {
   const [projects, setProjects] = useState([]);
   const [reports, setReports] = useState([]);
   const [siteVisits, setSiteVisits] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [dataState, setDataState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'error'
   const [dataError, setDataError] = useState(null);
+
+  const templatesById = useMemo(
+    () => Object.fromEntries(templates.map(t => [t.id, t])),
+    [templates]
+  );
+  const activeTemplateFallback = useMemo(
+    () => templates.find(t => t.isActive) ?? null,
+    [templates]
+  );
 
   function loadData() {
     setDataState('loading');
@@ -123,10 +134,12 @@ function App() {
       projectService.getAll(),
       contractorReportService.getAllReportsForScreens(),
       siteVisitService.getAll(),
-    ]).then(([p, r, s]) => {
+      fetchAllTemplates(),
+    ]).then(([p, r, s, t]) => {
       setProjects(p);
       setReports(r);
       setSiteVisits(s);
+      setTemplates(t);
       setDataState('ready');
     }).catch((err) => {
       console.error("Failed to load data from Supabase:", err);
@@ -141,6 +154,7 @@ function App() {
       setProjects([]);
       setReports([]);
       setSiteVisits([]);
+      setTemplates([]);
       setDataState('idle');
       setDataError(null);
       return;
@@ -244,7 +258,7 @@ function App() {
                     path="/"
                     element={
                       <ProtectedRoute resource="dashboard">
-                        <Dashboard projects={projects} reports={reports} siteVisits={siteVisits} />
+                        <Dashboard projects={projects} reports={reports} siteVisits={siteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
                       </ProtectedRoute>
                     }
                   />
@@ -252,7 +266,7 @@ function App() {
                     path="/home"
                     element={
                       <ProtectedRoute resource="dashboard">
-                        <Home projects={projects} reports={reports} siteVisits={siteVisits} />
+                        <Home projects={projects} reports={reports} siteVisits={siteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
                       </ProtectedRoute>
                     }
                   />
@@ -272,7 +286,7 @@ function App() {
                     path="/weekly-reports"
                     element={
                       <ProtectedRoute resource="weekly_reports">
-                        <WeeklyReports projects={projects} reports={reports} siteVisits={siteVisits} />
+                        <WeeklyReports projects={projects} reports={reports} siteVisits={siteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
                       </ProtectedRoute>
                     }
                   />

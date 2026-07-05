@@ -31,6 +31,22 @@ export async function fetchTemplateById(id) {
   }
 }
 
+export async function fetchAllTemplates() {
+  try {
+    const { data, error } = await supabase
+      .from('templates')
+      .select('id, name, family_id, version, data, is_active');
+    if (error) throw error;
+    return (data || []).map(row => ({
+      id: row.id, name: row.name, familyId: row.family_id, version: row.version,
+      isActive: row.is_active, ...row.data,
+    }));
+  } catch (err) {
+    console.error('fetchAllTemplates:', err);
+    return [];
+  }
+}
+
 export async function saveTemplate(id, data) {
   try {
     // a) Load the current row.

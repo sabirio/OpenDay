@@ -13,6 +13,17 @@ import { computeProjectHealth } from '../engines/projectHealthEngine';
 import { computeOpeningReadiness } from '../engines/openingReadinessEngine';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
 import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
+import { isTemplateValid } from '../core/projects';
+
+// Mirrors WeeklyReports.jsx's gatedTemplate resolution (pinned template →
+// fallback to the active template → gated on isTemplateValid) so progress
+// doesn't diverge between pages for projects with a custom template_id.
+function resolveGatedTemplate(project, templatesById, activeTemplateFallback) {
+  const raw = project?.templateId
+    ? (templatesById[project.templateId] ?? activeTemplateFallback)
+    : activeTemplateFallback;
+  return raw && isTemplateValid(raw) ? raw : null;
+}
 
 /**
  * Shared allRows computation — same logic as Dashboard's internal useMemo,
@@ -21,8 +32,10 @@ import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
  * @param {Array} projects
  * @param {Array} reports
  * @param {Array} siteVisits
+ * @param {Object} templatesById — { [templateId]: template } from fetchAllTemplates()
+ * @param {Object|null} activeTemplateFallback — the org's is_active=true template
  */
-export function useAllRows(projects, reports, siteVisits = []) {
+export function useAllRows(projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null) {
   return useMemo(() => projects.map((project, idx) => {
     const projReports    = reports.filter(r => r.projectId === project.id);
     const projSiteVisits = siteVisits.filter(sv => String(sv.projectId) === String(project.id));
@@ -33,9 +46,10 @@ export function useAllRows(projects, reports, siteVisits = []) {
 
     const scopeWPIds = getScopeWPIds(project?.scope, GANTT_WPS);
     const phaseWeightOverrides = project?.scope?.weightOverrides ?? null;
+    const gatedTemplate = resolveGatedTemplate(project, templatesById, activeTemplateFallback);
 
     const progress = wpCumulativeStatuses
-      ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides)
+      ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides, gatedTemplate)
       : estimateProgressFromStatuses(cumulativeStatuses);
 
     const color           = PROJECT_COLORS[idx % PROJECT_COLORS.length];
@@ -63,5 +77,5 @@ export function useAllRows(projects, reports, siteVisits = []) {
       daysSinceReport, missingReport, daysToOpening, riskScore, riskLevel, priorityScore,
       progressComparison, prevProgressComparison, confidence, contScore, health, readiness,
     };
-  }), [projects, reports, siteVisits]);
+  }), [projects, reports, siteVisits, templatesById, activeTemplateFallback]);
 }

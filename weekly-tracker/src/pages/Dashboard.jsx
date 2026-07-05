@@ -37,7 +37,7 @@ function currentISOWeek() {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-function Dashboard({ projects, reports, siteVisits = [] }) {
+function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
   const [activeView, setActiveView]               = useState("overview");
   const [drawerProjectId, setDrawerProjectId]     = useState(null);
   const [filterStatus, setFilterStatus]           = useState("all");
@@ -64,7 +64,7 @@ function Dashboard({ projects, reports, siteVisits = [] }) {
 
   const ganttMetrics = useGanttMetrics(projects);
 
-  const allRows = useAllRows(projects, reports, siteVisits);
+  const allRows = useAllRows(projects, reports, siteVisits, templatesById, activeTemplateFallback);
 
   const filteredRows = useMemo(()=>allRows.filter(({project,latestReport,missingReport})=>{
     if (searchQuery) {

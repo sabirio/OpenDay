@@ -9,8 +9,8 @@ import MorningBrief    from '../components/home/MorningBrief';
 import PrioritiesToday from '../components/home/PrioritiesToday';
 import PortfolioHealth from '../components/home/PortfolioHealth';
 
-function Home({ projects, reports, siteVisits = [] }) {
-  const allRows     = useAllRows(projects, reports, siteVisits);
+function Home({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
+  const allRows     = useAllRows(projects, reports, siteVisits, templatesById, activeTemplateFallback);
   const ganttMetrics = useGanttMetrics(projects);
 
   const ganttRows = useMemo(() =>
