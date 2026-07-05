@@ -9,20 +9,21 @@ import { DAY_MS } from '../utils/reportUtils';
  *
  * @param {string} projectId
  * @param {Array<{ wpId, progress_pct, status, comment }>} wpProgressArray
- * @param {object} [meta] — { reportDate, overallProgress, submittedBy }
+ * @param {object} [meta] — { reportDate, overallProgress }
  * @returns { report, wpLineItems }
  */
 export async function submitReport(projectId, wpProgressArray, meta = {}) {
   const reportDate = meta.reportDate || new Date().toISOString().split('T')[0];
   const today      = new Date(reportDate);
   const weekNumber = getISOWeekNumber(today);
+  const submittedBy = await getCurrentUserId();
 
   // 1. Insert contractor_reports header row
   const { data: report, error: rErr } = await supabase
     .from('contractor_reports')
     .insert([{
       project_id:       projectId,
-      submitted_by:     meta.submittedBy || null,
+      submitted_by:     submittedBy,
       report_date:      reportDate,
       week_number:      weekNumber,
       overall_progress: meta.overallProgress || computeOverallProgress(wpProgressArray),
@@ -145,4 +146,11 @@ function getISOWeekNumber(date) {
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil((((d - yearStart) / DAY_MS) + 1) / 7);
+}
+
+async function getCurrentUserId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data?.user?.id) throw new Error('Cannot submit contractor report without authenticated user');
+  return data.user.id;
 }

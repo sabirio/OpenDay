@@ -791,7 +791,6 @@ function ContractorReport({ projects, reports, onSaveReport }) {
         await submitContractorReport(project.id, wpProgressArray, {
           reportDate: mainReportPayload.reportingDate,
           overallProgress,
-          submittedBy: project.generalContractor || "",
           masterReportId: mainReportPayload.id,
         });
       }

@@ -9,11 +9,12 @@ import { updateGanttDiscrepancy } from './ganttService';
  * @param {string} projectId
  * @param {string|null} contractorReportId  — links visit to a specific report
  * @param {Array<{ wpId, observed_progress, observed_status, pm_note }>} wpObservationsArray
- * @param {object} [meta] — { visitDate, visitedBy, overallNote }
+ * @param {object} [meta] — { visitDate, overallNote }
  * @returns { siteVisit, discrepancies }
  */
 export async function submitSiteVisit(projectId, contractorReportId, wpObservationsArray, meta = {}) {
   const visitDate = meta.visitDate || new Date().toISOString().split('T')[0];
+  const visitedBy = await getCurrentUserId();
 
   // 1. Insert site_visits header
   const { data: siteVisit, error: svErr } = await supabase
@@ -21,7 +22,7 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
     .insert([{
       project_id:               projectId,
       contractor_report_id:     contractorReportId || null,
-      visited_by:               meta.visitedBy     || null,
+      visited_by:               visitedBy,
       visit_date:               visitDate,
       overall_note:             meta.overallNote   || null,
       pm_schedule_assessment:   meta.pmScheduleAssessment || null,
@@ -198,10 +199,12 @@ export async function getAll() {
 // different table from `contractor_reports` that site_visits.contractor_report_id references.
 // Passing it would cause a FK violation, so we omit the FK field in this path.
 export async function create(visit) {
+  const visitedBy = await getCurrentUserId();
   const { data, error } = await supabase
     .from('site_visits')
     .insert([{
       project_id:   visit.projectId,
+      visited_by:   visitedBy,
       visit_date:   visit.visitDate || new Date().toISOString().split('T')[0],
       overall_note: visit.overallNote || null,
     }])
@@ -209,4 +212,11 @@ export async function create(visit) {
     .single();
   if (error) throw error;
   return mapRow(data);
+}
+
+async function getCurrentUserId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data?.user?.id) throw new Error('Cannot submit site visit without authenticated user');
+  return data.user.id;
 }

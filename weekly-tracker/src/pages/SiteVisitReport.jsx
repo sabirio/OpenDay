@@ -377,7 +377,6 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
         });
         const result = await submitSiteVisit(projectId, lastContractorReportId, wpObservationsArray, {
           visitDate:              form.visitDate,
-          visitedBy:              project.projectManager || '',
           overallNote:            form.observations || '',
           pmScheduleAssessment:   form.pmScheduleAssessment || null,
         });
