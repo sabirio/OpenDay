@@ -37,7 +37,7 @@ check('priorityScore = 0',        c.priorityScore === 0);
 check('source = portfolio',       c.source === 'portfolio');
 check('scope = project',          c.scope === 'project');
 check('projectId = p1',           c.projectId === 'p1');
-check('title = reason',           c.title === CRITICAL_ALERT.reason);
+check('title = code — reason',    c.title === `${CRITICAL_ALERT.code} — ${CRITICAL_ALERT.reason}`);
 check('detail preserved',         c.detail === CRITICAL_ALERT.detail);
 check('recommendedAction = action', c.recommendedAction === CRITICAL_ALERT.action);
 

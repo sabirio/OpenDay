@@ -140,7 +140,7 @@ import('../../../weekly-tracker/src/core/insights/adapters/portfolioAlerts.js')
     const insights = alertsToInsights([spiAlert]);
     check('G1: insight created from SPI alert',          insights.length === 1);
     check('G1: severity = critical',                     insights[0].severity === 'critical');
-    check('G1: title = reason',                          insights[0].title === 'SPI critical');
+    check('G1: title = code — reason',                   insights[0].title === `${spiAlert.code} — SPI critical`);
     check('G1: no extra fields leaked to insight shape', !('spi' in insights[0]));
 
     console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

@@ -12,7 +12,7 @@ export function alertsToInsights(alerts) {
     severity:          a.sev === 'CRITICAL' ? 'critical' : a.sev === 'HIGH' ? 'warning' : 'info',
     scope:             'project',
     projectId:         a.pid,
-    title:             a.reason,
+    title:             a.code ? `${a.code} — ${a.reason}` : a.reason,
     detail:            a.detail,
     recommendedAction: a.action,
     priorityScore:     a.sev === 'CRITICAL' ? 0 : a.sev === 'HIGH' ? 1 : 2,

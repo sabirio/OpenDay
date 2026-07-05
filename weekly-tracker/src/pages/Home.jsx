@@ -50,9 +50,9 @@ function Home({ projects, reports, siteVisits = [], templatesById = {}, activeTe
         </div>
       </div>
 
+      <PortfolioHealth kpis={kpis} />
       <MorningBrief summary={summary} />
       <PrioritiesToday insights={insights} />
-      <PortfolioHealth kpis={kpis} />
     </div>
   );
 }
