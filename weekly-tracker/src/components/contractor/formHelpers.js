@@ -141,13 +141,13 @@ export function validateContractorReport(form, photoUrls) {
     if (!form.supportTypes.length) errors.push("Select at least one support type.");
     if (!form.supportDescription) errors.push("Support description is required.");
   }
-  if (!form.nextWeekTop3) errors.push("Next week top 3 activities are required.");
-  if (!form.weekAfterTop3) errors.push("Week +2 top 3 activities are required.");
+  // P2.1: nextWeekTop3 / weekAfterTop3 / pendingIssues / finalComments were
+  // required free text — real typing friction for a phone on site. Made
+  // optional per product decision (2026-07-06); still shown as fields the
+  // contractor can fill in, just no longer block submit if left blank.
   if (!form.activitiesBlocked) errors.push("Activities blocked answer is required.");
   if (form.activitiesBlocked === "Yes" && !form.delayReason)
     errors.push("Delay reason is required when activities are blocked.");
-  if (!form.pendingIssues) errors.push("Pending issues summary is required.");
-  if (!form.finalComments) errors.push("Final comments are required.");
   if (!photoUrls.length) errors.push("At least one photo is required.");
   if (!form.declarationConfirmed) errors.push("Declaration confirmation is required.");
   return errors;

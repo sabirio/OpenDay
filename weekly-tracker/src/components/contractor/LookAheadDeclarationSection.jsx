@@ -6,8 +6,8 @@ function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, 
     <>
       <FormSection title="Look Ahead" accentColor="#0891b2">
         <div className="field-form-2col">
-          <TextAreaField label="Top 3 Activities — Next Week" value={form.nextWeekTop3} onChange={(v) => updateField("nextWeekTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
-          <TextAreaField label="Top 3 Activities — Week +2" value={form.weekAfterTop3} onChange={(v) => updateField("weekAfterTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
+          <TextAreaField label="Top 3 Activities — Next Week (optional)" value={form.nextWeekTop3} onChange={(v) => updateField("nextWeekTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
+          <TextAreaField label="Top 3 Activities — Week +2 (optional)" value={form.weekAfterTop3} onChange={(v) => updateField("weekAfterTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
         </div>
         <ToggleGroup
           name="activities-blocked"
@@ -27,8 +27,8 @@ function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, 
 
       <FormSection title="Declaration & Comments" accentColor="#475569">
         <div className="field-form-2col">
-          <TextAreaField label="Pending Issues Summary" value={form.pendingIssues} onChange={(v) => updateField("pendingIssues", v)} placeholder="List any open issues or pending actions..." rows={4} />
-          <TextAreaField label="Final Comments" value={form.finalComments} onChange={(v) => updateField("finalComments", v)} placeholder="Any additional comments for this week..." rows={4} />
+          <TextAreaField label="Pending Issues Summary (optional)" value={form.pendingIssues} onChange={(v) => updateField("pendingIssues", v)} placeholder="List any open issues or pending actions..." rows={4} />
+          <TextAreaField label="Final Comments (optional)" value={form.finalComments} onChange={(v) => updateField("finalComments", v)} placeholder="Any additional comments for this week..." rows={4} />
         </div>
 
         <div style={{ marginBottom: 24 }}>
