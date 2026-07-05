@@ -218,7 +218,8 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
       onSubmit={submit}
       photoUrls={photoUrls}
       projectId={project.id}
-      onPhotoUpload={(path) => setPhotoUrls((prev) => [...prev, path])}
+      onPhotoUpload={(paths) => setPhotoUrls((prev) => [...prev, ...paths])}
+      onPhotoRemove={(path) => setPhotoUrls((prev) => prev.filter((p) => p !== path))}
       onPhotoError={(msg) => setPhotoError(msg)}
       photoError={photoError}
     />

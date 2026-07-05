@@ -10,7 +10,7 @@ function SiteVisitFormView({
   referenceReport, handleReferenceChange, updateWPTask,
   ganttLoading, ganttTasks, pmWpObservations, updatePMObservation,
   onSubmit,
-  photoUrls, projectId, onPhotoUpload, onPhotoError, photoError,
+  photoUrls, projectId, onPhotoUpload, onPhotoRemove, onPhotoError, photoError,
 }) {
   return (
     <div data-testid="pm-site-visit-form" className="field-form-page" style={{ minHeight: "100vh", background: "#f0f7fa", padding: "36px 20px 80px" }}>
@@ -191,7 +191,7 @@ function SiteVisitFormView({
 
         {/* 4. Photos */}
         <FormSection title="Site Photos" accentColor="#6b7280">
-          <PhotoUpload projectId={projectId} onUpload={onPhotoUpload} onError={onPhotoError} />
+          <PhotoUpload projectId={projectId} onUpload={onPhotoUpload} onRemove={onPhotoRemove} onError={onPhotoError} />
           {photoUrls.length > 0 && (
             <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>{photoUrls.length} photo{photoUrls.length > 1 ? "s" : ""} attached</p>
           )}

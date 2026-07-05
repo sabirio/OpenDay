@@ -510,7 +510,8 @@ function ContractorReport({ projects, reports }) {
           updateField={updateField}
           photoUrls={photoUrls}
           projectId={project.id}
-          onPhotoUpload={(path) => setPhotoUrls((prev) => [...prev, path])}
+          onPhotoUpload={(paths) => setPhotoUrls((prev) => [...prev, ...paths])}
+          onPhotoRemove={(path) => setPhotoUrls((prev) => prev.filter((p) => p !== path))}
           onPhotoError={(msg) => setPhotoError(msg)}
         />
         {photoError && (

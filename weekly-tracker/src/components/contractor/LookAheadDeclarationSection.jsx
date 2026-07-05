@@ -1,7 +1,7 @@
 import { FormSection, ToggleGroup, TextAreaField } from "./FormParts";
 import PhotoUpload from "../shared/PhotoUpload";
 
-function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, onPhotoUpload, onPhotoError }) {
+function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, onPhotoUpload, onPhotoRemove, onPhotoError }) {
   return (
     <>
       <FormSection title="Look Ahead" accentColor="#0891b2">
@@ -33,7 +33,7 @@ function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, 
 
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 10 }}>Site Photos</div>
-          <PhotoUpload projectId={projectId} onUpload={onPhotoUpload} onError={onPhotoError} />
+          <PhotoUpload projectId={projectId} onUpload={onPhotoUpload} onRemove={onPhotoRemove} onError={onPhotoError} />
           {photoUrls.length > 0 && (
             <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>{photoUrls.length} photo{photoUrls.length > 1 ? "s" : ""} attached</p>
           )}
