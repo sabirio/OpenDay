@@ -16,7 +16,7 @@ export async function submitReport(projectId, wpProgressArray, meta = {}) {
   const reportDate = meta.reportDate || new Date().toISOString().split('T')[0];
   const today      = new Date(reportDate);
   const weekNumber = getISOWeekNumber(today);
-  const submittedBy = await getCurrentUserId();
+  const submittedBy = meta.submittedBy || await getCurrentUserId();
 
   // 1. Insert contractor_reports header row
   const { data: report, error: rErr } = await supabase

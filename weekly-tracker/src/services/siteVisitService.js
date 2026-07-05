@@ -14,7 +14,7 @@ import { updateGanttDiscrepancy } from './ganttService';
  */
 export async function submitSiteVisit(projectId, contractorReportId, wpObservationsArray, meta = {}) {
   const visitDate = meta.visitDate || new Date().toISOString().split('T')[0];
-  const visitedBy = await getCurrentUserId();
+  const visitedBy = meta.visitedBy || await getCurrentUserId();
 
   // 1. Insert site_visits header
   const { data: siteVisit, error: svErr } = await supabase
@@ -199,7 +199,7 @@ export async function getAll() {
 // different table from `contractor_reports` that site_visits.contractor_report_id references.
 // Passing it would cause a FK violation, so we omit the FK field in this path.
 export async function create(visit) {
-  const visitedBy = await getCurrentUserId();
+  const visitedBy = visit.visitedBy || await getCurrentUserId();
   const { data, error } = await supabase
     .from('site_visits')
     .insert([{
