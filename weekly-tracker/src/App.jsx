@@ -22,6 +22,7 @@ import { useAuth } from "./auth/AuthContext";
 import { getDefaultRoute } from "./engines/permissionEngine";
 import * as projectService from "./services/projectService";
 import * as reportService from "./services/reportService";
+import * as contractorReportService from "./services/contractorReportService";
 import * as siteVisitService from "./services/siteVisitService";
 import { constructionRetailV1 } from "./domains/construction/templates/constructionRetailV1";
 
@@ -120,7 +121,7 @@ function App() {
     setDataError(null);
     Promise.all([
       projectService.getAll(),
-      reportService.getAll(),
+      contractorReportService.getAllReportsForScreens(),
       siteVisitService.getAll(),
     ]).then(([p, r, s]) => {
       setProjects(p);

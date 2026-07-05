@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { batchUpdateWPProgress, updateForecast } from './ganttService';
 import { DAY_MS } from '../utils/reportUtils';
+import { adaptContractorReportsToLegacy } from './contractorReportAdapter';
 
 // ─── Submit contractor report ─────────────────────────────────────────────────
 
@@ -118,6 +119,31 @@ export async function getAllReports(projectId) {
     .order('report_date', { ascending: false });
   if (error) throw error;
   return data || [];
+}
+
+/**
+ * Fetch canonical contractor reports and adapt them for legacy-shaped screens.
+ */
+export async function getAllReportsForScreens() {
+  const [reportsRes, wpsRes] = await Promise.all([
+    supabase
+      .from('contractor_reports')
+      .select('*')
+      .order('report_date', { ascending: false }),
+    supabase
+      .from('contractor_report_wps')
+      .select('*'),
+  ]);
+  if (reportsRes.error) throw reportsRes.error;
+  if (wpsRes.error) throw wpsRes.error;
+
+  const wpsByReportId = {};
+  for (const wp of wpsRes.data || []) {
+    if (!wpsByReportId[wp.report_id]) wpsByReportId[wp.report_id] = [];
+    wpsByReportId[wp.report_id].push(wp);
+  }
+
+  return adaptContractorReportsToLegacy(reportsRes.data || [], wpsByReportId);
 }
 
 /**
