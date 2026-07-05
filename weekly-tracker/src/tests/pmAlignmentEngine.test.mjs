@@ -419,5 +419,45 @@ console.log('\nE) computeConfidenceLevel — breakdown field');
   check('E7f: label still present',  typeof r.label === 'string');
 }
 
+// ── F) WP-format drift pattern detection ─────────────────────────────────────
+console.log('\nF) WP-format drift pattern detection');
+
+{
+  const gc = {
+    workPackageStatuses: {
+      demolition: {
+        'Demolition works': { status: 'Completed' },
+        'Waste removal & disposal': { status: 'Completed' },
+      },
+      construction: {
+        'Partitions & drywall': { status: 'In Progress' },
+      },
+    },
+  };
+  const pm = {
+    pmWorkPackageStatuses: {
+      demolition: {
+        'Demolition works': { observedStatus: 'Not Started' },
+        'Waste removal & disposal': { observedStatus: 'In Progress' },
+      },
+      construction: {
+        'Partitions & drywall': { observedStatus: 'In Progress' },
+      },
+    },
+  };
+
+  const items = computePmAlignmentItems(gc, pm);
+  const summary = summarizeAlignmentItems(items);
+  const byTask = Object.fromEntries(items.map(item => [item.taskName, item]));
+
+  check('F1: WP-format comparison produces three observed items', items.length === 3);
+  check('F2: repeated GC overstatement detected twice', summary.overstatements.length === 2);
+  check('F3: one matching PM observation remains a match', summary.matches.length === 1);
+  check('F4: matchRate reflects drift pattern (1/3 = 33)', summary.matchRate === 33);
+  check('F5: major overstatement remains CRITICAL', byTask['Demolition works']?.severity === 'CRITICAL');
+  check('F6: moderate overstatement remains HIGH', byTask['Waste removal & disposal']?.severity === 'HIGH');
+  check('F7: matching task has no severity', byTask['Partitions & drywall']?.severity === null);
+}
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);
