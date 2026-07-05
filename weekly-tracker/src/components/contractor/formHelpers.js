@@ -122,3 +122,33 @@ export function makeInitialForm(prevReport, cumulativeStatuses) {
     declarationConfirmed: false,
   };
 }
+
+export function validateContractorReport(form, photoUrls) {
+  const errors = [];
+  if (!form.reportingDate) errors.push("Reporting date is required.");
+  if (!(form.currentPackages || []).length) errors.push("Select at least one active work package.");
+  if (
+    form.projectScheduleStatus === "At Risk" ||
+    form.projectScheduleStatus === "Critical"
+  ) {
+    if (!form.risks.length) errors.push("Select at least one risk indication.");
+    if (!form.riskOwners.length) errors.push("Select at least one risk owner.");
+    if (!form.riskScale) errors.push("Risk scale is required.");
+    if (!form.riskDescription) errors.push("Risk description is required.");
+  }
+  if (!form.supportRequired) errors.push("Customer support selection is required.");
+  if (form.supportRequired === "Yes") {
+    if (!form.supportTypes.length) errors.push("Select at least one support type.");
+    if (!form.supportDescription) errors.push("Support description is required.");
+  }
+  if (!form.nextWeekTop3) errors.push("Next week top 3 activities are required.");
+  if (!form.weekAfterTop3) errors.push("Week +2 top 3 activities are required.");
+  if (!form.activitiesBlocked) errors.push("Activities blocked answer is required.");
+  if (form.activitiesBlocked === "Yes" && !form.delayReason)
+    errors.push("Delay reason is required when activities are blocked.");
+  if (!form.pendingIssues) errors.push("Pending issues summary is required.");
+  if (!form.finalComments) errors.push("Final comments are required.");
+  if (!photoUrls.length) errors.push("At least one photo is required.");
+  if (!form.declarationConfirmed) errors.push("Declaration confirmation is required.");
+  return errors;
+}

@@ -1,89 +1,46 @@
-import { supabase } from '../lib/supabase';
-import { batchUpdateWPProgress, updateForecast } from './ganttService';
-import { DAY_MS } from '../utils/reportUtils';
+﻿import { supabase } from '../lib/supabase';
 import { adaptContractorReportsToLegacy } from './contractorReportAdapter';
 import { ContractorReportSchema } from '../schemas/contractorReportSchema';
 import { validateArray } from '../schemas/validate';
 
-// ─── Submit contractor report ─────────────────────────────────────────────────
+// в”Ђв”Ђв”Ђ Submit contractor report в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 /**
  * Submit a contractor report with per-WP progress data.
  *
  * @param {string} projectId
  * @param {Array<{ wpId, progress_pct, status, comment }>} wpProgressArray
- * @param {object} [meta] — { reportDate, overallProgress, photoUrls }
+ * @param {object} [meta] вЂ” { reportDate, overallProgress, photoUrls }
  * @returns { report, wpLineItems }
  */
 export async function submitReport(projectId, wpProgressArray, meta = {}) {
   const reportDate = meta.reportDate || new Date().toISOString().split('T')[0];
-  const today      = new Date(reportDate);
-  const weekNumber = getISOWeekNumber(today);
-  const submittedBy = meta.submittedBy || await getCurrentUserId();
+  const rpcMeta = {
+    overallProgress: meta.overallProgress,
+    cumulativeProgress: meta.cumulativeProgress,
+    masterReportId: meta.masterReportId ?? null,
+    reportSnapshot: meta.reportSnapshot ?? null,
+    photoUrls: meta.photoUrls || [],
+  };
 
-  // 1. Insert contractor_reports header row
-  const { data: report, error: rErr } = await supabase
-    .from('contractor_reports')
-    .insert([{
-      project_id:       projectId,
-      submitted_by:     submittedBy,
-      report_date:      reportDate,
-      week_number:      weekNumber,
-      overall_progress: meta.overallProgress || computeOverallProgress(wpProgressArray),
-      status:           'submitted',
-      photo_urls:       meta.photoUrls || [],
-    }])
-    .select()
-    .single();
-  if (rErr) throw rErr;
-
-  // 2. Insert contractor_report_wps line items
-  const lineItems = wpProgressArray.map(wp => ({
-    report_id:    report.id,
-    project_id:   projectId,
-    wp_id:        wp.wpId,
-    progress_pct: wp.progress_pct ?? 0,
-    status:       wp.status       || 'not_started',
-    comment:      wp.comment      || null,
-  }));
-
-  const { data: wps, error: wErr } = await supabase
-    .from('contractor_report_wps')
-    .insert(lineItems)
-    .select();
-  if (wErr) throw wErr;
-
-  // meta.cumulativeProgress (canonical, from progressEngine) is expected here.
-  // The computeOverallProgress() fallback is dead in practice today — the sole
-  // caller (ContractorReport.jsx) always supplies cumulativeProgress — but a
-  // future caller that omits it would silently write the raw contractor
-  // average into this OFFICIAL snapshot field. See PROGRESS_MODEL.md.
-  const historyProgress = meta.cumulativeProgress ?? report.overall_progress ?? computeOverallProgress(wpProgressArray);
-  const { error: histErr } = await supabase.from('progress_history').insert({
-    project_id:       projectId,
-    week_number:      weekNumber,
-    overall_progress: historyProgress,
-    spi:              null,
-    recorded_at:      new Date(reportDate).toISOString(),
-    snapshot: {
-      contractor_report_id: report.id,
-      master_report_id:     meta.masterReportId || null,
-      work_packages:        wpProgressArray,
-      legacy_report:        meta.reportSnapshot || null,
-    },
+  const { data, error } = await supabase.rpc('submit_contractor_report', {
+    p_project_id: projectId,
+    p_report_date: reportDate,
+    p_wp_progress: wpProgressArray,
+    p_meta: rpcMeta,
   });
-  if (histErr) throw new Error(`Contractor report saved but progress history write failed: ${histErr.message}`);
 
-  // 3. Update project_gantt_tasks with new progress
-  await batchUpdateWPProgress(projectId, wpProgressArray);
+  if (error) throw error;
 
-  // 4. Recalculate forecast opening date
-  await updateForecast(projectId).catch(() => {}); // non-fatal
-
-  return { report, wpLineItems: wps };
+  return {
+    report: data?.report,
+    wpLineItems: data?.wpLineItems || [],
+    lineItemCount: data?.lineItemCount ?? 0,
+  };
 }
 
-// ─── Get last report ──────────────────────────────────────────────────────────
+// Get last report
+// в”Ђв”Ђв”Ђ Get last report в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 /**
  * Get the most recent contractor report for a project, with WP line items.
@@ -216,27 +173,3 @@ export async function getReportById(reportId) {
   };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-// Contractor raw average only (unweighted sum/count). For official progress
-// use progressEngine.js — see src/engines/PROGRESS_MODEL.md.
-function computeOverallProgress(wpProgressArray) {
-  if (!wpProgressArray.length) return 0;
-  const sum = wpProgressArray.reduce((s, wp) => s + (wp.progress_pct || 0), 0);
-  return Math.round(sum / wpProgressArray.length);
-}
-
-function getISOWeekNumber(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d - yearStart) / DAY_MS) + 1) / 7);
-}
-
-async function getCurrentUserId() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
-  if (!data?.user?.id) throw new Error('Cannot submit contractor report without authenticated user');
-  return data.user.id;
-}

@@ -20,6 +20,42 @@ All migrations use `IF NOT EXISTS` / `CREATE OR REPLACE` and are safe to re-run.
 
 ---
 
+## P0.1 Contractor Submit RPC
+
+Apply `src/migrations/018_submit_contractor_report_rpc.sql` after the ownership/RLS migrations. It creates `public.submit_contractor_report(bigint, date, jsonb, jsonb)` so contractor report submission is one database transaction instead of several browser-side writes.
+
+Rollback:
+
+```sql
+DROP FUNCTION IF EXISTS public.submit_contractor_report(bigint, date, jsonb, jsonb);
+```
+
+Manual verification after a real contractor submit:
+
+```sql
+SELECT id, project_id, submitted_by, created_at
+FROM contractor_reports
+ORDER BY created_at DESC
+LIMIT 3;
+
+SELECT id, project_id, created_at
+FROM reports
+ORDER BY created_at DESC
+LIMIT 3;
+
+SELECT project_id, week_number, overall_progress, recorded_at, snapshot
+FROM progress_history
+ORDER BY recorded_at DESC
+LIMIT 3;
+```
+
+Expected:
+- newest `contractor_reports.submitted_by` is the current auth user UUID;
+- no new legacy `reports` row is created by contractor submit;
+- newest `progress_history.snapshot` contains `contractor_report_id`.
+
+---
+
 ## Secrets
 
 ### Environment variables

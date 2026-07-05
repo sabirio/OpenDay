@@ -1,22 +1,6 @@
-// ARCHITECTURE NOTE — two report formats coexist in this component:
-//
-//  Gantt (new)  — workPackageStatuses: { phaseId → { taskLabel → { progress, status } } }
-//                 Phase IDs and task labels come from masterTaskLibrary.js.
-//                 Used when project has a Gantt plan (getProjectGantt returns tasks).
-//
-//  Legacy (old) — demolitionStatus / constructionStatuses / testingStatuses / handoverStatuses
-//                 Task keys come from reportWeights.js / reportUtils.js.
-//                 Used as fallback when no Gantt plan exists.
-//
-// Progress calculation for both formats lives in progressEngine.js.
-// Do NOT add new progress logic here — extend progressEngine instead.
-
-import { normalizeReport } from "../services/reportService";
+﻿import { normalizeReport } from "../services/reportService";
 import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
-// TODO wave4: legacy fallback per the ARCHITECTURE NOTE above (audited Wave 4
-// Step 4.6 — gated on ganttTasks.length === 0, non-trivial to replace).
-import { WORK_PACKAGES } from "../config/workPackages";
 import { getProjectGantt } from "../services/ganttService";
 import {
   getReportsForProjectForScreens,
@@ -25,26 +9,31 @@ import {
 import { getById as getProjectById } from "../services/projectService";
 import { computeWPCumulativeStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
 import { calculateProjectProgressResult } from "../engines/progressEngine";
-import { useAuth } from "../auth/AuthContext";
-import { FormSection } from "../components/contractor/FormParts";
-import { WPSection } from "../components/contractor/LegacyWPSection";
-import { PhaseSection } from "../components/contractor/GanttWPSection";
+import {
+  LoadingReportState,
+  ProjectNotFoundState,
+  SubmittedReportState,
+} from "../components/contractor/ContractorReportStates";
+import PhotoErrorAlert from "../components/contractor/PhotoErrorAlert";
 import ReportHeaderCard from "../components/contractor/ReportHeaderCard";
+import ReportingWorkPackagesSection from "../components/contractor/ReportingWorkPackagesSection";
 import ScheduleRiskSection from "../components/contractor/ScheduleRiskSection";
+import StickySubmitBar from "../components/contractor/StickySubmitBar";
 import SupportWorksSection from "../components/contractor/SupportWorksSection";
+import ValidationErrors from "../components/contractor/ValidationErrors";
+import WorkPackageProgressSection from "../components/contractor/WorkPackageProgressSection";
 import LookAheadDeclarationSection from "../components/contractor/LookAheadDeclarationSection";
 import {
   deriveOldPhasesFromPackages,
   getConstructionWeekInfo,
   buildCumulativeWPStatuses,
   makeInitialForm,
+  validateContractorReport,
 } from "../components/contractor/formHelpers";
 
-// ── Main component ─────────────────────────────────────────────────────────
 
 function ContractorReport({ projects, reports }) {
   const { projectId } = useParams();
-  const { user } = useAuth();
   const [fallbackProject, setFallbackProject] = useState(null);
   const [fallbackReports, setFallbackReports] = useState([]);
   const [contextLoading, setContextLoading] = useState(false);
@@ -167,6 +156,7 @@ function ContractorReport({ projects, reports }) {
 
   const [validationErrors, setValidationErrors] = useState([]);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [photoUrls, setPhotoUrls] = useState([]);
   const [photoError, setPhotoError] = useState(null);
 
@@ -196,46 +186,18 @@ function ContractorReport({ projects, reports }) {
     });
   }
 
-  function validateReport() {
-    const errors = [];
-    if (!form.reportingDate) errors.push("Reporting date is required.");
-    if (!(form.currentPackages || []).length) errors.push("Select at least one active work package.");
-    if (
-      form.projectScheduleStatus === "At Risk" ||
-      form.projectScheduleStatus === "Critical"
-    ) {
-      if (!form.risks.length) errors.push("Select at least one risk indication.");
-      if (!form.riskOwners.length) errors.push("Select at least one risk owner.");
-      if (!form.riskScale) errors.push("Risk scale is required.");
-      if (!form.riskDescription) errors.push("Risk description is required.");
-    }
-    if (!form.supportRequired) errors.push("Customer support selection is required.");
-    if (form.supportRequired === "Yes") {
-      if (!form.supportTypes.length) errors.push("Select at least one support type.");
-      if (!form.supportDescription) errors.push("Support description is required.");
-    }
-    if (!form.nextWeekTop3) errors.push("Next week top 3 activities are required.");
-    if (!form.weekAfterTop3) errors.push("Week +2 top 3 activities are required.");
-    if (!form.activitiesBlocked) errors.push("Activities blocked answer is required.");
-    if (form.activitiesBlocked === "Yes" && !form.delayReason)
-      errors.push("Delay reason is required when activities are blocked.");
-    if (!form.pendingIssues) errors.push("Pending issues summary is required.");
-    if (!form.finalComments) errors.push("Final comments are required.");
-    if (!photoUrls.length) errors.push("At least one photo is required.");
-    if (!form.declarationConfirmed) errors.push("Declaration confirmation is required.");
-    return errors;
-  }
-
   async function saveReport() {
     if (!project) return;
+    if (submitting) return;
 
-    const errors = validateReport();
+    const errors = validateContractorReport(form, photoUrls);
     if (errors.length) {
       setValidationErrors(errors);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setValidationErrors([]);
+    setSubmitting(true);
 
     try {
       const currentPhases = deriveOldPhasesFromPackages(form.currentPackages);
@@ -309,7 +271,6 @@ function ContractorReport({ projects, reports }) {
 
       await submitContractorReport(project.id, wpProgressArray, {
         reportDate: mainReportPayload.reportingDate,
-        submittedBy: user.id,
         overallProgress,
         masterReportId: mainReportPayload.id,
         reportSnapshot: mainReportPayload,
@@ -321,63 +282,31 @@ function ContractorReport({ projects, reports }) {
     } catch (err) {
       console.error("Failed to submit report:", err);
       alert("Failed to submit report. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   if (!project && contextLoading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f0f7f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
-          Loading report...
-        </div>
-      </div>
-    );
+    return <LoadingReportState />;
   }
 
   if (!project) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f0f7f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", padding: 40 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🏗</div>
-          <h2 style={{ color: "#111827", marginBottom: 8 }}>Project not found</h2>
-          <p style={{ color: "#6b7280" }}>{contextError || "This report link is invalid or the project has been removed."}</p>
-        </div>
-      </div>
-    );
+    return <ProjectNotFoundState message={contextError} />;
   }
 
   if (submitted) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f0f7f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", padding: 40, maxWidth: 420 }}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#dcfce7", border: "2px solid #86efac", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32 }}>✓</div>
-          <h2 style={{ color: "#166534", marginBottom: 8, fontSize: 24 }}>Report submitted</h2>
-          <p style={{ color: "#6b7280", marginBottom: 28, lineHeight: 1.6 }}>
-            Thank you. Your weekly report for <strong>{project.storeCode} — {project.shoppingMallName}</strong> has been submitted successfully.
-          </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => {
-                prefillDone.current = false;
-                setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
-                setPhotoUrls([]);
-                setSubmitted(false);
-              }}
-              style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "#2f855a", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
-            >
-              Submit another report
-            </button>
-            <button
-              type="button"
-              onClick={() => window.history.back()}
-              style={{ padding: "12px 28px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#6b7280", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
+      <SubmittedReportState
+        project={project}
+        onSubmitAnother={() => {
+          prefillDone.current = false;
+          setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
+          setPhotoUrls([]);
+          setSubmitted(false);
+        }}
+        onClose={() => window.history.back()}
+      />
     );
   }
 
@@ -394,7 +323,6 @@ function ContractorReport({ projects, reports }) {
   const lastReportDate = lastReport ? new Date(lastReport.reportingDate || lastReport.submittedAt) : null;
   const daysSinceLast = lastReportDate ? Math.floor((new Date() - lastReportDate) / 86400000) : null;
 
-  const activePackages = (form.currentPackages || []).map((id) => WORK_PACKAGES.find((wp) => wp.id === id)).filter(Boolean);
 
   return (
     <div data-testid="contractor-report-form" className="field-form-page" style={{ minHeight: "100vh", background: "#f0f7f2", padding: "36px 20px 80px" }}>
@@ -409,102 +337,35 @@ function ContractorReport({ projects, reports }) {
           projectReportsCount={projectReports.length}
         />
 
-        {/* ── Validation errors ── */}
-        {validationErrors.length > 0 && (
-          <div style={{ background: "#fff1f2", border: "1px solid #fca5a5", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, color: "#991b1b", marginBottom: 8, fontSize: 13 }}>Please fix the following required fields:</div>
-            <ul style={{ margin: 0, paddingLeft: 18, color: "#b91c1c", fontSize: 13, lineHeight: 1.8 }}>
-              {validationErrors.map((e) => <li key={e}>{e}</li>)}
-            </ul>
-          </div>
-        )}
+        <ValidationErrors errors={validationErrors} />
 
-        {/* ── 1. Reporting Date & Work Package Selection ── */}
-        <FormSection title="Reporting Date & Active Work Packages" accentColor="#2f855a">
-          <div style={{ marginBottom: ganttTasks.length > 0 ? 0 : 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 8 }}>Reporting Date</div>
-            <input
-              type="date"
-              data-testid="reporting-date"
-              value={form.reportingDate}
-              onChange={(e) => updateField("reportingDate", e.target.value)}
-              style={{ height: 42, padding: "0 14px", border: "1px solid #d1d5db", borderRadius: 10, fontSize: 14, color: "#1f2937", background: "white", outline: "none", width: 200 }}
-            />
-          </div>
-          {ganttTasks.length === 0 && !ganttLoading && (
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 6 }}>Active Work Packages This Week</div>
-              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 14 }}>Select all work packages with active works this reporting period.</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-                {WORK_PACKAGES.map((wp) => {
-                  const sel = (form.currentPackages || []).includes(wp.id);
-                  return (
-                    <button key={wp.id} type="button"
-                      data-testid="wp-toggle"
-                      data-wp-id={wp.id}
-                      onClick={() => togglePackage(wp.id)}
-                      style={{
-                        padding: "12px 14px", borderRadius: 12, textAlign: "left",
-                        border: `2px solid ${sel ? "#f97316" : "#e5e7eb"}`,
-                        background: sel ? "#fff7ed" : "white",
-                        color: sel ? "#f97316" : "#9ca3af",
-                        fontWeight: sel ? 700 : 500, fontSize: 13,
-                        cursor: "pointer", transition: "all 0.15s", lineHeight: 1.3,
-                      }}>
-                      {sel && <span style={{ marginRight: 6, fontSize: 11 }}>✓</span>}
-                      {wp.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </FormSection>
+        <ReportingWorkPackagesSection
+          reportingDate={form.reportingDate}
+          selectedPackages={form.currentPackages || []}
+          ganttTasks={ganttTasks}
+          ganttLoading={ganttLoading}
+          onReportingDateChange={(value) => updateField("reportingDate", value)}
+          onTogglePackage={togglePackage}
+        />
 
-        {/* ── 2. Work Package Progress ── */}
-        {ganttLoading ? (
-          <FormSection title="Work Package Progress" accentColor="#2f855a">
-            <div style={{ textAlign: "center", padding: "20px", color: "#9ca3af", fontSize: 13 }}>Loading schedule…</div>
-          </FormSection>
-        ) : ganttTasks.length > 0 ? (
-          (() => {
-            const byPhase = {};
-            for (const task of ganttTasks) {
-              const key = task.phaseLabel || task.phaseId || 'Other';
-              if (!byPhase[key]) byPhase[key] = [];
-              byPhase[key].push(task);
-            }
-            return Object.entries(byPhase).map(([phase, tasks]) => (
-              <PhaseSection
-                key={phase}
-                phaseKey={phase}
-                tasks={tasks}
-                ganttWpProgress={ganttWpProgress}
-                onUpdateProgress={updateWPProgress}
-                projectId={project.id}
-              />
-            ));
-          })()
-        ) : (
-          activePackages.map((wp) => (
-            <WPSection
-              key={wp.id}
-              wp={wp}
-              pkgStatuses={form.workPackageStatuses?.[wp.id] || {}}
-              prevPkgStatuses={prevReport?.workPackageStatuses?.[wp.id] ?? null}
-              prevDate={prevReport?.reportingDate || null}
-              onChange={(pkgStatuses) => updateWPStatuses(wp.id, pkgStatuses)}
-            />
-          ))
-        )}
+        <WorkPackageProgressSection
+          ganttLoading={ganttLoading}
+          ganttTasks={ganttTasks}
+          ganttWpProgress={ganttWpProgress}
+          onUpdateProgress={updateWPProgress}
+          projectId={project.id}
+          form={form}
+          prevReport={prevReport}
+          onLegacyChange={updateWPStatuses}
+        />
 
-        {/* ── 3-4. Schedule Status & Risk ── */}
+        {/* в”Ђв”Ђ 3-4. Schedule Status & Risk в”Ђв”Ђ */}
         <ScheduleRiskSection form={form} updateField={updateField} toggleCheckbox={toggleCheckbox} />
 
-        {/* ── 5-6. Client Support & Additional Works ── */}
+        {/* в”Ђв”Ђ 5-6. Client Support & Additional Works в”Ђв”Ђ */}
         <SupportWorksSection form={form} updateField={updateField} toggleCheckbox={toggleCheckbox} />
 
-        {/* ── 7-8. Look Ahead & Declaration ── */}
+        {/* в”Ђв”Ђ 7-8. Look Ahead & Declaration в”Ђв”Ђ */}
         <LookAheadDeclarationSection
           form={form}
           updateField={updateField}
@@ -514,30 +375,14 @@ function ContractorReport({ projects, reports }) {
           onPhotoRemove={(path) => setPhotoUrls((prev) => prev.filter((p) => p !== path))}
           onPhotoError={(msg) => setPhotoError(msg)}
         />
-        {photoError && (
-          <div style={{ background: "#fff1f2", border: "1px solid #fca5a5", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#991b1b" }}>
-            {photoError}
-          </div>
-        )}
+        <PhotoErrorAlert message={photoError} />
 
-        {/* ── Submit ── */}
-        <div className="field-form-sticky-submit-spacer" />
-        <div className="field-form-sticky-submit">
-          <button
-            type="button"
-            data-testid="save-contractor-report"
-            onClick={saveReport}
-            style={{
-              width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none",
-              background: "linear-gradient(135deg, #2f855a 0%, #22c55e 100%)",
-              color: "white", fontSize: 16, fontWeight: 700,
-              cursor: "pointer", letterSpacing: "0.02em",
-              boxShadow: "0 4px 14px rgba(47, 133, 90, 0.35)",
-            }}
-          >
-            Submit Weekly Report
-          </button>
-        </div>
+        {/* в”Ђв”Ђ Submit в”Ђв”Ђ */}
+        <StickySubmitBar
+          onSubmit={saveReport}
+          disabled={submitting}
+          label={submitting ? "Submitting..." : "Submit Weekly Report"}
+        />
 
       </div>
     </div>
