@@ -1,3 +1,10 @@
+-- ============================================================
+-- [HISTORICAL - DO NOT RUN ON FRESH DATABASE]
+-- This migration was applied during initial development.
+-- For fresh installs, use 000_baseline.sql instead.
+-- Kept for historical reference only.
+-- ============================================================
+
 -- Migration 005: Add gc_status to site_visit_wps
 -- Stores the GC's task status at submission time so Dashboard can compare
 -- status-rank (not just numeric progress) when rendering discrepancy results.

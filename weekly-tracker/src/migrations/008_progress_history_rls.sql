@@ -1,3 +1,10 @@
+-- ============================================================
+-- [HISTORICAL - DO NOT RUN ON FRESH DATABASE]
+-- This migration was applied during initial development.
+-- For fresh installs, use 000_baseline.sql instead.
+-- Kept for historical reference only.
+-- ============================================================
+
 -- Migration 008: RLS policy for progress_history
 -- Run manually in Supabase SQL Editor.
 --

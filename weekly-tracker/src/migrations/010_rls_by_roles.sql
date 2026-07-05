@@ -1,3 +1,10 @@
+-- ============================================================
+-- [HISTORICAL - DO NOT RUN ON FRESH DATABASE]
+-- This migration was applied during initial development.
+-- For fresh installs, use 000_baseline.sql instead.
+-- Kept for historical reference only.
+-- ============================================================
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Migration 010: RLS by Roles  (M0.2 — closes K-1)
 -- Construction & Fit-out Progress Tracker

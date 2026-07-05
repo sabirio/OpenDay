@@ -1,3 +1,10 @@
+-- ============================================================
+-- [HISTORICAL - DO NOT RUN ON FRESH DATABASE]
+-- This migration was applied during initial development.
+-- For fresh installs, use 000_baseline.sql instead.
+-- Kept for historical reference only.
+-- ============================================================
+
 -- ⚠️  DEPRECATED — superseded by src/migrations/002_gantt_system.sql
 -- Do not run this file. Use the numbered migration sequence in src/migrations/ instead.
 -- ============================================================

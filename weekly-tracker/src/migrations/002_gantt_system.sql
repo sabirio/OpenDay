@@ -1,3 +1,10 @@
+-- ============================================================
+-- [HISTORICAL - DO NOT RUN ON FRESH DATABASE]
+-- This migration was applied during initial development.
+-- For fresh installs, use 000_baseline.sql instead.
+-- Kept for historical reference only.
+-- ============================================================
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Migration 002: Gantt System Tables
 -- Construction & Fit-out Progress Tracker

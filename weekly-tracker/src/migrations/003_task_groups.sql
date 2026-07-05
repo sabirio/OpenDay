@@ -1,3 +1,10 @@
+-- ============================================================
+-- [HISTORICAL - DO NOT RUN ON FRESH DATABASE]
+-- This migration was applied during initial development.
+-- For fresh installs, use 000_baseline.sql instead.
+-- Kept for historical reference only.
+-- ============================================================
+
 -- Migration 002: task groups
 -- Maps existing flat task names to the new two-level group structure.
 -- Old task IDs remain valid as subtasks within their group.
