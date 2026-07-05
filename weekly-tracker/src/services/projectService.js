@@ -59,6 +59,9 @@ function fromDB(row) {
     phases:      normalizePhasesFromDB(row.phases || []),
     scope:       row.scope       || null,
     templateId:  row.template_id || null,
+    // Conflict-detection baseline (see conflictGuard.js) — null on DBs that
+    // haven't applied 016_updated_at.sql yet.
+    updatedAt:   row.updated_at  || null,
     // ── Gantt fields (read-only, written by ganttService) ──────────────────
     templateType:               row.template_type                || null,
     storeSizeSqm:               row.store_size_sqm               || null,
