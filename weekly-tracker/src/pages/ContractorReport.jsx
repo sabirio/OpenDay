@@ -88,8 +88,33 @@ function ContractorReport({ projects, reports }) {
     [projectReportsForPrefill]
   );
 
-  const [form, setForm] = useState(() => makeInitialForm(null, null));
-  const prefillDone = useRef(false);
+  // P2.1: draft-save/recovery. A contractor filling this out on a phone on
+  // site can lose the whole form to a dropped connection, the phone locking,
+  // or switching apps mid-fill — there was no recovery path at all before
+  // this. One JSON blob per project in localStorage; cleared on successful
+  // submit or explicit discard.
+  const draftKey = `contractor_draft_${projectId}`;
+  const [draftRestored, setDraftRestored] = useState(() => Boolean(readDraft()));
+
+  function readDraft() {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearDraft() {
+    try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    setDraftRestored(false);
+  }
+
+  const [form, setForm] = useState(() => {
+    const draft = readDraft();
+    return draft?.form ? draft.form : makeInitialForm(null, null);
+  });
+  const prefillDone = useRef(Boolean(readDraft()?.form));
 
   useEffect(() => {
     // Wait for reports to load before prefilling (prevReport is null until Supabase responds)
@@ -101,7 +126,7 @@ function ContractorReport({ projects, reports }) {
 
   const [ganttTasks, setGanttTasks] = useState([]);
   const [ganttLoading, setGanttLoading] = useState(false);
-  const [ganttWpProgress, setGanttWpProgress] = useState({});
+  const [ganttWpProgress, setGanttWpProgress] = useState(() => readDraft()?.ganttWpProgress || {});
 
   useEffect(() => {
   if (!project?.id) return;
@@ -119,10 +144,14 @@ function ContractorReport({ projects, reports }) {
       if (isMounted) {
         setGanttTasks(tasks);
         // Pre-fill progress state from DB so overallProgress is correct
-        // even if the user submits without touching any slider.
+        // even if the user submits without touching any slider. A restored
+        // draft's per-task edits win over the server default for that task —
+        // this only ever narrows (server defaults fill in tasks the draft
+        // doesn't have an opinion on), never discards draft input.
+        const draftProgress = readDraft()?.ganttWpProgress || {};
         const initial = {};
         for (const t of tasks) {
-          initial[t.id] = {
+          initial[t.id] = draftProgress[t.id] ?? {
             progress_pct: t.actual_progress ?? 0,
             status:       t.status          ?? 'not_started',
             comment:      '',
@@ -157,8 +186,17 @@ function ContractorReport({ projects, reports }) {
   const [validationErrors, setValidationErrors] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [photoUrls, setPhotoUrls] = useState([]);
+  const [photoUrls, setPhotoUrls] = useState(() => readDraft()?.photoUrls || []);
   const [photoError, setPhotoError] = useState(null);
+
+  // Persist the draft on every edit. Small, plain-JSON state — cheap to
+  // stringify on each change; guarded against private-browsing/quota errors.
+  useEffect(() => {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ form, ganttWpProgress, photoUrls, savedAt: new Date().toISOString() }));
+    } catch { /* private browsing / quota exceeded — draft save is best-effort */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, ganttWpProgress, photoUrls]);
 
   function updateField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -289,6 +327,7 @@ function ContractorReport({ projects, reports }) {
         photoUrls,
       });
 
+      clearDraft();
       setSubmitted(true);
     } catch (err) {
       console.error("Failed to submit report:", err);
@@ -338,6 +377,25 @@ function ContractorReport({ projects, reports }) {
   return (
     <div data-testid="contractor-report-form" className="field-form-page" style={{ minHeight: "100vh", background: "#f0f7f2", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
+
+        {draftRestored && (
+          <div data-testid="draft-restored-banner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 12, padding: "10px 16px", marginBottom: 16, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: "#1e40af", fontWeight: 600 }}>Restored your unsaved draft for this report.</span>
+            <button
+              type="button"
+              onClick={() => {
+                clearDraft();
+                prefillDone.current = false;
+                setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
+                setGanttWpProgress({});
+                setPhotoUrls([]);
+              }}
+              style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #93c5fd", background: "white", color: "#1e40af", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+            >
+              Discard draft
+            </button>
+          </div>
+        )}
 
         <ReportHeaderCard
           project={project}

@@ -39,18 +39,18 @@ function GanttWPRow({ task, entry, onChange }) {
         onChange={e => setPct(parseInt(e.target.value))}
         style={{ width: '100%', cursor: 'pointer', accentColor: pctColor, marginBottom: 8 }}
       />
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {GANTT_STATUS_OPTS.map(opt => {
           const sel = status === opt.value;
           return (
             <button key={opt.value} type="button"
               onClick={() => setStatus(opt.value)}
               style={{
-                padding: '3px 8px', borderRadius: 5, fontSize: 11,
+                padding: '10px 14px', minHeight: 44, borderRadius: 8, fontSize: 13,
                 border: `1px solid ${sel ? opt.border : '#e5e7eb'}`,
                 background: sel ? opt.bg : 'white',
                 color: sel ? opt.color : '#9ca3af',
-                fontWeight: sel ? 700 : 400,
+                fontWeight: sel ? 700 : 500,
                 cursor: 'pointer', whiteSpace: 'nowrap', outline: 'none',
               }}>
               {opt.label}
