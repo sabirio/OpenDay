@@ -19,6 +19,7 @@ import { getProjectGantt } from "../services/ganttService";
 import { submitReport as submitContractorReport } from "../services/contractorReportService";
 import { computeWPCumulativeStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
 import { calculateProjectProgressResult } from "../engines/progressEngine";
+import { useAuth } from "../auth/AuthContext";
 
 const riskOptions = [
   { label: "Resource Availability",          description: "Shortage of manpower, equipment, or site supervision within the next 2–3 weeks." },
@@ -563,6 +564,7 @@ function makeInitialForm(prevReport, cumulativeStatuses) {
 
 function ContractorReport({ projects, reports, onSaveReport }) {
   const { projectId } = useParams();
+  const { user } = useAuth();
   const project = projects.find((p) => String(p.id) === projectId);
 
   const projectReportsForPrefill = useMemo(() =>
@@ -790,6 +792,7 @@ function ContractorReport({ projects, reports, onSaveReport }) {
 
         await submitContractorReport(project.id, wpProgressArray, {
           reportDate: mainReportPayload.reportingDate,
+          submittedBy: user.id,
           overallProgress,
           masterReportId: mainReportPayload.id,
         });
