@@ -57,6 +57,7 @@ export default defineConfig([
       'tests/e2e/**/*.js',
       'src/tests/**/*.js',
       'src/migrations/**/*.js',
+      'playwright.config.js',
     ],
     languageOptions: {
       globals: { ...globals.node },

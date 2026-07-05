@@ -1,4 +1,33 @@
 import { defineConfig, devices } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+
+function loadDotEnv(fileName) {
+  const filePath = path.resolve(process.cwd(), fileName);
+  if (!fs.existsSync(filePath)) return;
+
+  for (const rawLine of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#') || !line.includes('=')) continue;
+    const eq = line.indexOf('=');
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadDotEnv('.env');
+loadDotEnv('.env.local');
+
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === '1';
+const webServerCommand = process.env.PLAYWRIGHT_WEB_SERVER_COMMAND || 'npm run dev';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -14,7 +43,7 @@ export default defineConfig({
   globalTeardown: './tests/e2e/global-teardown.js',
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     headless: true,
@@ -27,11 +56,10 @@ export default defineConfig({
     },
   ],
 
-  // Start dev server before tests
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+  webServer: skipWebServer ? undefined : {
+    command: webServerCommand,
+    url: baseURL,
     reuseExistingServer: true,
-    timeout: 30_000,
+    timeout: 60_000,
   },
 });

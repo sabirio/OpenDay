@@ -89,6 +89,32 @@ Submit-failure behavior after photos upload: uploaded paths remain in the in-mem
 
 ---
 
+## P0.5 Real E2E / CI
+
+`npm run test:e2e` runs the focused production-critical flow in `tests/e2e/p0-real-flow.spec.js` and writes machine-readable output to `test-results/results.json`.
+
+Required local environment:
+
+```bash
+cp .env.example .env.local
+node scripts/seed-test-users.mjs
+npm run build
+npm run test:e2e
+```
+
+Required `.env.local` / CI secrets:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`
+- `E2E_PM_EMAIL`, `E2E_PM_PASSWORD`
+- `E2E_CONTRACTOR_EMAIL`, `E2E_CONTRACTOR_PASSWORD`
+- `E2E_VIEWER_EMAIL`, `E2E_VIEWER_PASSWORD`
+- `SUPABASE_SERVICE_ROLE_KEY` only for `scripts/seed-test-users.mjs`, never for browser/E2E runtime
+
+The P0 E2E creates a uniquely named project, links the contractor, submits a contractor report with photos, asserts canonical DB rows, submits a PM site visit, verifies dashboard/weekly/risk/project visibility, checks viewer read access and contractor admin denial, then deletes the rows and uploaded photo paths it created. CI runs E2E only when Supabase/test-user secrets are present; otherwise CI still runs lint, typecheck, and unit tests and documents the skipped build/E2E step in the job log.
+
+---
+
 ## Secrets
 
 ### Environment variables

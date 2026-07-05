@@ -1,5 +1,5 @@
 /**
- * seed-test-users.mjs — Create/repair the 3 E2E test accounts.
+ * seed-test-users.mjs — Create/repair the 4 E2E test accounts.
  *
  * Run from weekly-tracker/:   node scripts/seed-test-users.mjs
  *
@@ -41,6 +41,7 @@ const USERS = [
   { email: 'admin@openday.fit', password: 'Admin', name: 'E2E Admin',     role: 'Admin' },
   { email: 'pm@openday.fit',    password: 'Pm',    name: 'E2E PM',         role: 'PM' },
   { email: 'gc@openday.fit',    password: 'Gc',    name: 'E2E Contractor', role: 'Contractor' },
+  { email: 'viewer@construction.com', password: 'Viewer', name: 'E2E Viewer', role: 'Viewer' },
 ];
 
 // Find an existing auth user by email (paginates listUsers).

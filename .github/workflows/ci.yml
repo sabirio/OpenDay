@@ -1,81 +1,104 @@
 name: CI
 
-# Mirrors the local scripts in weekly-tracker/package.json:
-#   npm ci  ->  npm run lint  ->  npm run build  ->  npm test
-# The app lives in the weekly-tracker/ subfolder (working-directory below).
-
 on:
-  push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+  push:
+    branches: [main]
 
 jobs:
-  build-and-test:
+  verify:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: weekly-tracker
-
-    # Dummy, non-secret placeholders. `vite build` bundles the app statically and
-    # never contacts Supabase at build time, so these only satisfy any
-    # import.meta.env.VITE_* references during the build. Real values live only in
-    # .env.local (local) and GitHub Secrets (e2e, below) — never in this file.
     env:
-      VITE_SUPABASE_URL: https://dummy.supabase.co
-      VITE_SUPABASE_ANON_KEY: dummy-anon-key-not-real
+      HAS_SUPABASE_APP_ENV: ${{ secrets.VITE_SUPABASE_URL != '' && secrets.VITE_SUPABASE_ANON_KEY != '' }}
+      HAS_E2E_ENV: ${{ secrets.VITE_SUPABASE_URL != '' && secrets.VITE_SUPABASE_ANON_KEY != '' && secrets.E2E_ADMIN_EMAIL != '' && secrets.E2E_ADMIN_PASSWORD != '' && secrets.E2E_PM_EMAIL != '' && secrets.E2E_PM_PASSWORD != '' && secrets.E2E_CONTRACTOR_EMAIL != '' && secrets.E2E_CONTRACTOR_PASSWORD != '' && secrets.E2E_VIEWER_EMAIL != '' && secrets.E2E_VIEWER_PASSWORD != '' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 22
           cache: npm
           cache-dependency-path: weekly-tracker/package-lock.json
 
-      - name: Install dependencies
+      - name: Install
         run: npm ci
 
-      # Lint is BLOCKING (M1.5): the 86 pre-existing errors were driven to 0.
-      # Remaining lint output is warnings only (set-state-in-effect, exhaustive-deps),
-      # which do not fail `eslint`. Any new error will fail CI.
       - name: Lint
         run: npm run lint
 
-      - name: Build
-        run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Unit tests
         run: npm test
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # E2E (Playwright) — DISABLED. It needs a real Supabase project + seeded test
-  # accounts, so it cannot run on a stock runner without secrets and a live DB.
-  #
-  # To enable later:
-  #   1. Add repo Secrets (Settings > Secrets and variables > Actions):
-  #        VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-  #   2. Uncomment the job below.
-  #
-  # e2e:
-  #   runs-on: ubuntu-latest
-  #   defaults:
-  #     run:
-  #       working-directory: weekly-tracker
-  #   env:
-  #     VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  #     VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-  #     SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: '20'
-  #         cache: npm
-  #         cache-dependency-path: weekly-tracker/package-lock.json
-  #     - run: npm ci
-  #     - run: npx playwright install --with-deps chromium
-  #     - run: npm run test:e2e
+      - name: Build
+        if: ${{ env.HAS_SUPABASE_APP_ENV == 'true' }}
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Skip build/e2e notice
+        if: ${{ env.HAS_SUPABASE_APP_ENV != 'true' }}
+        run: echo "Skipping build/e2e because VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is not configured."
+
+      - name: Install Playwright browser
+        if: ${{ env.HAS_E2E_ENV == 'true' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Serve built app
+        if: ${{ env.HAS_E2E_ENV == 'true' }}
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 5173 > preview.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then
+              echo "Preview server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat preview.log
+          exit 1
+
+      - name: E2E P0 real flow
+        if: ${{ env.HAS_E2E_ENV == 'true' }}
+        env:
+          PLAYWRIGHT_SKIP_WEBSERVER: '1'
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_PM_EMAIL: ${{ secrets.E2E_PM_EMAIL }}
+          E2E_PM_PASSWORD: ${{ secrets.E2E_PM_PASSWORD }}
+          E2E_CONTRACTOR_EMAIL: ${{ secrets.E2E_CONTRACTOR_EMAIL }}
+          E2E_CONTRACTOR_PASSWORD: ${{ secrets.E2E_CONTRACTOR_PASSWORD }}
+          E2E_VIEWER_EMAIL: ${{ secrets.E2E_VIEWER_EMAIL }}
+          E2E_VIEWER_PASSWORD: ${{ secrets.E2E_VIEWER_PASSWORD }}
+        run: npm run test:e2e:ci
+
+      - name: Skip E2E notice
+        if: ${{ env.HAS_SUPABASE_APP_ENV == 'true' && env.HAS_E2E_ENV != 'true' }}
+        run: echo "Skipping E2E because one or more E2E_* test account secrets are not configured."
+
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            weekly-tracker/test-results
+            weekly-tracker/playwright-report
+            weekly-tracker/preview.log
+          if-no-files-found: ignore
