@@ -52,3 +52,12 @@ where `canonicalWorkPackages` = `masterTaskLibrary.WORK_PACKAGES` or `constructi
 - **`masterTaskLibrary.js` propagation:** not needed. Nothing reads `openingBlocker` from `masterTaskLibrary.WORK_PACKAGES` — the engine reads `constructionRetailV1` directly, bypassing `masterTaskLibrary` for this field entirely.
 - **Tests:** no dedicated `openingReadinessEngine` test file exists. TODO for a future pass — not added in this PR (out of scope per wave rules).
 - Date resolved: 2026-07-05
+
+## masterTaskLibrary sync risk (Wave 4 backlog)
+
+- `masterTaskLibrary.WORK_PACKAGES` is a manually maintained literal, NOT a programmatic derivation from `constructionRetailV1`.
+- Risk: any new field added to `constructionRetailV1` WPs must be manually propagated to `masterTaskLibrary`.
+- **Verified (2026-07-05):** the `openingBlocker` field added in Wave 4.5 (`60c77ee`) is confirmed **absent** from `masterTaskLibrary.WORK_PACKAGES` — a real gap, not just a theoretical risk.
+- **Verified (2026-07-05):** no consumer of `masterTaskLibrary.WORK_PACKAGES` reads `.openingBlocker` — grepped the whole `src/` tree; the only consumer of `.openingBlocker` anywhere is `openingReadinessEngine.js` itself, which reads `constructionRetailV1` directly and never touches `masterTaskLibrary` for this field. **No action required before Wave 6** — the gap is inert today.
+- If a future consumer of `masterTaskLibrary.WORK_PACKAGES` needs `openingBlocker`, add the field there at that time (re-check this section first — this codebase has already shown a pattern of doc claims going stale, e.g. the "flatten adapter" mislabel corrected in Wave 4.5).
+- Long-term fix (P2, not scheduled): refactor `masterTaskLibrary` to derive its WP list from `constructionRetailV1` programmatically (e.g. `constructionRetailV1.phases.flatMap(...)`), eliminating the dual-maintenance risk permanently.
