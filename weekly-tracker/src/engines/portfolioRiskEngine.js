@@ -10,14 +10,11 @@ export function computeRiskSummaryStats(allRows) {
   allRows.forEach(r => c[r.riskScore.level]++);
   const avgScore  = allRows.length ? Math.round(allRows.reduce((s, r) => s + r.riskScore.score, 0) / allRows.length) : 0;
   const avgHealth = allRows.length ? Math.round(allRows.reduce((s, r) => s + r.health.score, 0) / allRows.length) : 0;
-  const now = new Date();
-  const opening30  = allRows.filter(r => {
-    const dTo = r.project.targetOpeningDate ? Math.ceil((new Date(r.project.targetOpeningDate) - now) / 86400000) : null;
-    return dTo !== null && dTo >= 0 && dTo < 30;
-  }).length;
+  const opening30 = allRows.filter(r =>
+    r.daysToOpening !== null && r.daysToOpening >= 0 && r.daysToOpening < 30
+  ).length;
   const pmMismatch = allRows.filter(r =>
     r.riskScore.factors.some(f => f.name === "PM Site Visit mismatch" || f.name === "Hidden risk (PM vs GC)")
   ).length;
   return { ...c, avgScore, avgHealth, opening30, pmMismatch };
 }
-

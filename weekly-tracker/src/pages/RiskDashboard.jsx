@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { isSevereScheduleStatus, daysUntil } from "../utils/reportUtils";
+import { isSevereScheduleStatus } from "../utils/reportUtils";
 import { RISK_COLORS, RISK_DIMENSIONS } from "../engines/riskEngine";
 import { computePortfolioContractorScores } from "../engines/contractorEngine";
 import { computePmAlignmentItems, summarizeAlignmentItems } from "../engines/pmAlignmentEngine";
@@ -231,8 +231,8 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
             <span style={{ fontSize: 14, fontWeight: 800, color: "var(--status-alert)" }}>EARLY WARNING — {criticalRows.length} CRITICAL PROJECT{criticalRows.length > 1 ? "S" : ""} REQUIRE IMMEDIATE ACTION</span>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {criticalRows.map(({ project, riskScore, schedDev, latestReport }) => {
-              const dTo = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
+            {criticalRows.map(({ project, riskScore, schedDev, latestReport, daysToOpening }) => {
+              const dTo = daysToOpening;
               return (
                 <div key={project.id} style={{ background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", minWidth: 240 }}>
                   <div style={{ fontWeight: 800, fontSize: 14, color: "var(--status-alert)", marginBottom: 6 }}>{project.storeCode} — {project.shoppingMallName}</div>
@@ -285,9 +285,9 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
           )}
 
           {/* CRITICAL / HIGH detail cards */}
-          {sortedByRisk.filter(r => r.riskScore.level === "CRITICAL" || r.riskScore.level === "HIGH").map(({ project, riskScore, schedDev, trend, escalations, evolution, actions, health, evm, driftProfile, monteCarlo }) => {
+          {sortedByRisk.filter(r => r.riskScore.level === "CRITICAL" || r.riskScore.level === "HIGH").map(({ project, riskScore, schedDev, trend, escalations, evolution, actions, health, evm, driftProfile, monteCarlo, daysToOpening }) => {
             const c = riskScore.color;
-            const dTo = project.targetOpeningDate ? Math.ceil((new Date(project.targetOpeningDate) - new Date()) / 86400000) : null;
+            const dTo = daysToOpening;
             return (
               <div key={project.id} className="dashboard-summary-card" style={{ margin: 0, borderLeft: `4px solid ${c.text}`, paddingLeft: 20 }}>
                 <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
