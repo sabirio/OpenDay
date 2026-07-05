@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
 
 const ROLES = ['Admin', 'PM', 'Contractor', 'Viewer'];
 
@@ -9,6 +8,11 @@ const ROLE_COLORS = {
   Contractor: { background: 'var(--status-warn-bg)', color: 'var(--status-warn)'  },
   Viewer:     { background: 'var(--bg-elevated)',    color: 'var(--text-muted)'   },
 };
+
+async function getSupabaseClient() {
+  const { supabase } = await import('../lib/supabase');
+  return supabase;
+}
 
 function AdminUsers({ projects = [] }) {
   const [users, setUsers]     = useState([]);
@@ -22,6 +26,7 @@ function AdminUsers({ projects = [] }) {
   async function loadUsers() {
     setLoading(true);
     setError('');
+    const supabase = await getSupabaseClient();
     const { data, error } = await supabase
       .from('profiles')
       .select('id, name, email, role, company_id, assigned_projects')
@@ -53,6 +58,7 @@ function AdminUsers({ projects = [] }) {
   async function saveUser(user) {
     setSaving(user.id);
     setError('');
+    const supabase = await getSupabaseClient();
     const { error } = await supabase
       .from('profiles')
       .update({

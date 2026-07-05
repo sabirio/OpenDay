@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { calculateLayout } from '../engines/ganttLayout.js';
+import GanttLegend from './gantt/GanttLegend.jsx';
 
 function addDaysLocal(date, days) {
   const d = new Date(date instanceof Date ? date.getTime() : date);
@@ -189,52 +190,6 @@ function Row({ label, value, bold, critical }) {
         fontWeight: (bold || critical) ? 700 : 500,
         textAlign: 'right',
       }}>{value}</span>
-    </div>
-  );
-}
-
-// ─── Legend ───────────────────────────────────────────────────────────────────
-
-function Legend() {
-  const bars = [
-    { label: 'Planned',       bg: 'var(--border)',             border: C.border },
-    { label: 'In Progress',   bg: C.blue,                     border: 'none' },
-    { label: 'Complete',      bg: C.green,                    border: 'none' },
-    { label: 'Critical Path', bg: 'rgba(255,100,100,0.4)',    border: C.redCrit },
-    { label: 'Warning ⚠',    bg: 'rgba(245,158,11,0.2)',     border: C.yellow },
-    { label: 'Critical Disc', bg: 'rgba(239,68,68,0.2)',      border: C.red },
-  ];
-  const lines = [
-    { label: 'Today',         color: C.white60, dashed: true },
-    { label: 'Target Open',   color: C.green,   dashed: false },
-    { label: 'Const. Done',   color: C.blue,    dashed: false },
-    { label: 'Forecast Open', color: C.yellow,  dashed: true },
-  ];
-
-  return (
-    <div style={{
-      display: 'flex', flexWrap: 'wrap', gap: '6px 16px',
-      padding: '8px 14px', borderTop: `1px solid ${C.border}`,
-      background: C.bgEl, flexShrink: 0,
-    }}>
-      {bars.map(({ label, bg, border }) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.muted }}>
-          <div style={{
-            width: 18, height: 9, borderRadius: 3, flexShrink: 0,
-            background: bg, border: border !== 'none' ? `1.5px solid ${border}` : 'none',
-          }} />
-          <span>{label}</span>
-        </div>
-      ))}
-      {lines.map(({ label, color, dashed }) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.muted }}>
-          <div style={{
-            width: 18, height: 0, flexShrink: 0,
-            borderTop: `2px ${dashed ? 'dashed' : 'solid'} ${color}`,
-          }} />
-          <span>{label}</span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -868,7 +823,7 @@ export default function GanttChart({
       </div>
 
       {/* Legend */}
-      <Legend />
+      <GanttLegend colors={C} />
 
       {/* WP Detail Tooltip */}
       {selectedTask && (

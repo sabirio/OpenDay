@@ -15,6 +15,8 @@ import { computeRiskSummaryStats } from "../engines/portfolioRiskEngine";
 import EvmWidget from "../components/analytics/EvmWidget";
 import MonteCarloWidget from "../components/analytics/MonteCarloWidget";
 import DriftChart from "../components/analytics/DriftChart";
+import RiskSummaryKpis from "../components/risk/RiskSummaryKpis";
+import CriticalWarnings from "../components/risk/CriticalWarnings";
 
 const SEV_COLORS = RISK_LEVEL_COLORS;
 
@@ -184,69 +186,17 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
 
   return (
     <div>
-      {/* ── Page header + KPI cards ── */}
+      {/* Page header + KPI cards */}
       <div className="page-header" style={{ alignItems: "flex-start" }}>
         <div>
           <h1>Risk Dashboard</h1>
-          <p>Project health · Risk scoring · Contractor performance · PM verification alignment.</p>
+          <p>Project health - Risk scoring - Contractor performance - PM verification alignment.</p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
-          <div style={{ textAlign: "center", background: summaryStats.avgHealth >= 75 ? 'var(--status-done-bg)' : summaryStats.avgHealth >= 50 ? 'var(--status-warn-bg)' : 'var(--status-alert-bg)', border: '1.5px solid var(--border)', borderRadius: 12, padding: "10px 14px", minWidth: 70 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: summaryStats.avgHealth >= 75 ? "var(--status-done)" : summaryStats.avgHealth >= 50 ? "var(--status-warn)" : "var(--status-alert)", lineHeight: 1 }}>{summaryStats.avgHealth}</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Health</div>
-          </div>
-          {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map(level => {
-            const c = RISK_COLORS[level];
-            return (
-              <div key={level} data-testid={`risk-kpi-${level.toLowerCase()}`} style={{ textAlign: "center", background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: c.text, lineHeight: 1 }}>{summaryStats[level]}</div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: c.text, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>{level}</div>
-              </div>
-            );
-          })}
-          <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{summaryStats.avgScore}</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Risk</div>
-          </div>
-          {summaryStats.opening30 > 0 && (
-            <div style={{ textAlign: "center", background: "var(--status-warn-bg)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--status-warn)", lineHeight: 1 }}>{summaryStats.opening30}</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "var(--status-warn)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Open &lt;30d</div>
-            </div>
-          )}
-          {summaryStats.pmMismatch > 0 && (
-            <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--accent)", lineHeight: 1 }}>{summaryStats.pmMismatch}</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>PM Mismatch</div>
-            </div>
-          )}
-        </div>
+        <RiskSummaryKpis summaryStats={summaryStats} riskColors={RISK_COLORS} />
       </div>
 
-      {/* ── Critical early warnings (always visible) ── */}
-      {criticalRows.length > 0 && (
-        <div style={{ background: "var(--status-alert-bg)", border: "1.5px solid var(--border)", borderRadius: 14, padding: "16px 20px", marginBottom: 20, borderLeft: "4px solid var(--status-alert)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <span style={{ color: "var(--status-alert)", display: "inline-flex", alignItems: "center" }}><Glyph name="alert" size={18} /></span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: "var(--status-alert)" }}>EARLY WARNING — {criticalRows.length} CRITICAL PROJECT{criticalRows.length > 1 ? "S" : ""} REQUIRE IMMEDIATE ACTION</span>
-          </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {criticalRows.map(({ project, riskScore, schedDev, latestReport, daysToOpening }) => {
-              const dTo = daysToOpening;
-              return (
-                <div key={project.id} style={{ background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 16px", minWidth: 240 }}>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: "var(--status-alert)", marginBottom: 6 }}>{project.storeCode} — {project.shoppingMallName}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-primary)", marginBottom: 2 }}>Risk Score: <strong style={{ color: "var(--status-alert)" }}>{riskScore.score} / 100</strong></div>
-                  {schedDev?.predictedDelayDays > 0 && <div style={{ fontSize: 12, color: "var(--text-primary)", marginBottom: 2 }}>Predicted delay: <strong style={{ color: "var(--status-alert)" }}>+{schedDev.predictedDelayDays} days</strong></div>}
-                  {dTo !== null && <div style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: dTo < 0 ? "var(--status-alert)" : "var(--status-warn)" }}>{dTo < 0 ? <><Glyph name="block" /> {Math.abs(dTo)}d OVERDUE</> : <><Glyph name="calendar" /> {dTo}d to opening</>}</div>}
-                  {latestReport?.activitiesBlocked === "Yes" && <div style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, color: "var(--status-alert)", marginTop: 4 }}><Glyph name="block" /> Activities blocked</div>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
+      {/* Critical early warnings (always visible) */}
+      <CriticalWarnings rows={criticalRows} Glyph={Glyph} />
       {/* ── Tab navigation ── */}
       <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "var(--accent-subtle)", borderRadius: 12, padding: 4, border: "1px solid var(--border)", width: "fit-content" }}>
         {VIEWS.map(({ id, label }) => (

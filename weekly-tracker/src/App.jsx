@@ -1,21 +1,6 @@
-import { useState, useEffect, useMemo, Component } from "react";
+import { useState, useEffect, useMemo, Component, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Dashboard from "./pages/Dashboard";
-import Home from "./pages/Home";
-import Projects from "./pages/Projects";
-import WeeklyReports from "./pages/WeeklyReports";
-import ContractorReport from "./pages/ContractorReport";
-import SiteVisitReport from "./pages/SiteVisitReport";
-import RiskDashboard from "./pages/RiskDashboard";
-import AdminUsers from "./pages/AdminUsers";
-import TemplateEditor from "./pages/TemplateEditor";
-import WeightAudit from "./pages/WeightAudit";
-import Login from "./pages/Login";
-import ResetPassword from "./pages/ResetPassword";
-import Unauthorized from "./pages/Unauthorized";
-import ContractorSelect from "./pages/ContractorSelect";
-import SiteVisitSelect from "./pages/SiteVisitSelect";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { useAuth } from "./auth/AuthContext";
@@ -25,6 +10,22 @@ import * as contractorReportService from "./services/contractorReportService";
 import * as siteVisitService from "./services/siteVisitService";
 import { fetchAllTemplates } from "./data/templatesApi";
 import { constructionRetailV1 } from "./domains/construction/templates/constructionRetailV1";
+
+const Dashboard        = lazy(() => import("./pages/Dashboard"));
+const Home             = lazy(() => import("./pages/Home"));
+const Projects         = lazy(() => import("./pages/Projects"));
+const WeeklyReports    = lazy(() => import("./pages/WeeklyReports"));
+const ContractorReport = lazy(() => import("./pages/ContractorReport"));
+const SiteVisitReport  = lazy(() => import("./pages/SiteVisitReport"));
+const RiskDashboard    = lazy(() => import("./pages/RiskDashboard"));
+const AdminUsers       = lazy(() => import("./pages/AdminUsers"));
+const TemplateEditor   = lazy(() => import("./pages/TemplateEditor"));
+const WeightAudit      = lazy(() => import("./pages/WeightAudit"));
+const Login            = lazy(() => import("./pages/Login"));
+const ResetPassword    = lazy(() => import("./pages/ResetPassword"));
+const Unauthorized     = lazy(() => import("./pages/Unauthorized"));
+const ContractorSelect = lazy(() => import("./pages/ContractorSelect"));
+const SiteVisitSelect  = lazy(() => import("./pages/SiteVisitSelect"));
 
 const CONSTRUCTION_TEMPLATE = {
   phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
@@ -77,6 +78,14 @@ function GlobalLoadingScreen() {
       <div style={{ width: 20, height: 20, border: '3px solid var(--border)', borderTopColor: 'var(--status-warn)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <span style={{ fontSize: 15 }}>Loading project data…</span>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  );
+}
+
+function RouteLoadingScreen() {
+  return (
+    <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)", fontFamily: "sans-serif" }}>
+      Loading...
     </div>
   );
 }
@@ -196,6 +205,7 @@ function App() {
         v7_relativeSplatPath: true,
       }}
     >
+      <Suspense fallback={<RouteLoadingScreen />}>
       <Routes>
         {/* ── Public routes ──────────────────────────────────────── */}
         <Route
@@ -341,6 +351,7 @@ function App() {
           }
         />
       </Routes>
+      </Suspense>
     </BrowserRouter>
     </ErrorBoundary>
   );

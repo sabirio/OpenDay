@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
-  formatDate,
   computeWPCumulativeStatuses,
   isWPReport,
 } from "../utils/reportUtils";
@@ -23,7 +22,6 @@ import { getProjectGantt, updateWPDates } from "../services/ganttService";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
 import { validateTemplate, explainFromSnapshot, explainLive, taskProgressFromStatuses } from "../core/projects";
 import { constructionRetailV1 } from "../domains/construction/templates/constructionRetailV1";
-import GanttChart         from "../components/GanttChart";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
 import AllClearStrip      from "../components/weekly/AllClearStrip";
@@ -33,6 +31,10 @@ import ProgressNarrative  from "../components/weekly/ProgressNarrative";
 import ProgressChart      from "../components/weekly/ProgressChart";
 import PhaseTimeline          from "../components/weekly/PhaseTimeline";
 import SiteVisitComparison   from "../components/weekly/SiteVisitComparison";
+import WeeklyReportsToolbar from "../components/weekly/WeeklyReportsToolbar";
+import MissingReportsModal from "../components/weekly/MissingReportsModal";
+
+const GanttChart = React.lazy(() => import("../components/GanttChart"));
 
 // ─── ErrorBoundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
@@ -316,47 +318,17 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
         </div>
 
         {/* Selectors toolbar */}
-        <div className="dashboard-toolbar">
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", flex: 1 }}>
-            <div className="dashboard-filter-group">
-              <label>Project</label>
-              <select data-testid="project-select" value={selectedProjectId} onChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}>
-                {projects.map(p => (
-                  <option key={p.id} value={String(p.id)}>{p.storeCode} — {p.shoppingMallName}</option>
-                ))}
-              </select>
-            </div>
-            <div className="dashboard-filter-group">
-              <label>Report date</label>
-              <select data-testid="report-date-select" value={selectedReportId} onChange={e => setSelectedReportId(e.target.value)} disabled={!projectReports.length}>
-                {projectReports.length === 0
-                  ? <option value="">No reports yet</option>
-                  : projectReports.map(r => (
-                      <option key={r.id} value={String(r.id)}>
-                        {r.reportingDate || formatDate(r.submittedAt)}
-                      </option>
-                    ))
-                }
-              </select>
-            </div>
-          </div>
-          {selectedProject && (
-            <button
-              type="button"
-              onClick={() => setShowGantt(v => !v)}
-              style={{
-                padding: "7px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                border: `1.5px solid ${showGantt ? "var(--status-done)" : "var(--border)"}`,
-                background: showGantt ? "var(--status-done-bg)" : "var(--accent-subtle)",
-                color: showGantt ? "var(--status-done)" : "var(--text-primary)",
-                flexShrink: 0,
-              }}
-            >
-              {showGantt ? "Hide Gantt" : "View Gantt →"}
-            </button>
-          )}
-        </div>
-
+        <WeeklyReportsToolbar
+          projects={projects}
+          projectReports={projectReports}
+          selectedProjectId={selectedProjectId}
+          selectedReportId={selectedReportId}
+          selectedProject={selectedProject}
+          showGantt={showGantt}
+          onProjectChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}
+          onReportChange={e => setSelectedReportId(e.target.value)}
+          onToggleGantt={() => setShowGantt(v => !v)}
+        />
         {/* Project header + KPI strip + Progress Narrative */}
         {selectedProject && (
           <>
@@ -405,55 +377,31 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
             ) : ganttTasks.length === 0 ? (
               <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>No Gantt schedule generated yet for this project.</div>
             ) : (
-              <GanttChart
-                project={selectedProject}
-                tasks={ganttTasks}
-                keyDates={{
-                  constructionStartDate:      selectedProject.constructionStartDate,
-                  constructionEndDate:        selectedProject.constructionEndDate,
-                  targetOpeningDate:          selectedProject.targetOpeningDate,
-                  forecastOpeningDate:        selectedProject.forecastOpeningDate,
-                  constructionCompletionDate: selectedProject.constructionCompletionDate,
-                }}
-                onWPResize={handleWPResize}
-              />
+              <React.Suspense fallback={<div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>Loading Gantt chart...</div>}>
+                <GanttChart
+                  project={selectedProject}
+                  tasks={ganttTasks}
+                  keyDates={{
+                    constructionStartDate:      selectedProject.constructionStartDate,
+                    constructionEndDate:        selectedProject.constructionEndDate,
+                    targetOpeningDate:          selectedProject.targetOpeningDate,
+                    forecastOpeningDate:        selectedProject.forecastOpeningDate,
+                    constructionCompletionDate: selectedProject.constructionCompletionDate,
+                  }}
+                  onWPResize={handleWPResize}
+                />
+              </React.Suspense>
             )}
           </div>
         )}
 
         {/* Missing reports modal */}
         {showMissingModal && (
-          <>
-            <div onClick={() => setShowMissingModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000 }} />
-            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 780, maxWidth: "96vw", maxHeight: "85vh", background: "var(--bg-surface)", zIndex: 1001, borderRadius: 16, boxShadow: "var(--shadow-lg)", display: "flex", flexDirection: "column", borderTop: "3px solid var(--status-alert)", border: "1px solid var(--border)" }}>
-              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>Missing Reports</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Projects with no report or last report older than 7 days</div>
-                </div>
-                <button type="button" onClick={() => setShowMissingModal(false)} style={{ padding: "5px 13px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--accent-subtle)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close ×</button>
-              </div>
-              <div style={{ overflowY: "auto", padding: "16px 24px" }}>
-                <table className="dashboard-table" style={{ width: "100%" }}>
-                  <thead><tr><th>Project</th><th>Contractor</th><th>Last Report</th><th>Days Since</th><th>PM</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {portfolioKpis.missing.sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999)).map(({ project, latestReport, daysSinceReport }) => (
-                      <tr key={project.id}>
-                        <td><div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{project.storeCode}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{project.shoppingMallName}</div></td>
-                        <td style={{ fontSize: 12, color: "var(--text-secondary)" }}>{project.generalContractor || "—"}</td>
-                        <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: "var(--status-alert)", fontWeight: 700 }}>Never</span>}</td>
-                        <td style={{ fontSize: 13, fontWeight: 700, color: "var(--status-alert)" }}>{daysSinceReport !== null ? `${daysSinceReport}d` : "—"}</td>
-                        <td style={{ fontSize: 12, color: "var(--text-secondary)" }}>{project.projectManager || "—"}</td>
-                        <td>{!latestReport ? <span style={{ fontSize: 11, fontWeight: 700, color: "var(--status-alert)", padding: "2px 8px", borderRadius: 7, background: "var(--status-alert-bg)", border: "1px solid var(--border)" }}>Missing</span> : <span style={{ fontSize: 11, fontWeight: 700, color: "var(--status-warn)", padding: "2px 8px", borderRadius: 7, background: "var(--status-warn-bg)", border: "1px solid var(--border)" }}>Overdue</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
+          <MissingReportsModal
+            missingRows={[...portfolioKpis.missing].sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999))}
+            onClose={() => setShowMissingModal(false)}
+          />
         )}
-
         {/* Empty state */}
         {projectReports.length === 0 && selectedProject && (
           <div className="dashboard-summary-card" style={{ color: "var(--text-muted)", padding: "32px 24px", textAlign: "center" }}>
