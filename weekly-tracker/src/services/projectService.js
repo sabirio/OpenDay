@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { ProjectSchema } from '../schemas/projectSchema';
+import { ProjectSchema, ProgressHistoryRowSchema } from '../schemas/projectSchema';
 import { validateArray, validateOne } from '../schemas/validate';
 
 const LEGACY_PHASE_MAP = {
@@ -127,7 +127,17 @@ export async function getAll() {
       if (!histByProject[row.project_id]) histByProject[row.project_id] = [];
       histByProject[row.project_id].push(row);
     }
-    const withHistory = projects.map(p => ({ ...p, progressHistory: histByProject[p.id] || [] }));
+    // Validate progress_history rows independently, per project, BEFORE they're
+    // embedded in the project object (P1.3): ProjectSchema.progressHistory is a
+    // nested array, and Zod fails the whole parent parse on the first invalid
+    // element — one corrupted historical snapshot would otherwise drop the
+    // entire project (and everything derived from it) from getAll(), not just
+    // that one snapshot. Filtering here keeps the "one bad row, one warning"
+    // contract for nested collections too.
+    const withHistory = projects.map(p => ({
+      ...p,
+      progressHistory: validateArray(ProgressHistoryRowSchema, histByProject[p.id] || [], `progress_history[project ${p.id}]`),
+    }));
     return validateArray(ProjectSchema, withHistory, 'projects');
   } catch {
     return validateArray(ProjectSchema, projects.map(p => ({ ...p, progressHistory: [] })), 'projects');

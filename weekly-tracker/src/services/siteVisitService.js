@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { updateGanttDiscrepancy } from './ganttService';
-import { SiteVisitSchema } from '../schemas/siteVisitSchema';
+import { SiteVisitSchema, SiteVisitWPSchema } from '../schemas/siteVisitSchema';
 import { validateArray } from '../schemas/validate';
 
 // ─── Submit site visit ────────────────────────────────────────────────────────
@@ -178,6 +178,10 @@ function mapRow(row) {
     overallNote:            row.overall_note,
     visitedBy:              row.visited_by,
     pmScheduleAssessment:   row.pm_schedule_assessment,
+    // Drop and warn on individual malformed WP observations (P1.3) rather than
+    // letting a corrupted gc_progress/observed_progress/discrepancy_delta
+    // reach siteVisitEngine's discrepancy math unchecked.
+    wps: row.wps ? validateArray(SiteVisitWPSchema, row.wps, `site_visit_wps[visit ${row.id}]`) : row.wps,
   };
 }
 

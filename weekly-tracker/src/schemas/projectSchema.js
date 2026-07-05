@@ -13,7 +13,7 @@ const ScopeSchema = z.object({
   weightOverrides: z.record(z.string(), z.number()).optional(),
 }).passthrough().nullable().optional();
 
-const ProgressHistoryRowSchema = z.object({
+export const ProgressHistoryRowSchema = z.object({
   overall_progress: z.number().nullable().optional(),
   recorded_at: z.string().nullable().optional(),
   week_number: z.number().nullable().optional(),
