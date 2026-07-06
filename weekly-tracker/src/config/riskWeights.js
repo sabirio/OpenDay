@@ -55,6 +55,12 @@ export const RISK_WEIGHTS = {
     max:              20,   // cap for this factor
   },
 
+  // ── Opening not achievable (A3) — openingReadinessEngine's slack < 0 verdict:
+  // remaining blockers' critical-path close-out time exceeds days-to-opening.
+  // Flat, high weight — this is a different signal than openingProximity above
+  // (which only measures calendar closeness), so it can fire independently.
+  openingNotAchievable: 20,
+
   // ── Historical deterioration (last 3 reports) ─────────────────────────────
   historicalDeterioration: { severe2of3: 15, atRisk3of3: 10, atRisk2of3: 5 },
 

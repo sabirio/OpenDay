@@ -66,7 +66,11 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   const daysSinceReport = latestReport ? daysSince(latestReport.reportingDate || latestReport.submittedAt) : null;
   const missingReport   = isMissingReport(latestReport);
   const daysToOpening   = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
-  const riskScore       = computeProjectRiskScore(project, projReports, progress, projSiteVisits);
+  // readiness is computed before riskScore (A3) so computeProjectRiskScore can
+  // read readiness.verdict — the single source of truth for "can we actually
+  // close everything in time" — rather than re-deriving it from scratch.
+  const readiness       = computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate ?? null, scopeWPIds);
+  const riskScore       = computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness);
   const riskLevel       = riskScore.level;
   const priorityScore   = computePriorityScore(riskLevel, daysToOpening, missingReport);
   const { progressComparison, prevProgressComparison } = buildWeekOverWeekComparison(project, progress, project.progressHistory ?? []);
@@ -74,11 +78,9 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   // contScore carries the contractor-vs-PM alignment/drift history (pmAlignmentScore,
   // pmAlignmentDetails - per-visit match rate over time) alongside performance/reporting
   // sub-scores. health folds riskScore + progress + contScore into one 0-100 project-health
-  // number. readiness resolves opening blockers from the same wpCumulativeStatuses already
-  // computed above for progress. All three via their canonical engines - no new calc here.
+  // number. Both via their canonical engines - no new calc here.
   const contScore = computeContractorScores(project, projReports, projSiteVisits);
   const health    = computeProjectHealth(riskScore, progress, contScore, latestReport);
-  const readiness = computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate ?? null);
 
   return {
     project, latestReport, cumulativeStatuses, wpCumulativeStatuses, progress,

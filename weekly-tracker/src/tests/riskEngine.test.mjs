@@ -238,5 +238,39 @@ console.log('\nD) computeProjectRiskScore — progress=100 skips EVM SPI factor'
   check('D2: progress=30 on overdue project → EVM SPI critical factor present', hasEVMFactor);
 }
 
+// ── E) computeProjectRiskScore — "Opening not achievable" (A3) reads readiness.verdict ──
+console.log('\nE) computeProjectRiskScore — Opening not achievable factor (A3)');
+
+{
+  const project = {
+    id: 'test-readiness',
+    constructionStartDate: iso(now - 100 * DAY),
+    targetOpeningDate:     iso(now + 10 * DAY),
+    projectStatus: 'Active',
+    projectType: 'Standard',
+  };
+  const minimalReport = {
+    projectScheduleStatus: 'On Track',
+    supportRequired: 'No',
+    activitiesBlocked: 'No',
+    reportingDate: iso(now - 7 * DAY),
+    risks: [], riskOwners: [],
+  };
+
+  const notAchievable = computeProjectRiskScore(project, [minimalReport], 60, [], { verdict: 'NOT_ACHIEVABLE', requiredDays: 19.5, slack: -9.5 });
+  const withFactor = (notAchievable.factors || []).find(f => f.name === 'Opening not achievable');
+  check('E1: NOT_ACHIEVABLE verdict adds the factor', !!withFactor);
+  check('E2: factor value names the deficit', withFactor && /short by 10d/.test(withFactor.value));
+  check('E3: factor is categorized under Opening', notAchievable.rootCause.some(rc => rc.cat === 'Opening'));
+
+  const readyTrack = computeProjectRiskScore(project, [minimalReport], 60, [], { verdict: 'READY_TRACK', requiredDays: 5, slack: 20 });
+  const noFactor = (readyTrack.factors || []).some(f => f.name === 'Opening not achievable');
+  check('E4: READY_TRACK verdict does not add the factor', !noFactor);
+
+  const noReadinessArg = computeProjectRiskScore(project, [minimalReport], 60, []);
+  const noFactorEither = (noReadinessArg.factors || []).some(f => f.name === 'Opening not achievable');
+  check('E5: omitting readiness entirely is safe (defaults to null, no crash, no factor)', !noFactorEither);
+}
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

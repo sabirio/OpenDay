@@ -170,7 +170,7 @@ function computeNoReportsRisk(project) {
 // All scoring weights come from RISK_WEIGHTS (riskWeights.js).
 // Extend that config to change scoring without touching engine logic.
 
-export function computeProjectRiskScore(project, projReports, progress, projSiteVisits) {
+export function computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness = null) {
   // Dynamic risk for projects without reports
   if (!projReports.length) return computeNoReportsRisk(project);
 
@@ -234,6 +234,17 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
     if (daysToOpen < 30 && progress < 80) openPts = Math.min(O.max, openPts + O.lowProgressBonus);
     score += openPts;
     if (openPts > 0) factors.push({ name: "Opening proximity", value: daysToOpen < 0 ? `${Math.abs(daysToOpen)}d overdue` : `${daysToOpen}d remaining`, pts: openPts });
+  }
+
+  // 6b. Opening not achievable (A3) — openingReadinessEngine already ran the
+  // critical-path calc; this only reads its verdict, no recalculation here.
+  if (readiness?.verdict === 'NOT_ACHIEVABLE') {
+    score += RISK_WEIGHTS.openingNotAchievable;
+    factors.push({
+      name:  "Opening not achievable",
+      value: `needs ~${Math.ceil(readiness.requiredDays)}d, short by ${Math.ceil(-readiness.slack)}d`,
+      pts:   RISK_WEIGHTS.openingNotAchievable,
+    });
   }
 
   // 7. EVM Schedule Performance Index — calendar SPI (actualPct / expectedPct).
@@ -315,6 +326,7 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
     "Repeated blocker":          "Schedule",
     "Activities blocked":        "Schedule",
     "Opening proximity":         "Opening",
+    "Opening not achievable":    "Opening",
     "Risk scale":                "Contractor",
     "Risk indicators":           "Contractor",
     "Report staleness":          "Reporting",

@@ -67,6 +67,8 @@ where `canonicalWorkPackages` = `masterTaskLibrary.WORK_PACKAGES` or `constructi
 - **Tests:** no dedicated `openingReadinessEngine` test file exists. TODO for a future pass — not added in this PR (out of scope per wave rules).
 - Date resolved: 2026-07-05
 
+**A3 update (2026-07-06) — time-to-close awareness:** `constructionRetailV1.js`'s blocker WPs now also carry `typicalClearDays` (int, typical close-out duration) and `responsibleRole` (`'GC'|'PM'|'Landlord'`) — same canonical source as `openingBlocker`, no `masterTaskLibrary.js` propagation needed for the same reason as above. `computeOpeningReadiness()` now also keeps each blocker's real `wp.id` (not just phaseId+label) so it can place blockers in `dependencyRules.js`'s dependency graph and compute `requiredDays`/`slack`/`verdict`/`criticalChain` via a critical-path-method longest-path calculation — see `src/engines/openingReadinessEngine.js` header comments and `src/engines/__tests__/openingReadinessEngine.test.mjs` for the algorithm and worked examples. Also fixed in the same pass: a blocker WP with no report data at all (`status` is `null`/`undefined`) now counts as an active blocker (effectively "Not Started") instead of being silently skipped — previously this understated both the blocker count and requiredDays for any project where the contractor hadn't yet reported on that phase.
+
 ## masterTaskLibrary sync risk (Wave 4 backlog)
 
 - `masterTaskLibrary.WORK_PACKAGES` is a manually maintained literal, NOT a programmatic derivation from `constructionRetailV1`.

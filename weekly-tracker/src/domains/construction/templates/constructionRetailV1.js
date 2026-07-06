@@ -46,10 +46,10 @@ export const constructionRetailV1 = {
       progressWeight: 5, riskWeight: 12, openingImpact: 10, criticality: 5,
       discipline: 'Commissioning',
       workPackages: [
-        { id: 'test.electrical', openingBlocker: 'critical', label: 'Electrical Testing',         durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
-        { id: 'test.hvac',       openingBlocker: 'critical', label: 'HVAC Pressure Test',         durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
-        { id: 'test.plumbing',   openingBlocker: 'soft',     label: 'Plumbing Pressure Test',     durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
-        { id: 'test.fire',       openingBlocker: 'critical', label: 'Fire System Hydraulic Test', durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
+        { id: 'test.electrical', openingBlocker: 'critical', label: 'Electrical Testing',         durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 3, responsibleRole: 'GC' },
+        { id: 'test.hvac',       openingBlocker: 'critical', label: 'HVAC Pressure Test',         durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 3, responsibleRole: 'GC' },
+        { id: 'test.plumbing',   openingBlocker: 'soft',     label: 'Plumbing Pressure Test',     durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 2, responsibleRole: 'GC' },
+        { id: 'test.fire',       openingBlocker: 'critical', label: 'Fire System Hydraulic Test', durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 5, responsibleRole: 'GC' },
       ],
     },
     {
@@ -75,10 +75,10 @@ export const constructionRetailV1 = {
       progressWeight: 10, riskWeight: 8, openingImpact: 18, criticality: 3,
       discipline: 'Furniture',
       workPackages: [
-        { id: 'devices.lighting',  openingBlocker: 'critical', label: 'Lighting Fixtures',    durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
-        { id: 'devices.sensors',   openingBlocker: 'critical', label: 'Sensors & Detectors',  durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
+        { id: 'devices.lighting',  openingBlocker: 'critical', label: 'Lighting Fixtures',    durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 4, responsibleRole: 'GC' },
+        { id: 'devices.sensors',   openingBlocker: 'critical', label: 'Sensors & Detectors',  durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 3, responsibleRole: 'GC' },
         { id: 'devices.sockets',   openingBlocker: false,      label: 'Sockets & Switches',   durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
-        { id: 'furniture.install', openingBlocker: 'critical', label: 'Furniture & Fixtures',  durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
+        { id: 'furniture.install', openingBlocker: 'critical', label: 'Furniture & Fixtures',  durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 5, responsibleRole: 'GC' },
       ],
     },
     {
@@ -86,8 +86,8 @@ export const constructionRetailV1 = {
       progressWeight: 5, riskWeight: 13, openingImpact: 20, criticality: 5,
       discipline: 'Commissioning',
       workPackages: [
-        { id: 'comm.full_test', openingBlocker: 'critical', label: 'Full Systems Commissioning', durationPct: 0.50, isBlocker: false, defaultLagDays: 0 },
-        { id: 'comm.snagging',  openingBlocker: 'critical', label: 'Snagging / Punch List',      durationPct: 0.50, isBlocker: false, defaultLagDays: 0 },
+        { id: 'comm.full_test', openingBlocker: 'critical', label: 'Full Systems Commissioning', durationPct: 0.50, isBlocker: false, defaultLagDays: 0, typicalClearDays: 7, responsibleRole: 'GC' },
+        { id: 'comm.snagging',  openingBlocker: 'critical', label: 'Snagging / Punch List',      durationPct: 0.50, isBlocker: false, defaultLagDays: 0, typicalClearDays: 5, responsibleRole: 'GC' },
       ],
     },
     {
@@ -95,8 +95,8 @@ export const constructionRetailV1 = {
       progressWeight: 5, riskWeight: 6, openingImpact: 10, criticality: 4,
       discipline: 'Commissioning',
       workPackages: [
-        { id: 'preopening.training', openingBlocker: 'soft',     label: 'Staff Training',           durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
-        { id: 'preopening.cleaning', openingBlocker: 'critical', label: 'Deep Cleaning',            durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
+        { id: 'preopening.training', openingBlocker: 'soft',     label: 'Staff Training',           durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 3, responsibleRole: 'PM' },
+        { id: 'preopening.cleaning', openingBlocker: 'critical', label: 'Deep Cleaning',            durationPct: 0.25, isBlocker: false, defaultLagDays: 0, typicalClearDays: 2, responsibleRole: 'GC' },
         { id: 'preopening.docs',     openingBlocker: false,      label: 'As-Built Documentation',   durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
         { id: 'preopening.reports',  openingBlocker: false,      label: 'Completion Reports',       durationPct: 0.25, isBlocker: false, defaultLagDays: 0 },
       ],
@@ -106,9 +106,9 @@ export const constructionRetailV1 = {
       progressWeight: 5, riskWeight: 10, openingImpact: 9, criticality: 5,
       discipline: 'Commissioning',
       workPackages: [
-        { id: 'handover.inspection', openingBlocker: 'critical', label: 'Final Inspection',      durationPct: 0.40, isBlocker: false, defaultLagDays: 0 },
-        { id: 'handover.transfer',   openingBlocker: 'critical', label: 'Acceptance & Transfer', durationPct: 0.40, isBlocker: false, defaultLagDays: 0 },
-        { id: 'handover.keys',       openingBlocker: 'critical', label: 'Keys & Possession',     durationPct: 0.20, isBlocker: false, defaultLagDays: 0 },
+        { id: 'handover.inspection', openingBlocker: 'critical', label: 'Final Inspection',      durationPct: 0.40, isBlocker: false, defaultLagDays: 0, typicalClearDays: 5, responsibleRole: 'Landlord' },
+        { id: 'handover.transfer',   openingBlocker: 'critical', label: 'Acceptance & Transfer', durationPct: 0.40, isBlocker: false, defaultLagDays: 0, typicalClearDays: 3, responsibleRole: 'Landlord' },
+        { id: 'handover.keys',       openingBlocker: 'critical', label: 'Keys & Possession',     durationPct: 0.20, isBlocker: false, defaultLagDays: 0, typicalClearDays: 1, responsibleRole: 'Landlord' },
       ],
     },
   ],

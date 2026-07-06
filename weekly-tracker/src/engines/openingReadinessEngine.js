@@ -1,4 +1,5 @@
 import { constructionRetailV1 } from "../domains/construction/templates/constructionRetailV1";
+import { DEPENDENCY_RULES, filterRulesForWPs } from "../config/dependencyRules";
 import { daysUntil } from "../utils/reportUtils";
 import { sortReasons } from "../utils/reasonUtils";
 
@@ -6,35 +7,132 @@ import { sortReasons } from "../utils/reasonUtils";
 const ALL_WPS = constructionRetailV1.phases.flatMap(phase =>
   phase.workPackages.map(wp => ({ ...wp, phaseId: phase.id }))
 );
+const ALL_WP_IDS = ALL_WPS.map(wp => wp.id);
 
-// Derived from constructionRetailV1 WP[].openingBlocker — no hardcoded strings.
-// To change which WPs are blockers, update the openingBlocker flag in
-// constructionRetailV1.js (Wave 4.5 — see TEMPLATE_MODEL.md).
-//
-// Keyed by phaseId (not wp.id): wpCumulativeStatuses.workPackageStatuses is a
-// { [phaseId]: { [wpLabel]: {status,progress} } } map (see mergeGanttWPStatuses
-// in reportUtils.js) — wp.id (e.g. "test.electrical") never appears as a key
-// there, only phase ids (e.g. "testing") do.
-function buildBlockerMap(level) {
-  const map = {};
-  for (const wp of ALL_WPS) {
-    if (wp.openingBlocker !== level) continue;
-    if (!map[wp.phaseId]) map[wp.phaseId] = [];
-    map[wp.phaseId].push(wp.label);
-  }
-  return map;
+// All opening-blocker WPs (critical + soft), keyed by their real wp.id — not just
+// phaseId/label. A2 (2026-07-06): the previous version only kept phaseId+label,
+// which is enough to look up a task's reported status (wpCumulativeStatuses is
+// phase/label-keyed) but loses the wp.id dependencyRules.js needs to place a
+// blocker in the schedule graph. Both are carried here.
+const BLOCKER_WPS = ALL_WPS.filter(wp => wp.openingBlocker === 'critical' || wp.openingBlocker === 'soft');
+
+function getTaskEntry(wpStatuses, wp) {
+  return wpStatuses?.[wp.phaseId]?.[wp.label] || null;
 }
 
-const CRITICAL_BLOCKERS = buildBlockerMap('critical');
-const SOFT_BLOCKERS     = buildBlockerMap('soft');
-
-function getTaskStatus(wpStatuses, wpId, taskName) {
-  return wpStatuses?.[wpId]?.[taskName]?.status || null;
-}
-
-function isBlocking(status) {
-  if (!status || status === 'Not Applicable') return false;
+// A2: null/undefined status (task never touched by any report) now counts as
+// blocking — same as an explicit "Not Started". The previous version treated
+// "no report has mentioned this WP yet" as "nothing to flag", which silently
+// hid not-yet-started blockers (and understated required close-out time) for
+// any project where the contractor hadn't reached that phase in their reports
+// yet, even though the WP still fully needs doing before opening.
+function isBlocking(entry) {
+  const status = entry?.status;
+  if (status === 'Not Applicable') return false;
   return status !== 'Completed';
+}
+
+// How many days of typicalClearDays are left on one blocker, given its reported
+// progress. "In Progress" gets partial credit; never-reported/'Not Started'
+// gets the full typical duration; 'Completed' is already filtered out by
+// isBlocking() before this is called.
+function remainingClearDays(wp, entry) {
+  const clearDays = wp.typicalClearDays ?? 0;
+  const progress = Math.max(0, Math.min(100, entry?.progress ?? 0));
+  return clearDays * (1 - progress / 100);
+}
+
+function buildBlockerRecords(wpStatuses) {
+  const records = [];
+  for (const wp of BLOCKER_WPS) {
+    const entry = getTaskEntry(wpStatuses, wp);
+    if (!isBlocking(entry)) continue;
+    records.push({
+      wpId: wp.id,
+      phaseId: wp.phaseId,
+      task: wp.label,
+      level: wp.openingBlocker,
+      status: entry?.status || 'Not Started',
+      responsibleRole: wp.responsibleRole || null,
+      remainingDays: Math.round(remainingClearDays(wp, entry) * 10) / 10,
+    });
+  }
+  return records;
+}
+
+// Longest-path (critical-path-method style) over the dependency DAG, weighting
+// only unfinished blocker WPs by their remainingDays — non-blocker WPs are
+// zero-weight pass-through nodes, kept only so two blockers on either side of
+// them are still correctly sequenced (see the audit: several blockers connect
+// only THROUGH non-blocker WPs, e.g. test.electrical -> walls.closing ->
+// finish.walls -> devices.lighting, so a direct blocker-to-blocker edge scan
+// would miss that they're actually in the same chain).
+//
+// requiredDays = the longest weighted path through the graph = the real
+// bottleneck across all independent/parallel blocker chains at once — this
+// subsumes the "max over independent chains" framing without needing to
+// separately detect which chains are independent.
+function computeCriticalChain(blockerRecords, scopeWPIds) {
+  if (blockerRecords.length === 0) return { requiredDays: 0, criticalChain: [] };
+
+  const byWpId = Object.fromEntries(blockerRecords.map(b => [b.wpId, b]));
+  const nodeIds = scopeWPIds && scopeWPIds.length ? scopeWPIds : ALL_WP_IDS;
+  const rules = scopeWPIds && scopeWPIds.length ? filterRulesForWPs(scopeWPIds) : DEPENDENCY_RULES;
+
+  const predecessors = {};
+  for (const id of nodeIds) predecessors[id] = [];
+  for (const rule of rules) {
+    if (!(rule.to in predecessors)) predecessors[rule.to] = [];
+    predecessors[rule.to].push(rule.from);
+  }
+
+  const weight = (id) => byWpId[id]?.remainingDays ?? 0;
+
+  const memo = {};
+  const visiting = new Set(); // defensive cycle guard — DEPENDENCY_RULES should always be a DAG
+  function longestPathTo(id) {
+    if (memo[id] != null) return memo[id];
+    if (visiting.has(id)) return 0;
+    visiting.add(id);
+    const preds = predecessors[id] || [];
+    const bestPred = preds.length ? Math.max(...preds.map(longestPathTo)) : 0;
+    const dist = bestPred + weight(id);
+    visiting.delete(id);
+    memo[id] = dist;
+    return dist;
+  }
+
+  let requiredDays = 0;
+  let bottleneckId = null;
+  for (const id of nodeIds) {
+    const dist = longestPathTo(id);
+    if (dist > requiredDays) { requiredDays = dist; bottleneckId = id; }
+  }
+
+  // Reconstruct the actual sequence of blockers on that longest path, walking
+  // backwards from the bottleneck through whichever predecessor achieved the max.
+  const chainIds = [];
+  let cur = bottleneckId;
+  while (cur != null) {
+    if (byWpId[cur]) chainIds.push(cur);
+    const preds = predecessors[cur] || [];
+    if (!preds.length) break;
+    const target = memo[cur] - weight(cur);
+    cur = preds.find(p => longestPathTo(p) === target) ?? null;
+  }
+  chainIds.reverse();
+
+  return {
+    requiredDays: Math.round(requiredDays * 10) / 10,
+    criticalChain: chainIds.map(id => byWpId[id]),
+  };
+}
+
+function computeVerdict(daysToOpening, requiredDays) {
+  if (daysToOpening == null) return { slack: null, verdict: null };
+  const slack = Math.round((daysToOpening - requiredDays) * 10) / 10;
+  const verdict = slack >= 7 ? 'READY_TRACK' : slack >= 0 ? 'TIGHT' : 'NOT_ACHIEVABLE';
+  return { slack, verdict };
 }
 
 /**
@@ -42,6 +140,8 @@ function isBlocking(status) {
  *
  * @param {object|null}  wpCumulativeStatuses  - merged workPackageStatuses object
  * @param {string|null}  targetOpeningDate     - ISO date string
+ * @param {string[]|null} [scopeWPIds]         - project's active WP ids (getScopeWPIds output);
+ *   null/omitted falls back to the full template graph, unscoped.
  * @returns {{
  *   status: 'No Date' | 'Ready' | 'At Risk' | 'Critical' | 'Overdue',
  *   daysToOpening: number | null,
@@ -49,38 +149,31 @@ function isBlocking(status) {
  *   criticalBlockers: Array<{ wpId, task, status }>,
  *   softBlockers: Array<{ wpId, task, status }>,
  *   blockerCount: number,
+ *   requiredDays: number,
+ *   slack: number | null,
+ *   verdict: 'READY_TRACK' | 'TIGHT' | 'NOT_ACHIEVABLE' | null,
+ *   criticalChain: Array<{ wpId, phaseId, task, level, status, responsibleRole, remainingDays }>,
  * }}
  */
-export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate) {
+export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate, scopeWPIds = null) {
   const targetDate = targetOpeningDate || null;
-
   const daysToOpening = targetDate ? daysUntil(targetDate) : null;
-
   const wpStatuses = wpCumulativeStatuses?.workPackageStatuses ?? wpCumulativeStatuses ?? null;
 
-  // Gather blocker lists
-  const criticalBlockers = [];
-  const softBlockers = [];
+  const blockerRecords = buildBlockerRecords(wpStatuses);
+  // Kept in the original {wpId: phaseId, task, status} shape for existing
+  // consumers (commandEngine.js, projectSummaryEngine.js) — only .length is
+  // read externally today. The corrected wp.id-keyed data lives in criticalChain.
+  const criticalBlockers = blockerRecords.filter(b => b.level === 'critical')
+    .map(b => ({ wpId: b.phaseId, task: b.task, status: b.status }));
+  const softBlockers = blockerRecords.filter(b => b.level === 'soft')
+    .map(b => ({ wpId: b.phaseId, task: b.task, status: b.status }));
 
-  for (const [wpId, tasks] of Object.entries(CRITICAL_BLOCKERS)) {
-    for (const taskName of tasks) {
-      const status = getTaskStatus(wpStatuses, wpId, taskName);
-      if (isBlocking(status)) {
-        criticalBlockers.push({ wpId, task: taskName, status: status || 'Not Started' });
-      }
-    }
-  }
+  const { requiredDays, criticalChain } = computeCriticalChain(blockerRecords, scopeWPIds);
+  const { slack, verdict } = computeVerdict(daysToOpening, requiredDays);
 
-  for (const [wpId, tasks] of Object.entries(SOFT_BLOCKERS)) {
-    for (const taskName of tasks) {
-      const status = getTaskStatus(wpStatuses, wpId, taskName);
-      if (isBlocking(status)) {
-        softBlockers.push({ wpId, task: taskName, status: status || 'Not Started' });
-      }
-    }
-  }
-
-  // Determine status
+  // Determine status (unchanged thresholds from before A2 — only the blocker
+  // list feeding them is now more complete, per the isBlocking() fix above).
   let status;
 
   if (daysToOpening === null) {
@@ -98,12 +191,22 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate)
     status = 'Ready';
   }
 
+  // Running out of runway is definitionally critical, regardless of where the
+  // day-threshold heuristics above land.
+  if (verdict === 'NOT_ACHIEVABLE' && status !== 'Overdue') {
+    status = 'Critical';
+  }
+
   const reasons = [];
 
   if (status === 'No Date') {
     reasons.push({ type: 'neutral', text: 'No target opening date set', source: 'schedule' });
   } else if (status === 'Overdue') {
     reasons.push({ type: 'critical', text: `Opening date overdue by ${Math.abs(daysToOpening)}d`, source: 'schedule' });
+  } else if (verdict === 'NOT_ACHIEVABLE') {
+    reasons.push({ type: 'critical', text: `Not achievable — needs ~${Math.ceil(requiredDays)}d to close remaining blockers, only ${daysToOpening}d left (short by ${Math.ceil(-slack)}d)`, source: 'schedule' });
+  } else if (verdict === 'TIGHT') {
+    reasons.push({ type: 'warning', text: `Tight — needs ~${Math.ceil(requiredDays)}d to close remaining blockers, ${daysToOpening}d left`, source: 'schedule' });
   } else if (status === 'Critical') {
     reasons.push({ type: 'critical', text: `Critical opening: ${daysToOpening}d remaining`, source: 'schedule' });
   } else if (status === 'At Risk') {
@@ -129,6 +232,10 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate)
     criticalBlockers,
     softBlockers,
     blockerCount: criticalBlockers.length + softBlockers.length,
+    requiredDays,
+    slack,
+    verdict,
+    criticalChain,
     reasons: sortReasons(reasons),
   };
 }
