@@ -20,7 +20,7 @@ import { WORK_PACKAGES } from "../config/workPackages";
 import { WP_STATUS_SCORES } from "../config/statusScores";
 import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from "../config/masterTaskLibrary";
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
-import { parseAdditionalWorksCost, formatAdditionalWorksSum } from "../components/weekly/sharedUtils";
+import { computeAdditionalWorksSummary } from "../engines/additionalWorksEngine";
 import { deriveWPStatusesFromOldReport, mergeOldDerivedStatuses } from "../engines/legacyReportEngine";
 import { computePortfolioMissing } from "../engines/portfolioEngine";
 import { computeSiteVisitData, computeSiteVisitKpis } from "../engines/siteVisitEngine";
@@ -184,17 +184,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
   const additionalWorksList = useMemo(() => {
     const sorted = [...projectReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
-    const entries = sorted.reduce((acc, r, idx) => {
-      if (r.additionalWorks !== "Yes") return acc;
-      const { value, currency } = parseAdditionalWorksCost(r.additionalWorksCost);
-      acc.push({ num: idx + 1, date: r.reportingDate || new Date(r.submittedAt).toLocaleDateString("en-GB"), cost: r.additionalWorksCost || "—", description: r.additionalWorksDescription || "", party: r.additionalWorksParty || "", costValue: value, currency });
-      return acc;
-    }, []);
-    const totalSum    = entries.reduce((s, e) => s + (e.costValue || 0), 0);
-    const allCurrencies = [...new Set(entries.map(e => e.currency).filter(Boolean))];
-    const currency    = allCurrencies.length === 1 ? allCurrencies[0] : "";
-    const total       = entries.length > 0 ? formatAdditionalWorksSum(totalSum, currency) : null;
-    return { entries, total };
+    return computeAdditionalWorksSummary(sorted);
   }, [projectReports]);
 
   const scopedGanttWPs = useMemo(

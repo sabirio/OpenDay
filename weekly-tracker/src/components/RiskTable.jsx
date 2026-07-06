@@ -48,7 +48,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
             const topFactor = riskScore.factors.filter(f => f.pts > 0).sort((a, b) => b.pts - a.pts)[0];
             const isExp = expandedRow === project.id;
             const borderColor = levelBorderColor(riskScore.level);
-            const totalScore  = riskScore.factors.reduce((s, f) => s + f.pts, 0);
+            const { totalScore } = riskScore;
 
             return [
               /* ── Collapsed row ── */

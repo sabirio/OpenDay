@@ -12,7 +12,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { computePortfolioKpis } = await import('../engines/portfolioEngine.js');
+const { computePortfolioKpis, computePortfolioAnalytics } = await import('../engines/portfolioEngine.js');
 
 let pass = 0, fail = 0;
 function check(label, condition) {
@@ -83,6 +83,26 @@ check('support counts supportRequired=Yes', kpis.support === 2);
 check('avgProgress averages precomputed row progress', kpis.avgProgress === 56);
 check('openingSoon is row-derived and excludes overdue/null', kpis.openingSoon === 1);
 check('reportsThisWeek uses reportingDate/submittedAt within 7 days', kpis.reportsThisWeek === 2);
+
+// computePortfolioAnalytics — architecture-conformance pin (V3 audit follow-up
+// to F1/F2/F3): extracted verbatim from a local IIFE in SummaryPanel.jsx.
+console.log('\ncomputePortfolioAnalytics - pinned against pre-refactor SummaryPanel.jsx output');
+{
+  const rows = [
+    { evm: { SPI: 0.9 },  monteCarlo: { pOnTime: 40 } },
+    { evm: { SPI: 1.05 }, monteCarlo: { insufficient_data: true, pOnTime: 10 } },
+    { evm: null,          monteCarlo: { pOnTime: 60 } },
+  ];
+  const a = computePortfolioAnalytics(rows);
+  check('avgSPI averages only rows with a computed SPI, rounded to 2dp (0.98)', a.avgSPI === 0.98);
+  check('mcRiskyCount excludes insufficient_data rows even if pOnTime < 50 (1)', a.mcRiskyCount === 1);
+
+  const noEvm = computePortfolioAnalytics([{ evm: null }]);
+  check('no rows with SPI -> avgSPI null, mcRiskyCount 0', noEvm.avgSPI === null && noEvm.mcRiskyCount === 0);
+
+  const empty = computePortfolioAnalytics([]);
+  check('empty rows -> avgSPI null, mcRiskyCount 0', empty.avgSPI === null && empty.mcRiskyCount === 0);
+}
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

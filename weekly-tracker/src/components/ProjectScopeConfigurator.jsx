@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { WORK_PACKAGES, getPhasesInOrder, getWPsByPhase, getDefaultPhaseWeights } from '../config/masterTaskLibrary';
+import { normalizeWeightsTo100, sumWeights } from '../core/projects';
 
 const ALL_PHASE_IDS = getPhasesInOrder().map(p => p.id);
 const ALL_WP_IDS    = WORK_PACKAGES.map(wp => wp.id);
@@ -74,28 +75,14 @@ export default function ProjectScopeConfigurator({ initialScope, onSave, onClose
   }
 
   const orderedActive = getPhasesInOrder().filter(p => activePhases.has(p.id));
-  const activeTotal   = orderedActive.reduce((s, p) => s + (Number(weights[p.id]) || 0), 0);
+  const activeIds      = orderedActive.map(p => p.id);
+  const activeTotal   = sumWeights(activeIds, weights);
   const totalOk       = Math.round(activeTotal) === 100;
 
   function normalizeWeights() {
-    if (orderedActive.length === 0) return;
-    const sum = orderedActive.reduce((s, p) => s + (Number(weights[p.id]) || 0), 0);
-    let rounded;
-    if (sum === 0) {
-      const base  = Math.floor(100 / orderedActive.length);
-      const extra = 100 - base * orderedActive.length;
-      rounded = orderedActive.map((_, i) => i < extra ? base + 1 : base);
-    } else {
-      rounded = orderedActive.map(p => Math.round((Number(weights[p.id]) || 0) / sum * 100));
-    }
-    const drift   = 100 - rounded.reduce((s, w) => s + w, 0);
-    const maxIdx  = rounded.reduce((best, w, i) => w > rounded[best] ? i : best, 0);
-    rounded[maxIdx] += drift;
-    setWeights(prev => {
-      const next = { ...prev };
-      orderedActive.forEach((p, i) => { next[p.id] = rounded[i]; });
-      return next;
-    });
+    if (activeIds.length === 0) return;
+    const normalized = normalizeWeightsTo100(activeIds, weights);
+    setWeights(prev => ({ ...prev, ...normalized }));
   }
 
   function handleSave() {

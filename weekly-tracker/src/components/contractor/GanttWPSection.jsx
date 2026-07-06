@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { calculatePhaseAverageProgressWithOverrides } from "../../engines/progressEngine";
 
 const GANTT_STATUS_OPTS = [
   { value: 'not_started', label: 'Not Started', bg: 'var(--field-bg-subtle)', color: 'var(--field-text-secondary)', border: 'var(--field-border-strong)' },
@@ -83,12 +84,7 @@ export function PhaseSection({ phaseKey, tasks, ganttWpProgress, onUpdateProgres
     } catch { return false; }
   });
 
-  const phasePct = tasks.length === 0 ? 0 : Math.round(
-    tasks.reduce((sum, t) => {
-      const e = ganttWpProgress[t.id];
-      return sum + (e?.progress_pct ?? t.actual_progress ?? 0);
-    }, 0) / tasks.length
-  );
+  const phasePct = calculatePhaseAverageProgressWithOverrides(tasks, ganttWpProgress);
   const allComplete = phasePct === 100;
 
   // Auto-close when the last task reaches 100% (skip on first mount)

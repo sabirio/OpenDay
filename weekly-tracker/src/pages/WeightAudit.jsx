@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchActiveTemplate, fetchTemplateById } from '../data/templatesApi';
-import { computeEffectiveWeights, validateTemplate } from '../core/projects';
+import { buildWeightAuditModel } from '../core/projects/weights/buildWeightAuditModel';
 import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
 import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
@@ -14,59 +14,6 @@ const WP_LABELS = Object.fromEntries(
     (ph.workPackages || []).map(wp => [wp.id, wp.label])
   )
 );
-
-// ── Build display model — zero new math, assembles from core fns ──────────────
-function buildAudit(template, scopeWPIds) {
-  if (!template) return null;
-
-  const phases = template.phases ?? [];
-  const wps    = template.workPackages ?? [];
-
-  const phaseWeights    = Object.fromEntries(phases.map(p => [p.id, p.progressWeight ?? 0]));
-  const effectiveWeights = computeEffectiveWeights(wps, scopeWPIds, phaseWeights);
-  const effectiveSum     = Object.values(effectiveWeights).reduce((s, w) => s + w, 0);
-
-  const totalPW    = phases.reduce((s, p) => s + (p.progressWeight ?? 0), 0);
-  const inScopeSet = scopeWPIds ? new Set(scopeWPIds) : null;
-
-  const phaseModels = phases.map(phase => {
-    const phaseWPs   = wps.filter(wp => wp.phaseId === phase.id);
-    const phaseWPSum = phaseWPs.reduce((s, wp) => s + (wp.duration_pct ?? 0), 0);
-    const pw         = phase.progressWeight ?? 0;
-
-    return {
-      id:                 phase.id,
-      label:              PHASE_LABELS[phase.id] ?? phase.id,
-      progressWeight:     pw,
-      progressWeightPct:  totalPW > 0 ? (pw / totalPW) * 100 : 0,
-      wps: phaseWPs.map(wp => ({
-        id:               wp.id,
-        label:            WP_LABELS[wp.id] ?? wp.id,
-        duration_pct:     wp.duration_pct ?? 0,
-        durationPctInPhase: phaseWPSum > 0 ? (wp.duration_pct ?? 0) / phaseWPSum : 0,
-        effectiveWeight:  effectiveWeights[wp.id] ?? 0,
-        inScope:          inScopeSet ? inScopeSet.has(wp.id) : true,
-      })),
-    };
-  });
-
-  const inEffective  = new Set(Object.keys(effectiveWeights));
-  const excludedWPs  = wps
-    .filter(wp => !inEffective.has(wp.id))
-    .map(wp => ({ id: wp.id, label: WP_LABELS[wp.id] ?? wp.id }));
-
-  return {
-    templateMeta: {
-      name:     template.name     ?? '(unnamed)',
-      familyId: template.familyId ?? null,
-      version:  template.version  ?? null,
-    },
-    validation: validateTemplate(template),
-    effectiveSum,
-    phases:     phaseModels,
-    excludedWPs,
-  };
-}
 
 // ── Tiny shared primitives ────────────────────────────────────────────────────
 function MiniBar({ pct, color = 'var(--accent)', width = 72, height = 4 }) {
@@ -118,7 +65,10 @@ export default function WeightAudit({ projects }) {
     return () => { alive = false; };
   }, [mode, selectedProject?.id, selectedProject?.templateId]);
 
-  const auditModel = useMemo(() => buildAudit(template, scopeWPIds), [template, scopeWPIds]);
+  const auditModel = useMemo(
+    () => buildWeightAuditModel(template, scopeWPIds, PHASE_LABELS, WP_LABELS),
+    [template, scopeWPIds]
+  );
 
   const pinnedProjects = projects.filter(p => p.templateId);
   const errors         = auditModel?.validation.filter(i => i.severity === 'error')   ?? [];

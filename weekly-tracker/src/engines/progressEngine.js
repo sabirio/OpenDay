@@ -33,6 +33,7 @@ import {
 } from '../config/masterTaskLibrary.js';
 import { computeEffectiveWeights } from '../core/projects/index.js';
 import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1.js';
+import { WP_STATUS_SCORES } from '../config/statusScores.js';
 
 const PHASE_PROGRESS_WEIGHT = Object.fromEntries(
   constructionRetailV1.phases.map(p => [p.id, p.progressWeight])
@@ -167,6 +168,74 @@ export function calculatePhaseProgress(phaseId, taskMap, effectiveWeights = null
   };
 }
 
+/**
+ * Weighted progress for one WP's own task list, using each task's own
+ * `weight` field — distinct from calculatePhaseProgress(), which weights by
+ * duration_pct/scope-derived effectiveWeights instead. This is the shape
+ * PhaseStepper.jsx's per-phase progress cards need: legacy config/workPackages.js
+ * WPs carry real per-task weights (e.g. 40/30/20/10), while masterTaskLibrary's
+ * Gantt-format WPs give every task weight 1 (a plain average of that WP's tasks).
+ * Tasks with no report entry, or a status with no defined score (e.g.
+ * 'Not Applicable'), are excluded from both the numerator and denominator.
+ *
+ * @param {{id: string, tasks: Array<{name: string, weight?: number}>}} wp
+ * @param {Record<string, Record<string, {status?: string, progress?: number}>>|null} mergedStatuses — { wp.id → { taskName → entry } }
+ * @returns {number} 0-100
+ */
+export function calculateWPTaskWeightedProgress(wp, mergedStatuses) {
+  const taskMap = mergedStatuses?.[wp.id] || {};
+  let totalWeight = 0, weightedScore = 0;
+  for (const task of wp.tasks) {
+    const entry = taskMap[task.name];
+    if (!entry) continue;
+    const score = WP_STATUS_SCORES[entry.status];
+    if (score == null) continue;
+    const eff = entry.progress > 0 ? entry.progress / 100 : score;
+    totalWeight += task.weight ?? 1;
+    weightedScore += (task.weight ?? 1) * eff;
+  }
+  return totalWeight === 0 ? 0 : Math.round((weightedScore / totalWeight) * 100);
+}
+
+/**
+ * Plain (unweighted) average of `actual_progress` across a list of Gantt
+ * tasks — used for GanttChart.jsx's collapsed phase-band summary bar (fill
+ * width + "{phase} — {avg}%" label). Distinct from calculatePhaseProgress():
+ * that operates on a { taskLabel → entry } status map with weighting;
+ * this operates directly on laid-out Gantt task rows that already carry a
+ * numeric `actual_progress` field, with no weighting at all.
+ *
+ * @param {Array<{actual_progress?: number|null}>} tasks — non-empty; callers
+ *   already guard the empty case before calling (division by 0 would be NaN)
+ * @returns {number} 0-100
+ */
+export function calculateGanttPhaseAverageProgress(tasks) {
+  if (!tasks.length) return 0;
+  return Math.round(tasks.reduce((s, t) => s + (t.actual_progress ?? 0), 0) / tasks.length);
+}
+
+/**
+ * Plain (unweighted) average progress across a phase's Gantt tasks, preferring
+ * an in-flight edit (`progressOverrides[t.id].progress_pct`, e.g. a contractor
+ * dragging a slider before saving) over the task's last-saved `actual_progress`.
+ * Used by GanttWPSection.jsx's collapsible phase header ("{phase} — {pct}%").
+ * Distinct from calculateGanttPhaseAverageProgress(), which has no override
+ * layer — this is specifically for a form still being edited.
+ *
+ * @param {Array<{id: string, actual_progress?: number|null}>} tasks
+ * @param {Record<string, {progress_pct?: number}>} progressOverrides — { taskId → in-progress edit }
+ * @returns {number} 0-100
+ */
+export function calculatePhaseAverageProgressWithOverrides(tasks, progressOverrides) {
+  if (tasks.length === 0) return 0;
+  return Math.round(
+    tasks.reduce((sum, t) => {
+      const e = progressOverrides[t.id];
+      return sum + (e?.progress_pct ?? t.actual_progress ?? 0);
+    }, 0) / tasks.length
+  );
+}
+
 // ── Project level ─────────────────────────────────────────────────────────────
 
 /**
@@ -202,6 +271,25 @@ export function calculateProjectProgress(wpStatuses, scopeWPIds = null, phaseWei
   }
 
   return weightTotal === 0 ? 0 : Math.round(weightedSum / weightTotal);
+}
+
+/**
+ * Raw, unweighted average of a single report's per-WP progress percentages —
+ * NOT the canonical phase-weighted project progress (calculateProjectProgress).
+ * This becomes contractor_reports.overall_progress (P1.4): the "what the
+ * contractor just submitted" signal, distinct from progress_history's
+ * cumulative, phase-weighted number. Falls back to the caller-supplied
+ * cumulative progress for legacy-format reports with no per-WP array at all.
+ *
+ * @param {Array<{progress_pct: number}>} wpProgressArray
+ * @param {number} fallback — used when wpProgressArray is empty
+ * @returns {number}
+ */
+export function calculateRawWPAverageProgress(wpProgressArray, fallback = 0) {
+  if (!wpProgressArray.length) return fallback;
+  return Math.round(
+    wpProgressArray.reduce((sum, wp) => sum + wp.progress_pct, 0) / wpProgressArray.length
+  );
 }
 
 // ── Full result ───────────────────────────────────────────────────────────────

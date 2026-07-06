@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights } from '../core/projects/templateEditor.js';
+import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights, computeTemplateWeightSums } from '../core/projects/templateEditor.js';
 import { validateTemplate, isTemplateValid } from '../core/projects/validation/validateTemplate.js';
 import { fetchActiveTemplate, saveTemplate } from '../data/templatesApi.js';
 
@@ -65,18 +65,10 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
     [draft.phases]
   );
 
-  const weightSum = useMemo(
-    () => (draft.phases ?? []).reduce((s, p) => s + (p.progressWeight || 0), 0),
-    [draft.phases]
+  const { weightSum, durSums } = useMemo(
+    () => computeTemplateWeightSums({ phases: draft.phases, workPackages: draft.workPackages }),
+    [draft.phases, draft.workPackages]
   );
-
-  const durSums = useMemo(() => {
-    const sums = {};
-    for (const wp of (draft.workPackages ?? [])) {
-      sums[wp.phaseId] = (sums[wp.phaseId] || 0) + (wp.duration_pct || 0);
-    }
-    return sums;
-  }, [draft.workPackages]);
 
   const wpsByPhase = useMemo(() => {
     const map = {};

@@ -25,25 +25,6 @@ export function deriveOverallStatus(statuses) {
   return 'Not Started';
 }
 
-export function parseAdditionalWorksCost(cost) {
-  if (!cost) return { value: 0, currency: '' };
-  const raw = String(cost).trim();
-  const currencyMatch = raw.match(/[A-Za-z]{1,5}$/);
-  const currency = currencyMatch ? currencyMatch[0] : '';
-  const numericPart = raw.replace(/[^0-9.,-]+/g, '').replace(/\s+/g, '');
-  if (!numericPart) return { value: 0, currency };
-  let n = numericPart;
-  if (n.includes(',') && n.includes('.')) {
-    n = n.lastIndexOf('.') > n.lastIndexOf(',') ? n.replace(/,/g, '') : n.replace(/\./g, '').replace(/,/g, '.');
-  } else if (n.includes(',')) {
-    const parts = n.split(',');
-    n = parts.length > 1 && parts[1].length === 3 ? parts.join('') : n.replace(/,/g, '.');
-  }
-  const value = parseFloat(n);
-  return { value: Number.isFinite(value) ? value : 0, currency };
-}
-
-export function formatAdditionalWorksSum(value, currency) {
-  const formatted = Math.round(value).toLocaleString('en-US').replace(/,/g, ' ');
-  return currency ? `${formatted} ${currency}` : formatted;
-}
+// parseAdditionalWorksCost / formatAdditionalWorksSum moved to
+// engines/additionalWorksEngine.js (architecture-conformance pass) —
+// alongside the aggregation that consumes them.

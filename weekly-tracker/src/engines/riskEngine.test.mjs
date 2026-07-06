@@ -179,6 +179,8 @@ const PROJ_BASE = {
   check('D1: zero-reports — reasons is Array',   Array.isArray(r.reasons));
   check('D1: zero-reports — "No reports submitted" factor present',
     r.factors.some(f => f.name === 'No reports submitted'));
+  check('D1: zero-reports — totalScore matches raw factor sum',
+    r.totalScore === r.factors.reduce((s, f) => s + f.pts, 0));
 }
 
 // D2: normal project, fresh benign report → shape + score in range
@@ -204,6 +206,11 @@ const PROJ_BASE = {
     r.factors.every(f => 'name' in f && 'value' in f && typeof f.pts === 'number'));
   check('D2: benign project → LOW risk',          r.level === 'LOW');
   check('D2: benign score = 12 (Medium riskScale only)', r.score === 12);
+  // Architecture-conformance pass: totalScore (raw sum of factors' pts) is
+  // now returned by the engine instead of being re-summed in RiskTable.jsx.
+  // No clamp/recovery-bonus applies here, so it equals score exactly.
+  check('D2: totalScore is a number',             typeof r.totalScore === 'number');
+  check('D2: totalScore === score when nothing clamps', r.totalScore === r.score && r.totalScore === 12);
 }
 
 // D3: score clamped to 100 — pile on maximum-risk factors
@@ -224,6 +231,13 @@ const PROJ_BASE = {
   const r = computeProjectRiskScore(highRiskProject, [highRiskReport], 10, []);
   check('D3: high-risk project — score <= 100 (clamped)', r.score <= 100);
   check('D3: high-risk project — CRITICAL or HIGH level', ['CRITICAL','HIGH'].includes(r.level));
+  // totalScore is the raw, unclamped sum — deliberately NOT equal to score
+  // once the pre-clamp sum exceeds 100. This divergence is pre-existing
+  // RiskTable.jsx behavior (it re-summed the same factors array), preserved
+  // exactly by pinning to the real captured values, not "fixed" here.
+  check('D3: totalScore pins to 125 (raw sum, pre-clamp)', r.totalScore === 125);
+  check('D3: totalScore exceeds clamped score (100), reproducing prior UI behavior',
+    r.totalScore > r.score && r.score === 100);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

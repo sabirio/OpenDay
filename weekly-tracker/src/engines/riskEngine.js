@@ -163,7 +163,11 @@ function computeNoReportsRisk(project) {
 
   score = Math.min(100, Math.round(score));
   const level = getRiskLevel(score);
-  return { score, level, color: RISK_COLORS[level], factors, rootCause: [], reasons: factorsToReasons(factors) };
+  // totalScore = raw, unclamped sum of every factor's pts — RiskTable.jsx's
+  // expanded "Total score" row previously recomputed this itself; exposed here
+  // so it's a single source of truth instead of a UI-side re-sum.
+  const totalScore = factors.reduce((s, f) => s + f.pts, 0);
+  return { score, level, color: RISK_COLORS[level], factors, rootCause: [], totalScore, reasons: factorsToReasons(factors) };
 }
 
 // ── Project Risk Score ────────────────────────────────────────────────────────
@@ -346,7 +350,15 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
     .sort((a, b) => b.pct - a.pct);
 
   const level = getRiskLevel(score);
-  return { score, level, color: RISK_COLORS[level], factors, rootCause, reasons: factorsToReasons(factors) };
+  // totalScore = raw, unclamped sum of every factor's pts (including the
+  // recovery-bonus factor, if one was pushed above) — RiskTable.jsx's expanded
+  // "Total score" row previously recomputed this itself via the same reduce;
+  // exposed here so it's a single source of truth instead of a UI-side re-sum.
+  // Deliberately NOT the same value as `score` whenever the pre-clamp sum
+  // exceeded 100 or a recovery bonus applied afterward — that divergence
+  // already existed in the UI's own calculation and is preserved as-is.
+  const totalScore = factors.reduce((s, f) => s + f.pts, 0);
+  return { score, level, color: RISK_COLORS[level], factors, rootCause, totalScore, reasons: factorsToReasons(factors) };
 }
 
 // ── Dimension Risk ────────────────────────────────────────────────────────────

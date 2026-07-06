@@ -85,6 +85,26 @@ export function computeContractorPerf(rows) {
 }
 
 /**
+ * Portfolio-level EVM/Monte Carlo summary for SummaryPanel.jsx's analytics
+ * strip: average SPI across every row with a computed SPI, and a count of
+ * rows Monte Carlo flags as risky (<50% on-time probability, and not itself
+ * flagged insufficient_data). Moved out of a local IIFE in the component
+ * (architecture-conformance pass) — every input value (evm.SPI,
+ * monteCarlo.pOnTime) is itself an engine output; this only aggregates them.
+ *
+ * @param {Array<{evm?: {SPI?: number|null}, monteCarlo?: {insufficient_data?: boolean, pOnTime?: number}}>} rows
+ * @returns {{avgSPI: number|null, mcRiskyCount: number}}
+ */
+export function computePortfolioAnalytics(rows) {
+  const evmRows = rows.filter(r => r.evm?.SPI != null);
+  const avgSPI = evmRows.length
+    ? Math.round((evmRows.reduce((s, r) => s + r.evm.SPI, 0) / evmRows.length) * 100) / 100
+    : null;
+  const mcRiskyCount = rows.filter(r => r.monteCarlo && !r.monteCarlo.insufficient_data && r.monteCarlo.pOnTime < 50).length;
+  return { avgSPI, mcRiskyCount };
+}
+
+/**
  * Portfolio KPI summary for the Dashboard header cards.
  * @param {Array<Record<string, any>>} projects
  * @param {PortfolioRow[]} allRows - pre-computed allRows (with riskLevel, missingReport, daysToOpening, progress, latestReport)

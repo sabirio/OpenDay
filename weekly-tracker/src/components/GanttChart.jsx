@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { calculateLayout } from '../engines/ganttLayout.js';
+import { calculateGanttPhaseAverageProgress } from '../engines/progressEngine.js';
 import GanttLegend from './gantt/GanttLegend.jsx';
 
 function addDaysLocal(date, days) {
@@ -673,7 +674,7 @@ export default function GanttChart({
       if (!pTasks.length) return null;
       const minX = Math.min(...pTasks.map(t => t.x));
       const maxX = Math.max(...pTasks.map(t => t.x + t.width));
-      const avg  = Math.round(pTasks.reduce((s, t) => s + (t.actual_progress ?? 0), 0) / pTasks.length);
+      const avg  = calculateGanttPhaseAverageProgress(pTasks);
       const bY   = phase.y + (PHASE_ROW_H - BAR_H) / 2;
       const w    = Math.max(4, maxX - minX);
       return (

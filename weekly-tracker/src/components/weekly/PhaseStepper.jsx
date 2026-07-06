@@ -1,21 +1,7 @@
 import { useState } from 'react';
 import { WP_STATUS_SCORES } from '../../config/statusScores';
+import { calculateWPTaskWeightedProgress } from '../../engines/progressEngine';
 import { statusColor, statusStyles } from './sharedUtils';
-
-function wpProgress(wp, mergedStatuses) {
-  const taskMap = mergedStatuses?.[wp.id] || {};
-  let totalWeight = 0, weightedScore = 0;
-  for (const task of wp.tasks) {
-    const entry = taskMap[task.name];
-    if (!entry) continue;
-    const score = WP_STATUS_SCORES[entry.status];
-    if (score == null) continue;
-    const eff = entry.progress > 0 ? entry.progress / 100 : score;
-    totalWeight += task.weight ?? 1;
-    weightedScore += (task.weight ?? 1) * eff;
-  }
-  return totalWeight === 0 ? 0 : Math.round((weightedScore / totalWeight) * 100);
-}
 
 const SHORT_NAME = name =>
   name
@@ -124,7 +110,7 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey, 
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', boxShadow: 'var(--shadow)', overflow: 'visible' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', paddingTop: 12, gap: 4 }}>
           {workPackages.map(wp => {
-            const pct = wpProgress(wp, mergedStatuses);
+            const pct = calculateWPTaskWeightedProgress(wp, mergedStatuses);
             return (
               <PhaseCard
                 key={wp.id}

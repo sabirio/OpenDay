@@ -66,4 +66,24 @@ export default defineConfig([
       globals: { ...globals.node },
     },
   },
+  {
+    // Architecture conformance: calculations live in src/engines/* or
+    // src/core/*; pages/components are presentation-only (they receive
+    // already-computed values and render them). .reduce() over business data
+    // is the most common way a real formula sneaks into a page/component
+    // (see the 2026-07-06 audit: PhaseStepper.jsx, RiskTable.jsx,
+    // ProjectScopeConfigurator.jsx, and 6 more found the same way) — ban it
+    // here so a new one can't land silently. Deliberately NOT applied to
+    // src/engines/**, src/core/**, or test files, which are exactly where
+    // this kind of aggregation belongs.
+    files: ['src/pages/**/*.{js,jsx}', 'src/components/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: "CallExpression[callee.property.name='reduce']",
+          message: 'Aggregation via .reduce() is not allowed in pages/components. Move the calculation into src/engines/* or src/core/* and pass the result as a prop. If this is genuinely presentation-only (e.g. joining SVG path points), add an inline eslint-disable-next-line with a one-line reason.',
+        },
+      ],
+    },
+  },
 ])

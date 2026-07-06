@@ -1,6 +1,7 @@
 import { KpiCard } from './DashboardWidgets';
 import Icon from '../shared/Icon';
 import { formatDate } from '../../utils/reportUtils';
+import { computePortfolioAnalytics } from '../../engines/portfolioEngine';
 
 const DONUT_SEGMENTS = [
   { label: 'On Track',  key: 'On Track',  color: 'var(--text-primary)'  },
@@ -65,14 +66,7 @@ function SmallDonut({ counts, total }) {
 }
 
 export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], svKpis, lastVisitDate }) {
-  const analytics = rows && rows.length > 0 ? (() => {
-    const evmRows  = rows.filter(r => r.evm?.SPI != null);
-    const avgSPI   = evmRows.length
-      ? Math.round((evmRows.reduce((s, r) => s + r.evm.SPI, 0) / evmRows.length) * 100) / 100
-      : null;
-    const mcRiskyCount = rows.filter(r => r.monteCarlo && !r.monteCarlo.insufficient_data && r.monteCarlo.pOnTime < 50).length;
-    return { avgSPI, mcRiskyCount };
-  })() : null;
+  const analytics = rows && rows.length > 0 ? computePortfolioAnalytics(rows) : null;
 
   const donutCounts = {
     'On Track': allRows.filter(r => r.latestReport?.projectScheduleStatus === 'On Track').length,

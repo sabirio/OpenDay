@@ -1,5 +1,5 @@
 // templateEditor.test.mjs — run: node src/core/projects/templateEditor.test.mjs
-import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights } from './templateEditor.js';
+import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights, computeTemplateWeightSums } from './templateEditor.js';
 
 let pass=0,fail=0; const ck=(n,c)=>{c?(pass++,console.log(`  ✅ ${n}`)):(fail++,console.log(`  ❌ ${n}`));};
 const t = {
@@ -29,6 +29,18 @@ ck('sum === 100', t4.phases.reduce((s,p)=>s+p.progressWeight,0)===100);
 console.log('\n5) missing id → unchanged, no throw');
 let threw=false; try{ setPhaseWeight(t,'ghost',9); }catch{threw=true;}
 ck('no throw', threw===false);
+
+console.log('\n6) computeTemplateWeightSums — pinned against pre-refactor TemplateEditor.jsx output (architecture-conformance pass)');
+{
+  const sums = computeTemplateWeightSums(t);
+  ck('weightSum totals every phase.progressWeight (40+60=100)', sums.weightSum === 100);
+  ck('durSums totals duration_pct per phaseId (a: 0.5+0.5=1)', sums.durSums.a === 1);
+  ck('phase with no work packages is absent from durSums, not 0', sums.durSums.b === undefined);
+  const empty = computeTemplateWeightSums({ phases: [], workPackages: [] });
+  ck('empty template -> weightSum 0, durSums {}', empty.weightSum === 0 && Object.keys(empty.durSums).length === 0);
+  const nullish = computeTemplateWeightSums(null);
+  ck('null template -> weightSum 0, durSums {}, no throw', nullish.weightSum === 0 && Object.keys(nullish.durSums).length === 0);
+}
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──`);
 process.exit(fail?1:0);

@@ -33,6 +33,27 @@ export function movePhase(template, phaseId, direction) {
   return { ...template, phases: withOrder };
 }
 
+/**
+ * Sums used by TemplateEditor.jsx's validation display: the total of all
+ * phases' progressWeight (must equal 100) and, per phase, the total of its
+ * work packages' duration_pct. Moved from two local calculations in the page
+ * (architecture-conformance pass) — a .reduce() and a for-loop accumulator,
+ * both aggregating template weight data into a displayed/validated number.
+ *
+ * @param {object|null} template
+ * @returns {{ weightSum: number, durSums: Record<string, number> }}
+ */
+export function computeTemplateWeightSums(template) {
+  const weightSum = phases(template).reduce((s, p) => s + (p.progressWeight || 0), 0);
+
+  const durSums = {};
+  for (const wp of wps(template)) {
+    durSums[wp.phaseId] = (durSums[wp.phaseId] || 0) + (wp.duration_pct || 0);
+  }
+
+  return { weightSum, durSums };
+}
+
 export function normalizeWeights(template) {
   const ps = phases(template);
   if (ps.length === 0) return template;

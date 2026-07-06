@@ -13,7 +13,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult } =
+const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult, calculateWPTaskWeightedProgress, calculateRawWPAverageProgress, calculateGanttPhaseAverageProgress, calculatePhaseAverageProgressWithOverrides } =
   await import('../engines/progressEngine.js');
 
 const { getCommands } = await import('../engines/commandEngine.js');
@@ -226,6 +226,97 @@ console.log('\ncalculateProjectProgress — scope isolation');
   assert('result progress follows scoped total', scopedResult.progress === 100);
   assert('breakdown includes only one scoped phase', scopedResult.phases.length === 1);
   assert('breakdown phase is phase_a', scopedResult.phases[0]?.id === 'phase_a');
+}
+
+// ── calculateWPTaskWeightedProgress — pins PhaseStepper.jsx's former local
+// wpProgress() exactly (values captured from the pre-refactor implementation
+// before it was moved here; architecture-conformance pass, no logic change) ──
+console.log('\ncalculateWPTaskWeightedProgress — pinned against pre-refactor PhaseStepper.wpProgress() output');
+{
+  // Legacy config/workPackages.js-style WP: real per-task weights (40/30/20/10).
+  const wpLegacy = { id: 'precon', tasks: [
+    { name: 'Site setup & hoarding',  weight: 40 },
+    { name: 'Temporary utilities',    weight: 30 },
+    { name: 'Shop drawings approval', weight: 20 },
+    { name: 'Material procurement',   weight: 10 },
+  ]};
+  const statusesLegacy = { precon: {
+    'Site setup & hoarding':  { status: 'Completed',   progress: 0 },
+    'Temporary utilities':    { status: 'In Progress', progress: 60 },
+    'Shop drawings approval': { status: 'Not Started', progress: 0 },
+    // 'Material procurement' has no entry at all — must be excluded, not scored as 0.
+  }};
+  assert('legacy weighted WP (mixed statuses, one untouched task) pins to 64',
+    calculateWPTaskWeightedProgress(wpLegacy, statusesLegacy) === 64);
+
+  // masterTaskLibrary-style WP: every task weight 1 (plain average), includes a
+  // 'Not Applicable' entry that must be excluded entirely (score is null, not 0).
+  const wpGantt = { id: 'testing', tasks: [
+    { name: 'Electrical Testing',     weight: 1 },
+    { name: 'HVAC Pressure Test',     weight: 1 },
+    { name: 'Plumbing Pressure Test', weight: 1 },
+  ]};
+  const statusesGantt = { testing: {
+    'Electrical Testing':     { status: 'Completed',      progress: 100 },
+    'HVAC Pressure Test':     { status: 'Not Applicable', progress: 0 },
+    'Plumbing Pressure Test': { status: 'In Progress',    progress: 25 },
+  }};
+  assert("gantt-style WP (all weight 1, one 'Not Applicable' excluded) pins to 63",
+    calculateWPTaskWeightedProgress(wpGantt, statusesGantt) === 63);
+
+  assert('no entries at all -> 0, not NaN', calculateWPTaskWeightedProgress(wpLegacy, {}) === 0);
+
+  // progress===0 with a non-zero-score status falls back to the status score
+  // (progress > 0 check, not progress != null) — Completed/Delayed at 0% still
+  // contribute their status score, not 0.
+  const wpEdge = { id: 'x', tasks: [{ name: 'a', weight: 5 }, { name: 'b', weight: 5 }] };
+  const statusesEdge = { x: {
+    a: { status: 'Completed', progress: 0 },
+    b: { status: 'Delayed',   progress: 0 },
+  }};
+  assert("progress:0 with Completed/Delayed status falls back to status score, pins to 65",
+    calculateWPTaskWeightedProgress(wpEdge, statusesEdge) === 65);
+}
+
+// ── calculateRawWPAverageProgress — pins ContractorReport.jsx's former local
+// contractorRawAverageProgress calc exactly (V3 audit follow-up to F1/F2/F3) ──
+console.log('\ncalculateRawWPAverageProgress — pinned against pre-refactor ContractorReport.jsx output');
+{
+  const wps = [{ progress_pct: 50 }, { progress_pct: 80 }, { progress_pct: 33 }];
+  assert('3-WP raw average rounds to 54', calculateRawWPAverageProgress(wps, 999) === 54);
+  assert('empty array falls back to the supplied cumulative progress', calculateRawWPAverageProgress([], 42) === 42);
+  assert('rounds .5 up (1,2 -> 1.5 -> 2)', calculateRawWPAverageProgress([{ progress_pct: 1 }, { progress_pct: 2 }], 0) === 2);
+}
+
+// ── calculateGanttPhaseAverageProgress — pins GanttChart.jsx's former local
+// collapsed-phase-band avg calc exactly (V3 audit follow-up to F1/F2/F3) ──────
+console.log('\ncalculateGanttPhaseAverageProgress — pinned against pre-refactor GanttChart.jsx output');
+{
+  assert('mixed tasks (50,75,null->0) average to 42',
+    calculateGanttPhaseAverageProgress([{ actual_progress: 50 }, { actual_progress: 75 }, { actual_progress: null }]) === 42);
+  assert('single task returns its own value', calculateGanttPhaseAverageProgress([{ actual_progress: 33 }]) === 33);
+  assert('all-undefined tasks average to 0', calculateGanttPhaseAverageProgress([{}, {}]) === 0);
+  assert('empty array returns 0, not NaN (defensive; callers already guard this)', calculateGanttPhaseAverageProgress([]) === 0);
+}
+
+// ── calculatePhaseAverageProgressWithOverrides — pins GanttWPSection.jsx's
+// former local phasePct calc exactly (V3 audit follow-up to F1/F2/F3) ────────
+console.log('\ncalculatePhaseAverageProgressWithOverrides — pinned against pre-refactor GanttWPSection.jsx output');
+{
+  assert('override for task a wins over its actual_progress (55)',
+    calculatePhaseAverageProgressWithOverrides(
+      [{ id: 'a', actual_progress: 10 }, { id: 'b', actual_progress: 20 }],
+      { a: { progress_pct: 90 } }
+    ) === 55);
+  assert('no overrides falls back to actual_progress for every task (50)',
+    calculatePhaseAverageProgressWithOverrides(
+      [{ id: 'a', actual_progress: 40 }, { id: 'b', actual_progress: 60 }], {}
+    ) === 50);
+  assert('empty task list -> 0', calculatePhaseAverageProgressWithOverrides([], {}) === 0);
+  assert('no override and no actual_progress falls back to 0 for that task (25)',
+    calculatePhaseAverageProgressWithOverrides(
+      [{ id: 'a' }, { id: 'b', actual_progress: 50 }], {}
+    ) === 25);
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ import {
 } from "../services/contractorReportService";
 import { getById as getProjectById } from "../services/projectService";
 import { computeWPCumulativeStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
-import { calculateProjectProgressResult } from "../engines/progressEngine";
+import { calculateProjectProgressResult, calculateRawWPAverageProgress } from "../engines/progressEngine";
 import {
   LoadingReportState,
   ProjectNotFoundState,
@@ -319,13 +319,7 @@ function ContractorReport({ projects, reports }) {
       // (018_submit_contractor_report_rpc.sql) only falls back to it for
       // progress_history when cumulativeProgress is missing, so always send
       // cumulativeProgress explicitly, as this call does.
-      const contractorRawAverageProgress =
-        wpProgressArray.length > 0
-          ? Math.round(
-              wpProgressArray.reduce((sum, wp) => sum + wp.progress_pct, 0) /
-                wpProgressArray.length
-            )
-          : cumulativeProgress;
+      const contractorRawAverageProgress = calculateRawWPAverageProgress(wpProgressArray, cumulativeProgress);
 
       await submitContractorReport(project.id, wpProgressArray, {
         reportDate: mainReportPayload.reportingDate,
