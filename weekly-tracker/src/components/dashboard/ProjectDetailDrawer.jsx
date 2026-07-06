@@ -85,9 +85,9 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
                   <button type="button" onClick={handleRegenGantt} disabled={regenerating}
                     style={{
                       padding: '5px 11px', borderRadius: 8,
-                      border: `1px solid ${stale ? '#f59e0b' : 'var(--border)'}`,
+                      border: `1px solid ${stale ? 'var(--status-warn)' : 'var(--border)'}`,
                       background: 'transparent',
-                      color: regenerating ? 'var(--text-muted)' : stale ? '#f59e0b' : 'var(--text-secondary)',
+                      color: regenerating ? 'var(--text-muted)' : stale ? 'var(--status-warn)' : 'var(--text-secondary)',
                       fontSize: 11, fontWeight: 600,
                       cursor: regenerating ? 'not-allowed' : 'pointer',
                     }}

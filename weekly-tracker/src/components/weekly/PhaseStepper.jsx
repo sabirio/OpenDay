@@ -37,18 +37,18 @@ function PhaseCard({ wp, pct, isSelected, onClick, hasChanges }) {
     color: 'var(--status-warn)',
     boxShadow: '0 0 12px rgba(249,115,22,0.2)',
   } : hasProgress ? {
-    border: '2px solid #888',
+    border: '2px solid var(--border-strong)',
     background: 'var(--bg-elevated)',
-    color: '#ccc',
+    color: 'var(--text-secondary)',
     boxShadow: 'none',
   } : {
-    border: '2px solid #333',
+    border: '2px solid var(--border)',
     background: 'var(--bg-elevated)',
-    color: '#555',
+    color: 'var(--text-muted)',
     boxShadow: 'none',
   };
 
-  const labelColor = isDone ? 'var(--status-warn)' : hasProgress ? '#aaa' : '#444';
+  const labelColor = isDone ? 'var(--status-warn)' : hasProgress ? 'var(--text-secondary)' : 'var(--text-muted)';
 
   return (
     <div

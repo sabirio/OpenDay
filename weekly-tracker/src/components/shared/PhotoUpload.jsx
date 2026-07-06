@@ -133,7 +133,7 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError }) 
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             width: '100%', minHeight: 44, padding: '10px 18px', borderRadius: 10,
-            border: '2px dashed #d1d5db', background: 'var(--bg-elevated)',
+            border: '2px dashed var(--border-strong)', background: 'var(--bg-elevated)',
             color: 'var(--text-muted)', fontSize: 14, fontWeight: 500, cursor: 'pointer',
           }}
         >

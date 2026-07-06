@@ -78,7 +78,7 @@ function Controls({ zoom, setZoom, onToday, onFitAll, showArrows, onArrowsToggle
             padding: '4px 12px', borderRadius: 5, border: 'none', cursor: 'pointer',
             fontSize: 12, fontWeight: 600, transition: 'all 0.12s',
             background: zoom === z ? C.blue : 'transparent',
-            color:      zoom === z ? '#fff' : C.muted,
+            color:      zoom === z ? 'var(--color-on-fill-light)' : C.muted,
           }}>
             {z.charAt(0).toUpperCase() + z.slice(1)}
           </button>
@@ -284,7 +284,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
         <text
           x={x + width / 2} y={barMid + 1}
           textAnchor="middle" dominantBaseline="middle"
-          fontSize={9} fill="#fff" fontWeight={600}
+          fontSize={9} fill="var(--color-on-fill-light)" fontWeight={600}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
           opacity={0.85}
         >
@@ -307,7 +307,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
           <circle cx={x + width - 7} cy={barY + 6} r={6} fill={C.yellow} />
           <text x={x + width - 7} y={barY + 7}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize={8} fill="#000" fontWeight={800}
+            fontSize={8} fill="var(--color-on-fill-dark)" fontWeight={800}
             style={{ pointerEvents: 'none' }}>⚠</text>
         </g>
       )}
@@ -316,7 +316,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
           <circle cx={x + width - 7} cy={barY + 6} r={6} fill={C.red} />
           <text x={x + width - 7} y={barY + 7}
             textAnchor="middle" dominantBaseline="middle"
-            fontSize={9} fill="#fff" fontWeight={800}
+            fontSize={9} fill="var(--color-on-fill-light)" fontWeight={800}
             style={{ pointerEvents: 'none' }}>!</text>
         </g>
       )}
@@ -683,7 +683,7 @@ export default function GanttChart({
           {w > 60 && (
             <text x={minX + w / 2} y={bY + BAR_H / 2 + 1}
               textAnchor="middle" dominantBaseline="middle"
-              fontSize={10} fill="#fff" fontWeight={600}>
+              fontSize={10} fill="var(--color-on-fill-light)" fontWeight={600}>
               {phase.label} — {avg}%
             </text>
           )}

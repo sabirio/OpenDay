@@ -77,9 +77,9 @@ export function ActivityHeatmap({ projectRows, weekCount = 16 }) {
   };
   const STATUS_FG = {
     'On Track': 'var(--text-primary)',
-    'Critical': '#fff',
-    'Delayed':  '#fff',
-    'At Risk':  '#fff',
+    'Critical': 'var(--color-on-fill-light)',
+    'Delayed':  'var(--color-on-fill-light)',
+    'At Risk':  'var(--color-on-fill-light)',
   };
   const LEGEND = [
     { color: 'var(--border)',        t: 'No report' },
@@ -106,7 +106,7 @@ export function ActivityHeatmap({ projectRows, weekCount = 16 }) {
             </div>
             {cells.map((cell, i) => {
               const bg = cell.count > 0 ? (STATUS_BG[cell.status] ?? 'var(--text-secondary)') : 'var(--border)';
-              const fg = cell.count > 0 ? (STATUS_FG[cell.status] ?? '#fff') : 'transparent';
+              const fg = cell.count > 0 ? (STATUS_FG[cell.status] ?? 'var(--color-on-fill-light)') : 'transparent';
               return (
                 <div
                   key={i}

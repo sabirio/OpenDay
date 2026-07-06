@@ -375,12 +375,12 @@ function ContractorReport({ projects, reports }) {
 
 
   return (
-    <div data-testid="contractor-report-form" className="field-form-page" style={{ minHeight: "100vh", background: "#f0f7f2", padding: "36px 20px 80px" }}>
+    <div data-testid="contractor-report-form" className="field-form-page" style={{ minHeight: "100vh", background: "var(--field-bg-contractor)", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
 
         {draftRestored && (
-          <div data-testid="draft-restored-banner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 12, padding: "10px 16px", marginBottom: 16, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: "#1e40af", fontWeight: 600 }}>Restored your unsaved draft for this report.</span>
+          <div data-testid="draft-restored-banner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "var(--field-accent-blue-subtle)", border: "1px solid var(--field-accent-blue-border)", borderRadius: 12, padding: "10px 16px", marginBottom: 16, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: "var(--field-accent-blue-fg)", fontWeight: 600 }}>Restored your unsaved draft for this report.</span>
             <button
               type="button"
               onClick={() => {
@@ -390,7 +390,7 @@ function ContractorReport({ projects, reports }) {
                 setGanttWpProgress({});
                 setPhotoUrls([]);
               }}
-              style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #93c5fd", background: "white", color: "#1e40af", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+              style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--field-accent-blue-border)", background: "white", color: "var(--field-accent-blue-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
             >
               Discard draft
             </button>

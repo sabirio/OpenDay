@@ -188,6 +188,20 @@
   --field-accent-orange-fg:      #ea580c;
   --field-accent-orange-fg-dark: #c2410c;
   --field-accent-orange-border:  #fed7aa;
+
+  /* Fixed contrast text drawn on top of an arbitrary solid accent/status
+     fill (Gantt SVG bars, toggle buttons) — intentionally does NOT flip
+     with the theme like --text-inverse does, since the fill it sits on
+     isn't the page background. */
+  --color-on-fill-light: #fff;
+  --color-on-fill-dark:  #000;
+
+  /* Print-only colors (src/styles/print.css / .print-only) — paper is
+     always white regardless of the app's dark/light theme, so these are
+     deliberately fixed rather than theme tokens. */
+  --print-brand:  #1e3a5f;
+  --print-text:   #374151;
+  --print-muted:  #6b7280;
 }
 
 
