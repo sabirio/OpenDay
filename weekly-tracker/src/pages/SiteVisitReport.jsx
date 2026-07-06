@@ -25,26 +25,58 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
 
   const latestReport = projectReports[0] || null;
 
-  const [form, setForm] = useState(() => ({
-    visitDate: new Date().toISOString().split("T")[0],
-    referenceReportId: latestReport?.id ? String(latestReport.id) : "",
-    pmWorkPackageStatuses: makeEmptyPMWPStatuses(),
-    pmScheduleAssessment: "",
-    observations: "",
-    photos: [],
-    declarationConfirmed: false,
-  }));
+  // P2.2: draft-save/recovery, same pattern as ContractorReport.jsx (P2.1) —
+  // a PM filling this out on site can lose the form to a dropped connection
+  // or a locked phone just as easily as a contractor can.
+  const draftKey = `sitevisit_draft_${projectId}`;
+
+  function readDraft() {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearDraft() {
+    try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    setDraftRestored(false);
+  }
+
+  const [draftRestored, setDraftRestored] = useState(() => Boolean(readDraft()));
+
+  const [form, setForm] = useState(() => {
+    const draft = readDraft();
+    return draft?.form ?? {
+      visitDate: new Date().toISOString().split("T")[0],
+      referenceReportId: latestReport?.id ? String(latestReport.id) : "",
+      pmWorkPackageStatuses: makeEmptyPMWPStatuses(),
+      pmScheduleAssessment: "",
+      observations: "",
+      photos: [],
+      declarationConfirmed: false,
+    };
+  });
 
   const [errors, setErrors]       = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [savedVisit, setSavedVisit] = useState(null);
-  const [photoUrls, setPhotoUrls] = useState([]);
+  const [photoUrls, setPhotoUrls] = useState(() => readDraft()?.photoUrls || []);
   const [photoError, setPhotoError] = useState(null);
 
   const [ganttTasks, setGanttTasks]           = useState([]);
   const [ganttLoading, setGanttLoading]       = useState(false);
   const [lastContractorReportId, setLastContractorReportId] = useState(null);
-  const [pmWpObservations, setPmWpObservations] = useState({});
+  const [pmWpObservations, setPmWpObservations] = useState(() => readDraft()?.pmWpObservations || {});
+
+  // Persist the draft on every edit — cheap, plain-JSON state, best-effort.
+  useEffect(() => {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ form, pmWpObservations, photoUrls, savedAt: new Date().toISOString() }));
+    } catch { /* private browsing / quota exceeded */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, pmWpObservations, photoUrls]);
 
   useEffect(() => {
     if (!project?.id) return;
@@ -54,10 +86,13 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
         const activeWPIds = project?.scope?.workPackages;
         const tasks = activeWPIds ? (rawTasks || []).filter(t => activeWPIds.includes(t.id)) : (rawTasks || []);
         setGanttTasks(tasks);
-        // Pre-fill PM observations from current gantt progress
+        // Pre-fill PM observations from current gantt progress. A restored
+        // draft's per-task edits win over the server default for that task —
+        // mirrors the same merge in ContractorReport.jsx (P2.1).
+        const draftObs = readDraft()?.pmWpObservations || {};
         const initial = {};
         for (const t of tasks) {
-          initial[t.id] = { observed_progress: t.actual_progress ?? 0, observed_status: t.status ?? 'not_started', pm_note: '' };
+          initial[t.id] = draftObs[t.id] ?? { observed_progress: t.actual_progress ?? 0, observed_status: t.status ?? 'not_started', pm_note: '' };
         }
         setPmWpObservations(initial);
       })
@@ -111,7 +146,9 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
   }
 
   function resetForm() {
+    clearDraft();
     setForm({ visitDate: new Date().toISOString().split("T")[0], referenceReportId: latestReport?.id ? String(latestReport.id) : "", pmWorkPackageStatuses: makeEmptyPMWPStatuses(), pmScheduleAssessment: "", observations: "", photos: [], declarationConfirmed: false });
+    setPmWpObservations({});
     setSavedVisit(null);
     setErrors([]);
     setPhotoUrls([]);
@@ -158,6 +195,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
         const saved = await onSaveSiteVisit(visitData);
         setSavedVisit(saved);
       }
+      clearDraft();
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
@@ -222,6 +260,13 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
       onPhotoRemove={(path) => setPhotoUrls((prev) => prev.filter((p) => p !== path))}
       onPhotoError={(msg) => setPhotoError(msg)}
       photoError={photoError}
+      draftRestored={draftRestored}
+      onDiscardDraft={() => {
+        clearDraft();
+        setForm({ visitDate: new Date().toISOString().split("T")[0], referenceReportId: latestReport?.id ? String(latestReport.id) : "", pmWorkPackageStatuses: makeEmptyPMWPStatuses(), pmScheduleAssessment: "", observations: "", photos: [], declarationConfirmed: false });
+        setPmWpObservations({});
+        setPhotoUrls([]);
+      }}
     />
   );
 }

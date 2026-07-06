@@ -11,10 +11,24 @@ function SiteVisitFormView({
   ganttLoading, ganttTasks, pmWpObservations, updatePMObservation,
   onSubmit,
   photoUrls, projectId, onPhotoUpload, onPhotoRemove, onPhotoError, photoError,
+  draftRestored, onDiscardDraft,
 }) {
   return (
     <div data-testid="pm-site-visit-form" className="field-form-page" style={{ minHeight: "100vh", background: "#f0f7fa", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
+
+        {draftRestored && (
+          <div data-testid="draft-restored-banner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#e0f2fe", border: "1px solid #7dd3fc", borderRadius: 12, padding: "10px 16px", marginBottom: 16, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: "#0c4a6e", fontWeight: 600 }}>Restored your unsaved draft for this site visit.</span>
+            <button
+              type="button"
+              onClick={onDiscardDraft}
+              style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #7dd3fc", background: "white", color: "#0c4a6e", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+            >
+              Discard draft
+            </button>
+          </div>
+        )}
 
         {/* Header card */}
         <div style={{ background: "white", borderRadius: 16, border: "1px solid #e5e7eb", padding: "24px 28px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
