@@ -1,18 +1,18 @@
 import { computeWPObservationDiscrepancy } from '../../engines/discrepancyEngine';
 
-const ACCENT = "#0891b2";
+const ACCENT = "var(--field-accent-sitevisit)";
 
 const DISC_STYLE = {
-  warning:  { bg: '#fef3c7', color: '#92400e', border: '#fde68a', icon: '⚠' },
-  critical: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5', icon: '⚠' },
+  warning:  { bg: 'var(--field-warning-bg)', color: 'var(--field-warning-fg-dark)', border: 'var(--field-warning-border)', icon: '⚠' },
+  critical: { bg: 'var(--field-danger-bg)', color: 'var(--field-danger-fg-dark)', border: 'var(--field-danger-border)', icon: '⚠' },
 };
 
 const GANTT_STATUS_OPTS_SV = [
-  { value: 'not_started', label: 'Not Started', bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
-  { value: 'in_progress', label: 'In Progress', bg: '#fef3c7', color: '#d97706', border: '#fde68a' },
-  { value: 'completed',   label: 'Completed',   bg: '#dcfce7', color: '#16a34a', border: '#86efac' },
-  { value: 'delayed',     label: 'Delayed',     bg: '#fce7f3', color: '#be185d', border: '#f9a8d4' },
-  { value: 'blocked',     label: 'Blocked',     bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
+  { value: 'not_started', label: 'Not Started', bg: 'var(--field-bg-subtle)', color: 'var(--field-text-secondary)', border: 'var(--field-border-strong)' },
+  { value: 'in_progress', label: 'In Progress', bg: 'var(--field-warning-bg)', color: 'var(--field-warning-fg)', border: 'var(--field-warning-border)' },
+  { value: 'completed',   label: 'Completed',   bg: 'var(--field-success-bg)', color: 'var(--field-success-fg)', border: 'var(--field-success-border)' },
+  { value: 'delayed',     label: 'Delayed',     bg: 'var(--field-delayed-bg)', color: 'var(--field-delayed-fg)', border: 'var(--field-delayed-border)' },
+  { value: 'blocked',     label: 'Blocked',     bg: 'var(--field-danger-bg)', color: 'var(--field-danger-fg)', border: 'var(--field-danger-border)' },
 ];
 
 function GanttPMTaskRow({ task, pmEntry, onChange }) {
@@ -40,12 +40,12 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
   }
 
   return (
-    <div data-testid="pm-task-row" style={{ borderBottom: '1px solid #f3f4f6', padding: '9px 0' }}>
+    <div data-testid="pm-task-row" style={{ borderBottom: '1px solid var(--field-bg-subtle)', padding: '9px 0' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 180px', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.35 }}>{task.label}</span>
+          <span style={{ fontSize: 13, color: 'var(--field-text-body)', lineHeight: 1.35 }}>{task.label}</span>
           {task.isCritical && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', flexShrink: 0 }}>CRITICAL</span>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'var(--field-danger-bg)', color: 'var(--field-danger-fg)', border: '1px solid var(--field-danger-border)', flexShrink: 0 }}>CRITICAL</span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
@@ -58,9 +58,9 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
                 style={{
                   position: 'relative',
                   padding: '4px 9px', borderRadius: 6, fontSize: 11,
-                  border: isPM ? `1.5px solid ${opt.border}` : isGC ? `1px solid ${opt.border}` : '1px solid #e5e7eb',
+                  border: isPM ? `1.5px solid ${opt.border}` : isGC ? `1px solid ${opt.border}` : '1px solid var(--field-border)',
                   background: isPM ? opt.bg : isGC ? opt.bg + '80' : 'white',
-                  color: isPM ? opt.color : isGC ? opt.color : '#9ca3af',
+                  color: isPM ? opt.color : isGC ? opt.color : 'var(--field-text-muted)',
                   fontWeight: isPM ? 700 : 400,
                   cursor: 'pointer', whiteSpace: 'nowrap', outline: 'none',
                 }}>

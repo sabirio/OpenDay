@@ -75,11 +75,11 @@ export function comparisonResult(pmStatus, gcStatus) {
   if (!pmStatus && !gcStatus) return null;
   // Either side marked N/A — exclude from comparison metrics entirely
   if (pmStatus === "Not Applicable" || gcStatus === "Not Applicable") return null;
-  if (!pmStatus) return { type: "not-assessed", badge: "Not assessed", color: "#94a3b8", bg: "white",    border: "#f3f4f6" };
-  if (!gcStatus) return { type: "no-gc",        badge: "No GC data",   color: "#6b7280",  bg: "#f8fafc", border: "#e5e7eb" };
+  if (!pmStatus) return { type: "not-assessed", badge: "Not assessed", color: "var(--field-text-label)", bg: "white",    border: "var(--field-bg-subtle)" };
+  if (!gcStatus) return { type: "no-gc",        badge: "No GC data",   color: "var(--field-text-secondary)",  bg: "var(--field-bg-faint-alt)", border: "var(--field-border)" };
   const ps = WP_STATUS_SCORES[pmStatus] ?? 0;
   const gs = WP_STATUS_SCORES[gcStatus] ?? 0;
-  if (ps === gs) return { type: "match",        badge: "✓ Match",       color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" };
-  if (ps < gs)   return { type: "discrepancy",  badge: "⚠ Discrepancy", color: "#991b1b", bg: "#fff1f2", border: "#fca5a5" };
-  return               { type: "pm-higher",    badge: "↑ PM ahead",    color: "#92400e", bg: "#fefce8", border: "#fde68a" };
+  if (ps === gs) return { type: "match",        badge: "✓ Match",       color: "var(--field-success-fg-dark)", bg: "var(--field-success-bg)", border: "var(--field-success-border)" };
+  if (ps < gs)   return { type: "discrepancy",  badge: "⚠ Discrepancy", color: "var(--field-danger-fg-dark)", bg: "var(--field-danger-bg)", border: "var(--field-danger-border)" };
+  return               { type: "pm-higher",    badge: "↑ PM ahead",    color: "var(--field-warning-fg-dark)", bg: "var(--field-warning-bg-subtle)", border: "var(--field-warning-border)" };
 }

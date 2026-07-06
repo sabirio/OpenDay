@@ -126,6 +126,7 @@
   --field-bg-sitevisit:       #f0f7fa;
   --field-accent-contractor:  #2f855a;
   --field-accent-sitevisit:   #0891b2;
+  --field-accent-sitevisit-2: #06b6d4;
 
   --field-text-heading:       #111827;
   --field-text-body:          #374151;
@@ -166,6 +167,13 @@
   --field-neutral-bg:         #f5f3ff;
   --field-neutral-fg:         #7c3aed;
   --field-neutral-border:     #ddd6fe;
+  --field-neutral-bg-subtle:  #faf8ff;
+  --field-neutral-border-subtle: #ede9fe;
+
+  /* GC-reference subtle tints (a task the GC touched, shown lighter than the
+     PM's own bold selection) */
+  --field-bg-faint-alt:       #f9fafb;
+  --field-warning-bg-subtle:  #fefce8;
 
   /* Section-header accent colors (decorative, not status-driven) */
   --field-accent-slate:       #475569;
