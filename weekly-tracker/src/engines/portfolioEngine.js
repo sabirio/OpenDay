@@ -4,7 +4,7 @@
 
 import { computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isMissingReport, isBadScheduleStatus } from '../utils/reportUtils';
 import { calculateProjectProgressResult } from './progressEngine';
-import { isProjectAtRisk, isProjectCritical } from '../core/insights/severity/openingSeverity.js';
+import { isProjectAtRisk, isProjectCritical, describeProjectRisk } from '../core/insights/severity/openingSeverity.js';
 
 /** @typedef {import('../types').PortfolioKpis} PortfolioKpis */
 /**
@@ -120,8 +120,10 @@ export function computePortfolioAnalytics(rows) {
  */
 export function computePortfolioKpis(projects, allRows, allReports) {
   const active   = projects.filter(p => p.projectStatus === "Active").length;
-  const atRisk   = allRows.filter(isProjectAtRisk).length;
-  const critical = allRows.filter(isProjectCritical).length;
+  const atRiskRows   = allRows.filter(isProjectAtRisk);
+  const criticalRows = allRows.filter(isProjectCritical);
+  const atRisk   = atRiskRows.length;
+  const critical = criticalRows.length;
   const missing  = allRows.filter(({ missingReport }) => missingReport).length;
   const blocked  = allRows.filter(({ latestReport }) => latestReport?.activitiesBlocked === "Yes").length;
   const support  = allRows.filter(({ latestReport }) => latestReport?.supportRequired === "Yes").length;
@@ -144,6 +146,8 @@ export function computePortfolioKpis(projects, allRows, allReports) {
     avgProgress,
     reportsThisWeek,
     openingSoon,
+    atRiskDetails:   atRiskRows.map(describeProjectRisk),
+    criticalDetails: criticalRows.map(describeProjectRisk),
   };
 }
 

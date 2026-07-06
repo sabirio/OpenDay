@@ -51,5 +51,25 @@ console.log('\nisProjectAtRisk — the AA0011 collision scenario (Step 0)');
   check('missing readiness field does not throw', isProjectAtRisk({ latestReport: null, riskLevel: 'LOW' }) === false);
 }
 
+console.log('\ndescribeProjectRisk — explains the count');
+{
+  const { describeProjectRisk } = await import('../severity/openingSeverity.js');
+  const row = {
+    project: { storeCode: 'AA0011', shoppingMallName: 'Mega' },
+    latestReport: { projectScheduleStatus: 'On Track' },
+    riskLevel: 'LOW',
+    readiness: {
+      status: 'At Risk',
+      criticalBlockers: [{ task: 'Fire safety' }, { task: 'MEP handover' }],
+      softBlockers: [{ task: 'Snag list' }],
+    },
+  };
+  const d = describeProjectRisk(row);
+  check('code + status surfaced', d.code === 'AA0011' && d.status === 'At Risk');
+  check('critical blocker tasks listed', d.criticalBlockers.length === 2 && d.criticalBlockers.includes('Fire safety'));
+  check('soft blocker tasks listed', d.softBlockers.length === 1);
+  check('reason has readiness, not false self-report', d.reasons.some(r => r.includes('Opening readiness')) && !d.reasons.some(r => r.includes('Self-reported')));
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

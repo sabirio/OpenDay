@@ -54,3 +54,32 @@ export function isProjectAtRisk(row) {
 export function isProjectCritical(row) {
   return row.riskLevel === 'CRITICAL' || isOpeningCritical(row.readiness);
 }
+
+/**
+ * Explaining companion to isProjectAtRisk/isProjectCritical (same row shape):
+ * returns a human-readable breakdown of why a project landed in the count,
+ * for the Home dashboard's expandable AT RISK/CRITICAL cards.
+ * @param {{project?: {storeCode?: string, shoppingMallName?: string}, latestReport?: {projectScheduleStatus?: string}|null, riskLevel?: string, readiness?: {status?: string, criticalBlockers?: Array<{task?: string}>, softBlockers?: Array<{task?: string}>}|null}} row
+ */
+export function describeProjectRisk(row) {
+  const r = row.readiness ?? null;
+  const criticalBlockers = r?.criticalBlockers ?? [];
+  const softBlockers     = r?.softBlockers ?? [];
+  const reasons = [];
+
+  if (isBadScheduleStatus(row.latestReport?.projectScheduleStatus))
+    reasons.push(`Self-reported: ${row.latestReport.projectScheduleStatus}`);
+  if (row.riskLevel === 'CRITICAL')
+    reasons.push('Aggregate risk level: CRITICAL');
+  if (r?.status && r.status !== 'Ready' && r.status !== 'No Date')
+    reasons.push(`Opening readiness: ${r.status}`);
+
+  return {
+    code:   row.project?.storeCode ?? '—',
+    mall:   row.project?.shoppingMallName ?? '',
+    status: r?.status ?? null,
+    reasons,
+    criticalBlockers: criticalBlockers.map(b => b.task).filter(Boolean),
+    softBlockers:     softBlockers.map(b => b.task).filter(Boolean),
+  };
+}
