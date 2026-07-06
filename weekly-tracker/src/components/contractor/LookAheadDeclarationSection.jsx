@@ -26,10 +26,7 @@ function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, 
       </FormSection>
 
       <FormSection title="Declaration & Comments" accentColor="var(--field-accent-slate)">
-        <div className="field-form-2col">
-          <TextAreaField label="Pending Issues Summary (optional)" value={form.pendingIssues} onChange={(v) => updateField("pendingIssues", v)} placeholder="List any open issues or pending actions..." rows={4} />
-          <TextAreaField label="Final Comments (optional)" value={form.finalComments} onChange={(v) => updateField("finalComments", v)} placeholder="Any additional comments for this week..." rows={4} />
-        </div>
+        <TextAreaField label="Final Comments or Pending Issues (optional)" value={form.finalComments} onChange={(v) => updateField("finalComments", v)} placeholder="Any comments, open issues, or pending actions for this week..." rows={4} />
 
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 10 }}>Site Photos</div>

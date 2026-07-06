@@ -98,6 +98,15 @@ export function adaptContractorReportToLegacy(contractorReport, wps = []) {
     supportTypes: [],
     currentPackages: [],
     currentPhases: deriveCurrentPhases(wps),
+    // 023: these 6 columns didn't exist on contractor_reports before — the RPC
+    // silently dropped them into progress_history.snapshot's opaque JSONB blob,
+    // so Weekly Reports' Look Ahead/Declaration panels always showed empty.
+    nextWeekTop3: contractorReport.next_week_top3 || "",
+    weekAfterTop3: contractorReport.week_after_top3 || "",
+    activitiesBlocked: contractorReport.activities_blocked || "No",
+    delayReason: contractorReport.delay_reason || "",
+    pendingIssues: contractorReport.pending_issues || "",
+    finalComments: contractorReport.final_comments || "",
     sourceTable: "contractor_reports",
   };
 }
