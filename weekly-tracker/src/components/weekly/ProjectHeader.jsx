@@ -19,8 +19,9 @@ export default function ProjectHeader({ project }) {
   ].filter(Boolean);
 
   return (
-    <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+    <div className="weekly-project-header">
       <div>
+        <div className="weekly-section-kicker">Selected project</div>
         <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3 }}>
           {project.shoppingMallName || project.storeCode || '—'}
         </h2>

@@ -58,7 +58,7 @@ function WhyPanel({ explainResult }) {
                       </span>
                     </div>
                     <div style={{ background: 'var(--border)', borderRadius: 3, height: 4, overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.min(100, p.phaseProgress)}%`, height: '100%', background: 'var(--accent)', borderRadius: 3, transition: 'width 0.3s ease' }} />
+                      <div style={{ width: `${Math.min(100, p.phaseProgress)}%`, height: '100%', background: 'var(--accent)', borderRadius: 3 }} />
                     </div>
                   </div>
                 ))}
@@ -188,9 +188,10 @@ export default function ProgressNarrative({ progressComparison, selectedProgress
   }
 
   return (
-    <div className="dashboard-summary-card" style={{ marginBottom: 0, height: '100%', boxSizing: 'border-box' }}>
+    <div className="dashboard-summary-card weekly-progress-narrative">
+      <div className="weekly-section-kicker">Progress explanation</div>
       {/* Three stat blocks */}
-      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: reasons.length > 0 ? 16 : 0 }}>
+      <div className="weekly-progress-stats" style={{ marginBottom: reasons.length > 0 ? 16 : 0 }}>
         <StatBlock label="Current">
           {displayPct !== null && displayPct !== undefined
             ? (

@@ -12,8 +12,8 @@ export default function WeeklyReportsToolbar({
   onToggleGantt,
 }) {
   return (
-    <div className="dashboard-toolbar">
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", flex: 1 }}>
+    <div className="dashboard-toolbar weekly-reports-toolbar">
+      <div className="weekly-reports-toolbar-fields">
         <div className="dashboard-filter-group">
           <label>Project</label>
           <select data-testid="project-select" value={selectedProjectId} onChange={onProjectChange}>
@@ -41,7 +41,7 @@ export default function WeeklyReportsToolbar({
           type="button"
           onClick={onToggleGantt}
           style={{
-            padding: "7px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer",
+            minHeight: 40, padding: "7px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer",
             border: `1.5px solid ${showGantt ? "var(--status-done)" : "var(--border)"}`,
             background: showGantt ? "var(--status-done-bg)" : "var(--accent-subtle)",
             color: showGantt ? "var(--status-done)" : "var(--text-primary)",

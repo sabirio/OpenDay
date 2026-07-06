@@ -42,28 +42,34 @@ export default function KpiStrip({ project, report, overallProgress, portfolioKp
   ];
 
   return (
-    <div className="dashboard-summary-card" style={{ marginBottom: 0, padding: '14px 20px', height: '100%', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 16 }}>
+    <div className="dashboard-summary-card weekly-kpi-strip">
+      <div className="weekly-section-kicker">Report truth</div>
+      <div className="weekly-kpi-primary">
         {kpis.map(k => (
-          <div key={k.label}>
+          <div key={k.label} className="weekly-kpi-item">
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>{k.label}</div>
             {k.node}
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+      <div className="weekly-kpi-secondary">
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 5 }}>Report Date</div>
           <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{report?.reportingDate || '—'}</span>
         </div>
         <InfoLabel label="Total Reports">{projectReportCount}</InfoLabel>
-        <div style={{ cursor: portfolioKpis.missingCount > 0 ? 'pointer' : 'default' }} onClick={portfolioKpis.missingCount > 0 ? onMissingClick : undefined}>
+        <button
+          type="button"
+          className="weekly-kpi-missing"
+          disabled={portfolioKpis.missingCount <= 0}
+          onClick={portfolioKpis.missingCount > 0 ? onMissingClick : undefined}
+        >
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 5 }}>Missing Reports</div>
           <span style={{ fontSize: 18, fontWeight: 800, color: portfolioKpis.missingCount > 0 ? 'var(--status-alert)' : 'var(--status-done)', textDecoration: portfolioKpis.missingCount > 0 ? 'underline dotted' : 'none' }}>
             {portfolioKpis.missingCount}
           </span>
-        </div>
+        </button>
         <InfoLabel label="Blocked">
           <span style={{ fontWeight: 700, color: report?.activitiesBlocked === 'Yes' ? 'var(--status-alert)' : 'var(--status-done)' }}>
             {report?.activitiesBlocked || '—'}

@@ -16,10 +16,17 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
     rate === null ? 'var(--text-muted)' : rate >= 80 ? 'var(--status-done)' : rate >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
 
   return (
-    <div style={{ display: 'grid', gap: 16, marginBottom: 20 }}>
+    <section className="weekly-comparison-section">
+      <div className="weekly-section-header">
+        <div>
+          <div className="weekly-section-kicker">Contractor vs PM</div>
+          <h2>Verification comparison</h2>
+          <p>PM site observations compared with the contractor's weekly report for the selected project.</p>
+        </div>
+      </div>
 
       {/* KPI row */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div className="weekly-comparison-kpis">
         <KpiCard label="Total Visits"  value={svKpis.totalVisits} color="var(--accent)" />
         <KpiCard label="Match Rate"    value={svKpis.overallMatchRate !== null ? `${svKpis.overallMatchRate}%` : '—'} color={matchRateColor(svKpis.overallMatchRate)} sub="PM vs GC agreement" />
         <KpiCard label="Discrepancies" value={svKpis.totalDiscrepancies} color={svKpis.totalDiscrepancies > 0 ? 'var(--status-alert)' : 'var(--status-done)'} sub="GC overclaiming" />
@@ -145,6 +152,6 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

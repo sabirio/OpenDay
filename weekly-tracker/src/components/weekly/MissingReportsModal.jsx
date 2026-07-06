@@ -4,13 +4,13 @@ export default function MissingReportsModal({ missingRows, onClose }) {
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000 }} />
-      <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 780, maxWidth: "96vw", maxHeight: "85vh", background: "var(--bg-surface)", zIndex: 1001, borderRadius: 16, boxShadow: "var(--shadow-lg)", display: "flex", flexDirection: "column", borderTop: "3px solid var(--status-alert)", border: "1px solid var(--border)" }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="missing-reports-title" className="weekly-missing-modal">
         <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>Missing Reports</div>
+            <div id="missing-reports-title" style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>Missing Reports</div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Projects with no report or last report older than 7 days</div>
           </div>
-          <button type="button" onClick={onClose} style={{ padding: "5px 13px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--accent-subtle)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close x</button>
+          <button type="button" onClick={onClose} style={{ minHeight: 36, padding: "5px 13px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--accent-subtle)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close</button>
         </div>
         <div style={{ overflowY: "auto", padding: "16px 24px" }}>
           <table className="dashboard-table" style={{ width: "100%" }}>

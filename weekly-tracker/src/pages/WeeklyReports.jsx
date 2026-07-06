@@ -51,9 +51,12 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, info) { console.error("ErrorBoundary caught:", error, info); }
   render() {
     if (this.state.hasError) return (
-      <div className="dashboard-summary-card">
-        <h2>Rendering error</h2>
-        <pre style={{ whiteSpace: "pre-wrap", fontSize: 13, color: "var(--status-alert)" }}>{String(this.state.error)}</pre>
+      <div className="dashboard-summary-card weekly-report-error" role="alert">
+        <div>
+          <h2>Weekly report could not render</h2>
+          <p>The report data loaded, but this view hit a rendering problem. Refresh the page or try another report date.</p>
+        </div>
+        <pre style={{ whiteSpace: "pre-wrap", fontSize: 13, color: "var(--status-alert)", margin: 0 }}>{String(this.state.error)}</pre>
       </div>
     );
     return this.props.children;
@@ -317,12 +320,12 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
   return (
     <ErrorBoundary>
-      <div>
+      <div className="weekly-reports-surface">
         {/* Page title */}
         <div className="page-header">
           <div>
             <h1>Weekly Reports</h1>
-            <p>Contractor progress reports — detailed operational status by project and week.</p>
+            <p>Verified weekly progress, PM comparison, risks, evidence, and opening readiness by project.</p>
           </div>
           {selectedProject && (
             <ExportButton label="Export Report PDF" />
@@ -354,11 +357,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           <>
             <ProjectHeader project={selectedProject} />
             {templateIssues.filter(i => i.severity === 'error').length > 0 && (
-              <div role="alert" style={{
-                background: 'var(--status-warn-bg)', border: '1px solid var(--border)',
-                borderLeft: '4px solid var(--status-warn)', borderRadius: 10,
-                padding: '10px 16px', marginBottom: 14, fontSize: 13,
-              }}>
+              <div role="alert" className="weekly-template-alert">
                 <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
                   Active template is invalid — using built-in default weights. Fix in Template Editor:
                 </span>
@@ -369,7 +368,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 </ul>
               </div>
             )}
-            <div className="no-break" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, alignItems: 'stretch', marginBottom: 16 }}>
+            <div className="no-break weekly-report-truth-grid">
               <KpiStrip
                 project={selectedProject}
                 report={selectedReport}
@@ -424,8 +423,9 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
         )}
         {/* Empty state */}
         {projectReports.length === 0 && selectedProject && (
-          <div className="dashboard-summary-card" style={{ color: "var(--text-muted)", padding: "32px 24px", textAlign: "center" }}>
-            No weekly reports submitted yet for this project.
+          <div className="dashboard-summary-card weekly-report-empty">
+            <h2>No contractor reports yet</h2>
+            <p>This project has no weekly contractor submission to verify. Once a report is submitted, progress, risks, photos, and PM comparison will appear here.</p>
           </div>
         )}
 
@@ -440,14 +440,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               latestDate={projectReports[0]?.reportingDate}
             />
 
-            <PhaseTimeline
-              key={effectiveReportId}
-              phases={phaseClassifications}
-              mergedStatuses={mergedStatuses}
-              wpDeltas={wpDeltas}
-              phaseChangeFlags={phaseChangeFlags}
-            />
-
             {selectedProject && (
               <SiteVisitComparison
                 svData={svData}
@@ -456,6 +448,14 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 onExpandedChange={setExpandedVisitId}
               />
             )}
+
+            <PhaseTimeline
+              key={effectiveReportId}
+              phases={phaseClassifications}
+              mergedStatuses={mergedStatuses}
+              wpDeltas={wpDeltas}
+              phaseChangeFlags={phaseChangeFlags}
+            />
 
             <ReportLinksBlock report={selectedReport} />
 

@@ -7,7 +7,7 @@ export default function ReportLinksBlock({ report }) {
   const hasDeclaration = report.pendingIssues || report.finalComments;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+    <div className="weekly-report-links">
       {/* Look Ahead */}
       <div className="dashboard-summary-card" style={{ margin: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--text-primary)' }}>Look Ahead</div>

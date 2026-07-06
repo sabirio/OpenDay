@@ -357,6 +357,200 @@ body {
 
 .dashboard-table tbody tr:hover { background: var(--bg-elevated); }
 
+/* ============================================================
+   WEEKLY REPORTS
+   ============================================================ */
+.weekly-reports-surface {
+  display: grid;
+  gap: 0;
+}
+
+.weekly-reports-toolbar {
+  align-items: end;
+  padding: 14px 16px;
+  background: var(--bg-surface-alpha);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.weekly-reports-toolbar-fields {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.weekly-project-header {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 0 2px;
+}
+
+.weekly-section-kicker {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 7px;
+}
+
+.weekly-template-alert {
+  background: var(--status-warn-bg);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  font-size: 0.8125rem;
+}
+
+.weekly-report-truth-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.25fr) minmax(320px, 0.95fr);
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+.weekly-kpi-strip,
+.weekly-progress-narrative {
+  margin-bottom: 0;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.weekly-kpi-strip {
+  padding: 16px 20px;
+}
+
+.weekly-kpi-primary {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.weekly-kpi-item {
+  min-width: 112px;
+}
+
+.weekly-kpi-secondary {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.weekly-kpi-missing {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.weekly-kpi-missing:disabled {
+  cursor: default;
+}
+
+.weekly-kpi-missing:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+.weekly-progress-stats {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.weekly-section-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+}
+
+.weekly-section-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.weekly-section-header p {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.weekly-comparison-section {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.weekly-comparison-kpis {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.weekly-report-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.weekly-missing-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 780px;
+  max-width: 96vw;
+  max-height: 85vh;
+  background: var(--bg-surface);
+  z-index: 1001;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--status-alert);
+}
+
+.weekly-report-empty,
+.weekly-report-error {
+  color: var(--text-secondary);
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.weekly-report-empty h2,
+.weekly-report-error h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.weekly-report-empty p,
+.weekly-report-error p {
+  margin: 0 auto;
+  max-width: 560px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
 /* Project table card wrapper */
 .projects-table-card {
   display: flex;
@@ -1320,6 +1514,12 @@ body {
   .dashboard-grid { grid-template-columns: 1fr; }
   .sidebar { width: 200px; padding: 16px 12px; }
   .main-content { padding: 24px 20px; }
+  .weekly-report-truth-grid { grid-template-columns: 1fr; }
+  .weekly-report-links { grid-template-columns: 1fr; }
+  .weekly-reports-toolbar { align-items: stretch; }
+  .weekly-reports-toolbar-fields { width: 100%; }
+  .weekly-reports-toolbar .dashboard-filter-group { flex: 1 1 220px; }
+  .weekly-reports-toolbar .dashboard-filter-group select { width: 100%; }
 }
 
 /* ============================================================
@@ -1344,6 +1544,20 @@ body {
 }
 @media (max-width: 640px) {
   .field-form-2col { grid-template-columns: 1fr; }
+  .weekly-project-header { align-items: flex-start; }
+  .weekly-kpi-primary,
+  .weekly-kpi-secondary,
+  .weekly-progress-stats,
+  .weekly-comparison-kpis {
+    gap: 14px;
+  }
+  .weekly-kpi-item {
+    min-width: calc(50% - 8px);
+  }
+  .weekly-missing-modal {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 28px);
+  }
 }
 
 /* Horizontally-scrollable wrapper for fixed-column comparison tables,
