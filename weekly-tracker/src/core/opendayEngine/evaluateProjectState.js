@@ -22,8 +22,17 @@ import { computeContractorScores } from '../../engines/contractorEngine';
 import { computeProjectHealth } from '../../engines/projectHealthEngine';
 import { computeOpeningReadiness } from '../../engines/openingReadinessEngine';
 import { WORK_PACKAGES as GANTT_WPS } from '../../config/masterTaskLibrary';
+import { ALL_WORK_PACKAGES_V2 } from '../../domains/construction/templates/retailFitoutV2';
+import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
+import { buildV2OpeningReadinessOptions } from '../projects/scope/buildV2OpeningReadinessOptions';
 import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
 import { isTemplateValid } from '../projects';
+
+// v2 (zoned) projects are selected by templateType, never templateId (see
+// retailFitoutV2.js header) — matches the literal getWPGrouping.js already
+// checks against, kept as a plain string here too (no shared constant module
+// exists to import from without creating one for a single comparison).
+const V2_TEMPLATE_TYPE = 'retail-fitout-v2';
 
 // Mirrors WeeklyReports.jsx's gatedTemplate resolution (pinned template ->
 // fallback to the active template -> gated on isTemplateValid) so progress
@@ -54,12 +63,19 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   const wpCumulativeStatuses = computeWPCumulativeStatuses(projReports) || null;
   const latestReport = sorted[sorted.length - 1] || null;
 
-  const scopeWPIds = getScopeWPIds(project?.scope, GANTT_WPS);
+  const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
+  const scopeWPIds = getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS);
   const phaseWeightOverrides = project?.scope?.weightOverrides ?? null;
-  const gatedTemplate = resolveGatedTemplate(project, templatesById, activeTemplateFallback);
+  // v2 has no pinned-template concept (templateId/templatesById is a v1-only,
+  // TemplateEditor-driven mechanism) — its "template" is instead built fresh
+  // from the project's own zone areas/scope via buildV2ProgressTemplate.
+  const gatedTemplate = isV2 ? null : resolveGatedTemplate(project, templatesById, activeTemplateFallback);
+  const v2ProgressTemplate = isV2
+    ? buildV2ProgressTemplate(project?.scope?.zoneAreas, project?.scope?.zones ?? null, project?.scope?.categories ?? null)
+    : null;
 
   const progress = wpCumulativeStatuses
-    ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides, gatedTemplate)
+    ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides, isV2 ? v2ProgressTemplate : gatedTemplate)
     : estimateProgressFromStatuses(cumulativeStatuses);
 
   const progressPoints  = sorted.map((r, i) => ({ date: r.reportingDate || r.submittedAt, value: progressAtIndex(sorted, i) }));
@@ -69,7 +85,8 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   // readiness is computed before riskScore (A3) so computeProjectRiskScore can
   // read readiness.verdict — the single source of truth for "can we actually
   // close everything in time" — rather than re-deriving it from scratch.
-  const readiness       = computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate ?? null, scopeWPIds);
+  const v2ReadinessOptions = isV2 ? buildV2OpeningReadinessOptions() : null;
+  const readiness       = computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate ?? null, scopeWPIds, v2ReadinessOptions);
   const riskScore       = computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness);
   const riskLevel       = riskScore.level;
   const priorityScore   = computePriorityScore(riskLevel, daysToOpening, missingReport);

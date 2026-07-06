@@ -4,6 +4,7 @@ import LegacyPMTaskRow from "./LegacyPMTaskRow";
 import GanttPMTaskRow from "./GanttPMTaskRow";
 import { getGCTaskEntry } from "./gcReferenceHelpers";
 import PhotoUpload from "../shared/PhotoUpload";
+import { isZonedTemplate, groupGanttTasksByZone } from "../../core/projects/grouping/getWPGrouping";
 
 function SiteVisitFormView({
   project, projectReports, form, set, errors,
@@ -126,6 +127,29 @@ function SiteVisitFormView({
           <FormSection title="Work Package Observations" accentColor={ACCENT}>
             <div style={{ textAlign: 'center', padding: '20px', color: 'var(--field-text-muted)', fontSize: 13 }}>Loading schedule…</div>
           </FormSection>
+        ) : ganttTasks.length > 0 && isZonedTemplate(project.templateType) ? (
+          (() => {
+            const zones = groupGanttTasksByZone(ganttTasks, project.templateType);
+            return [...zones.entries()].map(([zoneId, zone]) => (
+              <div key={zoneId} style={{ marginBottom: 8 }}>
+                <h2 style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--field-text-secondary)', margin: '0 0 8px 4px' }}>
+                  {zone.zoneLabel}
+                </h2>
+                {[...zone.categories.entries()].map(([categoryId, { categoryLabel, tasks }]) => (
+                  <FormSection key={`${zoneId}.${categoryId}`} title={categoryLabel} accentColor={ACCENT}>
+                    {tasks.map(task => (
+                      <GanttPMTaskRow
+                        key={task.id}
+                        task={task}
+                        pmEntry={pmWpObservations[task.id]}
+                        onChange={updates => updatePMObservation(task.id, updates)}
+                      />
+                    ))}
+                  </FormSection>
+                ))}
+              </div>
+            ));
+          })()
         ) : ganttTasks.length > 0 ? (
           (() => {
             const byPhase = {};

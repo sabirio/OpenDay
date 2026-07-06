@@ -1,5 +1,5 @@
 import { constructionRetailV1 } from "../domains/construction/templates/constructionRetailV1";
-import { DEPENDENCY_RULES, filterRulesForWPs } from "../config/dependencyRules";
+import { DEPENDENCY_RULES } from "../config/dependencyRules";
 import { daysUntil } from "../utils/reportUtils";
 import { sortReasons } from "../utils/reasonUtils";
 
@@ -50,12 +50,12 @@ function remainingClearDays(wp, entry) {
 // ahead of schedule. computeCriticalChain() already receives scopeWPIds for
 // the same reason — this must match, or its graph would be scoped while the
 // blocker list feeding it isn't.
-function buildBlockerRecords(wpStatuses, scopeWPIds = null) {
+function buildBlockerRecords(wpStatuses, scopeWPIds = null, blockerWPs = BLOCKER_WPS) {
   const inScope = scopeWPIds && scopeWPIds.length
     ? (wp) => scopeWPIds.includes(wp.id)
     : () => true;
   const records = [];
-  for (const wp of BLOCKER_WPS) {
+  for (const wp of blockerWPs) {
     if (!inScope(wp)) continue;
     const entry = getTaskEntry(wpStatuses, wp);
     if (!isBlocking(entry)) continue;
@@ -84,12 +84,15 @@ function buildBlockerRecords(wpStatuses, scopeWPIds = null) {
 // bottleneck across all independent/parallel blocker chains at once — this
 // subsumes the "max over independent chains" framing without needing to
 // separately detect which chains are independent.
-function computeCriticalChain(blockerRecords, scopeWPIds) {
+function computeCriticalChain(blockerRecords, scopeWPIds, allWpIds = ALL_WP_IDS, dependencyRules = DEPENDENCY_RULES) {
   if (blockerRecords.length === 0) return { requiredDays: 0, criticalChain: [] };
 
   const byWpId = Object.fromEntries(blockerRecords.map(b => [b.wpId, b]));
-  const nodeIds = scopeWPIds && scopeWPIds.length ? scopeWPIds : ALL_WP_IDS;
-  const rules = scopeWPIds && scopeWPIds.length ? filterRulesForWPs(scopeWPIds) : DEPENDENCY_RULES;
+  const nodeIds = scopeWPIds && scopeWPIds.length ? scopeWPIds : allWpIds;
+  const wpIdSet = new Set(nodeIds);
+  const rules = scopeWPIds && scopeWPIds.length
+    ? dependencyRules.filter(r => wpIdSet.has(r.from) && wpIdSet.has(r.to))
+    : dependencyRules;
 
   const predecessors = {};
   for (const id of nodeIds) predecessors[id] = [];
@@ -154,6 +157,11 @@ function computeVerdict(daysToOpening, requiredDays) {
  * @param {string|null}  targetOpeningDate     - ISO date string
  * @param {string[]|null} [scopeWPIds]         - project's active WP ids (getScopeWPIds output);
  *   null/omitted falls back to the full template graph, unscoped.
+ * @param {{blockerWPs?: object[], allWpIds?: string[], dependencyRules?: object[]}|null} [templateOptions]
+ *   - override the v1 constructionRetailV1/DEPENDENCY_RULES defaults below
+ *   (used by v2 zoned projects — see buildV2OpeningReadinessOptions in
+ *   retailFitoutV2 wiring). Omitted entirely for v1, so v1 behavior is
+ *   byte-identical to before this parameter existed.
  * @returns {{
  *   status: 'No Date' | 'Ready' | 'At Risk' | 'Critical' | 'Overdue',
  *   daysToOpening: number | null,
@@ -167,12 +175,16 @@ function computeVerdict(daysToOpening, requiredDays) {
  *   criticalChain: Array<{ wpId, phaseId, task, level, status, responsibleRole, remainingDays }>,
  * }}
  */
-export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate, scopeWPIds = null) {
+export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate, scopeWPIds = null, templateOptions = null) {
   const targetDate = targetOpeningDate || null;
   const daysToOpening = targetDate ? daysUntil(targetDate) : null;
   const wpStatuses = wpCumulativeStatuses?.workPackageStatuses ?? wpCumulativeStatuses ?? null;
 
-  const blockerRecords = buildBlockerRecords(wpStatuses, scopeWPIds);
+  const blockerWPs = templateOptions?.blockerWPs ?? BLOCKER_WPS;
+  const allWpIds = templateOptions?.allWpIds ?? ALL_WP_IDS;
+  const dependencyRules = templateOptions?.dependencyRules ?? DEPENDENCY_RULES;
+
+  const blockerRecords = buildBlockerRecords(wpStatuses, scopeWPIds, blockerWPs);
   // Kept in the original {wpId: phaseId, task, status} shape for existing
   // consumers (commandEngine.js, projectSummaryEngine.js) — only .length is
   // read externally today. The corrected wp.id-keyed data lives in criticalChain.
@@ -181,7 +193,7 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate,
   const softBlockers = blockerRecords.filter(b => b.level === 'soft')
     .map(b => ({ wpId: b.phaseId, task: b.task, status: b.status }));
 
-  const { requiredDays, criticalChain } = computeCriticalChain(blockerRecords, scopeWPIds);
+  const { requiredDays, criticalChain } = computeCriticalChain(blockerRecords, scopeWPIds, allWpIds, dependencyRules);
   const { slack, verdict } = computeVerdict(daysToOpening, requiredDays);
 
   // Determine status (unchanged thresholds from before A2 — only the blocker

@@ -9,6 +9,10 @@ import {
 import { getById as getProjectById } from "../services/projectService";
 import { computeWPCumulativeStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
 import { calculateProjectProgressResult, calculateRawWPAverageProgress } from "../engines/progressEngine";
+import { getWPGrouping, isZonedTemplate } from "../core/projects/grouping/getWPGrouping";
+import { buildV2ProgressTemplate } from "../core/projects/weights/buildV2ProgressTemplate";
+import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
+import { ALL_WORK_PACKAGES_V2 } from "../domains/construction/templates/retailFitoutV2";
 import {
   LoadingReportState,
   ProjectNotFoundState,
@@ -252,6 +256,7 @@ function ContractorReport({ projects, reports }) {
       // When Gantt path is active, synthesize workPackageStatuses from the
       // slider inputs (ganttWpProgress) so Weekly Reports can display real progress.
       // Without this, the saved report has all tasks at "Not Started" (0%).
+      const isV2 = isZonedTemplate(project.templateType);
       let workPackageStatuses = form.workPackageStatuses || {};
       if (ganttTasks.length > 0) {
         const synthesized = {};
@@ -263,7 +268,10 @@ function ContractorReport({ projects, reports }) {
             ganttStatus === 'completed' ? 'Completed'
             : (ganttStatus === 'in_progress' || ganttStatus === 'delayed' || ganttStatus === 'blocked') ? 'In Progress'
             : 'Not Started';
-          const wpId = task.phaseId;
+          // v2's workPackageStatuses is keyed by categoryId, not the zoneId
+          // task.phaseId carries (see buildV2ProgressTemplate.js) — resolved
+          // live via getWPGrouping, never trusted from the stored task row.
+          const wpId = isV2 ? (getWPGrouping(project.templateType, task.id)?.categoryId ?? task.phaseId) : task.phaseId;
           const taskName = task.label;
           if (wpId && taskName) {
             if (!synthesized[wpId]) synthesized[wpId] = {};
@@ -297,7 +305,11 @@ function ContractorReport({ projects, reports }) {
       const allReports = [...projectReports, mainReportPayload];
       const wpCum  = computeWPCumulativeStatuses(allReports);
       const legCum = computeCumulativeStatuses(allReports);
-      const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum).progress;
+      const scopeWPIds = isV2 ? getScopeWPIds(project.scope, ALL_WORK_PACKAGES_V2) : null;
+      const v2Template = isV2
+        ? buildV2ProgressTemplate(project.scope?.zoneAreas, project.scope?.zones ?? null, project.scope?.categories ?? null)
+        : null;
+      const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template).progress;
 
       const wpProgressArray = ganttTasks.length > 0
         ? Object.entries(ganttWpProgress).map(([wpId, value]) => ({
@@ -406,6 +418,7 @@ function ContractorReport({ projects, reports }) {
           form={form}
           prevReport={prevReport}
           onLegacyChange={updateWPStatuses}
+          templateType={project.templateType}
         />
 
         {/* в”Ђв”Ђ 3-4. Schedule Status & Risk в”Ђв”Ђ */}

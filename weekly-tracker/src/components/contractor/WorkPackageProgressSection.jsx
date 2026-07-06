@@ -2,6 +2,30 @@ import { WORK_PACKAGES } from "../../config/workPackages";
 import { FormSection } from "./FormParts";
 import { PhaseSection } from "./GanttWPSection";
 import { WPSection } from "./LegacyWPSection";
+import { isZonedTemplate, groupGanttTasksByZone } from "../../core/projects/grouping/getWPGrouping";
+
+function ZoneBlock({ zoneId, zoneLabel, categories, ganttWpProgress, onUpdateProgress, projectId }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <h2 style={{
+        fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em",
+        color: "var(--field-text-secondary)", margin: "0 0 8px 4px",
+      }}>
+        {zoneLabel}
+      </h2>
+      {[...categories.entries()].map(([categoryId, { categoryLabel, tasks }]) => (
+        <PhaseSection
+          key={`${zoneId}.${categoryId}`}
+          phaseKey={categoryLabel}
+          tasks={tasks}
+          ganttWpProgress={ganttWpProgress}
+          onUpdateProgress={onUpdateProgress}
+          projectId={projectId}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function WorkPackageProgressSection({
   ganttLoading,
@@ -12,6 +36,7 @@ export default function WorkPackageProgressSection({
   form,
   prevReport,
   onLegacyChange,
+  templateType = null,
 }) {
   if (ganttLoading) {
     return (
@@ -19,6 +44,21 @@ export default function WorkPackageProgressSection({
         <div style={{ textAlign: "center", padding: "20px", color: "var(--field-text-muted)", fontSize: 13 }}>Loading schedule...</div>
       </FormSection>
     );
+  }
+
+  if (ganttTasks.length > 0 && isZonedTemplate(templateType)) {
+    const zones = groupGanttTasksByZone(ganttTasks, templateType);
+    return [...zones.entries()].map(([zoneId, zone]) => (
+      <ZoneBlock
+        key={zoneId}
+        zoneId={zoneId}
+        zoneLabel={zone.zoneLabel}
+        categories={zone.categories}
+        ganttWpProgress={ganttWpProgress}
+        onUpdateProgress={onUpdateProgress}
+        projectId={projectId}
+      />
+    ));
   }
 
   if (ganttTasks.length > 0) {

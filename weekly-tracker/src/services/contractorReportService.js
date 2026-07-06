@@ -90,7 +90,7 @@ export async function getAllReports(projectId) {
  * Fetch canonical contractor reports and adapt them for legacy-shaped screens.
  */
 export async function getAllReportsForScreens() {
-  const [reportsRes, wpsRes] = await Promise.all([
+  const [reportsRes, wpsRes, projectsRes] = await Promise.all([
     supabase
       .from('contractor_reports')
       .select('*')
@@ -98,30 +98,44 @@ export async function getAllReportsForScreens() {
     supabase
       .from('contractor_report_wps')
       .select('*'),
+    supabase
+      .from('projects')
+      .select('id, template_type'),
   ]);
   if (reportsRes.error) throw reportsRes.error;
   if (wpsRes.error) throw wpsRes.error;
+  if (projectsRes.error) throw projectsRes.error;
 
   const wpsByReportId = {};
   for (const wp of wpsRes.data || []) {
     if (!wpsByReportId[wp.report_id]) wpsByReportId[wp.report_id] = [];
     wpsByReportId[wp.report_id].push(wp);
   }
+  const templateTypeByProjectId = {};
+  for (const p of projectsRes.data || []) templateTypeByProjectId[p.id] = p.template_type;
 
   return validateArray(
     ContractorReportSchema,
-    adaptContractorReportsToLegacy(reportsRes.data || [], wpsByReportId),
+    adaptContractorReportsToLegacy(reportsRes.data || [], wpsByReportId, templateTypeByProjectId),
     'contractor_reports'
   );
 }
 
 export async function getReportsForProjectForScreens(projectId) {
-  const { data: reports, error } = await supabase
-    .from('contractor_reports')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('report_date', { ascending: false });
+  const [{ data: reports, error }, { data: projectRow, error: projectError }] = await Promise.all([
+    supabase
+      .from('contractor_reports')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('report_date', { ascending: false }),
+    supabase
+      .from('projects')
+      .select('template_type')
+      .eq('id', projectId)
+      .single(),
+  ]);
   if (error) throw error;
+  if (projectError) throw projectError;
 
   const reportIds = (reports || []).map((report) => report.id);
   if (reportIds.length === 0) return [];
@@ -140,7 +154,7 @@ export async function getReportsForProjectForScreens(projectId) {
 
   return validateArray(
     ContractorReportSchema,
-    adaptContractorReportsToLegacy(reports || [], wpsByReportId),
+    adaptContractorReportsToLegacy(reports || [], wpsByReportId, { [projectId]: projectRow?.template_type }),
     'contractor_reports'
   );
 }

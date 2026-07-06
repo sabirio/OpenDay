@@ -1,7 +1,9 @@
 // Gantt Engine — pure functions, no React imports, testable in plain Node.js.
 import { WORK_PACKAGES, PHASES, getPhaseById } from '../config/masterTaskLibrary.js';
-import { filterRulesForWPs } from '../config/dependencyRules.js';
+import { DEPENDENCY_RULES } from '../config/dependencyRules.js';
 import { resolveTemplateWPs } from '../config/projectTemplates.js';
+import { buildV2ProgressTemplate } from '../core/projects/weights/buildV2ProgressTemplate.js';
+import { retailFitoutV2, getWPByIdV2 } from '../domains/construction/templates/retailFitoutV2.js';
 
 // Increment whenever the engine produces structurally different planned dates.
 // Any saved Gantt with a different (or null) version is considered stale.
@@ -102,6 +104,89 @@ export function buildProjectWPs(templateId, projectStart, targetOpeningDate, sto
     });
 }
 
+/**
+ * v2 (zoned) equivalent of buildProjectWPs — fully additive, does not alter
+ * buildProjectWPs or any v1 behavior. Reuses the same size-modifier and
+ * duration-seeding formula, driven by buildV2ProgressTemplate's synthetic
+ * phases (one per category, progressWeight = zoneWeight% x categoryShare%)
+ * instead of masterTaskLibrary's PHASES/WORK_PACKAGES.
+ *
+ * project_gantt_tasks has no zone/category columns (no migrations) — each
+ * returned WP's phaseId is set to its ZONE id (not category id) purely so
+ * the existing phase_id/phase_label DB columns get a reasonable,
+ * GanttChart.jsx-compatible backward-fill value (3 zone bands, not 23
+ * category bands). The canonical zone+category grouping for forms comes
+ * from getWPGrouping(), never from this stored value — see that file's doc
+ * comment.
+ *
+ * @param {Record<string, number>} zoneAreas — project.scope.zoneAreas, e.g. { sales: 700, boh: 300 }
+ * @param {Date|string} projectStart
+ * @param {Date|string} targetOpeningDate
+ * @param {number} storeSizeSqm
+ * @param {object} [options]
+ * @param {string[]} [options.activeZoneIds] — project.scope.zones
+ * @param {string[]} [options.activeCategoryIds] — project.scope.categories
+ * @param {string[]} [options.selectedWPIds] — project.scope.workPackages
+ * @returns WP[] with duration_days added, same shape as buildProjectWPs()
+ */
+export function buildProjectWPsV2(zoneAreas, projectStart, targetOpeningDate, storeSizeSqm, options = {}) {
+  const start = toUTCMidnight(projectStart);
+  const end   = toUTCMidnight(targetOpeningDate);
+  const total_days = diffDays(start, end);
+
+  if (total_days <= 0) throw new Error('targetOpeningDate must be after projectStart');
+
+  let sizeModifier = 1.0;
+  if (storeSizeSqm > 2000) sizeModifier = 1.15;
+  else if (storeSizeSqm < 500) sizeModifier = 0.90;
+
+  const { activeZoneIds = null, activeCategoryIds = null, selectedWPIds = null } = options;
+  const template = buildV2ProgressTemplate(zoneAreas, activeZoneIds, activeCategoryIds);
+
+  let activeWPs = template.workPackages;
+  if (selectedWPIds && selectedWPIds.length > 0) {
+    const set = new Set(selectedWPIds);
+    activeWPs = activeWPs.filter(wp => set.has(wp.id));
+  }
+
+  // Re-normalize category (phase) weights over only categories that still
+  // have >=1 active WP — mirrors buildProjectWPs' own phaseWeightNorm
+  // re-normalization so a narrowed scope doesn't shrink the schedule window.
+  const includedPhaseIds = new Set(activeWPs.map(wp => wp.phaseId));
+  const sumIncluded = template.phases
+    .filter(p => includedPhaseIds.has(p.id))
+    .reduce((s, p) => s + (p.progressWeight || 0), 0);
+  const phaseWeightNorm = Object.fromEntries(
+    template.phases.map(p => [p.id, sumIncluded > 0 ? (p.progressWeight || 0) / sumIncluded : 0])
+  );
+
+  return activeWPs.map(wp => {
+    const meta = getWPByIdV2(wp.id);
+    const zone = retailFitoutV2.zones.find(z => z.id === meta?.zoneId);
+    const raw = total_days * (phaseWeightNorm[wp.phaseId] || 0) * wp.duration_pct * sizeModifier;
+    const duration_days = Math.max(1, Math.round(raw));
+
+    return {
+      id:              wp.id,
+      label:           wp.label,
+      phaseId:         meta?.zoneId ?? wp.phaseId,
+      phaseLabel:      zone?.label ?? meta?.zoneId ?? wp.phaseId,
+      categoryId:      wp.phaseId,
+      duration_pct:    wp.duration_pct,
+      isBlocker:       meta?.isBlocker ?? false,
+      defaultLag_days: 0,
+      duration_days,
+      actual_progress: 0,
+      status:          'not_started',
+      actual_start:    null,
+      actual_end:      null,
+      site_visit_progress: null,
+      discrepancy_status:  null,
+      is_archived:     false,
+    };
+  });
+}
+
 // ─── STEP 1: Kahn's topological sort ─────────────────────────────────────────
 
 function topologicalSort(wps, rules) {
@@ -154,8 +239,16 @@ export function calculateGantt(wps, dependencies, projectStart) {
   if (!wps || wps.length === 0) return [];
 
   const start = toUTCMidnight(projectStart);
-  const wpIds = wps.map(w => w.id);
-  const rules = filterRulesForWPs(wpIds);
+  const wpIdSet = new Set(wps.map(w => w.id));
+  // BUGFIX: this previously called the v1-only filterRulesForWPs() helper,
+  // silently ignoring whatever `dependencies` array was actually passed in
+  // (the parameter existed and was even documented as "will be filtered
+  // internally", but the body never touched it) — every caller got v1's
+  // DEPENDENCY_RULES regardless of what it asked for. v1 always passes
+  // DEPENDENCY_RULES here, so this fix is behavior-identical for v1; it's
+  // what makes DEPENDENCY_RULES_V2 (or any other template's rules) actually
+  // take effect for the first time.
+  const rules = dependencies.filter(r => wpIdSet.has(r.from) && wpIdSet.has(r.to));
 
   // Build predecessor map: predecessors[wpId] = [{from, lag_days}]
   const predecessors = {};
@@ -270,26 +363,47 @@ export function checkFeasibility(ganttResult, targetOpeningDate) {
  * @param {object[]} ganttResult
  * @returns {{ constructionCompletionDate: Date, projectedOpeningDate: Date }}
  */
-export function calculateKeyDates(ganttResult) {
+/**
+ * @param {object[]} ganttResult
+ * @param {string} [completionMarkerId] — WP id treated as "construction complete"
+ *   once it finishes; defaults to v1's 'comm.snagging'. Pass the v2 equivalent
+ *   ('common.commissioning.integrated_systems_test') for zoned projects.
+ * @param {string} [openingMarkerId] — WP id treated as "opening"; defaults to
+ *   v1's 'handover.keys'. Pass 'common.handover.keys_possession' for v2.
+ * @param {string} [completionPhaseId] — fallback grouping key when
+ *   completionMarkerId isn't found; defaults to v1's 'commissioning'
+ *   (a phaseId). v2 has no phase with that id, so its callers should pass
+ *   null here and rely on the "last WP" fallback below instead — v2's
+ *   phaseId is a zone id, not a commissioning-specific marker.
+ */
+export function calculateKeyDates(ganttResult, completionMarkerId = 'comm.snagging', openingMarkerId = 'handover.keys', completionPhaseId = 'commissioning') {
   if (!ganttResult || ganttResult.length === 0) {
     return { constructionCompletionDate: null, projectedOpeningDate: null };
   }
 
-  // construction completion = earlyFinish of comm.snagging (or last commissioning WP)
+  // construction completion = earlyFinish of the completion marker WP (or last matching-phase WP)
   let constructionCompletionDate = null;
-  const snagging = ganttResult.find(w => w.id === 'comm.snagging');
+  const snagging = ganttResult.find(w => w.id === completionMarkerId);
   if (snagging) {
     constructionCompletionDate = snagging.earlyFinish;
-  } else {
+  } else if (completionPhaseId) {
     const commWPs = ganttResult
-      .filter(w => w.phaseId === 'commissioning')
+      .filter(w => w.phaseId === completionPhaseId)
       .sort((a, b) => b.earlyFinish - a.earlyFinish);
     if (commWPs.length > 0) constructionCompletionDate = commWPs[0].earlyFinish;
+  } else {
+    // completionPhaseId explicitly null (v2's calling convention — its
+    // phaseId is a zone id, not a commissioning-specific marker) -> fall
+    // back to the last-finishing WP overall. v1 always passes a non-null
+    // completionPhaseId, so this branch never changes v1 behavior.
+    const last = ganttResult.reduce((max, w) =>
+      !max || w.earlyFinish > max.earlyFinish ? w : max, null);
+    if (last) constructionCompletionDate = last.earlyFinish;
   }
 
-  // projected opening = earlyFinish of handover.keys (or last WP)
+  // projected opening = earlyFinish of the opening marker WP (or last WP)
   let projectedOpeningDate = null;
-  const keys = ganttResult.find(w => w.id === 'handover.keys');
+  const keys = ganttResult.find(w => w.id === openingMarkerId);
   if (keys) {
     projectedOpeningDate = keys.earlyFinish;
   } else {
@@ -310,7 +424,7 @@ export function calculateKeyDates(ganttResult) {
  * @param {Date|string} today
  * @returns {{ forecastOpeningDate: Date, confidence: "high"|"medium"|"low" }}
  */
-export function calculateForecastOpening(ganttResult, today) {
+export function calculateForecastOpening(ganttResult, today, dependencyRules = DEPENDENCY_RULES) {
   if (!ganttResult || ganttResult.length === 0) {
     return { forecastOpeningDate: null, confidence: 'low' };
   }
@@ -366,9 +480,12 @@ export function calculateForecastOpening(ganttResult, today) {
     forecastFinish[wp.id] = addDays(now, Math.ceil(daysToFinish));
   }
 
-  // Re-run forward pass with forecast finishes as earlyFinish overrides
-  const wpIds = ganttResult.map(w => w.id);
-  const rules = filterRulesForWPs(wpIds);
+  // Re-run forward pass with forecast finishes as earlyFinish overrides.
+  // BUGFIX (see calculateGantt's note above): was hardcoded to v1's rules
+  // regardless of template; v1 always effectively used DEPENDENCY_RULES, so
+  // the default preserves it exactly.
+  const wpIdSet = new Set(ganttResult.map(w => w.id));
+  const rules = dependencyRules.filter(r => wpIdSet.has(r.from) && wpIdSet.has(r.to));
 
   const predecessorsMap = {};
   for (const wp of ganttResult) predecessorsMap[wp.id] = [];
@@ -439,7 +556,7 @@ export function calculateForecastOpening(ganttResult, today) {
  * @param {Date|string} today
  * @returns Updated ganttResult with recalculated dates
  */
-export function recalculateOnDelay(ganttResult, delayedWPId, newProgressPct, today) {
+export function recalculateOnDelay(ganttResult, delayedWPId, newProgressPct, today, dependencyRules = DEPENDENCY_RULES) {
   const now = toUTCMidnight(today || new Date());
 
   const updated = ganttResult.map(wp => {
@@ -468,9 +585,11 @@ export function recalculateOnDelay(ganttResult, delayedWPId, newProgressPct, tod
   wpMap[delayedWPId].earlyFinish = newFinish;
   wpMap[delayedWPId].status = newProgressPct >= 100 ? 'completed' : 'delayed';
 
-  // Propagate: forward pass over all dependents
-  const wpIds = updated.map(w => w.id);
-  const rules = filterRulesForWPs(wpIds);
+  // Propagate: forward pass over all dependents.
+  // BUGFIX (see calculateGantt's note above): was hardcoded to v1's rules
+  // regardless of template; default preserves v1 behavior exactly.
+  const wpIdSet = new Set(updated.map(w => w.id));
+  const rules = dependencyRules.filter(r => wpIdSet.has(r.from) && wpIdSet.has(r.to));
   const successorsMap = {};
   const predecessorsMap = {};
   for (const wp of updated) {

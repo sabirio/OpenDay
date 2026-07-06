@@ -25,6 +25,20 @@ export const TEMPLATES = [
     includedPhases: null, // user selects
     includedWPs: null,
   },
+  {
+    // Isolated v2 model — zones/categories/work-packages (see
+    // domains/construction/templates/retailFitoutV2.js), not phases/WPs.
+    // includedPhases/includedWPs are intentionally null: this template's
+    // scope is resolved via ZonedScopeConfigurator.jsx + computeZoneWeights.js,
+    // never through resolveTemplateWPs()/buildCustomSelectorState() below —
+    // those stay v1-only (flat phase/WP model) and are untouched by this entry.
+    id: 'retail-fitout-v2',
+    label: 'Retail Fit-Out (Zoned) — v2',
+    description: 'Zoned retail fit-out: common areas + sales floor + back-of-house, weighted by floor area',
+    icon: '🏬',
+    includedPhases: null,
+    includedWPs: null,
+  },
 ];
 
 export function getTemplateById(id) {

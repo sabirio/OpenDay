@@ -75,5 +75,17 @@ getScopeWPIds(scope, WPS);
 check('scope unchanged',  scope.phases.length === 1);
 check('WPS length unchanged', WPS.length === wpsOrig.length);
 
+// ── 9. v2 zones filter (scope.zones matched against wp.phaseId) ───────────
+console.log('\n9) v2: scope.zones filters the same way scope.phases does for v1');
+const zoneA = getScopeWPIds({ zones: ['a'] }, WPS);
+check('zones:[a] returns the same 2 ids as phases:[a]', zoneA.length === 2 && zoneA.includes('a.1') && zoneA.includes('a.2'));
+
+const zoneAAndWP = getScopeWPIds({ zones: ['a'], workPackages: ['a.1', 'b.1'] }, WPS);
+check('zones + workPackages = intersection, same as phases + workPackages', zoneAAndWP.length === 1 && zoneAAndWP[0] === 'a.1');
+
+console.log('\n10) scope.phases wins when both phases and zones are somehow present (v1 never sets zones)');
+const bothFilters = getScopeWPIds({ phases: ['a'], zones: ['b'] }, WPS);
+check('phases takes precedence over zones', bothFilters.length === 2 && bothFilters.includes('a.1'));
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

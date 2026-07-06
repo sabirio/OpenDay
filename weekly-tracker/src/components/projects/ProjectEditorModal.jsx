@@ -1,5 +1,6 @@
 import { Field, FieldRow, FormSection } from "./ProjectFormParts";
 import ConflictWarning from "../ConflictWarning";
+import { TEMPLATES } from "../../config/projectTemplates";
 
 export default function ProjectEditorModal({
   project,
@@ -113,30 +114,105 @@ export default function ProjectEditorModal({
             </FieldRow>
           </FormSection>
 
-          <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
-            <button
-              type="button"
-              onClick={onOpenScopeConfigurator}
-              style={{
-                padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600,
-                border: project.scope ? "1.5px solid var(--status-done)" : "1.5px solid var(--border)",
-                background: project.scope ? "var(--status-done-bg)" : "var(--accent-subtle)",
-                color: project.scope ? "var(--status-done)" : "var(--text-secondary)",
-                transition: "all 0.15s",
-              }}
-            >
-              {project.scope ? `Scope configured (${project.scope.workPackages?.length ?? 0} WPs)` : "Configure Scope ->"}
-            </button>
-            {project.scope && (
-              <button
-                type="button"
-                onClick={() => onProjectPatch((p) => ({ ...p, scope: null }))}
-                style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}
-              >
-                Reset to full scope
-              </button>
-            )}
-          </div>
+          <FormSection title="Construction Template" accentColor="var(--accent)">
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {TEMPLATES.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    if (t.id === project.templateType) return;
+                    // Switching templates invalidates any existing scope
+                    // selection — v1's {phases,workPackages} shape and v2's
+                    // {zones,categories,workPackages,zoneAreas} shape are not
+                    // interchangeable (see getScopeWPIds.js/ZonedScopeConfigurator.jsx).
+                    onProjectPatch((p) => ({ ...p, templateType: t.id, scope: null }));
+                  }}
+                  style={{
+                    flex: "1 1 200px", textAlign: "left", padding: "10px 14px", borderRadius: 10, cursor: "pointer",
+                    border: `1.5px solid ${project.templateType === t.id ? "var(--status-done)" : "var(--border)"}`,
+                    background: project.templateType === t.id ? "var(--status-done-bg)" : "var(--accent-subtle)",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 700, color: project.templateType === t.id ? "var(--status-done)" : "var(--text-primary)" }}>
+                    {t.icon} {t.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{t.description}</div>
+                </button>
+              ))}
+            </div>
+          </FormSection>
+
+          {/* project.scope may already be a non-null object (e.g. it holds
+              only zoneAreas, entered below, for a v2 project) without the
+              user ever having opened the scope configurator — "configured"
+              means a WP selection was actually saved (workPackages present),
+              not merely that the scope object exists. */}
+          {(() => {
+            const scopeConfigured = project.scope?.workPackages != null;
+            return (
+              <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={onOpenScopeConfigurator}
+                  style={{
+                    padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600,
+                    border: scopeConfigured ? "1.5px solid var(--status-done)" : "1.5px solid var(--border)",
+                    background: scopeConfigured ? "var(--status-done-bg)" : "var(--accent-subtle)",
+                    color: scopeConfigured ? "var(--status-done)" : "var(--text-secondary)",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {scopeConfigured ? `Scope configured (${project.scope.workPackages.length} WPs)` : "Configure Scope ->"}
+                </button>
+                {scopeConfigured && (
+                  <button
+                    type="button"
+                    onClick={() => onProjectPatch((p) => ({ ...p, scope: p.scope?.zoneAreas ? { zoneAreas: p.scope.zoneAreas } : null }))}
+                    style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}
+                  >
+                    Reset to full scope
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
+          {project.templateType === 'retail-fitout-v2' && (
+            <FormSection title="Zone Areas (m²)" accentColor="var(--accent)">
+              <FieldRow>
+                <Field label="Sales Floor Area">
+                  <input
+                    type="number"
+                    min="0"
+                    name="scope.zoneAreas.sales"
+                    value={project.scope?.zoneAreas?.sales ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value === '' ? '' : Number(e.target.value);
+                      onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, sales: v } } }));
+                    }}
+                    style={inputStyle}
+                    placeholder="e.g. 700"
+                  />
+                </Field>
+                <Field label="Back of House Area">
+                  <input
+                    type="number"
+                    min="0"
+                    name="scope.zoneAreas.boh"
+                    value={project.scope?.zoneAreas?.boh ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value === '' ? '' : Number(e.target.value);
+                      onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, boh: v } } }));
+                    }}
+                    style={inputStyle}
+                    placeholder="e.g. 300"
+                  />
+                </Field>
+              </FieldRow>
+            </FormSection>
+          )}
 
           <FormSection title="Project" accentColor="var(--status-done)">
             <FieldRow>

@@ -3,15 +3,43 @@ import { updateGanttDates } from './projectService';
 import { getSPIStatus } from '../config/statusColors';
 import {
   buildProjectWPs,
+  buildProjectWPsV2,
   calculateGantt,
   calculateKeyDates,
   calculateForecastOpening,
   GANTT_ENGINE_VERSION,
 } from '../engines/ganttEngine';
 import { DEPENDENCY_RULES } from '../config/dependencyRules';
+import { DEPENDENCY_RULES_V2 } from '../config/dependencyRulesV2';
 import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth } from '../engines/spiEngine';
 import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
+import { ALL_WORK_PACKAGES_V2 } from '../domains/construction/templates/retailFitoutV2';
+
+const V2_TEMPLATE_ID = 'retail-fitout-v2';
+const V2_COMPLETION_MARKER = 'common.commissioning.integrated_systems_test';
+const V2_OPENING_MARKER = 'common.handover.keys_possession';
+
+/**
+ * Builds the v2 (zoned) Gantt WP set + schedule for one project. Isolated
+ * from the v1 path in generateAndSaveGantt/regenerateGantt below — v1
+ * projects never call this.
+ * @param {Date|string} projectStart
+ * @param {Date|string} targetOpeningDate
+ * @param {number} storeSizeSqm
+ * @param {object} templateOptions — { zoneAreas, activeZoneIds, activeCategoryIds, selectedWPIds }
+ */
+function buildV2GanttResult(projectStart, targetOpeningDate, storeSizeSqm, templateOptions) {
+  const { zoneAreas = {}, activeZoneIds = null, activeCategoryIds = null, selectedWPIds = null } = templateOptions;
+  const wps = buildProjectWPsV2(zoneAreas, projectStart, targetOpeningDate, storeSizeSqm, {
+    activeZoneIds, activeCategoryIds, selectedWPIds,
+  });
+  const ganttResult = calculateGantt(wps, DEPENDENCY_RULES_V2, projectStart);
+  const { constructionCompletionDate, projectedOpeningDate } = calculateKeyDates(
+    ganttResult, V2_COMPLETION_MARKER, V2_OPENING_MARKER, null
+  );
+  return { ganttResult, constructionCompletionDate, projectedOpeningDate };
+}
 
 // ─── Generate & save ──────────────────────────────────────────────────────────
 
@@ -27,14 +55,18 @@ export async function generateAndSaveGantt(
   storeSizeSqm,
   templateOptions = {}
 ) {
-  // 1. Build WPs with durations
-  const wps = buildProjectWPs(templateId, projectStart, targetOpeningDate, storeSizeSqm, templateOptions);
+  const isV2 = templateId === V2_TEMPLATE_ID;
 
-  // 2. Run Gantt algorithm
-  const ganttResult = calculateGantt(wps, DEPENDENCY_RULES, projectStart);
-
-  // 3. Calculate key dates
-  const { constructionCompletionDate, projectedOpeningDate } = calculateKeyDates(ganttResult);
+  // 1-3. Build WPs, run the Gantt algorithm, and calculate key dates —
+  // v2 uses its own zoned WP builder + dependency chain + completion/opening
+  // markers; v1's path below is completely unchanged.
+  const { ganttResult, constructionCompletionDate, projectedOpeningDate } = isV2
+    ? buildV2GanttResult(projectStart, targetOpeningDate, storeSizeSqm, templateOptions)
+    : (() => {
+        const wps = buildProjectWPs(templateId, projectStart, targetOpeningDate, storeSizeSqm, templateOptions);
+        const gantt = calculateGantt(wps, DEPENDENCY_RULES, projectStart);
+        return { ganttResult: gantt, ...calculateKeyDates(gantt) };
+      })();
 
   // 4. Upsert project_gantt_tasks rows
   const rows = ganttResult.map((wp, i) => ({
@@ -209,25 +241,43 @@ export async function regenerateGantt(projectId) {
     }])
   );
 
-  // Rebuild gantt — respect the project's scope (WP selection from scope configurator).
-  const scopeWPIds = project.scope?.workPackages;
-  const templateId = scopeWPIds?.length > 0
-    ? 'custom'
-    : project.template_type || 'standard_with_demo';
-  const templateOptions = scopeWPIds?.length > 0
-    ? { selectedWPIds: scopeWPIds }
-    : {};
-
   const projectEndDate = project.construction_end_date || project.target_opening_date;
-  const wps = buildProjectWPs(
-    templateId,
-    project.construction_start_date,
-    projectEndDate,
-    project.store_size_sqm || 1000,
-    templateOptions
-  );
-  const ganttResult = calculateGantt(wps, DEPENDENCY_RULES, project.construction_start_date);
-  const { constructionCompletionDate } = calculateKeyDates(ganttResult);
+  const isV2 = project.template_type === V2_TEMPLATE_ID;
+
+  let ganttResult, constructionCompletionDate;
+  if (isV2) {
+    const scope = project.scope || {};
+    ({ ganttResult, constructionCompletionDate } = buildV2GanttResult(
+      project.construction_start_date,
+      projectEndDate,
+      project.store_size_sqm || 1000,
+      {
+        zoneAreas:         scope.zoneAreas || {},
+        activeZoneIds:     scope.zones?.length > 0 ? scope.zones : null,
+        activeCategoryIds: scope.categories?.length > 0 ? scope.categories : null,
+        selectedWPIds:     scope.workPackages?.length > 0 ? scope.workPackages : null,
+      }
+    ));
+  } else {
+    // Rebuild gantt — respect the project's scope (WP selection from scope configurator).
+    const scopeWPIds = project.scope?.workPackages;
+    const templateId = scopeWPIds?.length > 0
+      ? 'custom'
+      : project.template_type || 'standard_with_demo';
+    const templateOptions = scopeWPIds?.length > 0
+      ? { selectedWPIds: scopeWPIds }
+      : {};
+
+    const wps = buildProjectWPs(
+      templateId,
+      project.construction_start_date,
+      projectEndDate,
+      project.store_size_sqm || 1000,
+      templateOptions
+    );
+    ganttResult = calculateGantt(wps, DEPENDENCY_RULES, project.construction_start_date);
+    ({ constructionCompletionDate } = calculateKeyDates(ganttResult));
+  }
 
   // Upsert with preserved progress
   const rows = ganttResult.map((wp, i) => {
@@ -273,7 +323,14 @@ export async function updateForecast(projectId) {
   const tasks = await getProjectGantt(projectId);
   if (!tasks.length) return;
 
-  const { forecastOpeningDate } = calculateForecastOpening(tasks, new Date());
+  const { data: projectRow } = await supabase
+    .from('projects')
+    .select('template_type')
+    .eq('id', projectId)
+    .single();
+  const dependencyRules = projectRow?.template_type === V2_TEMPLATE_ID ? DEPENDENCY_RULES_V2 : DEPENDENCY_RULES;
+
+  const { forecastOpeningDate } = calculateForecastOpening(tasks, new Date(), dependencyRules);
   if (!forecastOpeningDate) return;
 
   await updateGanttDates(projectId, {
@@ -401,10 +458,11 @@ export async function getProjectMetrics(projectId) {
 
   const { data: projectRow } = await supabase
     .from('projects')
-    .select('scope')
+    .select('scope, template_type')
     .eq('id', projectId)
     .single();
-  const scopeWPIds = getScopeWPIds(projectRow?.scope ?? null, GANTT_WPS);
+  const wpList = projectRow?.template_type === V2_TEMPLATE_ID ? ALL_WORK_PACKAGES_V2 : GANTT_WPS;
+  const scopeWPIds = getScopeWPIds(projectRow?.scope ?? null, wpList);
 
   const spi            = computeSPIFromTasks(tasks || [], today, scopeWPIds);
   const criticalHealth = computeCriticalHealth(tasks || [], today, scopeWPIds);
@@ -447,7 +505,7 @@ export async function loadAllGanttMetrics(projectIds) {
 
   const { data: allProjects } = await supabase
     .from('projects')
-    .select('id,scope')
+    .select('id,scope,template_type')
     .in('id', projectIds);
 
   const lastVisitMap = new Map();
@@ -457,7 +515,8 @@ export async function loadAllGanttMetrics(projectIds) {
 
   const scopeWPIdsMap = new Map();
   for (const p of allProjects || []) {
-    scopeWPIdsMap.set(p.id, getScopeWPIds(p.scope ?? null, GANTT_WPS));
+    const wpList = p.template_type === V2_TEMPLATE_ID ? ALL_WORK_PACKAGES_V2 : GANTT_WPS;
+    scopeWPIdsMap.set(p.id, getScopeWPIds(p.scope ?? null, wpList));
   }
 
   const tasksByProject = new Map();

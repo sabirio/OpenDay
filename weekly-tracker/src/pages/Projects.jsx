@@ -4,6 +4,7 @@ import { generateAndSaveGantt, regenerateGantt } from "../services/ganttService"
 import { getById as getProjectById } from "../services/projectService";
 import { checkConflict } from "../services/conflictGuard";
 import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
+import ZonedScopeConfigurator from "../components/projects/ZonedScopeConfigurator";
 import ProjectDetailModal from "../components/projects/ProjectDetailModal";
 import GcInvitationModal from "../components/projects/GcInvitationModal";
 import ProjectEditorModal from "../components/projects/ProjectEditorModal";
@@ -150,13 +151,19 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           } else {
             // First-time generation — tasks start at 0 (correct for new projects).
             // Scope configurator stores selected WPs in scope.workPackages; use those when present.
+            const isV2 = newProject.templateType === 'retail-fitout-v2';
             const scopeWPIds = newProject.scope?.workPackages;
-            const templateId = scopeWPIds?.length > 0
-              ? 'custom'
-              : newProject.templateType || 'standard_with_demo';
-            const tOptions = scopeWPIds?.length > 0
-              ? { selectedWPIds: scopeWPIds }
-              : {};
+            const templateId = isV2
+              ? 'retail-fitout-v2'
+              : (scopeWPIds?.length > 0 ? 'custom' : newProject.templateType || 'standard_with_demo');
+            const tOptions = isV2
+              ? {
+                  zoneAreas: newProject.scope?.zoneAreas ?? {},
+                  activeZoneIds: newProject.scope?.zones ?? null,
+                  activeCategoryIds: newProject.scope?.categories ?? null,
+                  selectedWPIds: newProject.scope?.workPackages ?? null,
+                }
+              : (scopeWPIds?.length > 0 ? { selectedWPIds: scopeWPIds } : {});
             await generateAndSaveGantt(
               savedProject.id,
               templateId,
@@ -330,16 +337,35 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         />
       )}
 
-      {/* Scope Configurator modal */}
+      {/* Scope Configurator modal — v2's zoned template gets its own fully
+          isolated configurator; every other templateType keeps the existing
+          flat phase/WP one, untouched. */}
       {showScopeConfigurator && (
-        <ProjectScopeConfigurator
-          initialScope={newProject.scope}
-          onSave={(scope) => {
-            setNewProject(p => ({ ...p, scope }));
-            setShowScopeConfigurator(false);
-          }}
-          onClose={() => setShowScopeConfigurator(false)}
-        />
+        newProject.templateType === 'retail-fitout-v2' ? (
+          <ZonedScopeConfigurator
+            initialScope={newProject.scope}
+            areas={newProject.scope?.zoneAreas ?? {}}
+            onSave={(scope) => {
+              // ZonedScopeConfigurator only returns the zone/category/WP
+              // selection — merge back the zoneAreas the user entered
+              // separately in ProjectEditorModal's "Zone Areas" section
+              // (edited independently, in whichever order) so saving scope
+              // never wipes out already-entered areas.
+              setNewProject(p => ({ ...p, scope: { ...scope, zoneAreas: p.scope?.zoneAreas ?? {} } }));
+              setShowScopeConfigurator(false);
+            }}
+            onClose={() => setShowScopeConfigurator(false)}
+          />
+        ) : (
+          <ProjectScopeConfigurator
+            initialScope={newProject.scope}
+            onSave={(scope) => {
+              setNewProject(p => ({ ...p, scope }));
+              setShowScopeConfigurator(false);
+            }}
+            onClose={() => setShowScopeConfigurator(false)}
+          />
+        )
       )}
     </div>
   );

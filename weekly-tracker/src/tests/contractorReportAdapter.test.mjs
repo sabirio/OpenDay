@@ -76,5 +76,31 @@ check('non-numeric wp progress_pct becomes 0 in workPackageStatuses, not a strin
   Object.values(badWpProgress.workPackageStatuses).every(tasks =>
     Object.values(tasks).every(t => typeof t.progress === 'number' && !Number.isNaN(t.progress))));
 
+// ── v2 (zoned) wp_id resolution — keyed by categoryId, not phaseId ──
+console.log('\ncontractorReportAdapter - v2 (zoned) wp_id resolution');
+
+const v2Adapted = adaptContractorReportToLegacy(
+  { id: 509, project_id: 91, report_date: '2026-07-13' },
+  [
+    { wp_id: 'common.mep_backbone.electrical_panels', status: 'completed', progress_pct: 100 },
+    { wp_id: 'common.mep_backbone.hvac_equipment', status: 'in_progress', progress_pct: 40 },
+  ],
+  'retail-fitout-v2',
+);
+const v1Adapted = adaptContractorReportToLegacy(
+  { id: 510, project_id: 71, report_date: '2026-07-13' },
+  [{ wp_id: 'demo.strip_out', status: 'completed', progress_pct: 100 }],
+  null,
+);
+
+check('v2 wp_id groups under its categoryId (not phaseId/zoneId)',
+  v2Adapted.workPackageStatuses['common.mep_backbone'] != null);
+check('v2 group is keyed by the wp label, not the raw wp_id',
+  v2Adapted.workPackageStatuses['common.mep_backbone']['Electrical Panels & Distribution']?.status === 'Completed');
+check('v2 currentPhases resolves to the real category label',
+  v2Adapted.currentPhases[0] === 'MEP Backbone Works');
+check('v1 wp_id still groups under its phaseId when templateType is omitted/null',
+  v1Adapted.workPackageStatuses['demolition'] != null);
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -69,6 +69,84 @@ where `canonicalWorkPackages` = `masterTaskLibrary.WORK_PACKAGES` or `constructi
 
 **A3 update (2026-07-06) — time-to-close awareness:** `constructionRetailV1.js`'s blocker WPs now also carry `typicalClearDays` (int, typical close-out duration) and `responsibleRole` (`'GC'|'PM'|'Landlord'`) — same canonical source as `openingBlocker`, no `masterTaskLibrary.js` propagation needed for the same reason as above. `computeOpeningReadiness()` now also keeps each blocker's real `wp.id` (not just phaseId+label) so it can place blockers in `dependencyRules.js`'s dependency graph and compute `requiredDays`/`slack`/`verdict`/`criticalChain` via a critical-path-method longest-path calculation — see `src/engines/openingReadinessEngine.js` header comments and `src/engines/__tests__/openingReadinessEngine.test.mjs` for the algorithm and worked examples. Also fixed in the same pass: a blocker WP with no report data at all (`status` is `null`/`undefined`) now counts as an active blocker (effectively "Not Started") instead of being silently skipped — previously this understated both the blocker count and requiredDays for any project where the contractor hadn't yet reported on that phase.
 
+## Retail Fit-Out v2 — zoned (zone → category → work-package) template (2026-07-07)
+
+A second, fully isolated template model was added end-to-end: seeding, dependencies, scope,
+weighting, opening-readiness, and both submission forms. **Zero changes to v1's observable
+behavior** — every v1 test (pre-existing + new) still passes unchanged.
+
+### New files (v2, fully isolated from v1 — no shared ids, no shared code path)
+
+| File | Role |
+|---|---|
+| `domains/construction/templates/retailFitoutV2.js` | Single source of truth: `CATEGORY_LIBRARY`, `retailFitoutV2` (zones→categories, weights), `ALL_WORK_PACKAGES_V2`, `getWPByIdV2()`. 91 WPs across 23 categories across 3 zones (common/sales/boh). |
+| `config/dependencyRulesV2.js` | Real (non-flat) FS dependency chain — see file header for the full common/per-zone/cross-zone sequence description. |
+| `core/projects/weights/computeZoneWeights.js` | `zoneWeight = 0.65 * (zoneArea / (salesArea+bohArea))`, common fixed at 35%. Pre-existing from an earlier session, verified unchanged. |
+| `core/projects/weights/buildV2ProgressTemplate.js` | Converts zone areas + active zones/categories into the `{workPackages, phases}` shape `progressEngine.calculateProjectProgress()` already accepts as a custom `template` — **the only integration point needed; `progressEngine.js` itself is untouched.** Each category becomes one synthetic "phase" (`progressWeight = zoneWeight% × categoryShare%`); each WP's `phaseId` is set to its **category** id. |
+| `core/projects/grouping/getWPGrouping.js` | Single source of truth for "how should this WP be grouped/labelled" — v1→phase, v2→zone+category. Never trust a stored DB label; always resolve live. Also exports `groupGanttTasksByZone()`, shared by both submission forms. |
+| `core/projects/scope/buildV2OpeningReadinessOptions.js` | Builds `openingReadinessEngine.computeOpeningReadiness()`'s 4th-param `templateOptions` for v2 — remaps each blocker WP's `phaseId` from zone id to **category** id (must match `buildV2ProgressTemplate`'s keying convention). |
+| `components/projects/ZonedScopeConfigurator.jsx` | Zone→category→WP scope picker with live weight-% preview. |
+
+### Key bridging decision: category = synthetic "phase"
+
+v2's progress/readiness math reuses the *existing, unmodified* `progressEngine.calculateProjectProgress()`
+and `openingReadinessEngine.computeOpeningReadiness()` by treating each v2 **category** as one
+atomic "phase" unit. This means **`workPackageStatuses` for a v2 project is keyed by category id
+at the top level**, not zone id — even though `project_gantt_tasks.phase_id`/`phase_label` are
+seeded with the **zone** id/label (kept only for `GanttChart.jsx`'s v1 phase-band rendering
+back-compat). Any code that reads/writes v2 WP statuses must resolve the grouping id via
+`getWPGrouping()`, never via the stored `phase_id` column.
+
+### Bugs found and fixed as a necessary side effect (not pre-existing wave items)
+
+1. **`ganttEngine.js`: dead `dependencies` parameter.** `calculateGantt()`, `calculateForecastOpening()`,
+   `recalculateOnDelay()` all accepted a `dependencies`/`dependencyRules` argument but silently ignored
+   it, always using the hardcoded v1 `DEPENDENCY_RULES` internally. Caught by the v2 test suite (rules
+   passed in were never applied); fixed with v1-identical default parameters so v1 behavior is
+   byte-unchanged — verified by re-running all pre-existing v1 Gantt tests directly.
+2. **`ContractorReport.jsx`: v2 progress synthesized under the wrong key.** The client-side
+   `workPackageStatuses` synthesis (used to compute `cumulativeProgress`, which becomes
+   `progress_history.overall_progress`) keyed each task by `task.phaseId` — correct for v1, but for
+   v2 that column holds the **zone** id, not the category id `buildV2ProgressTemplate` expects. Fixed
+   to resolve the key via `getWPGrouping()` for v2 (`categoryId`), branching only for
+   `isZonedTemplate(project.templateType)`; v1's `task.phaseId` path is untouched. Also added the
+   missing `scopeWPIds`/v2 `template` arguments to the `calculateProjectProgressResult()` call, which
+   previously always used v1 defaults regardless of project type.
+3. **`ProjectEditorModal.jsx`: "Scope configured" button false-positive.** Found live, via Playwright:
+   typing a Zone Area value patches `project.scope.zoneAreas`, which — because of the `{...p.scope}`
+   spread on a `null` scope — makes `project.scope` a truthy (but not-yet-configured) object. The
+   button's condition was `project.scope ? "configured" : "not configured"`, so simply entering a zone
+   area (before ever opening the scope picker) made it read "Scope configured (0 WPs)". Fixed to key
+   off `project.scope?.workPackages != null` instead; "Reset to full scope" now preserves `zoneAreas`
+   rather than wiping the whole `scope` object.
+
+### ASSUMPTIONs (reversible, made autonomously per the task's delegation rules)
+
+- ID scheme: `{zone}.{category_slug}.{wp_slug}` (e.g. `common.mep_backbone.hvac_equipment`) — machine
+  keys only, never shown to users.
+- Category weights (hand-assigned per zone, normalized to 100 within zone) and equal-duration-split
+  within a category — same no-differentiating-data fallback pattern `constructionRetailV1.js` and
+  `normalizeWeightsTo100.js` already use.
+- `openingBlocker` classification (`'critical'|'soft'|false`) per WP — safety-critical MEP/commissioning/
+  handover items critical; training/cleaning/BMS-integration soft; routine construction/finishing false.
+  Same vocabulary `openingReadinessEngine.js` already reads for v1.
+- Dependency chain lag durations beyond the two explicitly-reasoned ones (10-day screed cure carried
+  over from v1; 2-day waterproofing cure) are nominal placeholders — see `dependencyRulesV2.js` header.
+- "Current phase" display for v2 in `contractorReportAdapter.js` uses zone-then-category file order as
+  a deterministic "furthest along" proxy (categories have no explicit `order` field, unlike v1 phases)
+  — display-only, not used by any calculation engine.
+
+### Verification
+
+- 59/59 test suites, 1434/1434 individual checks green (`npm run test`); 0 lint errors (`npm run lint`,
+  same 32 pre-existing warnings baseline); production build succeeds (`npm run build`).
+- Live end-to-end Playwright verification (not just unit tests): created a real v2 project through the
+  UI (template picker → 700/300 m² zone areas → scope configurator, confirmed live weight preview
+  35%/45.5%/19.5% and 91 WPs/23 categories/3 zones → Create Project), confirmed Gantt seeding produced
+  real scheduled dates, confirmed the Contractor Report form renders all 3 zone blocks with correct
+  category sub-headers and real WP rows/sliders, confirmed category-level progress aggregation (13%
+  for 1-of-8 WPs marked Completed), then cleaned up the test project.
+
 ## masterTaskLibrary sync risk (Wave 4 backlog)
 
 - `masterTaskLibrary.WORK_PACKAGES` is a manually maintained literal, NOT a programmatic derivation from `constructionRetailV1`.

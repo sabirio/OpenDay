@@ -4,6 +4,8 @@
  */
 
 import { getWPById, getPhaseById } from '../config/masterTaskLibrary.js';
+import { getWPByIdV2, retailFitoutV2 } from '../domains/construction/templates/retailFitoutV2.js';
+import { getWPGrouping, isZonedTemplate } from '../core/projects/grouping/getWPGrouping.js';
 
 const STATUS_TO_LEGACY = {
   completed: "Completed",
@@ -36,19 +38,24 @@ function toFiniteProgress(value, label) {
 }
 
 // contractor_report_wps.wp_id stores the fine-grained work-package id (e.g.
-// "walls.framing") from the shared masterTaskLibrary — NOT a phase id, and the
-// table has no wp_label/phase_id columns of its own. The legacy shape consumed
-// by progressEngine.calculatePhaseProgress() is keyed [phaseId][taskLabel], so
-// both must be resolved from the static library here.
-function buildWorkPackageStatuses(wps) {
+// "walls.framing" for v1, "common.demolition.strip_out" for v2's zoned
+// template) — NOT a group id, and the table has no wp_label/phase_id columns
+// of its own. The legacy shape consumed by progressEngine.calculatePhaseProgress()
+// is keyed [groupId][taskLabel] (v1: phaseId; v2: categoryId — see
+// buildV2ProgressTemplate.js's synthetic-phase convention), so both id and
+// label are resolved here via getWPGrouping — the single grouping source of
+// truth shared with the contractor/site-visit form UIs — rather than
+// duplicating v1/v2 branching logic.
+function buildWorkPackageStatuses(wps, templateType = null) {
   return (wps || []).reduce((acc, wp) => {
-    const meta    = getWPById(wp.wp_id);
-    const phaseId = meta?.phaseId || wp.wp_id;
-    const label   = meta?.label   || wp.wp_id;
-    if (!phaseId) return acc;
+    const meta    = isZonedTemplate(templateType) ? getWPByIdV2(wp.wp_id) : getWPById(wp.wp_id);
+    const grouping = getWPGrouping(templateType, wp.wp_id);
+    const groupId = grouping?.categoryId || grouping?.phaseId || wp.wp_id;
+    const label   = meta?.label || wp.wp_id;
+    if (!groupId) return acc;
 
-    if (!acc[phaseId]) acc[phaseId] = {};
-    acc[phaseId][label] = {
+    if (!acc[groupId]) acc[groupId] = {};
+    acc[groupId][label] = {
       status: toLegacyStatus(wp.status),
       progress: toFiniteProgress(wp.progress_pct, `contractor_report_wps.progress_pct (wp_id=${wp.wp_id})`),
       comment: wp.comment || "",
@@ -57,19 +64,44 @@ function buildWorkPackageStatuses(wps) {
   }, {});
 }
 
-// Furthest-along phase with actual progress, for the "Current Phase" column —
-// not every phase ever touched, just where the contractor stands right now.
-function deriveCurrentPhases(wps) {
-  let furthest = null;
+// v2 categories have no explicit "order" field (unlike v1 phases) — this
+// mirrors the exact zone-then-category traversal order buildV2ProgressTemplate.js
+// already uses to assign its synthetic phases' `order`, reused here only for
+// this legacy display concern (not a calculation) so "furthest along" has a
+// deterministic meaning for zoned projects too.
+function buildV2CategoryOrder() {
+  const order = {};
+  let i = 0;
+  for (const zone of retailFitoutV2.zones) {
+    for (const cat of zone.categories) order[cat.id] = i++;
+  }
+  return order;
+}
+const V2_CATEGORY_ORDER = buildV2CategoryOrder();
+
+// Furthest-along phase/category with actual progress, for the "Current Phase"
+// column — not every phase ever touched, just where the contractor stands now.
+function deriveCurrentPhases(wps, templateType = null) {
+  const zoned = isZonedTemplate(templateType);
+  let furthestLabel = null, furthestOrder = -Infinity;
   for (const wp of (wps || [])) {
     const hasProgress = (wp.progress_pct ?? 0) > 0 || (wp.status && wp.status !== 'not_started');
     if (!hasProgress) continue;
+
+    if (zoned) {
+      const grouping = getWPGrouping(templateType, wp.wp_id);
+      if (!grouping) continue;
+      const order = V2_CATEGORY_ORDER[grouping.categoryId] ?? -Infinity;
+      if (order > furthestOrder) { furthestOrder = order; furthestLabel = grouping.categoryLabel; }
+      continue;
+    }
+
     const meta = getWPById(wp.wp_id);
     const phase = meta?.phaseId ? getPhaseById(meta.phaseId) : null;
     if (!phase) continue;
-    if (!furthest || phase.order > furthest.order) furthest = phase;
+    if (phase.order > furthestOrder) { furthestOrder = phase.order; furthestLabel = phase.label; }
   }
-  return furthest ? [furthest.label] : [];
+  return furthestLabel ? [furthestLabel] : [];
 }
 
 function normalizePhotos(photoUrls) {
@@ -77,7 +109,7 @@ function normalizePhotos(photoUrls) {
   return photoUrls.filter((photo) => typeof photo === 'string' && photo.trim().length > 0);
 }
 
-export function adaptContractorReportToLegacy(contractorReport, wps = []) {
+export function adaptContractorReportToLegacy(contractorReport, wps = [], templateType = null) {
   if (!contractorReport) return null;
 
   const reportingDate = contractorReport.report_date || contractorReport.submitted_at;
@@ -91,13 +123,13 @@ export function adaptContractorReportToLegacy(contractorReport, wps = []) {
     overallProgress: toFiniteProgress(contractorReport.overall_progress, `contractor_reports.overall_progress (id=${contractorReport.id})`),
     submittedBy: contractorReport.submitted_by || null,
     projectScheduleStatus: contractorReport.project_schedule_status || "On Track",
-    workPackageStatuses: buildWorkPackageStatuses(wps),
+    workPackageStatuses: buildWorkPackageStatuses(wps, templateType),
     photos: normalizePhotos(contractorReport.photo_urls),
     risks: [],
     riskOwners: [],
     supportTypes: [],
     currentPackages: [],
-    currentPhases: deriveCurrentPhases(wps),
+    currentPhases: deriveCurrentPhases(wps, templateType),
     // 023: these 6 columns didn't exist on contractor_reports before — the RPC
     // silently dropped them into progress_history.snapshot's opaque JSONB blob,
     // so Weekly Reports' Look Ahead/Declaration panels always showed empty.
@@ -111,8 +143,12 @@ export function adaptContractorReportToLegacy(contractorReport, wps = []) {
   };
 }
 
-export function adaptContractorReportsToLegacy(reports, wpsByReportId = {}) {
+export function adaptContractorReportsToLegacy(reports, wpsByReportId = {}, templateTypeByProjectId = {}) {
   return (reports || [])
-    .map((report) => adaptContractorReportToLegacy(report, wpsByReportId[report.id] || []))
+    .map((report) => adaptContractorReportToLegacy(
+      report,
+      wpsByReportId[report.id] || [],
+      templateTypeByProjectId[report.project_id] ?? null,
+    ))
     .filter(Boolean);
 }
