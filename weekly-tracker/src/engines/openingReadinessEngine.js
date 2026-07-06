@@ -42,9 +42,21 @@ function remainingClearDays(wp, entry) {
   return clearDays * (1 - progress / 100);
 }
 
-function buildBlockerRecords(wpStatuses) {
+// A3 follow-up: BLOCKER_WPS is the FULL canonical constructionRetailV1 list —
+// a project whose scope (getScopeWPIds) excludes a blocker WP never reports
+// on it, so getTaskEntry() always returns null and isBlocking(null) is always
+// true. Without scoping here, an out-of-scope blocker WP is flagged as
+// perpetually incomplete forever, even on a project that's 92% done and
+// ahead of schedule. computeCriticalChain() already receives scopeWPIds for
+// the same reason — this must match, or its graph would be scoped while the
+// blocker list feeding it isn't.
+function buildBlockerRecords(wpStatuses, scopeWPIds = null) {
+  const inScope = scopeWPIds && scopeWPIds.length
+    ? (wp) => scopeWPIds.includes(wp.id)
+    : () => true;
   const records = [];
   for (const wp of BLOCKER_WPS) {
+    if (!inScope(wp)) continue;
     const entry = getTaskEntry(wpStatuses, wp);
     if (!isBlocking(entry)) continue;
     records.push({
@@ -160,7 +172,7 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate,
   const daysToOpening = targetDate ? daysUntil(targetDate) : null;
   const wpStatuses = wpCumulativeStatuses?.workPackageStatuses ?? wpCumulativeStatuses ?? null;
 
-  const blockerRecords = buildBlockerRecords(wpStatuses);
+  const blockerRecords = buildBlockerRecords(wpStatuses, scopeWPIds);
   // Kept in the original {wpId: phaseId, task, status} shape for existing
   // consumers (commandEngine.js, projectSummaryEngine.js) — only .length is
   // read externally today. The corrected wp.id-keyed data lives in criticalChain.

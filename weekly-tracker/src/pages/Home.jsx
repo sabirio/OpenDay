@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { useAllRows } from '../hooks/useAllRows';
 import { useGanttMetrics } from '../hooks/useGanttMetrics';
 import { computePortfolioAlerts, computePortfolioKpis } from '../engines/portfolioEngine';
-import { computeOpeningReadiness } from '../engines/openingReadinessEngine';
 import { getCommands } from '../engines/commandEngine';
 import { buildHomeInsights, summarizeInsights } from '../core/insights/selectors/homeInsights';
 import MorningBrief    from '../components/home/MorningBrief';
@@ -20,13 +19,19 @@ function Home({ projects, reports, siteVisits = [], templatesById = {}, activeTe
   const alerts = useMemo(() => computePortfolioAlerts(ganttRows), [ganttRows]);
 
   const allCommands = useMemo(() =>
-    allRows.flatMap(({ project, riskScore, wpCumulativeStatuses, latestReport, missingReport, progressComparison, prevProgressComparison }) =>
+    // readiness comes straight off the row — evaluateProjectState() already
+    // computed it once, scoped to this project's actual work packages
+    // (getScopeWPIds). Recomputing it here without that scope previously
+    // flagged out-of-scope blocker WPs (never reported on, so always read as
+    // "Not Started") as still blocking, even for projects that were ahead of
+    // schedule and 100% clear everywhere else in the app.
+    allRows.flatMap(({ project, riskScore, readiness, latestReport, missingReport, progressComparison, prevProgressComparison }) =>
       getCommands({
         project,
         progressComparison,
         prevProgressComparison,
         riskScore,
-        openingReadiness: computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate),
+        openingReadiness: readiness,
         latestReport,
         missingReport,
       })

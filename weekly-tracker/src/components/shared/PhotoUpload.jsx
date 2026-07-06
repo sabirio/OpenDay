@@ -43,7 +43,7 @@ function withTimeout(promise, ms, message) {
  *     that visibly has a photo attached. Callers should disable Submit while true.
  */
 export default function PhotoUpload({ projectId, onUpload, onRemove, onError, onUploadingChange }) {
-  // { path: string|null, preview: string, uploading: boolean }
+  // { id: string, path: string|null, preview: string, uploading: boolean }
   const [photos, setPhotos] = useState([]);
   const [limitNotice, setLimitNotice] = useState(null);
   const inputRef = useRef(null);
@@ -66,28 +66,42 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
     setLimitNotice(files.length > slots ? `Max ${MAX_PHOTOS} photos — added the first ${slots}.` : null);
     if (toUpload.length === 0) return;
 
-    const startIndex = photos.length;
+    // Each photo gets a stable id independent of its array position — once
+    // uploads run in parallel (below), an earlier photo in the same batch
+    // failing and being removed would otherwise shift every later photo's
+    // index, causing a completion/removal to land on the wrong slot.
+    const entries = toUpload.map((file, i) => ({
+      id: `${Date.now()}_${i}_${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+
     setPhotos(prev => [
       ...prev,
-      ...toUpload.map(f => ({ path: null, preview: URL.createObjectURL(f), uploading: true })),
+      ...entries.map(({ id, preview }) => ({ id, path: null, preview, uploading: true })),
     ]);
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user?.id) {
       onError?.('Not signed in — cannot upload photos');
-      setPhotos(prev => prev.filter((_, idx) => idx < startIndex));
+      const failedIds = new Set(entries.map(en => en.id));
+      setPhotos(prev => prev.filter(p => !failedIds.has(p.id)));
       return;
     }
     const yearMonth = new Date().toISOString().slice(0, 7); // "2025-07"
 
-    const uploadedPaths = [];
-
     // One attempt = compress + upload, each attempt gets its own storage path
     // (a timed-out attempt's request may still land after we've moved on —
     // reusing the same path could collide with it under upsert:false).
-    async function attemptUpload(file, i) {
-      const compressed = await compressImage(file);
-      const path = `${projectId}/${yearMonth}/${user.id}_${Date.now()}_${i}.jpg`;
+    // compressImage() is wrapped too — a stalled canvas decode is just as
+    // capable of hanging forever as a stalled network request.
+    async function attemptUpload(file, seq) {
+      const compressed = await withTimeout(
+        compressImage(file),
+        UPLOAD_TIMEOUT_MS,
+        'Photo processing timed out — try a different photo.'
+      );
+      const path = `${projectId}/${yearMonth}/${user.id}_${Date.now()}_${seq}.jpg`;
       const { error } = await withTimeout(
         supabase.storage.from('site-photos').upload(path, compressed, { contentType: 'image/jpeg', upsert: false }),
         UPLOAD_TIMEOUT_MS,
@@ -97,35 +111,40 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
       return path;
     }
 
-    for (let i = 0; i < toUpload.length; i++) {
-      const file = toUpload[i];
-      const photoIndex = startIndex + i;
+    // Uploads run in parallel, not one-at-a-time — previously a `for` loop
+    // awaited each photo in sequence, so N photos could take up to N times
+    // the per-photo timeout+retry ceiling even when only one was actually
+    // stuck (every thumbnail shows its spinner immediately, so a stalled
+    // first photo made every later one look hung too, even though they
+    // hadn't started yet).
+    async function uploadEntry({ id, file }, seq) {
       try {
         let path;
         try {
-          path = await attemptUpload(file, i);
+          path = await attemptUpload(file, seq);
         } catch {
           // A single transient network hiccup shouldn't force the contractor
           // to re-pick the photo from scratch — one retry after a short backoff.
           await new Promise(r => setTimeout(r, RETRY_BACKOFF_MS));
-          path = await attemptUpload(file, i);
+          path = await attemptUpload(file, seq);
         }
-
-        uploadedPaths.push(path);
-        setPhotos(prev => prev.map((p, idx) => idx === photoIndex ? { ...p, path, uploading: false } : p));
+        setPhotos(prev => prev.map(p => p.id === id ? { ...p, path, uploading: false } : p));
+        return path;
       } catch (err) {
         onError?.(err?.message || 'Photo upload failed');
-        setPhotos(prev => prev.filter((_, idx) => idx !== photoIndex));
+        setPhotos(prev => prev.filter(p => p.id !== id));
+        return null;
       }
     }
 
+    const results = await Promise.all(entries.map((entry, i) => uploadEntry(entry, i)));
+    const uploadedPaths = results.filter(Boolean);
     if (uploadedPaths.length > 0) onUpload?.(uploadedPaths);
   }
 
-  async function removePhoto(index) {
-    const photo = photos[index];
+  async function removePhoto(photo) {
     if (!photo || photo.uploading) return;
-    setPhotos(prev => prev.filter((_, i) => i !== index));
+    setPhotos(prev => prev.filter(p => p.id !== photo.id));
     if (photo.path) {
       const { error } = await supabase.storage.from('site-photos').remove([photo.path]);
       if (error) {
@@ -145,7 +164,7 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
       {photos.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
           {photos.map((photo, i) => (
-            <div key={i} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--bg-elevated)' }}>
+            <div key={photo.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--bg-elevated)' }}>
               <img src={photo.preview} alt={`Site photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               {photo.uploading ? (
                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -154,7 +173,7 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
               ) : (
                 <button
                   type="button"
-                  onClick={() => removePhoto(i)}
+                  onClick={() => removePhoto(photo)}
                   aria-label="Remove photo"
                   style={{
                     position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)',

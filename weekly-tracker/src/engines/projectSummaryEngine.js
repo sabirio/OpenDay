@@ -1,5 +1,6 @@
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
-import { getPhasesInOrder } from '../config/masterTaskLibrary';
+import { getPhasesInOrder, WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
+import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
 import { DAY_MS, isMissingReport } from '../utils/reportUtils';
 import { calculatePhaseProgress } from './progressEngine';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
@@ -162,9 +163,16 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
     sched === 'At Risk'  ? 'AT_RISK'  : 'OK';
 
   // ── 4. Opening ────────────────────────────────────────────────────────────
+  // scopeWPIds must be passed here — without it, buildBlockerRecords() (in
+  // openingReadinessEngine.js) checks blocker WPs against the FULL canonical
+  // template regardless of this project's actual scope, flagging any
+  // out-of-scope blocker (never reported on, so always "Not Started") as
+  // still incomplete. Matches evaluateProjectState.js's scoping.
+  const scopeWPIds = getScopeWPIds(project?.scope, GANTT_WPS);
   const openingReadiness = computeOpeningReadiness(
     wpCumulativeStatuses,
-    project.targetOpeningDate || null
+    project.targetOpeningDate || null,
+    scopeWPIds
   );
   const openingStatus = openingReadiness.status;
 

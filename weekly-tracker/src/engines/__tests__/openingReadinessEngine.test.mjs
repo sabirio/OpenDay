@@ -148,5 +148,30 @@ console.log('\nE) Not Applicable status excludes a blocker entirely');
   check('requiredDays is 0 (only the N/A blocker was outstanding)', r.requiredDays === 0);
 }
 
+console.log('\nF) A3 follow-up — scopeWPIds excludes an out-of-scope blocker entirely');
+{
+  // Project scope includes every blocker WP except furniture.install (critical) —
+  // simulating a store type whose scope never includes that work package, so no
+  // report ever mentions it.
+  const scopeWithoutFurniture = [
+    'test.electrical', 'test.hvac', 'test.plumbing', 'test.fire',
+    'devices.lighting', 'devices.sensors',
+    'comm.full_test', 'comm.snagging',
+    'preopening.training', 'preopening.cleaning',
+    'handover.inspection', 'handover.transfer', 'handover.keys',
+  ];
+  // Nothing reported at all — same "never-touched" shape as section C.
+  const rUnscoped = computeOpeningReadiness({ workPackageStatuses: {} }, iso(5));
+  const rScoped   = computeOpeningReadiness({ workPackageStatuses: {} }, iso(5), scopeWithoutFurniture);
+
+  check('unscoped call flags furniture.install as a blocker (baseline, matches the reported Home.jsx bug)',
+    rUnscoped.criticalBlockers.some(b => b.task === 'Furniture & Fixtures'));
+  check('scoped call excludes the out-of-scope blocker entirely',
+    !rScoped.criticalChain.some(b => b.wpId === 'furniture.install') &&
+    !rScoped.criticalBlockers.some(b => b.task === 'Furniture & Fixtures'));
+  check('scoped call still flags every in-scope blocker',
+    rScoped.criticalBlockers.length + rScoped.softBlockers.length === scopeWithoutFurniture.length);
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);
