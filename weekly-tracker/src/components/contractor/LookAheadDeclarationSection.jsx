@@ -4,7 +4,7 @@ import PhotoUpload from "../shared/PhotoUpload";
 function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, onPhotoUpload, onPhotoRemove, onPhotoError }) {
   return (
     <>
-      <FormSection title="Look Ahead" accentColor="#0891b2">
+      <FormSection title="Look Ahead" accentColor="var(--field-accent-sitevisit)">
         <div className="field-form-2col">
           <TextAreaField label="Top 3 Activities — Next Week (optional)" value={form.nextWeekTop3} onChange={(v) => updateField("nextWeekTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
           <TextAreaField label="Top 3 Activities — Week +2 (optional)" value={form.weekAfterTop3} onChange={(v) => updateField("weekAfterTop3", v)} placeholder={"1)\n2)\n3)"} rows={5} />
@@ -16,8 +16,8 @@ function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, 
           value={form.activitiesBlocked}
           onChange={(v) => updateField("activitiesBlocked", v)}
           colorMap={{
-            "No":  { bg: "#f3f4f6", color: "#374151", border: "#9ca3af" },
-            "Yes": { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
+            "No":  { bg: "var(--field-bg-subtle)", color: "var(--field-text-body)", border: "var(--field-text-muted)" },
+            "Yes": { bg: "var(--field-danger-bg)", color: "var(--field-danger-fg-dark)", border: "var(--field-danger-border)" },
           }}
         />
         {form.activitiesBlocked === "Yes" && (
@@ -25,17 +25,17 @@ function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, 
         )}
       </FormSection>
 
-      <FormSection title="Declaration & Comments" accentColor="#475569">
+      <FormSection title="Declaration & Comments" accentColor="var(--field-accent-slate)">
         <div className="field-form-2col">
           <TextAreaField label="Pending Issues Summary (optional)" value={form.pendingIssues} onChange={(v) => updateField("pendingIssues", v)} placeholder="List any open issues or pending actions..." rows={4} />
           <TextAreaField label="Final Comments (optional)" value={form.finalComments} onChange={(v) => updateField("finalComments", v)} placeholder="Any additional comments for this week..." rows={4} />
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#94a3b8", marginBottom: 10 }}>Site Photos</div>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 10 }}>Site Photos</div>
           <PhotoUpload projectId={projectId} onUpload={onPhotoUpload} onRemove={onPhotoRemove} onError={onPhotoError} />
           {photoUrls.length > 0 && (
-            <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>{photoUrls.length} photo{photoUrls.length > 1 ? "s" : ""} attached</p>
+            <p style={{ fontSize: 12, color: "var(--field-text-muted)", marginTop: 8 }}>{photoUrls.length} photo{photoUrls.length > 1 ? "s" : ""} attached</p>
           )}
         </div>
 
@@ -45,14 +45,14 @@ function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, 
             onClick={() => updateField("declarationConfirmed", !form.declarationConfirmed)}
             style={{
               width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
-              border: `2px solid ${form.declarationConfirmed ? "#2f855a" : "#d1d5db"}`,
-              background: form.declarationConfirmed ? "#2f855a" : "white",
+              border: `2px solid ${form.declarationConfirmed ? "var(--field-accent-contractor)" : "var(--field-border-strong)"}`,
+              background: form.declarationConfirmed ? "var(--field-accent-contractor)" : "white",
               display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
             }}
           >
             {form.declarationConfirmed && <span style={{ color: "white", fontSize: 13, fontWeight: 800, lineHeight: 1 }}>✓</span>}
           </div>
-          <span style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, fontWeight: 500 }}>
+          <span style={{ fontSize: 13, color: "var(--field-text-body)", lineHeight: 1.6, fontWeight: 500 }}>
             I confirm that the reported information reflects the actual site status and is accurate to the best of my knowledge.
           </span>
         </label>

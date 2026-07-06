@@ -88,6 +88,98 @@
   --chip-fg-gray:      var(--text-secondary);
   --chip-bg-red:       var(--status-alert-bg);
   --chip-fg-red:       var(--status-alert);
+
+  /* ── Semantic aliases ──────────────────────────────────────────────────
+     Requested naming (Primary/Secondary/Success/Warning/Danger/Background/
+     Surface/Border/Text/Muted) mapped onto the existing tokens above —
+     added rather than renaming the 1700+ existing var(--accent) and
+     var(--status-done) style usages, so this is purely additive. Change
+     the color for a category in ONE place (either here, or the status
+     and bg token it points at above) and it propagates everywhere both
+     names are used. */
+  --color-primary:      var(--accent);
+  --color-secondary:    var(--text-secondary);
+  --color-success:      var(--status-done);
+  --color-success-bg:   var(--status-done-bg);
+  --color-warning:      var(--status-warn);
+  --color-warning-bg:   var(--status-warn-bg);
+  --color-danger:       var(--status-alert);
+  --color-danger-bg:    var(--status-alert-bg);
+  --color-background:   var(--bg-base);
+  --color-surface:      var(--bg-surface);
+  --color-border:       var(--border);
+  --color-text:         var(--text-primary);
+  --color-muted:        var(--text-muted);
+
+  /* ── Field-mode palette (P2.1/P2.2 job-site forms) ──────────────────────
+     ContractorReport/SiteVisitReport and their subcomponents render with a
+     fixed light palette on purpose (outdoor/bright-site readability) and
+     do NOT participate in the dark/light toggle above — these tokens are
+     declared only in :root, with no [data-theme="light"] override, so they
+     stay constant regardless of the app's theme setting. This is the
+     single source for that palette: change a value here and every field
+     component picks it up. Covers the ~25 most-reused literal colors found
+     auditing components/contractor/* and components/sitevisit/* (2026-07-06);
+     a handful of one-off accent colors (badges, links) remain literal.
+  */
+  --field-bg-contractor:      #f0f7f2;
+  --field-bg-sitevisit:       #f0f7fa;
+  --field-accent-contractor:  #2f855a;
+  --field-accent-sitevisit:   #0891b2;
+
+  --field-text-heading:       #111827;
+  --field-text-body:          #374151;
+  --field-text-secondary:     #6b7280;
+  --field-text-muted:         #9ca3af;
+  --field-text-label:         #94a3b8;
+
+  --field-border:             #e5e7eb;
+  --field-border-strong:      #d1d5db;
+  --field-bg-subtle:          #f3f4f6;
+  --field-bg-faint:           #fafafa;
+
+  --field-success-bg:         #dcfce7;
+  --field-success-border:     #86efac;
+  --field-success-fg:         #16a34a;
+  --field-success-fg-dark:    #166534;
+
+  --field-warning-bg:         #fef3c7;
+  --field-warning-border:     #fde68a;
+  --field-warning-fg:         #d97706;
+  --field-warning-fg-dark:    #92400e;
+
+  --field-danger-bg:          #fee2e2;
+  --field-danger-border:      #fca5a5;
+  --field-danger-fg:          #dc2626;
+  --field-danger-fg-dark:     #991b1b;
+
+  --field-info-bg:            #e0f2fe;
+  --field-info-border:        #7dd3fc;
+  --field-info-fg:            #0891b2;
+  --field-info-fg-dark:       #0c4a6e;
+
+  --field-delayed-bg:         #fce7f3;
+  --field-delayed-border:     #f9a8d4;
+  --field-delayed-fg:         #be185d;
+
+  /* "Not applicable" / neutral-violet state (WP status pills) */
+  --field-neutral-bg:         #f5f3ff;
+  --field-neutral-fg:         #7c3aed;
+  --field-neutral-border:     #ddd6fe;
+
+  /* Section-header accent colors (decorative, not status-driven) */
+  --field-accent-slate:       #475569;
+
+  --field-accent-blue-bg:     #dbeafe;
+  --field-accent-blue-subtle: #eff6ff;
+  --field-accent-blue-fg:     #1e40af;
+  --field-accent-blue-fg2:    #2563eb;
+  --field-accent-blue-border: #93c5fd;
+
+  --field-accent-orange-bg:      #fff7ed;
+  --field-accent-orange-fg:      #ea580c;
+  --field-accent-orange-fg-dark: #c2410c;
+  --field-accent-orange-border:  #fed7aa;
 }
 
 

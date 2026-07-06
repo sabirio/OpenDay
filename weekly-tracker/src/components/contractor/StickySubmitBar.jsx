@@ -10,7 +10,7 @@ export default function StickySubmitBar({ onSubmit, disabled = false, label = "S
           disabled={disabled}
           style={{
             width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none",
-            background: "linear-gradient(135deg, #2f855a 0%, #22c55e 100%)",
+            background: "linear-gradient(135deg, var(--field-accent-contractor) 0%, var(--field-success-fg) 100%)",
             color: "white", fontSize: 16, fontWeight: 700,
             cursor: disabled ? "not-allowed" : "pointer", letterSpacing: "0.02em",
             opacity: disabled ? 0.65 : 1,

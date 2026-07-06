@@ -15,8 +15,8 @@ export default function WorkPackageProgressSection({
 }) {
   if (ganttLoading) {
     return (
-      <FormSection title="Work Package Progress" accentColor="#2f855a">
-        <div style={{ textAlign: "center", padding: "20px", color: "#9ca3af", fontSize: 13 }}>Loading schedule...</div>
+      <FormSection title="Work Package Progress" accentColor="var(--field-accent-contractor)">
+        <div style={{ textAlign: "center", padding: "20px", color: "var(--field-text-muted)", fontSize: 13 }}>Loading schedule...</div>
       </FormSection>
     );
   }

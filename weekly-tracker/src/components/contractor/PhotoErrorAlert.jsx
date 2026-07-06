@@ -2,7 +2,7 @@ export default function PhotoErrorAlert({ message }) {
   if (!message) return null;
 
   return (
-    <div style={{ background: "#fff1f2", border: "1px solid #fca5a5", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#991b1b" }}>
+    <div style={{ background: "var(--field-danger-bg)", border: "1px solid var(--field-danger-border)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "var(--field-danger-fg-dark)" }}>
       {message}
     </div>
   );
