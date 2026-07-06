@@ -8,23 +8,23 @@
 /* ── 1. Dark mode tokens (default) ───────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --bg-base:           #0a0a0a;
+  --bg-base:           #262624;
   --bg-surface:        #141414;
   --bg-elevated:       #1c1c1c;
   --bg-input:          #1c1c1c;
 
   /* Borders */
-  --border:            #2a2a2a;
-  --border-strong:     #3d3d3d;
+  --border:            #3e3e38;
+  --border-strong:     #3e3e38;
 
   /* Text */
-  --text-primary:      #f5f5f5;
-  --text-secondary:    #a3a3a3;
-  --text-muted:        #525252;
+  --text-primary:      #faf9f5;
+  --text-secondary:    #faf9f5;
+  --text-muted:        #faf9f5;
   --text-inverse:      #0a0a0a;
 
   /* Accent — white in dark, black in light */
-  --accent:            #ffffff;
+  --accent:            #f5f4ee;
   --accent-subtle:     rgba(255, 255, 255, 0.06);
 
   /* Status: functional color signals only */
