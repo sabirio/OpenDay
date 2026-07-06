@@ -41,6 +41,11 @@ import SiteVisitComparison   from "../components/weekly/SiteVisitComparison";
 import WeeklyReportsToolbar from "../components/weekly/WeeklyReportsToolbar";
 import MissingReportsModal from "../components/weekly/MissingReportsModal";
 import PhotoGallery from "../components/shared/PhotoGallery";
+import ReportTruthBar from "../components/weekly/ReportTruthBar";
+import WeeklyReportTabs from "../components/weekly/WeeklyReportTabs";
+import ActionRequiredPanel from "../components/weekly/ActionRequiredPanel";
+import PhaseBoard from "../components/weekly/PhaseBoard";
+import CompactProgressTrend from "../components/weekly/CompactProgressTrend";
 
 const GanttChart = React.lazy(() => import("../components/GanttChart"));
 
@@ -79,6 +84,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   const [ganttLoading,      setGanttLoading]      = useState(false);
   const [expandedVisitId,   setExpandedVisitId]   = useState(null);
   const [activeTemplate,    setActiveTemplate]    = useState(null);
+  const [activeReviewTab,   setActiveReviewTab]   = useState("overview");
 
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId && projects.some(p => String(p.id) === selectedProjectId))
@@ -307,19 +313,20 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   }, [effectiveProjectId]);
 
   const riskCount = (selectedReport?.risks || []).filter(Boolean).length;
+  const reviewTabs = [
+    { id: "overview", label: "Overview" },
+    { id: "verification", label: "Verification" },
+    { id: "details", label: "Details & Evidence" },
+  ];
 
   return (
     <ErrorBoundary>
       <div className="weekly-reports-surface">
-        {/* Page title */}
         <div className="page-header">
           <div>
             <h1>Weekly Reports</h1>
             <p>Verified weekly progress, PM comparison, risks, evidence, and opening readiness by project.</p>
           </div>
-          {selectedProject && (
-            <ExportButton label="Export Report PDF" />
-          )}
         </div>
 
         {selectedProject && (
@@ -330,7 +337,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           />
         )}
 
-        {/* Selectors toolbar */}
         <WeeklyReportsToolbar
           projects={projects}
           projectReports={projectReports}
@@ -341,11 +347,28 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           onProjectChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}
           onReportChange={e => setSelectedReportId(e.target.value)}
           onToggleGantt={() => setShowGantt(v => !v)}
+          actions={selectedProject ? <ExportButton label="Export PDF" /> : null}
+          statusLine={selectedProject ? (
+            <span>
+              <strong>{selectedProject.storeCode}</strong>
+              {" · "}
+              {selectedReport?.reportingDate || selectedReport?.submittedAt || "No report selected"}
+              {" · Contractor "}
+              {selectedReport ? "submitted" : "not submitted"}
+              {" · PM "}
+              {svKpis.totalVisits > 0 ? "verified" : "not verified"}
+            </span>
+          ) : null}
         />
-        {/* Project header + KPI strip + Progress Narrative */}
+
         {selectedProject && (
-          <section className="weekly-command-panel">
+          <section className="weekly-project-context">
             <ProjectHeader project={selectedProject} />
+          </section>
+        )}
+
+        {selectedProject && (
+          <section className="weekly-truth-console">
             {templateIssues.filter(i => i.severity === 'error').length > 0 && (
               <div role="alert" className="weekly-template-alert">
                 <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
@@ -358,24 +381,24 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 </ul>
               </div>
             )}
-            <div className="no-break weekly-report-truth-grid">
-              <KpiStrip
-                project={selectedProject}
-                report={selectedReport}
-                overallProgress={overallProgress}
-                portfolioKpis={portfolioKpis}
-                projectReportCount={projectReports.length}
-                onMissingClick={() => setShowMissingModal(true)}
-              />
-              {selectedReport && (
-                <ProgressNarrative
-                  progressComparison={engineOutputs?.progressComparison}
-                  selectedProgress={engineOutputs?.selectedProgress}
-                  explainResult={explainResult}
-                />
-              )}
-            </div>
+            <ReportTruthBar
+              overallProgress={overallProgress}
+              progressComparison={engineOutputs?.progressComparison}
+              selectedProgress={engineOutputs?.selectedProgress}
+              svKpis={svKpis}
+              report={selectedReport}
+              portfolioKpis={portfolioKpis}
+              additionalWorksList={additionalWorksList}
+            />
           </section>
+        )}
+
+        {selectedReport && (
+          <WeeklyReportTabs
+            tabs={reviewTabs}
+            activeTab={activeReviewTab}
+            onChange={setActiveReviewTab}
+          />
         )}
 
         {/* Gantt chart */}
@@ -419,9 +442,66 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           </div>
         )}
 
-        {/* Report detail */}
-        {selectedReport && (
+        {selectedReport && activeReviewTab === "overview" && (
+          <section className="weekly-overview-console">
+            <div className="weekly-overview-main">
+              <ProgressNarrative
+                progressComparison={engineOutputs?.progressComparison}
+                selectedProgress={engineOutputs?.selectedProgress}
+                explainResult={explainResult}
+              />
+
+              <CompactProgressTrend
+                series={progressSeries}
+                scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
+                spi={engineOutputs?.progressComparison?.spi}
+              />
+
+              <PhaseBoard
+                phases={phaseClassifications}
+                phaseChangeFlags={phaseChangeFlags}
+                wpDeltas={wpDeltas}
+                mergedStatuses={mergedStatuses}
+              >
+                <PhaseTimeline
+                  key={effectiveReportId}
+                  phases={phaseClassifications}
+                  mergedStatuses={mergedStatuses}
+                  wpDeltas={wpDeltas}
+                  phaseChangeFlags={phaseChangeFlags}
+                />
+              </PhaseBoard>
+            </div>
+
+            <ActionRequiredPanel
+              report={selectedReport}
+              svKpis={svKpis}
+              portfolioKpis={portfolioKpis}
+              additionalWorksList={additionalWorksList}
+            />
+          </section>
+        )}
+
+        {selectedReport && activeReviewTab === "verification" && selectedProject && (
+          <SiteVisitComparison
+            svData={svData}
+            svKpis={svKpis}
+            expandedVisitId={expandedVisitId}
+            onExpandedChange={setExpandedVisitId}
+          />
+        )}
+
+        {selectedReport && activeReviewTab === "details" && (
           <section className="weekly-report-body">
+            <KpiStrip
+              project={selectedProject}
+              report={selectedReport}
+              overallProgress={overallProgress}
+              portfolioKpis={portfolioKpis}
+              projectReportCount={projectReports.length}
+              onMissingClick={() => setShowMissingModal(true)}
+            />
+
             <ProgressChart
               series={progressSeries}
               scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
@@ -429,15 +509,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               reportCount={projectReports.length}
               latestDate={projectReports[0]?.reportingDate}
             />
-
-            {selectedProject && (
-              <SiteVisitComparison
-                svData={svData}
-                svKpis={svKpis}
-                expandedVisitId={expandedVisitId}
-                onExpandedChange={setExpandedVisitId}
-              />
-            )}
 
             <PhaseTimeline
               key={effectiveReportId}

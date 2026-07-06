@@ -1,4 +1,4 @@
-import { TextBlock } from './shared';
+import ExpandableTextBlock from './ExpandableTextBlock';
 
 export default function ReportLinksBlock({ report }) {
   if (!report) return null;
@@ -8,15 +8,14 @@ export default function ReportLinksBlock({ report }) {
 
   return (
     <div className="weekly-report-links">
-      {/* Look Ahead */}
       <div className="dashboard-summary-card" style={{ margin: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--text-primary)' }}>Look Ahead</div>
         {hasLookAhead ? (
           <>
-            <TextBlock label="Top 3 — Next Week" value={report.nextWeekTop3}  plain />
-            <TextBlock label="Top 3 — Week +2"   value={report.weekAfterTop3} plain />
+            <ExpandableTextBlock label="Top 3 - Next Week" value={report.nextWeekTop3} plain />
+            <ExpandableTextBlock label="Top 3 - Week +2" value={report.weekAfterTop3} plain />
             {report.activitiesBlocked === 'Yes' && (
-              <TextBlock label="Delay Reason" value={report.delayReason} plain />
+              <ExpandableTextBlock label="Delay Reason" value={report.delayReason} plain />
             )}
           </>
         ) : (
@@ -24,13 +23,12 @@ export default function ReportLinksBlock({ report }) {
         )}
       </div>
 
-      {/* Declaration */}
       <div className="dashboard-summary-card" style={{ margin: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--text-primary)' }}>Declaration</div>
         {hasDeclaration ? (
           <>
-            <TextBlock label="Pending Issues" value={report.pendingIssues} plain />
-            <TextBlock label="Final Comments"  value={report.finalComments} plain />
+            <ExpandableTextBlock label="Pending Issues" value={report.pendingIssues} plain />
+            <ExpandableTextBlock label="Final Comments" value={report.finalComments} plain />
           </>
         ) : (
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>No comments</div>
