@@ -4,6 +4,7 @@
 
 import { computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isMissingReport, isBadScheduleStatus } from '../utils/reportUtils';
 import { calculateProjectProgressResult } from './progressEngine';
+import { isProjectAtRisk, isProjectCritical } from '../core/insights/severity/openingSeverity.js';
 
 /** @typedef {import('../types').PortfolioKpis} PortfolioKpis */
 /**
@@ -106,15 +107,21 @@ export function computePortfolioAnalytics(rows) {
 
 /**
  * Portfolio KPI summary for the Dashboard header cards.
+ *
+ * atRisk/critical are openingReadiness-aware (isProjectAtRisk/isProjectCritical,
+ * shared with commandEngine.getCommands' "opening_at_risk" command) so these
+ * cards never show 0 while Priorities Today is flagging the same project —
+ * see core/insights/severity/openingSeverity.js for why the two used to disagree.
+ *
  * @param {Array<Record<string, any>>} projects
- * @param {PortfolioRow[]} allRows - pre-computed allRows (with riskLevel, missingReport, daysToOpening, progress, latestReport)
+ * @param {PortfolioRow[]} allRows - pre-computed allRows (with riskLevel, missingReport, daysToOpening, progress, latestReport, readiness)
  * @param {Array<Record<string, any>>} allReports - all raw reports (for reportsThisWeek count)
  * @returns {PortfolioKpis}
  */
 export function computePortfolioKpis(projects, allRows, allReports) {
   const active   = projects.filter(p => p.projectStatus === "Active").length;
-  const atRisk   = allRows.filter(({ latestReport }) => isBadScheduleStatus(latestReport?.projectScheduleStatus)).length;
-  const critical = allRows.filter(({ riskLevel }) => riskLevel === "CRITICAL").length;
+  const atRisk   = allRows.filter(isProjectAtRisk).length;
+  const critical = allRows.filter(isProjectCritical).length;
   const missing  = allRows.filter(({ missingReport }) => missingReport).length;
   const blocked  = allRows.filter(({ latestReport }) => latestReport?.activitiesBlocked === "Yes").length;
   const support  = allRows.filter(({ latestReport }) => latestReport?.supportRequired === "Yes").length;

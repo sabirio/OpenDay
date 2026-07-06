@@ -13,6 +13,7 @@ export async function resolve(specifier, context, nextResolve) {
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
 const { computePortfolioKpis, computePortfolioAnalytics } = await import('../engines/portfolioEngine.js');
+const { getCommands } = await import('../engines/commandEngine.js');
 
 let pass = 0, fail = 0;
 function check(label, condition) {
@@ -102,6 +103,69 @@ console.log('\ncomputePortfolioAnalytics - pinned against pre-refactor SummaryPa
 
   const empty = computePortfolioAnalytics([]);
   check('empty rows -> avgSPI null, mcRiskyCount 0', empty.avgSPI === null && empty.mcRiskyCount === 0);
+}
+
+// OPT-1 fix: metric-definition collision between the AT RISK/CRITICAL cards
+// and Priorities Today. Root cause (confirmed live via real engine calls
+// before this fix): a project can self-report "On Track" and score riskLevel
+// LOW (the aggregate risk score's "Opening not achievable" factor only fires
+// once readiness.verdict === 'NOT_ACHIEVABLE', a stricter bar than
+// readiness.status === 'At Risk') while computeOpeningReadiness() still
+// finds real, named blockers — so the cards showed 0/0 while Priorities
+// Today correctly flagged the same project. Cards are now driven by the same
+// openingReadiness status ladder as commandEngine (see
+// core/insights/severity/openingSeverity.js), not two independent checks.
+console.log('\ncomputePortfolioKpis - openingReadiness-aware atRisk/critical (OPT-1, metric-definition collision fix)');
+{
+  const collisionProjects = [
+    { id: 'aa0011', projectStatus: 'Active', projectType: 'New Opening' },
+  ];
+  const collisionRows = [
+    {
+      progress: 92,
+      riskLevel: 'LOW',
+      missingReport: false,
+      daysToOpening: 66,
+      latestReport: { projectScheduleStatus: 'On Track', activitiesBlocked: 'No', supportRequired: 'No' },
+      readiness: { status: 'At Risk', criticalBlockers: [1, 2, 3, 4], softBlockers: [1] },
+    },
+  ];
+  const collisionKpis = computePortfolioKpis(collisionProjects, collisionRows, []);
+  check('OPT-1: On Track + LOW risk but readiness.status=At Risk still counts toward atRisk (was 0 before this fix)',
+    collisionKpis.atRisk === 1);
+  check('OPT-1: readiness.status=At Risk (not Critical/Overdue) does NOT count toward critical',
+    collisionKpis.critical === 0);
+
+  // Same fixture through getCommands (the Priorities Today path) must agree:
+  // the card's "this project is at-risk" boolean must match whether
+  // Priorities actually surfaces an opening_at_risk command for it.
+  const commands = getCommands({
+    project: collisionProjects[0],
+    progressComparison: null,
+    prevProgressComparison: null,
+    riskScore: { level: collisionRows[0].riskLevel, factors: [] },
+    openingReadiness: collisionRows[0].readiness,
+    latestReport: collisionRows[0].latestReport,
+    missingReport: false,
+  });
+  const openingCommand = commands.find(c => c.id === 'opening_at_risk');
+  check('guard: card atRisk flag <-> Priorities opening_at_risk command agree',
+    (collisionKpis.atRisk === 1) === Boolean(openingCommand));
+  check('Priorities severity is "warning" for At Risk, matching the card NOT counting it as critical',
+    openingCommand?.severity === 'warning');
+
+  // Escalate to Critical/Overdue: both card AND Priorities severity must escalate together.
+  const criticalRows = [{ ...collisionRows[0], readiness: { ...collisionRows[0].readiness, status: 'Critical' } }];
+  const criticalKpis = computePortfolioKpis(collisionProjects, criticalRows, []);
+  check('readiness.status=Critical now counts toward BOTH atRisk and critical cards',
+    criticalKpis.atRisk === 1 && criticalKpis.critical === 1);
+  const criticalCommands = getCommands({
+    project: collisionProjects[0], progressComparison: null, prevProgressComparison: null,
+    riskScore: { level: 'LOW', factors: [] }, openingReadiness: criticalRows[0].readiness,
+    latestReport: criticalRows[0].latestReport, missingReport: false,
+  });
+  check('guard: Critical status escalates Priorities severity to "critical", matching the card',
+    criticalCommands.find(c => c.id === 'opening_at_risk')?.severity === 'critical');
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

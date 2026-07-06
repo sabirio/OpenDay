@@ -18,6 +18,7 @@
  */
 
 import { SCHEDULE_CONFIG } from '../config/scheduleConfig';
+import { isOpeningAtRisk, isOpeningCritical } from '../core/insights/severity/openingSeverity.js';
 
 const SEV_ORDER = { critical: 0, warning: 1, info: 2 };
 
@@ -86,7 +87,7 @@ export function getCommands(projectState, _config = SCHEDULE_CONFIG) {
   }
 
   // ── 3. Opening date at risk ───────────────────────────────────────────────
-  if (['At Risk', 'Critical', 'Overdue'].includes(openingReadiness?.status)) {
+  if (isOpeningAtRisk(openingReadiness)) {
     const { status, daysToOpening, criticalBlockers = [], softBlockers = [] } = openingReadiness;
     const blockerCount = criticalBlockers.length + softBlockers.length;
     const reason = blockerCount > 0
@@ -99,7 +100,7 @@ export function getCommands(projectState, _config = SCHEDULE_CONFIG) {
 
     commands.push({
       id:          'opening_at_risk',
-      severity:    status === 'At Risk' ? 'warning' : 'critical',
+      severity:    isOpeningCritical(openingReadiness) ? 'critical' : 'warning',
       title:       `${code} opening date at risk — ${status}`,
       reason,
       action:      'Confirm recovery plan / consider moving target date',
