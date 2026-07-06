@@ -94,6 +94,8 @@ async function submitContractorReport(page, { scheduleStatus = 'On Track', suppo
 
   const saveBtn = page.locator('[data-testid="save-contractor-report"]');
   if (await saveBtn.count() > 0) {
+    // Submit stays disabled while the photo's async upload is in flight.
+    await expect(saveBtn).toBeEnabled({ timeout: 30_000 });
     await saveBtn.click();
     await expect(page.locator('text=Report submitted')).toBeVisible({ timeout: 20_000 });
     return true;

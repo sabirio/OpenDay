@@ -29,14 +29,17 @@ test.describe('Full data flow', () => {
     await expect(modal).toBeVisible({ timeout: 5_000 });
 
     const uniqueName = `E2E-Project-${Date.now()}`;
-    const nameInput = modal.locator('input[placeholder*="name" i], input[name*="name" i], input').first();
-    await nameInput.fill(uniqueName);
-
-    // Fill any other required fields (store code, etc.)
-    const storeInput = modal.locator('input[placeholder*="store" i], input[placeholder*="code" i]').first();
-    if (await storeInput.count() > 0) {
-      await storeInput.fill(`ST${Date.now().toString().slice(-4)}`);
-    }
+    // validateProject() (projectService.js) requires storeCode, shoppingMallName,
+    // and country — filling only name/store (as this test previously did) throws
+    // "Country is required", doSaveProject()'s catch shows a native alert() and
+    // never calls setShowForm(false), so the modal (and its full-screen
+    // .modal-overlay backdrop) stays open and blocks the later logout()'s Sign
+    // out click. Use the same reliable name-attribute selectors as
+    // 02-projects.spec.js's own passing "creates a new project" test.
+    await modal.locator('input[name="shoppingMallName"]').fill(uniqueName);
+    await modal.locator('input[name="storeCode"]').fill(`ST${Date.now().toString().slice(-4)}`);
+    await modal.locator('input[name="city"]').fill('E2E City');
+    await modal.locator('input[name="country"]').fill('E2E Country');
 
     const saveBtn = modal.locator('button[type="submit"], button', { hasText: /save|create|add/i }).first();
     await saveBtn.click();
@@ -86,10 +89,14 @@ test.describe('Full data flow', () => {
     });
 
     await page.locator('[data-testid="declaration-checkbox"]').click();
+    // Submit stays disabled while the photo's async upload is in flight.
+    await expect(page.locator('[data-testid="save-contractor-report"]')).toBeEnabled({ timeout: 30_000 });
     await page.locator('[data-testid="save-contractor-report"]').click();
     await expect(page.locator('text=Report submitted')).toBeVisible({ timeout: 20_000 });
 
+    // The success screen has no nav bar, so navigate home before logging out.
     // Verify in Weekly Reports (as admin)
+    await page.goto('/');
     await logout(page);
     await login(page, CREDENTIALS.admin);
     await page.goto('/weekly-reports');
@@ -147,6 +154,14 @@ test.describe('Full data flow', () => {
     await expect(svPage.locator('[data-testid="summary-pm-ahead"]')).toBeVisible();
 
     await svPage.close();
+
+    // The project detail modal (opened on `page` at the top of this test, to
+    // launch the Site Visit popup) is still open here and its full-screen
+    // .modal-overlay backdrop covers the sidebar's Sign out button — close it
+    // before logging out. ProjectDetailModal.jsx does not close on Escape
+    // (verified live), so use its real close button.
+    await page.locator('.modal .close-button').click();
+    await expect(page.locator('.modal')).not.toBeVisible({ timeout: 5_000 });
     await logout(page);
   });
 

@@ -194,8 +194,13 @@ test.describe('Risk logic', () => {
     });
 
     await page.locator('[data-testid="declaration-checkbox"]').click();
+    // Submit stays disabled while the photo's async upload is in flight.
+    await expect(page.locator('[data-testid="save-contractor-report"]')).toBeEnabled({ timeout: 30_000 });
     await page.locator('[data-testid="save-contractor-report"]').click();
     await expect(page.locator('text=Report submitted')).toBeVisible({ timeout: 20_000 });
+
+    // The success screen has no nav bar, so navigate home before logging out
+    await page.goto('/');
 
     // Now open the dashboard drawer and check discrepancy-count
     await logout(page);

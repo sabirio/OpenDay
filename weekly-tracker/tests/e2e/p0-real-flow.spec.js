@@ -22,7 +22,7 @@ const STORE_CODE = `P0E2E-${RUN_ID}`;
 const MALL_NAME = `P0 E2E Mall ${RUN_ID}`;
 
 let adminDb;
-let contractorDb;
+let contractorUserId;
 let projectId;
 let contractorReportId;
 let photoPaths = [];
@@ -33,25 +33,26 @@ function makeClient() {
   });
 }
 
+// Returns { client, userId } — capture the user id from signInWithPassword()'s
+// own response rather than a later client.auth.getUser() call. With
+// persistSession:false, the client doesn't reliably retain session state for
+// getUser() to read back afterwards (verified live: getUser() on such a
+// client throws "AuthSessionMissingError: Auth session missing!" even though
+// sign-in itself succeeded) — the id is already right there in the sign-in
+// response, no second round-trip needed.
 async function signInAs(creds) {
   const client = makeClient();
-  const { error } = await client.auth.signInWithPassword({
+  const { data, error } = await client.auth.signInWithPassword({
     email: creds.email,
     password: creds.password,
   });
   if (error) throw new Error(`E2E sign-in failed for ${creds.email}: ${error.message}`);
-  return client;
-}
-
-async function getCurrentUserId(client) {
-  const { data, error } = await client.auth.getUser();
-  if (error) throw error;
-  return data.user?.id;
+  return { client, userId: data.user?.id };
 }
 
 async function cleanup() {
   if (!adminDb) {
-    adminDb = await signInAs(CREDENTIALS.admin).catch(() => null);
+    adminDb = (await signInAs(CREDENTIALS.admin).catch(() => null))?.client ?? null;
   }
   if (!adminDb) return;
 
@@ -111,7 +112,11 @@ async function createProjectViaUi(page) {
 
   await modal.locator('button', { hasText: /create project|save/i }).last().click();
   await expect(modal).toBeHidden({ timeout: 20_000 });
-  await expect(page.getByText(STORE_CODE).first()).toBeVisible({ timeout: 20_000 });
+  // PrintHeader.jsx renders "Project: {code} — {name}" in a `.print-only`
+  // element (display:none on screen, only shown via @media print) — a plain
+  // getByText(STORE_CODE) can match that hidden node first in DOM order.
+  // Intersect with :visible so this only matches the real on-screen content.
+  await expect(page.getByText(STORE_CODE).and(page.locator(':visible')).first()).toBeVisible({ timeout: 20_000 });
 
   const { data, error } = await adminDb
     .from('projects')
@@ -146,6 +151,15 @@ async function linkContractor() {
 }
 
 async function submitContractorReport(page) {
+  // createProjectViaUi() left `page` authenticated as admin. App.jsx redirects
+  // an already-authenticated session away from /login (Navigate to
+  // getDefaultRoute(role)) before the login form ever renders, so switching
+  // to a different user here without clearing that session first makes
+  // `#email` never appear — login() then hangs until the whole test times out.
+  // Clearing the browser's local session state (rather than driving the real
+  // "Sign out" button via the shared logout() helper) is enough to make
+  // App.jsx's isAuthenticated false on the next navigation.
+  await page.evaluate(() => localStorage.clear());
   await login(page, CREDENTIALS.contractor);
   await expect(page).toHaveURL(/\/contractor-select/, { timeout: 20_000 });
   await page.waitForLoadState('networkidle');
@@ -180,9 +194,14 @@ async function submitContractorReport(page) {
     mimeType: 'image/png',
     buffer: TINY_PNG,
   });
+  // "Photos: 1 / 15" appears optimistically the instant the file is picked, before
+  // the async compress+upload resolves — it doesn't prove the upload is done.
+  // Wait for the Submit button itself to re-enable (it's disabled while any photo
+  // upload is in flight), which is what actually gates a successful submit.
   await expect(page.getByText(/1 photo attached|Photos: 1 \/ 15/)).toBeVisible({ timeout: 20_000 });
 
   await page.locator('[data-testid="declaration-checkbox"]').click();
+  await expect(page.locator('[data-testid="save-contractor-report"]')).toBeEnabled({ timeout: 30_000 });
   await page.locator('[data-testid="save-contractor-report"]').click();
   await expect(page.getByText('Report submitted')).toBeVisible({ timeout: 30_000 });
   await page.goto('/');
@@ -190,7 +209,8 @@ async function submitContractorReport(page) {
 }
 
 async function assertContractorData() {
-  const contractorUserId = await getCurrentUserId(contractorDb);
+  // contractorUserId was captured at sign-in time (module scope) — see the
+  // signInAs() doc comment for why we don't call getCurrentUserId() here.
   const { data: reports, error } = await adminDb
     .from('contractor_reports')
     .select('id, submitted_by, photo_urls')
@@ -232,9 +252,22 @@ async function submitPmSiteVisit(page) {
   }
 
   await page.locator('[data-testid="pm-schedule-btn-On Track"]').click();
-  const pmTask = page.locator('[data-testid^="pm-status-"], [data-testid^="pm-progress-"]').first();
-  if (await pmTask.count()) {
-    await pmTask.click().catch(() => {});
+  // This project was created via createProjectViaUi() with construction
+  // start/end dates, so it has a generated Gantt schedule — the site visit
+  // form renders GanttPMTaskRow (not LegacyPMTaskRow), whose status buttons
+  // use the canonical snake_case vocabulary ('not_started'/'in_progress'/
+  // 'completed'/'delayed'/'blocked'), not Legacy's Title Case
+  // ('Not Started'/'In Progress'/...). The previous
+  // `[data-testid^="pm-status-"], [data-testid^="pm-progress-"]` selector
+  // never matched anything for a Gantt-scheduled project (verified live:
+  // GanttPMTaskRow's status buttons carry no testid at all prior to this
+  // fix), so no PM observation was ever recorded and the comparison summary
+  // had nothing to show. Set a couple of task rows to "In Progress" so the
+  // submitted visit has real assessed items.
+  const pmRows = page.locator('[data-testid="pm-task-row"]');
+  const pmRowCount = await pmRows.count();
+  for (let i = 0; i < Math.min(pmRowCount, 3); i++) {
+    await pmRows.nth(i).locator('[data-testid="pm-status-btn-in_progress"]').click();
   }
   await page.locator('textarea').first().fill(`P0 E2E PM site visit ${RUN_ID}`);
   await page.locator('input[type="file"][accept="image/*"]').setInputFiles({
@@ -246,8 +279,14 @@ async function submitPmSiteVisit(page) {
   await page.locator('[data-testid="save-site-visit-report"]').click();
 
   await expect(page.getByText('Site Visit Recorded')).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('[data-testid="summary-items-assessed"]')).toBeVisible();
-  await expect(page.locator('[data-testid="summary-matches"]')).toBeVisible();
+  // This project's Gantt-scheduled flow renders GanttSuccessView.jsx, not
+  // ComparisonResultsView.jsx (the legacy path's success screen) — a
+  // different component with a 3-box summary (Confirmed/Discrepancy/PM
+  // Ahead), not the legacy 4-box one (summary-items-assessed/summary-matches/
+  // summary-discrepancies/summary-pm-ahead) other specs check. Verified live:
+  // GanttSuccessView had no testids at all before this fix.
+  await expect(page.locator('[data-testid="summary-confirmed"]')).toBeVisible();
+  await expect(page.locator('[data-testid="summary-discrepancy"]')).toBeVisible();
   await page.goto('/');
   await logout(page);
 }
@@ -268,12 +307,20 @@ async function assertPortfolioUi(page) {
       }
     }
   }
-  await expect(page.getByText(STORE_CODE).first()).toBeVisible({ timeout: 20_000 });
+  // PrintHeader.jsx renders "Project: {code} — {name}" in a `.print-only`
+  // element (display:none on screen, only shown via @media print) — a plain
+  // getByText(STORE_CODE) can match that hidden node first in DOM order.
+  // Intersect with :visible so this only matches the real on-screen content.
+  await expect(page.getByText(STORE_CODE).and(page.locator(':visible')).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/Site Photos|GC Report Photos/).first()).toBeVisible({ timeout: 20_000 });
 
   await page.goto('/');
   await page.waitForLoadState('networkidle');
-  await expect(page.getByText(STORE_CODE).first()).toBeVisible({ timeout: 20_000 });
+  // PrintHeader.jsx renders "Project: {code} — {name}" in a `.print-only`
+  // element (display:none on screen, only shown via @media print) — a plain
+  // getByText(STORE_CODE) can match that hidden node first in DOM order.
+  // Intersect with :visible so this only matches the real on-screen content.
+  await expect(page.getByText(STORE_CODE).and(page.locator(':visible')).first()).toBeVisible({ timeout: 20_000 });
 
   await page.goto('/risk');
   await page.waitForLoadState('networkidle');
@@ -284,9 +331,15 @@ async function assertPortfolioUi(page) {
   await page.goto('/projects');
   await page.waitForLoadState('networkidle');
   await page.getByText(STORE_CODE).first().click();
-  await expect(page.locator('.modal, [role="dialog"]').first()).toBeVisible({ timeout: 10_000 });
+  const detailModal = page.locator('.modal, [role="dialog"]').first();
+  await expect(detailModal).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/contractor report/i).first()).toBeVisible({ timeout: 10_000 });
 
+  // This modal's full-screen .modal-overlay backdrop covers the sidebar's
+  // Sign out button — close it before logging out. ProjectDetailModal.jsx
+  // does not close on Escape (verified live), so use its real close button.
+  await detailModal.locator('.close-button').click();
+  await expect(detailModal).not.toBeVisible({ timeout: 5_000 });
   await logout(page);
 }
 
@@ -294,10 +347,19 @@ async function assertViewerAndContractorSecurity(page) {
   await login(page, CREDENTIALS.viewer);
   await page.goto('/');
   await page.waitForLoadState('networkidle');
-  await expect(page.getByText(STORE_CODE).first()).toBeVisible({ timeout: 20_000 });
+  // PrintHeader.jsx renders "Project: {code} — {name}" in a `.print-only`
+  // element (display:none on screen, only shown via @media print) — a plain
+  // getByText(STORE_CODE) can match that hidden node first in DOM order.
+  // Intersect with :visible so this only matches the real on-screen content.
+  await expect(page.getByText(STORE_CODE).and(page.locator(':visible')).first()).toBeVisible({ timeout: 20_000 });
+  // Viewer's PERMISSIONS entry (rolePermissions.js) only grants 'dashboard' —
+  // it has never included 'projects'. ProtectedRoute redirects any role
+  // lacking the route's resource permission to /unauthorized, so Viewer is
+  // correctly blocked from the Portfolio page. Verified live: this file
+  // previously asserted STORE_CODE visibility on /projects for Viewer, which
+  // can never pass because the page redirects away before rendering.
   await page.goto('/projects');
-  await page.waitForLoadState('networkidle');
-  await expect(page.getByText(STORE_CODE).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(/\/unauthorized/, { timeout: 20_000 });
   await logout(page);
 
   await login(page, CREDENTIALS.contractor);
@@ -312,8 +374,8 @@ test.afterAll(async () => {
 });
 
 test('P0 real flow: admin project -> contractor report -> PM verification -> dashboard/read security', async ({ page }) => {
-  adminDb = await signInAs(CREDENTIALS.admin);
-  contractorDb = await signInAs(CREDENTIALS.contractor);
+  ({ client: adminDb } = await signInAs(CREDENTIALS.admin));
+  ({ userId: contractorUserId } = await signInAs(CREDENTIALS.contractor));
   await signInAs(CREDENTIALS.viewer);
 
   await cleanup();

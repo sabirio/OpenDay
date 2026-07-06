@@ -183,19 +183,21 @@ test.describe('Executive Project Summary (Drawer)', () => {
     const drawer = await openFirstDrawer(page);
     test.skip(!drawer, 'Could not open project drawer');
 
-    const drawerText = await drawer.innerText();
+    // Section headers render through CSS text-transform: uppercase — compare
+    // case-insensitively so this doesn't depend on that styling choice.
+    const drawerText = (await drawer.innerText()).toLowerCase();
 
     // Executive summary should not contain page-level deep risk analysis texts
-    expect(drawerText).not.toContain('Project Risk Register');
-    expect(drawerText).not.toContain('Risk Escalation Register');
-    expect(drawerText).not.toContain('Contractor Performance');
-    expect(drawerText).not.toContain('PM Site Visit Verification');
+    expect(drawerText).not.toContain('project risk register');
+    expect(drawerText).not.toContain('risk escalation register');
+    expect(drawerText).not.toContain('contractor performance');
+    expect(drawerText).not.toContain('pm site visit verification');
 
     // Should contain executive-level section labels
-    expect(drawerText).toContain('Contractor Report');
-    expect(drawerText).toContain('PM Site Visit');
-    expect(drawerText).toContain('Risk Summary');
-    expect(drawerText).toContain('Opening Readiness');
+    expect(drawerText).toContain('contractor report');
+    expect(drawerText).toContain('pm site visit');
+    expect(drawerText).toContain('risk summary');
+    expect(drawerText).toContain('opening readiness');
 
     await logout(page);
   });

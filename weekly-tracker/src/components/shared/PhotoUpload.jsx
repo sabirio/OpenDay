@@ -1,9 +1,24 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { compressImage } from '../../utils/compressImage';
 import Icon from './Icon';
 
 const MAX_PHOTOS = 15;
+const UPLOAD_TIMEOUT_MS = 20_000;
+const RETRY_BACKOFF_MS = 1_500;
+
+// Neither compressImage() nor supabase-js's storage.upload() enforce their own
+// timeout — a stalled network request (bad mobile connection, or a backend
+// hiccup) leaves its promise pending forever. Without this, `uploading: true`
+// never flips back, Submit stays disabled with no error shown, and the only
+// recovery is reloading the whole form. Race against a timeout so a hang
+// becomes a normal, recoverable upload failure instead.
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
 
 /**
  * PhotoUpload — capture/select up to MAX_PHOTOS images, compress them
@@ -20,14 +35,26 @@ const MAX_PHOTOS = 15;
  *   onUpload:  (paths: string[]) => void  — called once per batch of files selected
  *   onRemove:  (path: string) => void     — called after a photo is deleted from storage
  *   onError:   (msg: string) => void
+ *   onUploadingChange: (uploading: boolean) => void — fires whenever any photo's
+ *     compress+upload is in flight. The parent's "at least one photo" validation
+ *     reads the (async) onUpload'd paths, not this component's own optimistic
+ *     preview state — without this, a submit click that lands between "thumbnail
+ *     shown" and "upload finished" sees an empty photo list and rejects a report
+ *     that visibly has a photo attached. Callers should disable Submit while true.
  */
-export default function PhotoUpload({ projectId, onUpload, onRemove, onError }) {
+export default function PhotoUpload({ projectId, onUpload, onRemove, onError, onUploadingChange }) {
   // { path: string|null, preview: string, uploading: boolean }
   const [photos, setPhotos] = useState([]);
   const [limitNotice, setLimitNotice] = useState(null);
   const inputRef = useRef(null);
 
   const canAddMore = photos.length < MAX_PHOTOS;
+  const anyUploading = photos.some(p => p.uploading);
+
+  useEffect(() => {
+    onUploadingChange?.(anyUploading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anyUploading]);
 
   async function handleFiles(e) {
     const files = Array.from(e.target.files || []);
@@ -55,17 +82,34 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError }) 
 
     const uploadedPaths = [];
 
+    // One attempt = compress + upload, each attempt gets its own storage path
+    // (a timed-out attempt's request may still land after we've moved on —
+    // reusing the same path could collide with it under upsert:false).
+    async function attemptUpload(file, i) {
+      const compressed = await compressImage(file);
+      const path = `${projectId}/${yearMonth}/${user.id}_${Date.now()}_${i}.jpg`;
+      const { error } = await withTimeout(
+        supabase.storage.from('site-photos').upload(path, compressed, { contentType: 'image/jpeg', upsert: false }),
+        UPLOAD_TIMEOUT_MS,
+        'Photo upload timed out — check your connection and try again.'
+      );
+      if (error) throw error;
+      return path;
+    }
+
     for (let i = 0; i < toUpload.length; i++) {
       const file = toUpload[i];
       const photoIndex = startIndex + i;
       try {
-        const compressed = await compressImage(file);
-        const path = `${projectId}/${yearMonth}/${user.id}_${Date.now()}_${i}.jpg`;
-
-        const { error: uploadErr } = await supabase.storage
-          .from('site-photos')
-          .upload(path, compressed, { contentType: 'image/jpeg', upsert: false });
-        if (uploadErr) throw uploadErr;
+        let path;
+        try {
+          path = await attemptUpload(file, i);
+        } catch {
+          // A single transient network hiccup shouldn't force the contractor
+          // to re-pick the photo from scratch — one retry after a short backoff.
+          await new Promise(r => setTimeout(r, RETRY_BACKOFF_MS));
+          path = await attemptUpload(file, i);
+        }
 
         uploadedPaths.push(path);
         setPhotos(prev => prev.map((p, idx) => idx === photoIndex ? { ...p, path, uploading: false } : p));

@@ -133,6 +133,9 @@ test.describe('PM site visit — comparison view', () => {
     // Comparison table should be visible
     await expect(page.locator('[data-testid="comparison-table"]')).toBeVisible();
 
+    // The comparison screen is a field-mode page with no nav bar / Sign out
+    // button — navigate home before logging out.
+    await page.goto('/');
     await logout(page);
   });
 
@@ -172,6 +175,9 @@ test.describe('PM site visit — comparison view', () => {
     const firstCompRow = comparisonRows.first();
     await expect(firstCompRow).toBeVisible();
 
+    // The comparison screen is a field-mode page with no nav bar / Sign out
+    // button — navigate home before logging out.
+    await page.goto('/');
     await logout(page);
   });
 });

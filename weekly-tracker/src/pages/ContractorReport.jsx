@@ -187,6 +187,7 @@ function ContractorReport({ projects, reports }) {
   const [submitting, setSubmitting] = useState(false);
   const [photoUrls, setPhotoUrls] = useState(() => readDraft()?.photoUrls || []);
   const [photoError, setPhotoError] = useState(null);
+  const [photosUploading, setPhotosUploading] = useState(false);
 
   // Persist the draft on every edit. Small, plain-JSON state — cheap to
   // stringify on each change; guarded against private-browsing/quota errors.
@@ -226,6 +227,15 @@ function ContractorReport({ projects, reports }) {
   async function saveReport() {
     if (!project) return;
     if (submitting) return;
+    // Defense in depth: the Submit button is disabled while photosUploading, but
+    // guard here too — a photo's compress+upload is async and validateContractorReport
+    // only sees photoUrls once it resolves, so submitting mid-upload would otherwise
+    // reject a report that visibly has a photo attached.
+    if (photosUploading) {
+      setValidationErrors(["Please wait for the photo to finish uploading before submitting."]);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
 
     const errors = validateContractorReport(form, photoUrls);
     if (errors.length) {
@@ -419,14 +429,15 @@ function ContractorReport({ projects, reports }) {
           onPhotoUpload={(paths) => setPhotoUrls((prev) => [...prev, ...paths])}
           onPhotoRemove={(path) => setPhotoUrls((prev) => prev.filter((p) => p !== path))}
           onPhotoError={(msg) => setPhotoError(msg)}
+          onPhotoUploadingChange={setPhotosUploading}
         />
         <PhotoErrorAlert message={photoError} />
 
         {/* в”Ђв”Ђ Submit в”Ђв”Ђ */}
         <StickySubmitBar
           onSubmit={saveReport}
-          disabled={submitting}
-          label={submitting ? "Submitting..." : "Submit Weekly Report"}
+          disabled={submitting || photosUploading}
+          label={submitting ? "Submitting..." : photosUploading ? "Uploading photo…" : "Submit Weekly Report"}
         />
 
       </div>

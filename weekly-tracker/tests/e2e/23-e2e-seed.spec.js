@@ -142,7 +142,11 @@ async function submitContractorReportViaUI(page, projectId, reportDate, weekInde
   // Declaration checkbox
   await page.locator('[data-testid="declaration-checkbox"]').click();
 
-  // Submit
+  // Submit — wait out the photo's async compress+upload first. Submit stays
+  // disabled while it's in flight; clicking mid-upload would fail the "at least
+  // one photo" validation despite the thumbnail already being visible (the
+  // parent's photoUrls state only updates once the upload resolves).
+  await expect(page.locator('[data-testid="save-contractor-report"]')).toBeEnabled({ timeout: 30_000 });
   await page.locator('[data-testid="save-contractor-report"]').click();
 
   // Wait for the success screen

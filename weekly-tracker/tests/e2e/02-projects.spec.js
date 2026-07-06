@@ -81,7 +81,12 @@ test.describe('Portfolio page', () => {
     test.skip(rowCount < 2, 'Need at least 2 projects to test filter');
 
     const firstCode = await page.locator('table tbody tr').first().locator('button').first().textContent();
-    await page.locator('input[placeholder="Search…"]').fill(firstCode.trim());
+    // ProjectFilters.jsx's real placeholder is "Search..." (three literal
+    // periods) — the previous selector used a Unicode ellipsis ("…") that
+    // never matched, so .fill() silently targeted zero elements and the
+    // filter was never actually applied. getByPlaceholder does a substring
+    // match, so it's robust to either punctuation style.
+    await page.getByPlaceholder('Search').fill(firstCode.trim());
 
     // Should see only rows matching that code
     await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 5_000 });

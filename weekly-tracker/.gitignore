@@ -33,3 +33,7 @@ playwright-report
 *.sln
 *.sw?
 .env.local
+
+# External tooling (e.g. skill scripts) that can get materialized into the
+# project root by the dev environment — not part of this app's source
+.agents

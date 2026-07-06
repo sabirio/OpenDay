@@ -48,6 +48,8 @@ test.describe('Cross-module data flow', () => {
     });
 
     await page.locator('[data-testid="declaration-checkbox"]').click();
+    // Submit stays disabled while the photo's async upload is in flight.
+    await expect(page.locator('[data-testid="save-contractor-report"]')).toBeEnabled({ timeout: 30_000 });
     await page.locator('[data-testid="save-contractor-report"]').click();
     await expect(page.locator('text=Report submitted')).toBeVisible({ timeout: 20_000 });
 
@@ -113,10 +115,15 @@ test.describe('Cross-module data flow', () => {
     await expect(page).toHaveURL(/\/risk/);
     await page.waitForLoadState('networkidle');
 
-    // Risk dashboard should render — check for key risk-related content
-    const hasRiskContent = await page.locator(
-      'text=Risk, table tbody tr, [class*="risk"], [class*="card"]'
-    ).count() > 0;
+    // Risk dashboard should render — check for key risk-related content.
+    // NOTE: a single locator string mixing the `text=` engine with a
+    // comma-separated CSS list (e.g. 'text=Risk, table tbody tr') does not
+    // reliably union across engines — use .or() to combine them instead.
+    const riskContent = page.getByText('Risk')
+      .or(page.locator('table tbody tr'))
+      .or(page.locator('[class*="risk"]'))
+      .or(page.locator('[class*="card"]'));
+    const hasRiskContent = await riskContent.count() > 0;
     expect(hasRiskContent).toBeTruthy();
 
     await logout(page);

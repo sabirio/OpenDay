@@ -32,11 +32,11 @@ function GanttSuccessView({ project, form, ganttTasks, discrepancies = [], onNew
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
             {[
-              { label: '✓ Confirmed',   value: confirmed,        color: 'var(--field-success-fg)', bg: 'var(--field-success-bg)' },
-              { label: '⚠ Discrepancy', value: discrepancyCount, color: 'var(--field-danger-fg)', bg: 'var(--field-danger-bg)' },
-              { label: '↑ PM Ahead',    value: pmAheadCount,     color: 'var(--field-warning-fg)', bg: 'var(--field-warning-bg)' },
-            ].map(({ label, value, color, bg }) => (
-              <div key={label} style={{ background: bg, borderRadius: 10, padding: '14px 8px' }}>
+              { label: '✓ Confirmed',   value: confirmed,        color: 'var(--field-success-fg)', bg: 'var(--field-success-bg)', testId: 'summary-confirmed' },
+              { label: '⚠ Discrepancy', value: discrepancyCount, color: 'var(--field-danger-fg)', bg: 'var(--field-danger-bg)', testId: 'summary-discrepancy' },
+              { label: '↑ PM Ahead',    value: pmAheadCount,     color: 'var(--field-warning-fg)', bg: 'var(--field-warning-bg)', testId: 'summary-pm-ahead' },
+            ].map(({ label, value, color, bg, testId }) => (
+              <div key={label} data-testid={testId} style={{ background: bg, borderRadius: 10, padding: '14px 8px' }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
                 <div style={{ fontSize: 10, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 5 }}>{label}</div>
               </div>

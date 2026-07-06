@@ -16,12 +16,20 @@ test.describe('Admin Users page — Admin', () => {
   });
 
   test('renders user cards from Supabase', async ({ page }) => {
-    // Wait for loading spinner to disappear
+    // Diagnosed live: a direct REST call with the same session token, and a
+    // page.on('response') capture of AdminUsers.jsx's own loadUsers() request,
+    // both confirmed the query correctly returns all 5 profiles (RLS/seed/API
+    // are fine). The flakiness is App.jsx's <StrictMode> — in dev it
+    // double-invokes `useEffect(() => { loadUsers() }, [])` (no cleanup
+    // returned), so there are two independent loadUsers() calls in flight;
+    // whichever's setLoading(false)/setUsers(...) commits first can produce a
+    // transient frame where the spinner is already gone but the second
+    // in-flight call hasn't resolved yet. A one-shot `.count()` right after
+    // the spinner disappears can sample that transient frame — poll for the
+    // actual card instead, which converges on the final, correct render.
     await expect(page.locator('.auth-loading-spinner')).not.toBeVisible({ timeout: 15_000 });
-    const hasCards = await page.locator('.admin-user-card').count() > 0;
-    const hasError = await page.locator('text=Failed').count() > 0;
-    expect(hasCards).toBeTruthy();
-    expect(hasError).toBeFalsy();
+    await expect(page.locator('.admin-user-card').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=Failed')).toHaveCount(0);
   });
 });
 

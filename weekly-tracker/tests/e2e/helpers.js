@@ -4,6 +4,9 @@
  * Credentials are read from env vars (process.env) so they can be set per-environment
  * without touching this file. Fallback values match the default Supabase test accounts.
  * Set E2E_* vars in .env.local or CI secrets to override.
+ *
+ * All 4 accounts below are created/repaired by `node scripts/seed-test-users.mjs`
+ * (run it before any auth-dependent E2E run — it's idempotent, safe to re-run).
  */
 
 export const CREDENTIALS = {
@@ -22,8 +25,6 @@ export const CREDENTIALS = {
     password: process.env.E2E_CONTRACTOR_PASSWORD ?? 'Gc',
     role: 'Contractor',
   },
-  // viewer: requires a viewer@construction.com user in Supabase Auth with role='viewer'.
-  // Create it manually in the Dashboard before running viewer-scoped tests.
   viewer: {
     email:    process.env.E2E_VIEWER_EMAIL    ?? 'viewer@construction.com',
     password: process.env.E2E_VIEWER_PASSWORD ?? 'Viewer',
@@ -46,14 +47,23 @@ export async function login(page, creds) {
 }
 
 /**
- * Log out via the "Sign out" button and wait for redirect to /login.
+ * Log out via the "Sign out" button and wait for the login form to reappear.
+ *
+ * NOTE: field-mode pages (contractor report form, its success screen, PM site
+ * visit form) intentionally have no nav bar / Sign out button by design — do
+ * not call logout() directly from one of those; navigate to `/` first.
+ *
  * @param {import('@playwright/test').Page} page
  */
 export async function logout(page) {
-  // Press Escape first to dismiss any open drawer/modal, then force-click the
-  // Sign out button (overlay from open drawer can intercept pointer events)
+  const { expect } = await import('@playwright/test');
+  // Press Escape first to dismiss any open drawer/modal that could otherwise
+  // intercept the Sign out button's click.
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(200);
-  await page.getByRole('button', { name: /sign out/i }).first().click({ force: true });
-  await page.waitForURL('**/login', { timeout: 15_000 });
+  const signOutBtn = page.getByRole('button', { name: /sign out/i }).first();
+  await expect(signOutBtn).toBeVisible({ timeout: 10_000 });
+  await signOutBtn.click();
+  // Wait for the login form itself rather than just the URL — more robust
+  // than a bare waitForURL against slow client-side routing under load.
+  await expect(page.locator('#email')).toBeVisible({ timeout: 20_000 });
 }

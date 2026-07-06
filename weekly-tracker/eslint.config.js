@@ -5,7 +5,10 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // .agents/ is external tooling (e.g. skill scripts) that can get materialized
+  // into the project root by the dev environment — it's untracked, not part of
+  // this app's source, and isn't written to this project's lint standards.
+  globalIgnores(['dist', '.agents']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

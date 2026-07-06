@@ -649,6 +649,11 @@ async function createProject(page, proj) {
     await saveBtn.click();
   }
 
+  // A validation/save failure (Projects.jsx's doSaveProject() catch path) shows
+  // a native alert() and leaves the modal open, rather than closing it — verify
+  // the modal actually closed instead of silently reporting success either way.
+  await expect(modal).not.toBeVisible({ timeout: 10_000 });
+
   await page.waitForLoadState('networkidle');
   return true;
 }
@@ -779,7 +784,8 @@ async function submitContractorReport(page, projectId, report) {
   // Declaration
   await page.locator('[data-testid="declaration-checkbox"]').click();
 
-  // Save
+  // Save — wait out the photo's async upload (Submit is disabled while it's in flight).
+  await expect(page.locator('[data-testid="save-contractor-report"]')).toBeEnabled({ timeout: 30_000 });
   await page.locator('[data-testid="save-contractor-report"]').click();
   await expect(page.locator('text=Report submitted')).toBeVisible({ timeout: 30_000 });
 

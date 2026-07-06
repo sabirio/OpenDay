@@ -40,7 +40,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
   }
 
   return (
-    <div data-testid="pm-task-row" style={{ borderBottom: '1px solid var(--field-bg-subtle)', padding: '9px 0' }}>
+    <div data-testid="pm-task-row" data-wp-id={task.id} style={{ borderBottom: '1px solid var(--field-bg-subtle)', padding: '9px 0' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 180px', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <span style={{ fontSize: 13, color: 'var(--field-text-body)', lineHeight: 1.35 }}>{task.label}</span>
@@ -54,6 +54,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
             const isGC = gcStatus === opt.value && !isPM;
             return (
               <button key={opt.value} type="button"
+                data-testid={`pm-status-btn-${opt.value}`}
                 onClick={() => handleStatusClick(opt.value)}
                 style={{
                   position: 'relative',

@@ -38,12 +38,12 @@ export default function ProjectTable({ projects, totalProjects, onViewProject, o
                     onMouseEnter={e => e.currentTarget.style.background = "var(--accent-subtle)"}
                     onMouseLeave={e => e.currentTarget.style.background = ""}
                   >
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <td style={{ overflow: "hidden" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                         <div style={{ width: 3, height: 18, borderRadius: 2, background: "var(--accent)", flexShrink: 0 }} />
                         <button
                           onClick={() => onViewProject(project)}
-                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 700, color: "var(--text-primary)", fontSize: 13 }}
+                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontWeight: 700, color: "var(--text-primary)", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                         >
                           {project.storeCode || "-"}
                         </button>

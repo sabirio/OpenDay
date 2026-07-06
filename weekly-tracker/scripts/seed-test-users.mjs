@@ -56,13 +56,46 @@ async function findUserByEmail(email) {
   return null;
 }
 
+// A stable, permanent project for gc@openday.fit to be assigned to. E2E specs
+// routinely create/delete their own throwaway projects (23-e2e-seed, 22-persistent-
+// demo-scenario, etc.), so "assign the contractor to whatever the first 2 rows
+// happen to be" can land on 0 rows between runs — and an unassigned contractor
+// makes can_write_project() reject every submit, silently failing any test that
+// logs in as gc@openday.fit. Anchoring on a dedicated store_code this script owns
+// (created once, reused after) guarantees the contractor always has ≥1 project.
+const CONTRACTOR_ANCHOR_PROJECT = {
+  store_code: 'E2E-CONTRACTOR-BASE',
+  shopping_mall_name: 'E2E Contractor Anchor Mall',
+  country: 'Testland',
+  city: 'Testville',
+  general_contractor: 'E2E Contractor',
+  project_type: 'New Opening',
+  project_status: 'Active',
+};
+
+async function ensureContractorAnchorProject() {
+  const { data: existing, error: selErr } = await admin
+    .from('projects').select('id').eq('store_code', CONTRACTOR_ANCHOR_PROJECT.store_code).limit(1);
+  if (selErr) { console.error('❌  Could not check for anchor project:', selErr.message); return null; }
+  if (existing?.length) return existing[0].id;
+
+  const { data: created, error: insErr } = await admin
+    .from('projects').insert([CONTRACTOR_ANCHOR_PROJECT]).select('id').single();
+  if (insErr) { console.error('❌  Could not create anchor project:', insErr.message); return null; }
+  console.log(`+  Created contractor anchor project ${CONTRACTOR_ANCHOR_PROJECT.store_code} (id=${created.id})`);
+  return created.id;
+}
+
 async function main() {
-  // Contractor gets assigned to the first 2 existing projects so the
-  // "contractor can access assigned project" test has data to work with.
+  // Contractor gets assigned to the first 2 existing projects (plus the anchor
+  // project above, guaranteed to exist) so the "contractor can access assigned
+  // project" test has data to work with.
   const { data: projects, error: pErr } = await admin
     .from('projects').select('id').order('id', { ascending: true }).limit(2);
   if (pErr) { console.error('❌  Could not read projects:', pErr.message); process.exit(1); }
-  const assignedProjects = (projects || []).map(p => p.id);
+
+  const anchorId = await ensureContractorAnchorProject();
+  const assignedProjects = [...new Set([anchorId, ...(projects || []).map(p => p.id)].filter(Boolean))].slice(0, 2);
   console.log(`ℹ  Contractor will be assigned to projects: ${JSON.stringify(assignedProjects)}\n`);
 
   for (const u of USERS) {
@@ -79,8 +112,13 @@ async function main() {
       const { error: upErr } = await admin.auth.admin.updateUserById(userId, {
         password: u.password, email_confirm: true,
       });
-      if (upErr) { console.error(`❌  ${u.email} password reset: ${upErr.message}`); continue; }
-      console.log(`↻  ${u.email.padEnd(26)} exists → password reset  (id=${userId})`);
+      // Password reset can legitimately fail independent of whether the account's
+      // EXISTING password (set before the project's current min-length policy) still
+      // works — e.g. the fallback 'Pm'/'Gc' passwords in helpers.js are shorter than
+      // Supabase's current 6-char minimum. Don't let that skip the profile upsert
+      // below: role/assigned_projects repair is the more important half of "repair".
+      if (upErr) console.error(`⚠  ${u.email} password reset skipped: ${upErr.message}`);
+      else        console.log(`↻  ${u.email.padEnd(26)} exists → password reset  (id=${userId})`);
     } else {
       userId = created.user.id;
       console.log(`+  ${u.email.padEnd(26)} created            (id=${userId})`);

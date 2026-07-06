@@ -98,6 +98,9 @@ test.describe('Visual / Content regression', () => {
     const delayedBtn = page.locator('[data-testid="status-btn-Delayed"]');
     await expect(delayedBtn).toHaveCount(0);
 
+    // The contractor report form is a field-mode page with no nav bar / Sign out
+    // button by design — navigate to a page that has one before logging out.
+    await page.goto('/');
     await logout(page);
   });
 
@@ -179,6 +182,14 @@ test.describe('Visual / Content regression', () => {
     expect(svText).not.toContain('undefined');
 
     await svPage.close();
+
+    // The project detail modal (opened on `page` to launch the Site Visit
+    // popup) is still open here and its full-screen .modal-overlay backdrop
+    // covers the sidebar's Sign out button — close it before logging out.
+    // ProjectDetailModal.jsx does not close on Escape (verified live), so use
+    // its real close button.
+    await modal.locator('.close-button').click();
+    await expect(modal).not.toBeVisible({ timeout: 5_000 });
     await logout(page);
   });
 });

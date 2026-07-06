@@ -53,10 +53,14 @@ test.describe('Persistence stress', () => {
     });
 
     await page.locator('[data-testid="declaration-checkbox"]').click();
+    // Submit stays disabled while the photo's async upload is in flight.
+    await expect(page.locator('[data-testid="save-contractor-report"]')).toBeEnabled({ timeout: 30_000 });
     await page.locator('[data-testid="save-contractor-report"]').click();
     await expect(page.locator('text=Report submitted')).toBeVisible({ timeout: 20_000 });
 
+    // The success screen has no nav bar, so navigate home before logging out.
     // Reload and verify the report appears in Weekly Reports (as admin)
+    await page.goto('/');
     await logout(page);
     await login(page, CREDENTIALS.admin);
     await page.goto('/weekly-reports');
@@ -251,6 +255,14 @@ test.describe('Persistence stress', () => {
     await svPage.locator('[data-testid="save-site-visit-report"]').click();
     await expect(svPage.locator('text=Site Visit Recorded')).toBeVisible({ timeout: 20_000 });
     await svPage.close();
+
+    // The project detail modal (opened on `page` at the top of this test, to
+    // launch the Site Visit popup) is still open here and covers the nav bar's
+    // Sign out button — close it before logging out. ProjectDetailModal.jsx
+    // does not close on Escape (verified live — it only closes via its own
+    // "x" button or a click on the overlay), so use the real close button.
+    await modal.locator('.close-button').click();
+    await expect(modal).not.toBeVisible({ timeout: 5_000 });
 
     // Logout and re-login, verify data still visible in drawer
     await logout(page);
