@@ -191,5 +191,55 @@ console.log('\nF) Deterministic via Math.random=0 stub');
     r.p10.getTime() === r.p50.getTime());
 }
 
+// ── G) overrideProgressPoints (A2) — bypass internal progressAtIndex derivation
+// Same zero-stub determinism trick as section F: u=0.5,v=0.25 → randomNormal≈0,
+// so delta = mu every iteration and results are exact, not just bounded.
+
+console.log('\nG) overrideProgressPoints (A2 contractor-bias-adjusted series)');
+
+{
+  const orig = Math.random;
+  let c = 0;
+  globalThis.Math.random = () => (c++ % 2 === 0 ? 0.5 : 0.25);
+
+  // Override series [10, 20, 30] → mu=10, currentProgress=30 (last point).
+  // sortedReports is still REPS_INC (3 reports, passes the length>=3 guard) —
+  // only the progress *values* come from the override, not sortedReports itself.
+  const r = computeMonteCarloForecast(PROJECT, REPS_INC, null, {
+    overrideProgressPoints: [10, 20, 30],
+  });
+
+  globalThis.Math.random = orig;
+
+  check('G1: override series → currentProgress = last override point (30)',
+    r.currentProgress === 30);
+  check('G2: override series → mu = 10 (matches [10,20,30] deltas, not REPS_INC)',
+    r.mu === 10);
+  // ceil((100-30)/10) = 7 weeks → today+49d
+  const expected = now + 7 * 7 * DAY;
+  check('G3: override series → p50 ≈ today+49d (±1d), driven by override not sortedReports',
+    Math.abs(r.p50.getTime() - expected) <= DAY);
+}
+
+{
+  // No overrideProgressPoints → identical to plain call (regression safety:
+  // the new option must be fully opt-in, default path unchanged).
+  const orig = Math.random;
+  let c = 0;
+  globalThis.Math.random = () => (c++ % 2 === 0 ? 0.5 : 0.25);
+  const withOptionObjectButNoOverride = computeMonteCarloForecast(PROJECT, REPS_INC, null, {});
+  globalThis.Math.random = orig;
+
+  c = 0;
+  globalThis.Math.random = () => (c++ % 2 === 0 ? 0.5 : 0.25);
+  const plain = computeMonteCarloForecast(PROJECT, REPS_INC);
+  globalThis.Math.random = orig;
+
+  check('G4: options={} (no override) → currentProgress unchanged from plain call',
+    withOptionObjectButNoOverride.currentProgress === plain.currentProgress);
+  check('G5: options={} (no override) → mu unchanged from plain call',
+    withOptionObjectButNoOverride.mu === plain.mu);
+}
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

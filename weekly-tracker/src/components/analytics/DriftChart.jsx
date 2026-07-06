@@ -15,6 +15,14 @@ const PATTERN_FALLBACK = { color: 'var(--text-muted)', bg: 'var(--bg-elevated)',
 
 const CONF_COLOR = { high: 'var(--status-done)', medium: 'var(--status-warn)', low: 'var(--text-muted)' };
 
+// A2 bias-badge thresholds (recency-weighted EWMA, distinct from the plain
+// all-history avgHistoricalDrift above it): green <3%, yellow 3-8%, red >8%.
+function biasBadgeColor(absBiasPct) {
+  if (absBiasPct >= 8) return { color: 'var(--status-alert)', bg: 'var(--status-alert-bg)' };
+  if (absBiasPct >= 3) return { color: 'var(--status-warn)',  bg: 'var(--status-warn-bg)'  };
+  return { color: 'var(--status-done)', bg: 'var(--status-done-bg)' };
+}
+
 function DriftSparkline({ timeline }) {
   if (!timeline || timeline.length < 2) return null;
 
@@ -45,10 +53,13 @@ function DriftSparkline({ timeline }) {
 export default function DriftChart({ driftProfile }) {
   if (!driftProfile) return null;
 
-  const { pattern, avgHistoricalDrift, correctionFactor, reliabilityScore, worstProject } = driftProfile;
+  const { pattern, avgHistoricalDrift, correctionFactor, reliabilityScore, worstProject, biasEwma, sampleCount, reliable } = driftProfile;
   const ps          = PATTERN_STYLES[pattern.pattern]  || PATTERN_FALLBACK;
   const patternLabel = PATTERN_LABELS[pattern.pattern] || pattern.pattern;
   const confColor    = CONF_COLOR[pattern.confidence]  || 'var(--text-muted)';
+
+  const biasPct   = Math.round((biasEwma ?? 0) * 100);
+  const biasStyle = biasBadgeColor(Math.abs(biasPct));
 
   const driftColor    = avgHistoricalDrift > 0.1 ? 'var(--status-alert)' : avgHistoricalDrift < -0.1 ? 'var(--status-done)' : 'var(--text-muted)';
   const reliabColor   = reliabilityScore >= 80 ? 'var(--status-done)' : reliabilityScore >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
@@ -64,6 +75,17 @@ export default function DriftChart({ driftProfile }) {
           {patternLabel}
         </span>
         <span style={{ fontSize: 9, color: confColor, fontWeight: 600 }}>{pattern.confidence}</span>
+        {reliable ? (
+          <span title={`Recency-weighted bias, n=${sampleCount} site visits`}
+            style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, background: biasStyle.bg, color: biasStyle.color }}>
+            Trust bias {biasPct > 0 ? '+' : ''}{biasPct}%
+          </span>
+        ) : (
+          <span title={`Only ${sampleCount ?? 0} site visit(s) so far — need 3+ for a reliable trend`}
+            style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            Trust bias: n={sampleCount ?? 0} (not yet reliable)
+          </span>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>

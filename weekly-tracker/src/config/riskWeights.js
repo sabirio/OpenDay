@@ -61,6 +61,12 @@ export const RISK_WEIGHTS = {
   // (which only measures calendar closeness), so it can fire independently.
   openingNotAchievable: 20,
 
+  // ── Systematic over-reporting (A2) — contractorDriftEngine's biasEwma,
+  // only once reliable (>=3 site-visit samples). Flat weight, like
+  // openingNotAchievable above — a persistent, cross-project reporting bias
+  // is a distinct signal from any single project's schedule metrics.
+  systematicOverstatement: { thresholdPct: 8, pts: 12 },
+
   // ── Historical deterioration (last 3 reports) ─────────────────────────────
   historicalDeterioration: { severe2of3: 15, atRisk3of3: 10, atRisk2of3: 5 },
 

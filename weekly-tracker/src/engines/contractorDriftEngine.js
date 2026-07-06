@@ -1,6 +1,12 @@
 // Contractor Drift Engine — detects systematic over/under-reporting patterns.
 // Pure functions, no React imports, testable in Node.js.
 import { computePmAlignmentItems } from './pmAlignmentEngine';
+import { RISK_WEIGHTS } from '../config/riskWeights';
+
+// A2 (2026-07-06): "trust index" / bias-correction fields, added alongside
+// the existing avgHistoricalDrift/correctionFactor (kept as-is for
+// DriftChart.jsx's backward compatibility — that's a simple, all-history
+// average; these are the recency-weighted counterpart used for forecasting).
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -124,6 +130,66 @@ export function computeDriftPattern(driftTimeline) {
 }
 
 /**
+ * Exponentially-weighted moving average of a contractor's bias, across a
+ * chronologically-ordered (oldest-first) drift timeline — recent
+ * discrepancies count more than old ones, unlike avgHistoricalDrift's plain
+ * average. Same 0-1 scale as avgDiff/avgHistoricalDrift (0.08 = "+8%").
+ *
+ * @param {object[]} driftTimeline — from computeDriftTimeline(), oldest-first
+ * @param {number}   [alpha=0.3]
+ * @returns {{ biasEwma: number, sampleCount: number }}
+ */
+export function computeBiasEwma(driftTimeline, alpha = 0.3) {
+  if (!driftTimeline || driftTimeline.length === 0) return { biasEwma: 0, sampleCount: 0 };
+  let ewma = driftTimeline[0].avgDiff;
+  for (let i = 1; i < driftTimeline.length; i++) {
+    ewma = alpha * driftTimeline[i].avgDiff + (1 - alpha) * ewma;
+  }
+  return { biasEwma: Math.round(ewma * 1000) / 1000, sampleCount: driftTimeline.length };
+}
+
+/**
+ * Apply a contractor's known bias to one reported progress value, for
+ * forecasting only (Monte Carlo / SPI alternate series) — never for the
+ * official reported number itself.
+ *
+ * Below 3 site-visit samples, the bias estimate isn't trustworthy enough to
+ * act on: returns reportedProgress unchanged (the bias is still fine to
+ * *display*, just not to apply).
+ *
+ * @param {number} reportedProgress — 0-100
+ * @param {number} biasEwma         — 0-1 scale, from computeBiasEwma()
+ * @param {number} sampleCount
+ * @returns {number} adjusted progress, 0-100, clamped
+ */
+export function computeAdjustedProgress(reportedProgress, biasEwma, sampleCount) {
+  if (sampleCount < 3) return reportedProgress;
+  const confidenceFactor = Math.min(1, sampleCount / 5);
+  const adjusted = reportedProgress - (biasEwma * 100) * confidenceFactor;
+  return Math.round(Math.max(0, Math.min(100, adjusted)) * 10) / 10;
+}
+
+/**
+ * Risk-engine input: does this contractor's bias warrant its own risk
+ * factor? Pure function — computeRiskRows.js reads the result, no
+ * recalculation there (same pattern as A3's readiness.verdict).
+ *
+ * @param {object|null} driftProfile — computeContractorDriftProfile() output
+ * @returns {{ pts: number, value: string } | null} null when below threshold
+ *   or not yet reliable (sampleCount < 3)
+ */
+export function computeDriftRiskFactor(driftProfile) {
+  const W = RISK_WEIGHTS.systematicOverstatement;
+  if (!driftProfile || !driftProfile.reliable) return null;
+  const biasPct = driftProfile.biasEwma * 100;
+  if (biasPct < W.thresholdPct) return null;
+  return {
+    pts: W.pts,
+    value: `${driftProfile.contractorName || 'Contractor'} historically overstates by ~${Math.round(biasPct)}% (n=${driftProfile.sampleCount})`,
+  };
+}
+
+/**
  * Build a drift profile for a contractor across all their projects.
  *
  * @param {object[]} projects       — all projects
@@ -145,6 +211,10 @@ export function computeContractorDriftProfile(projects, reports, siteVisits, con
       reliabilityScore:    100,
       worstProject:        null,
       pattern:             { pattern: 'accurate', confidence: 'low', description: 'No projects found', avgOverallDrift: 0 },
+      biasEwma:            0,
+      sampleCount:         0,
+      confidenceFactor:    0,
+      reliable:            false,
     };
   }
 
@@ -173,6 +243,14 @@ export function computeContractorDriftProfile(projects, reports, siteVisits, con
   const sorted            = [...projectResults].sort((a, b) => Math.abs(b.avgDrift) - Math.abs(a.avgDrift));
   const worstProject      = sorted[0] || null;
 
+  // EWMA needs a single chronological (oldest-first) timeline across ALL of
+  // the contractor's projects — allTimelines above is just a concatenation
+  // in whatever order contractorProjects happened to be in, not date order.
+  const chronological = [...allTimelines].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const { biasEwma, sampleCount } = computeBiasEwma(chronological);
+  const confidenceFactor = Math.min(1, sampleCount / 5);
+  const reliable = sampleCount >= 3;
+
   return {
     contractorName,
     projectCount:        contractorProjects.length,
@@ -181,5 +259,9 @@ export function computeContractorDriftProfile(projects, reports, siteVisits, con
     reliabilityScore,
     worstProject,
     pattern:             computeDriftPattern(allTimelines),
+    biasEwma,
+    sampleCount,
+    confidenceFactor,
+    reliable,
   };
 }

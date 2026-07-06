@@ -64,10 +64,16 @@ export function kDeceleration(p) {
  * @param {boolean}  [options.useSCurve=false] — apply kDeceleration(p) to each
  *   step's delta. Defaults to false (linear, existing behavior) — see
  *   kDeceleration's doc comment for why this isn't opt-out.
+ * @param {number[]} [options.overrideProgressPoints] — A2: use this series
+ *   instead of deriving progressPoints from sortedReports — e.g. a
+ *   contractor-bias-adjusted series from contractorDriftEngine.js's
+ *   computeAdjustedProgress(). Simulation math is unchanged either way;
+ *   this only changes where the starting series comes from, so it's a
+ *   second forecast run on different input, not a different algorithm.
  * @returns Monte Carlo result or { insufficient_data: true }
  */
 export function computeMonteCarloForecast(project, sortedReports, _ganttTasks, options = {}) {
-  const { useSCurve = false } = options;
+  const { useSCurve = false, overrideProgressPoints = null } = options;
   if (!sortedReports || sortedReports.length < 3 || !project?.targetOpeningDate) {
     return { insufficient_data: true };
   }
@@ -75,7 +81,7 @@ export function computeMonteCarloForecast(project, sortedReports, _ganttTasks, o
   const targetOpeningDate = new Date(project.targetOpeningDate);
 
   // ── Step 1: Compute weekly progress points
-  const progressPoints = sortedReports.map((_, i) => progressAtIndex(sortedReports, i));
+  const progressPoints = overrideProgressPoints ?? sortedReports.map((_, i) => progressAtIndex(sortedReports, i));
 
   // ── Step 2: Compute deltas between consecutive reports
   const deltas = [];

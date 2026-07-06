@@ -38,7 +38,8 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { computeDriftTimeline, computeDriftPattern, computeContractorDriftProfile } =
+const { computeDriftTimeline, computeDriftPattern, computeContractorDriftProfile,
+        computeBiasEwma, computeAdjustedProgress, computeDriftRiskFactor } =
   await import('../engines/contractorDriftEngine.js');
 
 let pass = 0, fail = 0;
@@ -189,6 +190,10 @@ check('C2: null name → null',         computeContractorDriftProfile([], [], []
   check('C3: no projects → reliabilityScore=100',       r.reliabilityScore === 100);
   check('C3: no projects → correctionFactor=1',         r.correctionFactor === 1);
   check('C3: no projects → pattern "No projects found"',r.pattern.description === 'No projects found');
+  check('C3: no projects → biasEwma=0',                 r.biasEwma         === 0);
+  check('C3: no projects → sampleCount=0',               r.sampleCount      === 0);
+  check('C3: no projects → confidenceFactor=0',          r.confidenceFactor === 0);
+  check('C3: no projects → reliable=false',              r.reliable         === false);
 }
 
 // C4: one project with a real drift point
@@ -205,6 +210,10 @@ check('C2: null name → null',         computeContractorDriftProfile([], [], []
   check('C4: reliabilityScore=0',         r.reliabilityScore   === 0);
   check('C4: correctionFactor=1.5',       r.correctionFactor   === 1.5);
   check('C4: worstProject.storeCode=S1',  r.worstProject?.storeCode === 'S1');
+  check('C4: sampleCount=1 (single visit)',   r.sampleCount === 1);
+  check('C4: biasEwma=avgDiff of the 1 pt',   r.biasEwma    === 0.5);
+  check('C4: n=1 → reliable=false',           r.reliable    === false);
+  check('C4: confidenceFactor=1/5=0.2',       r.confidenceFactor === 0.2);
 }
 
 // C5: two projects — worstProject is the one with higher absolute avgDrift
@@ -221,6 +230,111 @@ check('C2: null name → null',         computeContractorDriftProfile([], [], []
   const r   = computeContractorDriftProfile([p1, p2], [gc1, gc2], [pv1, pv2], 'ACME');
   check('C5: two projects → projectCount=2',                    r.projectCount           === 2);
   check('C5: worstProject is S1 (higher |avgDrift|=0.5 vs 0)', r.worstProject?.storeCode === 'S1');
+  // Both visits land on the same date, so the chronological sort in
+  // computeContractorDriftProfile is stable and keeps project concat order:
+  // [p1 pt (avgDiff=0.5), p2 pt (avgDiff=0)] → ewma = 0.3*0 + 0.7*0.5 = 0.35
+  check('C5: sampleCount=2 (one visit per project)',      r.sampleCount === 2);
+  check('C5: biasEwma=0.35 (EWMA across both projects)',  r.biasEwma    === 0.35);
+  check('C5: n=2 → still not reliable',                   r.reliable    === false);
+}
+
+// C6: three-plus samples with a real chronological order → reliable=true and
+// biasEwma reflects recency-weighting (last, most-recent point dominates).
+{
+  const p1 = { id: '1', generalContractor: 'ACME', storeCode: 'S1' };
+  const gc = { projectId: '1', reportingDate: iso(now - 40 * DAY), demolitionStatus: 'Completed', ...EMPTY_STS };
+  // Three visits, oldest→newest, each compared against the same GC report
+  const r = computeContractorDriftProfile([p1], [gc], [
+    { projectId: '1', visitDate: iso(now - 20 * DAY), demolitionStatus: 'In Progress', ...EMPTY_STS }, // diff=0.5
+    { projectId: '1', visitDate: iso(now - 10 * DAY), demolitionStatus: 'In Progress', ...EMPTY_STS }, // diff=0.5
+    { projectId: '1', visitDate: iso(now),             demolitionStatus: 'Not Started', ...EMPTY_STS }, // diff=1.0
+  ], 'ACME');
+  check('C6: sampleCount=3',        r.sampleCount === 3);
+  check('C6: n=3 → reliable=true',  r.reliable    === true);
+  check('C6: confidenceFactor=0.6', r.confidenceFactor === 0.6);
+  // ewma0=0.5; ewma1=0.3*0.5+0.7*0.5=0.5; ewma2=0.3*1.0+0.7*0.5=0.65
+  check('C6: biasEwma=0.65 (recent 1.0 diff pulls EWMA up)', r.biasEwma === 0.65);
+}
+
+// ── D) computeBiasEwma ─────────────────────────────────────────────────────────
+console.log('\nD) computeBiasEwma');
+
+check('D1: empty timeline → biasEwma=0, sampleCount=0',
+  computeBiasEwma([]).biasEwma === 0 && computeBiasEwma([]).sampleCount === 0);
+check('D2: null timeline → biasEwma=0, sampleCount=0',
+  computeBiasEwma(null).biasEwma === 0 && computeBiasEwma(null).sampleCount === 0);
+
+{
+  // Single point → seeds ewma directly, no smoothing applied yet
+  const r = computeBiasEwma([{ avgDiff: 0.4 }]);
+  check('D3: 1 pt → biasEwma=avgDiff (0.4)', r.biasEwma === 0.4);
+  check('D3: 1 pt → sampleCount=1',          r.sampleCount === 1);
+}
+
+{
+  // Constant series → ewma converges to the constant regardless of alpha
+  const r = computeBiasEwma([{ avgDiff: 0.2 }, { avgDiff: 0.2 }, { avgDiff: 0.2 }]);
+  check('D4: constant 0.2 series → biasEwma=0.2', r.biasEwma === 0.2);
+}
+
+{
+  // Default alpha=0.3: ewma0=0.1; ewma1=0.3*0.5+0.7*0.1=0.22
+  const r = computeBiasEwma([{ avgDiff: 0.1 }, { avgDiff: 0.5 }]);
+  check('D5: default alpha=0.3 recurrence', r.biasEwma === 0.22);
+}
+
+{
+  // Custom alpha=0.5: ewma0=0.1; ewma1=0.5*0.5+0.5*0.1=0.3
+  const r = computeBiasEwma([{ avgDiff: 0.1 }, { avgDiff: 0.5 }], 0.5);
+  check('D6: custom alpha=0.5 recurrence', r.biasEwma === 0.3);
+}
+
+// ── E) computeAdjustedProgress ──────────────────────────────────────────────────
+console.log('\nE) computeAdjustedProgress');
+
+check('E1: sampleCount=0 → unchanged',  computeAdjustedProgress(70, 0.2, 0) === 70);
+check('E2: sampleCount=2 (<3) → unchanged', computeAdjustedProgress(70, 0.2, 2) === 70);
+
+{
+  // n=3 → confidenceFactor=min(1,3/5)=0.6; adjusted = 70 - (0.2*100)*0.6 = 70-12=58
+  check('E3: n=3, bias=+0.2 → 70 adjusted to 58', computeAdjustedProgress(70, 0.2, 3) === 58);
+}
+
+{
+  // n=5 → confidenceFactor=1; adjusted = 70 - 20*1 = 50
+  check('E4: n=5, bias=+0.2 → 70 adjusted to 50', computeAdjustedProgress(70, 0.2, 5) === 50);
+}
+
+{
+  // n=10 → confidenceFactor capped at 1 (min(1, 10/5)=1, not 2)
+  check('E5: n=10 → confidenceFactor capped at 1', computeAdjustedProgress(70, 0.2, 10) === 50);
+}
+
+check('E6: clamps to 0 floor', computeAdjustedProgress(5, 0.5, 5) === 0);
+check('E7: clamps to 100 ceiling (negative bias = understatement)', computeAdjustedProgress(98, -0.5, 5) === 100);
+
+// ── F) computeDriftRiskFactor ────────────────────────────────────────────────────
+console.log('\nF) computeDriftRiskFactor');
+
+check('F1: null driftProfile → null',              computeDriftRiskFactor(null) === null);
+check('F2: reliable=false → null (n<3 gate)',
+  computeDriftRiskFactor({ reliable: false, biasEwma: 0.5, sampleCount: 1 }) === null);
+check('F3: reliable but below threshold (5% < 8%) → null',
+  computeDriftRiskFactor({ reliable: true, biasEwma: 0.05, sampleCount: 4 }) === null);
+
+{
+  // biasEwma=0.10 → 10% >= thresholdPct 8 → fires with configured pts
+  const f = computeDriftRiskFactor({ reliable: true, biasEwma: 0.10, sampleCount: 4, contractorName: 'ACME' });
+  check('F4: at/above threshold → fires',        f !== null);
+  check('F4: pts matches RISK_WEIGHTS.systematicOverstatement.pts (12)', f.pts === 12);
+  check('F4: value mentions contractor name and %', f.value.includes('ACME') && f.value.includes('10%'));
+  check('F4: value mentions sample count',       f.value.includes('n=4'));
+}
+
+{
+  // no contractorName → falls back to generic "Contractor" label
+  const f = computeDriftRiskFactor({ reliable: true, biasEwma: 0.10, sampleCount: 4 });
+  check('F5: missing contractorName → falls back to "Contractor"', f.value.startsWith('Contractor '));
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

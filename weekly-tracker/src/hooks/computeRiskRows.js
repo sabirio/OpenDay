@@ -1,9 +1,10 @@
-import { computeScheduleDeviation, computeTrend, computeDimensionRisk, computeWeeklyEvolution } from '../engines/riskEngine';
+import { computeScheduleDeviation, computeTrend, computeDimensionRisk, computeWeeklyEvolution, getRiskLevel } from '../engines/riskEngine';
 import { computeEscalations } from '../engines/escalationEngine';
 import { computeRecommendedActions } from '../engines/actionEngine';
 import { computeEVM } from '../engines/evmEngine';
-import { computeContractorDriftProfile } from '../engines/contractorDriftEngine';
+import { computeContractorDriftProfile, computeDriftRiskFactor, computeAdjustedProgress } from '../engines/contractorDriftEngine';
 import { computeMonteCarloForecast } from '../engines/monteCarloEngine';
+import { progressAtIndex } from '../engines/progressEngine';
 
 /**
  * Pure mapping from base rows → risk-augmented rows.
@@ -46,7 +47,30 @@ export function computeRiskRows(baseRows, projects, reports, siteVisits, useSCur
 
     const monteCarlo = computeMonteCarloForecast(project, sorted, null, { useSCurve });
 
+    // A2: bias risk factor is additive and forwarded as its own field — it
+    // never mutates riskScore.score/level, so Dashboard (useAllRows) and
+    // RiskDashboard keep showing the same canonical riskScore. adjustedRiskScore/
+    // adjustedRiskLevel below are a SEPARATE, opt-in view, same pattern as
+    // monteCarlo.adjusted — nothing here is the single source of truth for risk.
+    const driftRiskFactor = computeDriftRiskFactor(driftProfile);
+    const adjustedRiskScore = driftRiskFactor
+      ? Math.min(100, riskScore.score + driftRiskFactor.pts)
+      : riskScore.score;
+    const adjustedRiskLevel = getRiskLevel(adjustedRiskScore);
+
+    // Adjusted Monte Carlo: only once the contractor's bias estimate is
+    // reliable (n>=3) — same series computeMonteCarloForecast would derive
+    // internally, run back through computeAdjustedProgress() per point.
+    let adjustedMonteCarlo = null;
+    if (driftProfile?.reliable && !monteCarlo.insufficient_data) {
+      const overrideProgressPoints = sorted.map((_, i) =>
+        computeAdjustedProgress(progressAtIndex(sorted, i), driftProfile.biasEwma, driftProfile.sampleCount)
+      );
+      adjustedMonteCarlo = computeMonteCarloForecast(project, sorted, null, { useSCurve, overrideProgressPoints });
+    }
+    if (adjustedMonteCarlo) monteCarlo.adjusted = adjustedMonteCarlo;
+
     // confidence, contScore, health all come from base (single source of truth)
-    return { ...base, schedDev, trend, escalations, dims, evolution, actions, contractorName, evm, driftProfile, monteCarlo };
+    return { ...base, schedDev, trend, escalations, dims, evolution, actions, contractorName, evm, driftProfile, monteCarlo, driftRiskFactor, adjustedRiskScore, adjustedRiskLevel };
   });
 }

@@ -29,9 +29,17 @@ const STUB_CONF   = { level: 'HIGH', label: 'High confidence', pts: 7, maxPts: 8
 const STUB_ACTS   = [];
 const STUB_HEALTH = { score: 85, label: 'Healthy' };
 const STUB_EVM    = { spi: 1.0, cpi: 1.0 };
-const STUB_MONTE  = { p50: 0, p80: 0 };
+const STUB_MONTE  = { p50: 0, p80: 0, insufficient_data: false };
 
 function makeDrift(name) { return { contractor: name, avgDelay: 0 }; }
+
+// A2 defaults: no bias factor, no reliable profile → adjusted* fields fall
+// straight back to the base riskScore, and monteCarlo.adjusted stays unset —
+// matching computeDriftRiskFactor/computeAdjustedProgress's own n<3 gating.
+const STUB_DRIFT_FACTOR = () => null;
+const STUB_ADJ_PROGRESS = (p) => p;
+const STUB_PROGRESS_AT_INDEX = (_, i) => i;
+const STUB_GET_RISK_LEVEL = (score) => (score >= 61 ? 'HIGH' : score >= 31 ? 'MEDIUM' : 'LOW');
 
 // Inline implementation of computeRiskRows with stub engines injected.
 // This mirrors the EXACT logic in computeRiskRows.js — tested via structural assertion,
@@ -50,6 +58,10 @@ function computeRiskRows(baseRows, projects, reports, siteVisits, {
   computeEVM                 = () => STUB_EVM,
   computeContractorDriftProfile = (_, __, ___, name) => makeDrift(name),
   computeMonteCarloForecast  = () => STUB_MONTE,
+  computeDriftRiskFactor     = STUB_DRIFT_FACTOR,
+  computeAdjustedProgress    = STUB_ADJ_PROGRESS,
+  progressAtIndex            = STUB_PROGRESS_AT_INDEX,
+  getRiskLevel               = STUB_GET_RISK_LEVEL,
 } = {}) {
   const driftCache = new Map();
   return baseRows.map(base => {
@@ -76,7 +88,23 @@ function computeRiskRows(baseRows, projects, reports, siteVisits, {
 
     const monteCarlo = computeMonteCarloForecast(project, sorted, null);
 
-    return { ...base, schedDev, trend, contScore, escalations, dims, evolution, actions, health, contractorName, evm, driftProfile, monteCarlo };
+    // A2: additive-only — never mutates riskScore.score/level (see computeRiskRows.js).
+    const driftRiskFactor = computeDriftRiskFactor(driftProfile);
+    const adjustedRiskScore = driftRiskFactor
+      ? Math.min(100, riskScore.score + driftRiskFactor.pts)
+      : riskScore.score;
+    const adjustedRiskLevel = getRiskLevel(adjustedRiskScore);
+
+    let adjustedMonteCarlo = null;
+    if (driftProfile?.reliable && !monteCarlo.insufficient_data) {
+      const overrideProgressPoints = sorted.map((_, i) =>
+        computeAdjustedProgress(progressAtIndex(sorted, i), driftProfile.biasEwma, driftProfile.sampleCount)
+      );
+      adjustedMonteCarlo = computeMonteCarloForecast(project, sorted, null, { overrideProgressPoints });
+    }
+    if (adjustedMonteCarlo) monteCarlo.adjusted = adjustedMonteCarlo;
+
+    return { ...base, schedDev, trend, contScore, escalations, dims, evolution, actions, health, contractorName, evm, driftProfile, monteCarlo, driftRiskFactor, adjustedRiskScore, adjustedRiskLevel };
   });
 }
 
@@ -96,6 +124,7 @@ const RISK_FIELDS = [
   'schedDev', 'trend', 'contScore', 'escalations', 'dims',
   'evolution', 'actions', 'health', 'contractorName',
   'evm', 'driftProfile', 'monteCarlo',
+  'driftRiskFactor', 'adjustedRiskScore', 'adjustedRiskLevel', // A2
 ];
 
 const project = Object.freeze({
@@ -136,7 +165,7 @@ for (const f of BASE_FIELDS) {
   check(`has base field: ${f}`, f in rows[0]);
 }
 
-console.log('\n3) All 12 risk-only fields added');
+console.log('\n3) All 15 risk-only fields added');
 for (const f of RISK_FIELDS) {
   check(`has risk field: ${f}`, f in rows[0]);
 }
@@ -204,6 +233,56 @@ computeRiskRows([baseRow], [project], [], []);
 check('baseRow.riskScore unchanged', baseRow.riskScore === RISK_SCORE);
 check('baseRow.riskLevel unchanged', baseRow.riskLevel === snapshot.riskLevel);
 check('baseRow.progress unchanged',  baseRow.progress  === snapshot.progress);
+
+// ── 7. A2: driftRiskFactor / adjustedRiskScore / adjustedRiskLevel ────────────
+// Additive-only: riskScore.score/level (the single source of truth used by
+// Dashboard) must never be mutated by the presence of a bias factor.
+
+console.log('\n9) A2: no drift factor → adjusted falls back to base riskScore');
+{
+  const rows = computeRiskRows([baseRow], [project], [], []);
+  check('driftRiskFactor is null by default',        rows[0].driftRiskFactor === null);
+  check('adjustedRiskScore === riskScore.score (72)', rows[0].adjustedRiskScore === 72);
+  check('adjustedRiskLevel === HIGH (matches base)',  rows[0].adjustedRiskLevel === 'HIGH');
+  check('riskScore object untouched (same reference)', rows[0].riskScore === RISK_SCORE);
+}
+
+console.log('\n10) A2: drift factor present → adjustedRiskScore is additive, base riskScore untouched');
+{
+  const rows = computeRiskRows([baseRow], [project], [], [], {
+    computeDriftRiskFactor: () => ({ pts: 12, value: 'ACME historically overstates by ~10% (n=4)' }),
+  });
+  check('driftRiskFactor forwarded',                 rows[0].driftRiskFactor?.pts === 12);
+  check('adjustedRiskScore = base + pts (72+12=84)', rows[0].adjustedRiskScore === 84);
+  check('adjustedRiskLevel recomputed (84 → HIGH)',  rows[0].adjustedRiskLevel === 'HIGH');
+  check('base riskScore.score NOT mutated (still 72)', rows[0].riskScore.score === 72);
+  check('base riskScore is the SAME object reference', rows[0].riskScore === RISK_SCORE);
+}
+
+console.log('\n11) A2: adjustedRiskScore caps at 100');
+{
+  const highBase = { ...baseRow, riskScore: Object.freeze({ level: 'CRITICAL', score: 95, factors: [], color: {} }) };
+  const rows = computeRiskRows([highBase], [project], [], [], {
+    computeDriftRiskFactor: () => ({ pts: 12, value: 'x' }),
+  });
+  check('adjustedRiskScore capped at 100 (95+12=107→100)', rows[0].adjustedRiskScore === 100);
+}
+
+console.log('\n12) A2: adjusted Monte Carlo only attached when driftProfile.reliable');
+{
+  // Default drift stub has no `reliable` field → monteCarlo.adjusted must NOT appear
+  const rows = computeRiskRows([baseRow], [project], [], []);
+  check('monteCarlo.adjusted absent when driftProfile not reliable', !('adjusted' in rows[0].monteCarlo));
+}
+{
+  const rows = computeRiskRows([baseRow], [project], [], [], {
+    computeContractorDriftProfile: (_, __, ___, name) => ({ ...makeDrift(name), reliable: true, biasEwma: 0.1, sampleCount: 4 }),
+    computeMonteCarloForecast: (project_, sorted_, _tasks, options) =>
+      options?.overrideProgressPoints ? { ...STUB_MONTE, isAdjusted: true } : STUB_MONTE,
+  });
+  check('monteCarlo.adjusted attached when driftProfile.reliable',   rows[0].monteCarlo.adjusted?.isAdjusted === true);
+  check('base monteCarlo (reported) is unaffected',                 rows[0].monteCarlo.isAdjusted === undefined);
+}
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

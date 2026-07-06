@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 function fmt(date) {
   if (!date) return '—';
   return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -18,6 +20,8 @@ function ProbBar({ label, pct, color }) {
 }
 
 export default function MonteCarloWidget({ mc }) {
+  const [showAdjusted, setShowAdjusted] = useState(false);
+
   if (!mc || mc.insufficient_data) {
     return (
       <div style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
@@ -31,22 +35,47 @@ export default function MonteCarloWidget({ mc }) {
     );
   }
 
-  const bgColor   = mc.pOnTime >= 70 ? 'var(--status-done-bg)'  : mc.pOnTime >= 40 ? 'var(--status-warn-bg)'  : 'var(--status-alert-bg)';
-  const textColor = mc.pOnTime >= 70 ? 'var(--status-done)'     : mc.pOnTime >= 40 ? 'var(--status-warn)'     : 'var(--status-alert)';
+  // A2: mc.adjusted (same shape as mc) is only present once the contractor's
+  // bias estimate is reliable (n>=3) — see computeRiskRows.js. It's an
+  // alternate forecast, never a replacement for the reported one.
+  const hasAdjusted = !!mc.adjusted && !mc.adjusted.insufficient_data;
+  const active       = showAdjusted && hasAdjusted ? mc.adjusted : mc;
+
+  const bgColor   = active.pOnTime >= 70 ? 'var(--status-done-bg)'  : active.pOnTime >= 40 ? 'var(--status-warn-bg)'  : 'var(--status-alert-bg)';
+  const textColor = active.pOnTime >= 70 ? 'var(--status-done)'     : active.pOnTime >= 40 ? 'var(--status-warn)'     : 'var(--status-alert)';
 
   const P_COLORS = [
-    { label: 'P10 (opt.)',  date: mc.p10, color: 'var(--status-done)'  },
-    { label: 'P50 (med.)',  date: mc.p50, color: 'var(--accent)'       },
-    { label: 'P90 (pess.)', date: mc.p90, color: 'var(--status-alert)' },
+    { label: 'P10 (opt.)',  date: active.p10, color: 'var(--status-done)'  },
+    { label: 'P50 (med.)',  date: active.p50, color: 'var(--accent)'       },
+    { label: 'P90 (pess.)', date: active.p90, color: 'var(--status-alert)' },
   ];
 
   return (
     <div style={{ background: bgColor, border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', minWidth: 200 }}>
+      {hasAdjusted && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+          <button type="button" onClick={() => setShowAdjusted(false)}
+            style={{ flex: 1, fontSize: 9, fontWeight: 700, padding: '3px 6px', borderRadius: 5, cursor: 'pointer',
+              border: '1px solid var(--border)',
+              background: !showAdjusted ? 'var(--bg-elevated)' : 'transparent',
+              color: !showAdjusted ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+            Reported
+          </button>
+          <button type="button" onClick={() => setShowAdjusted(true)}
+            style={{ flex: 1, fontSize: 9, fontWeight: 700, padding: '3px 6px', borderRadius: 5, cursor: 'pointer',
+              border: '1px solid var(--border)',
+              background: showAdjusted ? 'var(--bg-elevated)' : 'transparent',
+              color: showAdjusted ? 'var(--text-primary)' : 'var(--text-muted)' }}
+            title="Adjusted for this contractor's historical over/under-reporting bias">
+            Adjusted
+          </button>
+        </div>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-          Monte Carlo · {mc.simulations.toLocaleString()} runs
+          Monte Carlo · {active.simulations.toLocaleString()} runs
         </div>
-        {mc.highRisk && (
+        {active.highRisk && (
           <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'var(--status-alert-bg)', color: 'var(--status-alert)', border: '1px solid var(--border)' }}>
             HIGH RISK
           </span>
@@ -62,19 +91,19 @@ export default function MonteCarloWidget({ mc }) {
         ))}
       </div>
 
-      <ProbBar label="On time"       pct={mc.pOnTime}        color="var(--status-done)"  />
-      <ProbBar label="≤ 2 wk delay" pct={mc.pDelay2Weeks}   color="var(--status-warn)"  />
-      <ProbBar label="≤ 1 mo delay" pct={mc.pDelayMonth}    color="var(--status-warn)"  />
-      <ProbBar label="> 30d delay"   pct={mc.pDelayCritical} color="var(--status-alert)" />
+      <ProbBar label="On time"       pct={active.pOnTime}        color="var(--status-done)"  />
+      <ProbBar label="≤ 2 wk delay" pct={active.pDelay2Weeks}   color="var(--status-warn)"  />
+      <ProbBar label="≤ 1 mo delay" pct={active.pDelayMonth}    color="var(--status-warn)"  />
+      <ProbBar label="> 30d delay"   pct={active.pDelayCritical} color="var(--status-alert)" />
 
       <div style={{ marginTop: 10, fontSize: 20, fontWeight: 800, color: textColor, textAlign: 'center', lineHeight: 1 }}>
-        {mc.pOnTime}%
+        {active.pOnTime}%
         <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 400, marginTop: 2 }}>on-time probability</div>
       </div>
 
-      {mc.model && (
+      {active.model && (
         <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center' }}>
-          μ = {mc.mu}pp/wk · σ = {mc.sigma}pp · model: {mc.model}
+          μ = {active.mu}pp/wk · σ = {active.sigma}pp · model: {active.model}
         </div>
       )}
     </div>
