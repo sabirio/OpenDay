@@ -8,46 +8,50 @@
 /* ── 1. Dark mode tokens (default) ───────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --bg-base:           #262624;
-  --bg-surface:        #262624;
-  --bg-elevated:       #262624;
-  --bg-input:          #262624;
+  --bg-base:           oklch(0.2679 0.0036 106.6427);
+  --bg-surface:        oklch(0.2679 0.0036 106.6427);
+  --bg-elevated:       oklch(0.3085 0.0035 106.6039);
+  --bg-input:          oklch(0.3085 0.0035 106.6039);
 
   /* Borders */
-  --border:            #3e3e38;
-  --border-strong:     #3e3e38;
+  --border:            oklch(0.3618 0.0101 106.8928);
+  --border-strong:     oklch(0.4336 0.0113 100.2195);
 
   /* Text */
-  --text-primary:      #faf9f5;
-  --text-secondary:    #faf9f5;
-  --text-muted:        #faf9f5;
-  --text-inverse:      #0a0a0a;
+  --text-primary:      oklch(0.8074 0.0142 93.0137);
+  --text-secondary:    oklch(0.9211 0.0040 106.4781);
+  --text-muted:        oklch(0.7713 0.0169 99.0657);
+  --text-inverse:      oklch(1.0000 0 0);
 
-  /* Accent — white in dark, black in light */
-  --accent:            #f5f4ee;
-  --accent-subtle:     rgba(255, 255, 255, 0.06);
+  /* Accent */
+  --accent:            oklch(0.6724 0.1308 38.7559);
+  --accent-subtle:     oklch(0.6724 0.1308 38.7559 / 0.12);
 
   /* Status: functional color signals only */
-  --status-done:       #ffffff;
-  --status-done-bg:    rgba(255, 255, 255, 0.08);
-  --status-active:     #a3a3a3;
-  --status-active-bg:  rgba(163, 163, 163, 0.10);
-  --status-todo:       #3d3d3d;
+  --status-done:       oklch(0.6724 0.1308 38.7559);
+  --status-done-bg:    oklch(0.6724 0.1308 38.7559 / 0.12);
+
+  --status-active:     oklch(0.7713 0.0169 99.0657);
+  --status-active-bg:  oklch(0.7713 0.0169 99.0657 / 0.10);
+
+  --status-todo:       oklch(0.4336 0.0113 100.2195);
   --status-todo-bg:    transparent;
-  --status-alert:      #ef4444;
-  --status-alert-bg:   rgba(239, 68, 68, 0.08);
-  --status-warn:       #f97316;
-  --status-warn-bg:    rgba(249, 115, 22, 0.08);
+
+  --status-alert:      oklch(0.6368 0.2078 25.3313);
+  --status-alert-bg:   oklch(0.6368 0.2078 25.3313 / 0.12);
+
+  --status-warn:       oklch(0.5583 0.1276 42.9956);
+  --status-warn-bg:    oklch(0.5583 0.1276 42.9956 / 0.12);
 
   /* Progress bar fill */
-  --progress-fill:     #1c1c1c;
+  --progress-fill:     oklch(0.6724 0.1308 38.7559);
 
   /* Shadows */
-  --shadow:            0 1px 3px rgba(0, 0, 0, 0.6);
-  --shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.8);
+  --shadow:            0 1px 3px oklch(0 0 0 / 0.35);
+  --shadow-lg:         0 4px 16px oklch(0 0 0 / 0.50);
 
   /* Focus ring */
-  --focus-ring:        0 0 0 2px rgba(255, 255, 255, 0.12);
+  --focus-ring:        0 0 0 2px oklch(0.6724 0.1308 38.7559 / 0.30);
 
   /* Spacing */
   --space-1: 0.25rem;  --space-2: 0.5rem;   --space-3: 0.75rem;
@@ -207,37 +211,42 @@
 
 /* ── 2. Light mode overrides ─────────────────────────────────────────────── */
 [data-theme="light"] {
-  --bg-base:           #faf9f5;
-  --bg-surface:        #faf9f5;
-  --bg-elevated:       #faf9f5;
-  --bg-input:          #faf9f5;
+  --bg-base:           oklch(0.9818 0.0054 95.0986);
+  --bg-surface:        oklch(0.9818 0.0054 95.0986);
+  --bg-elevated:       oklch(1.0000 0 0);
+  --bg-input:          oklch(1.0000 0 0);
 
-  --border:            #dad9d4;
-  --border-strong:     #dad9d4;
+--border:            oklch(0.8847 0.0069 97.3627);
+  --border-strong:     oklch(0.7621 0.0156 98.3528);
 
-  --text-primary:      #141413;
-  --text-secondary:    #141413;
-  --text-muted:        #141413;
-  --text-inverse:      #f5f5f5;
+  --text-primary:      oklch(0.3438 0.0269 95.7226);
+  --text-secondary:    oklch(0.4334 0.0177 98.6048);
+  --text-muted:        oklch(0.6059 0.0075 97.4233);
+  --text-inverse:      oklch(1.0000 0 0);
 
-  --accent:            #0a0a0a;
-  --accent-subtle:     rgba(0, 0, 0, 0.04);
+  --accent:            oklch(0.6171 0.1375 39.0427);
+  --accent-subtle:     oklch(0.6171 0.1375 39.0427 / 0.10);
 
-  --status-done:       #0a0a0a;
-  --status-done-bg:    rgba(0, 0, 0, 0.06);
-  --status-active:     #525252;
-  --status-active-bg:  rgba(82, 82, 82, 0.08);
-  --status-todo:       #d4d4d4;
+  --status-done:       oklch(0.6171 0.1375 39.0427);
+  --status-done-bg:    oklch(0.6171 0.1375 39.0427 / 0.10);
+
+  --status-active:     oklch(0.4334 0.0177 98.6048);
+  --status-active-bg:  oklch(0.4334 0.0177 98.6048 / 0.08);
+
+  --status-todo:       oklch(0.7621 0.0156 98.3528);
   --status-todo-bg:    transparent;
-  --status-alert:      #dc2626;
-  --status-alert-bg:   rgba(220, 38, 38, 0.06);
-  --status-warn:       #ea580c;
-  --status-warn-bg:    rgba(234, 88, 12, 0.06);
 
-  --shadow:            0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-lg:         0 4px 16px rgba(0, 0, 0, 0.12);
-  --focus-ring:        0 0 0 2px rgba(0, 0, 0, 0.12);
-  --progress-fill:     #525252;
+  --status-alert:      oklch(0.1908 0.0020 106.5859);
+  --status-alert-bg:   oklch(0.1908 0.0020 106.5859 / 0.08);
+
+  --status-warn:       oklch(0.5583 0.1276 42.9956);
+  --status-warn-bg:    oklch(0.5583 0.1276 42.9956 / 0.10);
+
+  --shadow:            0 1px 3px oklch(0 0 0 / 0.10);
+  --shadow-lg:         0 4px 16px oklch(0 0 0 / 0.12);
+
+  --focus-ring:        0 0 0 2px oklch(0.6171 0.1375 39.0427 / 0.25);
+  --progress-fill:     oklch(0.6171 0.1375 39.0427);
 }
 
 
