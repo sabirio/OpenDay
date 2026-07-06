@@ -2,7 +2,7 @@
 // severity ladder shared by portfolioEngine.computePortfolioKpis and
 // commandEngine.getCommands' "opening_at_risk" command.
 // Run: node src/core/insights/__tests__/openingSeverity.test.mjs
-import { isOpeningAtRisk, isOpeningCritical, isProjectAtRisk, isProjectCritical } from '../severity/openingSeverity.js';
+import { isOpeningAtRisk, isOpeningCritical, isProjectAtRisk, isProjectCritical, blockerTaskNames } from '../severity/openingSeverity.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -51,24 +51,14 @@ console.log('\nisProjectAtRisk — the AA0011 collision scenario (Step 0)');
   check('missing readiness field does not throw', isProjectAtRisk({ latestReport: null, riskLevel: 'LOW' }) === false);
 }
 
-console.log('\ndescribeProjectRisk — explains the count');
+console.log('\nblockerTaskNames — extracts task strings for Priorities Today\'s expandable detail');
 {
-  const { describeProjectRisk } = await import('../severity/openingSeverity.js');
-  const row = {
-    project: { storeCode: 'AA0011', shoppingMallName: 'Mega' },
-    latestReport: { projectScheduleStatus: 'On Track' },
-    riskLevel: 'LOW',
-    readiness: {
-      status: 'At Risk',
-      criticalBlockers: [{ task: 'Fire safety' }, { task: 'MEP handover' }],
-      softBlockers: [{ task: 'Snag list' }],
-    },
-  };
-  const d = describeProjectRisk(row);
-  check('code + status surfaced', d.code === 'AA0011' && d.status === 'At Risk');
-  check('critical blocker tasks listed', d.criticalBlockers.length === 2 && d.criticalBlockers.includes('Fire safety'));
-  check('soft blocker tasks listed', d.softBlockers.length === 1);
-  check('reason has readiness, not false self-report', d.reasons.some(r => r.includes('Opening readiness')) && !d.reasons.some(r => r.includes('Self-reported')));
+  check('extracts task names in order',
+    JSON.stringify(blockerTaskNames([{ task: 'Fire safety' }, { task: 'MEP handover' }])) === JSON.stringify(['Fire safety', 'MEP handover']));
+  check('filters out blockers with no task string',
+    JSON.stringify(blockerTaskNames([{ task: 'Fire safety' }, { wpId: 'x' }, { task: '' }])) === JSON.stringify(['Fire safety']));
+  check('undefined/null -> []', JSON.stringify(blockerTaskNames(undefined)) === '[]' && JSON.stringify(blockerTaskNames(null)) === '[]');
+  check('empty array -> []', JSON.stringify(blockerTaskNames([])) === '[]');
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

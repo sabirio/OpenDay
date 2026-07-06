@@ -79,5 +79,23 @@ console.log('\n7) Empty input → []');
 const empty = commandsToInsights([]);
 check('empty → []', Array.isArray(empty) && empty.length === 0);
 
+// ── 8. criticalBlockerTasks/softBlockerTasks passthrough ──────────────────
+console.log('\n8) opening_at_risk blocker-task fields pass through; other commands default to []');
+const OPENING_AT_RISK_CMD = {
+  id: 'opening_at_risk', severity: 'warning',
+  title: 'AA0011 opening date at risk — At Risk',
+  reason: '2 critical + 1 soft blockers remaining',
+  action: 'Confirm recovery plan / consider moving target date',
+  projectCode: 'AA0011',
+  criticalBlockerTasks: ['Fire safety', 'MEP handover'],
+  softBlockerTasks: ['Snag list'],
+};
+const [o] = commandsToInsights([OPENING_AT_RISK_CMD]);
+check('criticalBlockerTasks passes through', JSON.stringify(o.criticalBlockerTasks) === JSON.stringify(['Fire safety', 'MEP handover']));
+check('softBlockerTasks passes through', JSON.stringify(o.softBlockerTasks) === JSON.stringify(['Snag list']));
+check('commands without blocker fields default to empty arrays, not undefined',
+  Array.isArray(c.criticalBlockerTasks) && c.criticalBlockerTasks.length === 0 &&
+  Array.isArray(c.softBlockerTasks) && c.softBlockerTasks.length === 0);
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

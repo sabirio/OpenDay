@@ -2,7 +2,7 @@
  * Map commandEngine.getCommands output → Insight[].
  * Pure function — no engine imports.
  *
- * @param {Array<{id:string, severity:string, title:string, reason:string, action:string, projectCode:string}>} commands
+ * @param {Array<{id:string, severity:string, title:string, reason:string, action:string, projectCode:string, criticalBlockerTasks?:string[], softBlockerTasks?:string[]}>} commands
  * @param {Record<string,string>} codeToId  — { storeCode: projectId }, built by caller
  * @returns {import('../insight.js').Insight[]}
  */
@@ -17,5 +17,9 @@ export function commandsToInsights(commands, codeToId = {}) {
     detail:            c.reason,
     recommendedAction: c.action,
     priorityScore:     c.severity === 'critical' ? 0 : c.severity === 'warning' ? 1 : 2,
+    // Optional — only opening_at_risk carries these today. Lets
+    // PrioritiesToday expand a row to show named blockers, not just the count.
+    criticalBlockerTasks: c.criticalBlockerTasks ?? [],
+    softBlockerTasks:     c.softBlockerTasks ?? [],
   }));
 }

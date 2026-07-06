@@ -12,6 +12,8 @@
  * @property {string}           detail
  * @property {string}           [recommendedAction]
  * @property {number}           priorityScore
+ * @property {string[]}         [criticalBlockerTasks] - opening_at_risk only: named critical blockers
+ * @property {string[]}         [softBlockerTasks] - opening_at_risk only: named soft blockers
  */
 
 /**

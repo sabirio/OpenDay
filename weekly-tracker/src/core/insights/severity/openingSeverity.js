@@ -56,30 +56,13 @@ export function isProjectCritical(row) {
 }
 
 /**
- * Explaining companion to isProjectAtRisk/isProjectCritical (same row shape):
- * returns a human-readable breakdown of why a project landed in the count,
- * for the Home dashboard's expandable AT RISK/CRITICAL cards.
- * @param {{project?: {storeCode?: string, shoppingMallName?: string}, latestReport?: {projectScheduleStatus?: string}|null, riskLevel?: string, readiness?: {status?: string, criticalBlockers?: Array<{task?: string}>, softBlockers?: Array<{task?: string}>}|null}} row
+ * Extracts just the task-name strings from an openingReadiness blocker list
+ * (criticalBlockers/softBlockers, each {task, wpId, status, ...}) — shared by
+ * commandEngine's "opening_at_risk" command so the same blocker names shown
+ * in the count also drive Priorities Today's expandable detail.
+ * @param {Array<{task?: string}>|undefined|null} blockers
+ * @returns {string[]}
  */
-export function describeProjectRisk(row) {
-  const r = row.readiness ?? null;
-  const criticalBlockers = r?.criticalBlockers ?? [];
-  const softBlockers     = r?.softBlockers ?? [];
-  const reasons = [];
-
-  if (isBadScheduleStatus(row.latestReport?.projectScheduleStatus))
-    reasons.push(`Self-reported: ${row.latestReport.projectScheduleStatus}`);
-  if (row.riskLevel === 'CRITICAL')
-    reasons.push('Aggregate risk level: CRITICAL');
-  if (r?.status && r.status !== 'Ready' && r.status !== 'No Date')
-    reasons.push(`Opening readiness: ${r.status}`);
-
-  return {
-    code:   row.project?.storeCode ?? '—',
-    mall:   row.project?.shoppingMallName ?? '',
-    status: r?.status ?? null,
-    reasons,
-    criticalBlockers: criticalBlockers.map(b => b.task).filter(Boolean),
-    softBlockers:     softBlockers.map(b => b.task).filter(Boolean),
-  };
+export function blockerTaskNames(blockers) {
+  return (blockers ?? []).map(b => b.task).filter(Boolean);
 }

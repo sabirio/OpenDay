@@ -18,7 +18,7 @@
  */
 
 import { SCHEDULE_CONFIG } from '../config/scheduleConfig';
-import { isOpeningAtRisk, isOpeningCritical } from '../core/insights/severity/openingSeverity.js';
+import { isOpeningAtRisk, isOpeningCritical, blockerTaskNames } from '../core/insights/severity/openingSeverity.js';
 
 const SEV_ORDER = { critical: 0, warning: 1, info: 2 };
 
@@ -105,6 +105,10 @@ export function getCommands(projectState, _config = SCHEDULE_CONFIG) {
       reason,
       action:      'Confirm recovery plan / consider moving target date',
       projectCode: code,
+      // Named blockers behind the count in `reason` — lets Priorities Today
+      // expand this command to show which tasks, not just how many.
+      criticalBlockerTasks: blockerTaskNames(criticalBlockers),
+      softBlockerTasks:     blockerTaskNames(softBlockers),
     });
   }
 

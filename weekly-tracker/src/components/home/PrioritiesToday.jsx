@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import ConfidenceBadge from './ConfidenceBadge.jsx';
 
 const SEV_STYLE = {
@@ -7,6 +8,62 @@ const SEV_STYLE = {
 };
 
 const TOP_N = 6;
+
+function PriorityRow({ ins }) {
+  const [open, setOpen] = useState(false);
+  const sev = SEV_STYLE[ins.severity] ?? SEV_STYLE.info;
+  const criticalBlockerTasks = ins.criticalBlockerTasks ?? [];
+  const softBlockerTasks     = ins.softBlockerTasks ?? [];
+  const hasBlockers = criticalBlockerTasks.length > 0 || softBlockerTasks.length > 0;
+
+  return (
+    <div
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 4,
+        padding: '12px 16px',
+        background: 'var(--bg-elevated)',
+        border: '1.5px solid var(--border)',
+        borderLeft: `4px solid ${sev.color}`,
+        borderRadius: 10,
+        cursor: hasBlockers ? 'pointer' : 'default',
+      }}
+      onClick={hasBlockers ? () => setOpen(o => !o) : undefined}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{
+          fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8,
+          color: sev.color, background: sev.bg,
+          padding: '2px 7px', borderRadius: 4,
+        }}>
+          {sev.label}
+        </span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+          {ins.title}
+        </span>
+        <ConfidenceBadge confidence={ins.confidence} />
+        {hasBlockers && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{open ? '▲' : '▼'}</span>}
+      </div>
+      {ins.detail && (
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{ins.detail}</div>
+      )}
+      {ins.recommendedAction && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          → {ins.recommendedAction}
+        </div>
+      )}
+      {open && hasBlockers && (
+        <div style={{ marginTop: 6, paddingTop: 8, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {criticalBlockerTasks.length > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--status-alert)' }}>⛔ {criticalBlockerTasks.join(', ')}</div>
+          )}
+          {softBlockerTasks.length > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--status-warn)' }}>⚠ {softBlockerTasks.join(', ')}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function PrioritiesToday({ insights }) {
   const visible = insights
@@ -28,41 +85,7 @@ function PrioritiesToday({ insights }) {
     <div style={{ marginBottom: 24 }}>
       <SectionHeader>Priorities Today</SectionHeader>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {visible.map(ins => {
-          const sev = SEV_STYLE[ins.severity] ?? SEV_STYLE.info;
-          return (
-            <div key={ins.id} style={{
-              display: 'flex', flexDirection: 'column', gap: 4,
-              padding: '12px 16px',
-              background: 'var(--bg-elevated)',
-              border: '1.5px solid var(--border)',
-              borderLeft: `4px solid ${sev.color}`,
-              borderRadius: 10,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8,
-                  color: sev.color, background: sev.bg,
-                  padding: '2px 7px', borderRadius: 4,
-                }}>
-                  {sev.label}
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {ins.title}
-                </span>
-                <ConfidenceBadge confidence={ins.confidence} />
-              </div>
-              {ins.detail && (
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{ins.detail}</div>
-              )}
-              {ins.recommendedAction && (
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  → {ins.recommendedAction}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {visible.map(ins => <PriorityRow key={ins.id} ins={ins} />)}
       </div>
     </div>
   );
