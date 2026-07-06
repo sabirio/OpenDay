@@ -92,9 +92,9 @@ function ContractorReport({ projects, reports }) {
   // site can lose the whole form to a dropped connection, the phone locking,
   // or switching apps mid-fill — there was no recovery path at all before
   // this. One JSON blob per project in localStorage; cleared on successful
-  // submit or explicit discard.
+  // submit or explicit discard. Restored silently (no banner) — the form
+  // just comes back the way the contractor left it.
   const draftKey = `contractor_draft_${projectId}`;
-  const [draftRestored, setDraftRestored] = useState(() => Boolean(readDraft()));
 
   function readDraft() {
     try {
@@ -107,7 +107,6 @@ function ContractorReport({ projects, reports }) {
 
   function clearDraft() {
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
-    setDraftRestored(false);
   }
 
   const [form, setForm] = useState(() => {
@@ -366,11 +365,7 @@ function ContractorReport({ projects, reports }) {
   const weekInfo = startDate && endDate ? getConstructionWeekInfo(startDate, endDate, refDate) : null;
   const weekPct = weekInfo && weekInfo.totalWeeks > 0 ? Math.round((weekInfo.weekNumber / weekInfo.totalWeeks) * 100) : 0;
 
-  const projectReports = reports.filter((r) => r.projectId === project.id);
-  const lastReport = [...projectReports].sort(
-    (a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt)
-  )[0] || null;
-  const lastReportDate = lastReport ? new Date(lastReport.reportingDate || lastReport.submittedAt) : null;
+  const lastReportDate = prevReport ? new Date(prevReport.reportingDate || prevReport.submittedAt) : null;
   const daysSinceLast = lastReportDate ? Math.floor((new Date() - lastReportDate) / 86400000) : null;
 
 
@@ -378,32 +373,13 @@ function ContractorReport({ projects, reports }) {
     <div data-testid="contractor-report-form" className="field-form-page" style={{ minHeight: "100vh", background: "var(--field-bg-contractor)", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
 
-        {draftRestored && (
-          <div data-testid="draft-restored-banner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "var(--field-accent-blue-subtle)", border: "1px solid var(--field-accent-blue-border)", borderRadius: 12, padding: "10px 16px", marginBottom: 16, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: "var(--field-accent-blue-fg)", fontWeight: 600 }}>Restored your unsaved draft for this report.</span>
-            <button
-              type="button"
-              onClick={() => {
-                clearDraft();
-                prefillDone.current = false;
-                setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
-                setGanttWpProgress({});
-                setPhotoUrls([]);
-              }}
-              style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--field-accent-blue-border)", background: "white", color: "var(--field-accent-blue-fg)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-            >
-              Discard draft
-            </button>
-          </div>
-        )}
-
         <ReportHeaderCard
           project={project}
           weekInfo={weekInfo}
           weekPct={weekPct}
-          lastReport={lastReport}
+          lastReport={prevReport}
           daysSinceLast={daysSinceLast}
-          projectReportsCount={projectReports.length}
+          projectReportsCount={projectReportsForPrefill.length}
         />
 
         <ValidationErrors errors={validationErrors} />
