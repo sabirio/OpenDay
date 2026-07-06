@@ -33,7 +33,8 @@ check('010 blocks anon by using authenticated policies', /FOR SELECT TO authenti
 for (const table of ['projects', 'reports', 'site_visits', 'progress_history']) {
   check(`019 creates sequence-backed default for ${table}.id`, new RegExp(`'${table}'[\\s\\S]*${table}_id_seq`).test(pkDefaults));
 }
-check('019 is idempotent for existing defaults', /IF v_default IS NULL THEN/.test(pkDefaults));
+check('019 is idempotent for existing defaults', /IF v_default IS NULL AND COALESCE\(v_is_identity, 'NO'\) <> 'YES' THEN/.test(pkDefaults));
+check('019 guards against identity-column false positive (0A000)', /is_identity/.test(pkDefaults) && /cannot change ownership of identity sequence/.test(pkDefaults));
 check('019 includes rollback notes', /Rollback, if needed/.test(pkDefaults) && /ALTER TABLE public\.projects\s+ALTER COLUMN id DROP DEFAULT/.test(pkDefaults));
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

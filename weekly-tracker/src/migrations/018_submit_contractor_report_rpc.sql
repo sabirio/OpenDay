@@ -22,18 +22,30 @@
 -- 000_baseline.sql captured production as bigint without an explicit default.
 -- The app already inserts progress_history without id, so make the default
 -- explicit and idempotent before the RPC depends on it.
+--
+-- Identity-column note (found live, 2026-07-06): applying this migration to a
+-- database where progress_history.id was created via the Supabase Studio
+-- Table Editor (which defaults int8 primary keys to
+-- `GENERATED ... AS IDENTITY`, not a plain `DEFAULT nextval(...)`) fails with
+-- `0A000: cannot change ownership of identity sequence` — identity columns
+-- report NULL for `information_schema.columns.column_default` too, so the
+-- naive `v_default IS NULL` check can't distinguish "no default at all" from
+-- "already has a working identity". Guarded below by also checking
+-- `is_identity`; see 019_primary_key_defaults.sql for the same fix applied to
+-- projects/reports/site_visits/progress_history.
 DO $$
 DECLARE
   v_default text;
+  v_is_identity text;
 BEGIN
-  SELECT column_default
-    INTO v_default
+  SELECT column_default, is_identity
+    INTO v_default, v_is_identity
   FROM information_schema.columns
   WHERE table_schema = 'public'
     AND table_name = 'progress_history'
     AND column_name = 'id';
 
-  IF v_default IS NULL THEN
+  IF v_default IS NULL AND COALESCE(v_is_identity, 'NO') <> 'YES' THEN
     CREATE SEQUENCE IF NOT EXISTS public.progress_history_id_seq;
     ALTER SEQUENCE public.progress_history_id_seq OWNED BY public.progress_history.id;
     PERFORM setval(
