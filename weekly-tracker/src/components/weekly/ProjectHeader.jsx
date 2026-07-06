@@ -35,7 +35,7 @@ export default function ProjectHeader({ project }) {
         </div>
       </div>
       {project.projectStatus && (
-        <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+        <span className="weekly-project-status" style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
           {project.projectStatus}
         </span>
       )}

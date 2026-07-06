@@ -362,15 +362,17 @@ body {
    ============================================================ */
 .weekly-reports-surface {
   display: grid;
-  gap: 0;
+  gap: 18px;
+  max-width: 1640px;
 }
 
 .weekly-reports-toolbar {
   align-items: end;
-  padding: 14px 16px;
-  background: var(--bg-surface-alpha);
-  border: 1px solid var(--border);
+  padding: 16px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .weekly-reports-toolbar-fields {
@@ -381,13 +383,38 @@ body {
 }
 
 .weekly-project-header {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 14px 0 2px;
+  gap: 18px;
+  padding: 2px 0 0;
+}
+
+.weekly-command-panel {
+  position: relative;
+  padding: 22px;
+  background: var(--bg-surface-alpha);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.weekly-command-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.weekly-project-status {
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 800;
 }
 
 .weekly-section-kicker {
@@ -403,8 +430,8 @@ body {
   background: var(--status-warn-bg);
   border: 1px solid var(--status-warn);
   border-radius: var(--radius-md);
-  padding: 10px 16px;
-  margin-bottom: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
   font-size: 0.8125rem;
 }
 
@@ -413,7 +440,7 @@ body {
   grid-template-columns: minmax(360px, 1.25fr) minmax(320px, 0.95fr);
   gap: 16px;
   align-items: stretch;
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .weekly-kpi-strip,
@@ -421,37 +448,42 @@ body {
   margin-bottom: 0;
   height: 100%;
   box-sizing: border-box;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
 .weekly-kpi-strip {
-  padding: 16px 20px;
+  padding: 20px 22px;
 }
 
 .weekly-kpi-primary {
   display: flex;
-  gap: 28px;
+  gap: 18px 30px;
   flex-wrap: wrap;
   align-items: flex-end;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .weekly-kpi-item {
-  min-width: 112px;
+  min-width: 124px;
+  padding: 8px 0;
 }
 
 .weekly-kpi-secondary {
   display: flex;
-  gap: 28px;
+  gap: 18px 28px;
   flex-wrap: wrap;
-  padding-top: 14px;
+  padding-top: 16px;
   border-top: 1px solid var(--border);
 }
 
 .weekly-kpi-missing {
   appearance: none;
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
-  padding: 0;
+  padding: 0 4px;
+  margin: 0 -4px;
   text-align: left;
   cursor: pointer;
   font: inherit;
@@ -469,9 +501,48 @@ body {
 
 .weekly-progress-stats {
   display: flex;
-  gap: 28px;
+  gap: 18px 26px;
   flex-wrap: wrap;
   align-items: flex-end;
+}
+
+.weekly-progress-narrative {
+  padding: 20px 22px;
+}
+
+.weekly-report-body {
+  display: grid;
+  gap: 18px;
+}
+
+.weekly-progress-chart-card {
+  margin-bottom: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-surface-alpha);
+}
+
+.weekly-chart-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.weekly-chart-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.weekly-chart-caption {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding-top: 8px;
 }
 
 .weekly-section-header {
@@ -483,7 +554,7 @@ body {
 
 .weekly-section-header h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.125rem;
   color: var(--text-primary);
 }
 
@@ -495,14 +566,50 @@ body {
 
 .weekly-comparison-section {
   display: grid;
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: 16px;
+  margin-bottom: 0;
+  padding: 20px;
+  background: var(--bg-surface-alpha);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
 }
 
 .weekly-comparison-kpis {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
   gap: 10px;
-  flex-wrap: wrap;
+}
+
+.weekly-comparison-kpis [data-testid="kpi-card"] {
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+}
+
+.weekly-comparison-list {
+  margin-bottom: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+}
+
+.weekly-comparison-empty {
+  margin-bottom: 0;
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+}
+
+.weekly-comparison-empty h3 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.weekly-comparison-empty p {
+  margin: 0 auto;
+  max-width: 560px;
+  line-height: 1.55;
 }
 
 .weekly-report-links {
@@ -1516,6 +1623,7 @@ body {
   .main-content { padding: 24px 20px; }
   .weekly-report-truth-grid { grid-template-columns: 1fr; }
   .weekly-report-links { grid-template-columns: 1fr; }
+  .weekly-comparison-kpis { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
   .weekly-reports-toolbar { align-items: stretch; }
   .weekly-reports-toolbar-fields { width: 100%; }
   .weekly-reports-toolbar .dashboard-filter-group { flex: 1 1 220px; }
@@ -1553,6 +1661,13 @@ body {
   }
   .weekly-kpi-item {
     min-width: calc(50% - 8px);
+  }
+  .weekly-command-panel,
+  .weekly-comparison-section {
+    padding: 16px;
+  }
+  .weekly-comparison-kpis {
+    grid-template-columns: 1fr;
   }
   .weekly-missing-modal {
     width: calc(100vw - 20px);

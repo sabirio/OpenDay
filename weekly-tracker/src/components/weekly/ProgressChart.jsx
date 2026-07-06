@@ -34,9 +34,12 @@ export default function ProgressChart({ series, scheduleStatus, spi, reportCount
                     : 'var(--text-secondary)';
 
   return (
-    <div className="dashboard-summary-card" style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 8 }}>
-        Progress over time
+    <div className="dashboard-summary-card weekly-progress-chart-card">
+      <div className="weekly-chart-head">
+        <div>
+          <div className="weekly-section-kicker">Progress over time</div>
+          <h2>Historical progress trace</h2>
+        </div>
       </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
@@ -92,7 +95,7 @@ export default function ProgressChart({ series, scheduleStatus, spi, reportCount
       </svg>
 
       {/* Caption */}
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', fontSize: 11, color: 'var(--text-muted)', paddingTop: 4 }}>
+      <div className="weekly-chart-caption">
         {spi != null && <span>SPI <strong style={{ color: 'var(--text-primary)' }}>{spi}</strong></span>}
         {statusLabel  && <span style={{ color: statusVar, fontWeight: 600 }}>{statusLabel}</span>}
         <span>{reportCount} report{reportCount !== 1 ? 's' : ''}</span>

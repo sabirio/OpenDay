@@ -354,7 +354,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
         />
         {/* Project header + KPI strip + Progress Narrative */}
         {selectedProject && (
-          <>
+          <section className="weekly-command-panel">
             <ProjectHeader project={selectedProject} />
             {templateIssues.filter(i => i.severity === 'error').length > 0 && (
               <div role="alert" className="weekly-template-alert">
@@ -385,7 +385,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 />
               )}
             </div>
-          </>
+          </section>
         )}
 
         {/* Gantt chart */}
@@ -431,7 +431,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
         {/* Report detail */}
         {selectedReport && (
-          <>
+          <section className="weekly-report-body">
             <ProgressChart
               series={progressSeries}
               scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
@@ -475,7 +475,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 <AuditLogPanel projectId={selectedProject.id} />
               </div>
             )}
-          </>
+          </section>
         )}
       </div>
     </ErrorBoundary>

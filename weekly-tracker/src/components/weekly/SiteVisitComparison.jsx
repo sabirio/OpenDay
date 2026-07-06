@@ -35,11 +35,12 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
       </div>
 
       {svData.length === 0 ? (
-        <div className="dashboard-summary-card" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-secondary)', fontSize: 14 }}>
-          No site visits recorded for this project yet.
+        <div className="dashboard-summary-card weekly-comparison-empty">
+          <h3>No PM verification yet</h3>
+          <p>No site visits are recorded for this project, so contractor progress is not independently verified here yet.</p>
         </div>
       ) : (
-        <div className="dashboard-summary-card">
+        <div className="dashboard-summary-card weekly-comparison-list">
           <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>Site Visit Comparison</div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>PM observed statuses vs GC weekly reports · click row to expand detail</div>
           <div style={{ display: 'grid', gap: 8 }}>
