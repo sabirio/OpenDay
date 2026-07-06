@@ -120,6 +120,13 @@ back-compat). Any code that reads/writes v2 WP statuses must resolve the groupin
    off `project.scope?.workPackages != null` instead; "Reset to full scope" now preserves `zoneAreas`
    rather than wiping the whole `scope` object.
 
+4. **`projectSummaryEngine.js`: detail-summary readiness still used the v1 blocker graph.** `evaluateProjectState()`
+   already passed v2 `ALL_WORK_PACKAGES_V2` + `buildV2OpeningReadinessOptions()` into
+   `computeOpeningReadiness()`, but the project-detail summary path still called it with
+   `masterTaskLibrary.WORK_PACKAGES` only. That could make detail-drawer opening KPIs disagree with the
+   v2 priority/readiness model. Fixed by sharing the same v2-aware inputs in summary code; v1 keeps the
+   default v1 templateOptions path.
+
 ### ASSUMPTIONs (reversible, made autonomously per the task's delegation rules)
 
 - ID scheme: `{zone}.{category_slug}.{wp_slug}` (e.g. `common.mep_backbone.hvac_equipment`) — machine
@@ -138,7 +145,7 @@ back-compat). Any code that reads/writes v2 WP statuses must resolve the groupin
 
 ### Verification
 
-- 59/59 test suites, 1434/1434 individual checks green (`npm run test`); 0 lint errors (`npm run lint`,
+- 60/60 test suites, 1439/1439 individual checks green (`npm run test`); 0 lint errors (`npm run lint`,
   same 32 pre-existing warnings baseline); production build succeeds (`npm run build`).
 - Live end-to-end Playwright verification (not just unit tests): created a real v2 project through the
   UI (template picker → 700/300 m² zone areas → scope configurator, confirmed live weight preview

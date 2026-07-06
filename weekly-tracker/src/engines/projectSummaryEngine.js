@@ -6,6 +6,10 @@ import { calculatePhaseProgress } from './progressEngine';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
 import { classifyDiscrepancy } from './discrepancyEngine';
 import { computeOpeningReadiness } from './openingReadinessEngine';
+import { ALL_WORK_PACKAGES_V2 } from '../domains/construction/templates/retailFitoutV2';
+import { buildV2OpeningReadinessOptions } from '../core/projects/scope/buildV2OpeningReadinessOptions';
+
+const V2_TEMPLATE_TYPE = 'retail-fitout-v2';
 
 const GANTT_PHASE_COLORS = [
   '#6366f1','#0ea5e9','#10b981','#f59e0b','#8b5cf6',
@@ -24,6 +28,14 @@ function phaseProgressFromGanttStatuses(wpStatuses) {
       return { wpId: phase.id, name: meta.name, color: meta.color, pct };
     })
     .filter(Boolean);
+}
+
+function resolveOpeningReadinessInputs(project) {
+  const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
+  return {
+    scopeWPIds: getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS),
+    templateOptions: isV2 ? buildV2OpeningReadinessOptions() : null,
+  };
 }
 
 // WP task comparison (mirrors SiteVisitReport comparisonResult)
@@ -168,11 +180,12 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
   // template regardless of this project's actual scope, flagging any
   // out-of-scope blocker (never reported on, so always "Not Started") as
   // still incomplete. Matches evaluateProjectState.js's scoping.
-  const scopeWPIds = getScopeWPIds(project?.scope, GANTT_WPS);
+  const { scopeWPIds, templateOptions } = resolveOpeningReadinessInputs(project);
   const openingReadiness = computeOpeningReadiness(
     wpCumulativeStatuses,
     project.targetOpeningDate || null,
-    scopeWPIds
+    scopeWPIds,
+    templateOptions
   );
   const openingStatus = openingReadiness.status;
 
