@@ -182,7 +182,6 @@
     "pages/Projects.jsx:4:layer-import:page imports services: ../services/conflictGuard",
     "pages/RiskDashboard.jsx:18:layer-import:page imports engines: ../engines/riskEngine",
     "pages/RiskDashboard.jsx:2:layer-import:page imports engines: ../engines/contractorEngine",
-    "pages/RiskDashboard.jsx:6:layer-import:page imports services: ../services/dashboardService",
     "pages/RiskDashboard.jsx:69:status-literal:const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === \"CRITICAL\"), [sortedByRisk]);",
     "pages/RiskDashboard.jsx:8:layer-import:page imports engines: ../engines/portfolioRiskEngine",
     "pages/SiteVisitReport.jsx:10:layer-import:page imports services: ../services/contractorReportService",

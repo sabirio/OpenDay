@@ -3,8 +3,8 @@ import { computePortfolioContractorScores } from "../engines/contractorEngine";
 import { useRiskRows } from "../hooks/useRiskRows";
 import { loadProjectTrend } from "../hooks/useProjectTrend";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
-import { getDiscrepancyHistory } from "../services/dashboardService";
 import { loadContractorReliability } from "../hooks/useContractorReliability";
+import { loadDiscrepancyHistory } from "../hooks/useDiscrepancyHistory";
 import { computeRiskSummaryStats } from "../engines/portfolioRiskEngine";
 import RiskSummaryKpis from "../components/risk/RiskSummaryKpis";
 import CriticalWarnings from "../components/risk/CriticalWarnings";
@@ -54,7 +54,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     Promise.all([
       loadContractorReliability(ids),
       Promise.all(ids.map(id => loadProjectTrend(id, 8).then(t => [id, t]))),
-      Promise.all(ids.map(id => getDiscrepancyHistory(id, 10).then(d => [id, d]))),
+      Promise.all(ids.map(id => loadDiscrepancyHistory(id, 10).then(d => [id, d]))),
     ]).then(([reliability, trends, discs]) => {
       setReliabilityMap(reliability);
       setProjectTrends(Object.fromEntries(trends));
