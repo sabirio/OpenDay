@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { getDefaultRoute } from '../engines/permissionEngine';
+import { getDefaultRouteForRole } from '../hooks/useDefaultRoute';
 
 function Unauthorized() {
   const { role, logout } = useAuth();
   const navigate = useNavigate();
 
   function goHome() {
-    navigate(getDefaultRoute(role), { replace: true });
+    navigate(getDefaultRouteForRole(role), { replace: true });
   }
 
   async function handleLogout() {
