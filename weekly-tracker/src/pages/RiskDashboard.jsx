@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { computePortfolioContractorScores } from "../engines/contractorEngine";
 import { useRiskRows } from "../hooks/useRiskRows";
 import { loadProjectTrend } from "../hooks/useProjectTrend";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { loadContractorReliability } from "../hooks/useContractorReliability";
 import { loadDiscrepancyHistory } from "../hooks/useDiscrepancyHistory";
-import { computeRiskSummaryStats } from "../engines/portfolioRiskEngine";
+import {
+  computeRiskDashboardContractorScores,
+  computeRiskDashboardSummaryStats,
+} from "../hooks/useRiskDashboardCalculations";
 import RiskSummaryKpis from "../components/risk/RiskSummaryKpis";
 import CriticalWarnings from "../components/risk/CriticalWarnings";
 import Glyph from "../components/risk/Glyph";
@@ -79,7 +81,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     [allRows, filterContractor]
   );
   const contractorTabScores = useMemo(() =>
-    computePortfolioContractorScores(contractorTabRows),
+    computeRiskDashboardContractorScores(contractorTabRows),
     [contractorTabRows]
   );
 
@@ -114,7 +116,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     return opts.sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [pmAlignRows]);
 
-  const summaryStats = useMemo(() => computeRiskSummaryStats(allRows), [allRows]);
+  const summaryStats = useMemo(() => computeRiskDashboardSummaryStats(allRows), [allRows]);
 
   return (
     <div>
