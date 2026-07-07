@@ -103,7 +103,6 @@
     "components/ScoreBar.jsx:38:calculation:const sy = v => h - (v / 100) * h;",
     "components/shared/PhotoGallery.jsx:2:layer-import:component imports services: ../../services/photoService",
     "components/shared/PhotoUpload.jsx:2:layer-import:component imports lib/supabase: ../../lib/supabase",
-    "components/Sidebar.jsx:4:layer-import:component imports engines: ../engines/permissionEngine",
     "components/sitevisit/ComparisonResultsView.jsx:131:status-literal:background: savedVisit.pmScheduleAssessment === \"On Track\" ? \"var(--field-success-bg)\" : savedVisit.pmScheduleAssessment === \"Critical\" ? \"var(--field-danger-bg)\" : \"var(--field-warning-bg)\",",
     "components/sitevisit/ComparisonResultsView.jsx:132:status-literal:color: savedVisit.pmScheduleAssessment === \"On Track\" ? \"var(--field-success-fg-dark)\" : savedVisit.pmScheduleAssessment === \"Critical\" ? \"var(--field-danger-fg-dark)\" : \"var(--field-warning-fg-dark)\",",
     "components/sitevisit/GanttPMTaskRow.jsx:1:layer-import:component imports engines: ../../engines/discrepancyEngine",

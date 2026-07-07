@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { getAllowedNavItems } from '../engines/permissionEngine';
+import { getAllowedNavItemsForRole } from '../hooks/useDefaultRoute';
 import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
 
 function ThemeToggle({ theme, onToggle }) {
@@ -29,7 +29,7 @@ function Sidebar() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const visibleNav = getAllowedNavItems(role, NAV_ITEMS);
+  const visibleNav = getAllowedNavItemsForRole(role, NAV_ITEMS);
   const badgeStyle = ROLE_BADGE_STYLES[role] ?? {};
 
   async function handleLogout() {
