@@ -11,7 +11,7 @@
 // build until the allowlist is deliberately updated, so accidental legacy
 // coupling can't creep back in silently.
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 
@@ -24,6 +24,7 @@ function check(label, condition) {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const srcRoot    = path.resolve(__dirname, '..'); // weekly-tracker/src/
+const allowlistPath = path.join(__dirname, 'architectureGuard.allowlist.json');
 
 function walk(dir, acc = []) {
   for (const ent of readdirSync(dir, { withFileTypes: true })) {
@@ -38,6 +39,17 @@ function walk(dir, acc = []) {
 const LEGACY_IMPORT_RE = /from\s+['"][^'"]*config\/(workPackages|reportWeights)(\.js)?['"]/;
 
 const allFiles = walk(srcRoot);
+const sourceFiles = allFiles
+  .map(file => ({
+    abs: file,
+    rel: path.relative(srcRoot, file).replace(/\\/g, '/'),
+    text: readFileSync(file, 'utf8'),
+  }))
+  .filter(({ rel }) =>
+    !rel.endsWith('.test.mjs') &&
+    !rel.includes('/__tests__/') &&
+    !rel.startsWith('tests/')
+  );
 const importers = new Map(); // relPath -> Set(module names imported: 'workPackages' | 'reportWeights')
 
 for (const file of allFiles) {
@@ -133,4 +145,173 @@ check(
 );
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
+
+// -----------------------------------------------------------------------------
+// Soft architecture guard: layer boundaries + obvious calculation leaks.
+//
+// This is intentionally baseline-ratcheted. Existing debt is recorded in
+// architectureGuard.allowlist.json; new violations fail immediately, and fixed
+// violations make the allowlist stale so it can only shrink over time.
+// -----------------------------------------------------------------------------
+
+const IMPORT_RE = /^\s*import(?:[\s\S]*?)from\s+['"]([^'"]+)['"]/gm;
+const STATUS_LITERALS = ['At Risk', 'Critical', 'Overdue', 'NOT_ACHIEVABLE', 'Delayed', 'CRITICAL', 'HIGH'];
+const STATUS_BRANCH_RE = /(===|!==|==|!=|\.includes\(|\bcase\b|\bswitch\b)/;
+const SERVICE_DOMAIN_TOKENS = /\b(spi|discrepancy|progress|weight|risk|score|plannedAvg|delta|planned|actual)\b/i;
+const CALC_RE = /(\.reduce\(|\.filter\([^)]*\)\.length|Math\.(round|min|max|abs|floor|ceil)\(|\*\s*100|\/\s*100|\/\s*86400000)/;
+
+function layerOf(rel) {
+  if (rel.startsWith('pages/')) return 'page';
+  if (rel.startsWith('components/')) return 'component';
+  if (rel.startsWith('hooks/')) return 'hook';
+  if (rel.startsWith('services/')) return 'service';
+  if (rel.startsWith('core/')) return 'core';
+  return 'other';
+}
+
+function importTargetLayer(spec) {
+  const normalized = spec.replace(/\\/g, '/');
+  if (normalized.includes('/engines/') || normalized.startsWith('../engines') || normalized.startsWith('../../engines')) return 'engines';
+  if (normalized.includes('/core/') || normalized.startsWith('../core') || normalized.startsWith('../../core')) return 'core';
+  if (normalized.includes('/services/') || normalized.startsWith('../services') || normalized.startsWith('../../services')) return 'services';
+  if (normalized.includes('/lib/supabase') || normalized.startsWith('../lib/supabase') || normalized.startsWith('../../lib/supabase')) return 'lib/supabase';
+  return null;
+}
+
+function severityFor(rule, layer, target = '') {
+  if (rule === 'layer-import') return 'A';
+  if (rule === 'service-purity') return 'A';
+  if (rule === 'calculation' && layer === 'core') return 'B';
+  if (rule === 'status-literal') return 'B';
+  return target ? 'A' : 'B';
+}
+
+function addViolation(list, { rel, line = 1, rule, layer, detail, target = '' }) {
+  list.push({
+    id: `${rel}:${line}:${rule}:${detail}`,
+    file: rel,
+    line,
+    rule,
+    severity: severityFor(rule, layer, target),
+    layer,
+    target,
+    detail,
+  });
+}
+
+function scanArchitectureDebt() {
+  const violations = [];
+
+  for (const { rel, text } of sourceFiles) {
+    const layer = layerOf(rel);
+    if (layer === 'other') continue;
+
+    for (const match of text.matchAll(IMPORT_RE)) {
+      const spec = match[1];
+      const target = importTargetLayer(spec);
+      if (!target) continue;
+
+      const prefix = text.slice(0, match.index);
+      const line = prefix.split('\n').length;
+      const forbidden =
+        ((layer === 'page' || layer === 'component') && ['engines', 'core', 'services', 'lib/supabase'].includes(target)) ||
+        (layer === 'hook' && ['engines', 'services', 'lib/supabase'].includes(target)) ||
+        (layer === 'service' && ['engines', 'core'].includes(target));
+
+      if (forbidden) {
+        addViolation(violations, {
+          rel, line, rule: 'layer-import', layer, target,
+          detail: `${layer} imports ${target}: ${spec}`,
+        });
+      }
+    }
+
+    const lines = text.split('\n');
+    lines.forEach((lineText, index) => {
+      const lineNo = index + 1;
+      const trimmed = lineText.trim();
+      if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*')) return;
+      if (/filter\(Boolean\)|filter\(\s*\w+\s*=>\s*\w+\s*\)/.test(trimmed)) return;
+
+      if (layer === 'service' && CALC_RE.test(trimmed) && SERVICE_DOMAIN_TOKENS.test(trimmed)) {
+        addViolation(violations, {
+          rel, line: lineNo, rule: 'service-purity', layer,
+          detail: trimmed,
+        });
+      } else if (['page', 'component', 'hook', 'core'].includes(layer) && CALC_RE.test(trimmed)) {
+        addViolation(violations, {
+          rel, line: lineNo, rule: 'calculation', layer,
+          detail: trimmed,
+        });
+      }
+
+      if (STATUS_BRANCH_RE.test(trimmed) && STATUS_LITERALS.some(lit => trimmed.includes(`'${lit}'`) || trimmed.includes(`"${lit}"`))) {
+        addViolation(violations, {
+          rel, line: lineNo, rule: 'status-literal', layer,
+          detail: trimmed,
+        });
+      }
+    });
+  }
+
+  return violations.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function readAllowlist() {
+  try {
+    const parsed = JSON.parse(readFileSync(allowlistPath, 'utf8'));
+    return new Set(parsed.knownViolations ?? []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeAllowlist(violations) {
+  const payload = {
+    mode: 'soft',
+    generatedBy: 'src/tests/architectureGuard.test.mjs --write-allowlist',
+    note: 'Baseline of known architecture debt. Ratchet only: remove ids as code is fixed; do not add new ids except during an intentional baseline reset.',
+    knownViolations: violations.map(v => v.id),
+  };
+  writeFileSync(allowlistPath, `${JSON.stringify(payload, null, 2)}\n`);
+}
+
+const archViolations = scanArchitectureDebt();
+if (process.argv.includes('--write-allowlist')) {
+  writeAllowlist(archViolations);
+  console.log(`architectureGuard soft baseline written: ${archViolations.length} known violations`);
+  process.exit(0);
+}
+
+const allowedDebt = readAllowlist();
+const currentIds = new Set(archViolations.map(v => v.id));
+const newViolations = archViolations.filter(v => !allowedDebt.has(v.id));
+const staleAllowlist = [...allowedDebt].filter(id => !currentIds.has(id));
+
+const debtBySeverity = archViolations.reduce((acc, v) => {
+  acc[v.severity] = (acc[v.severity] ?? 0) + 1;
+  return acc;
+}, {});
+const debtByRule = archViolations.reduce((acc, v) => {
+  acc[v.rule] = (acc[v.rule] ?? 0) + 1;
+  return acc;
+}, {});
+
+console.log(
+  `Architecture debt: ${archViolations.length} known violations remaining ` +
+  `(A:${debtBySeverity.A ?? 0}, B:${debtBySeverity.B ?? 0}, C:${debtBySeverity.C ?? 0}; ` +
+  Object.entries(debtByRule).map(([rule, n]) => `${rule}:${n}`).join(', ') +
+  ')'
+);
+
+check(
+  `no new layer/calculation/service/status architecture violations (new: ${newViolations.map(v => v.id).slice(0, 5).join(' | ') || 'none'})`,
+  newViolations.length === 0
+);
+check(
+  `architecture allowlist has no stale fixed entries (stale: ${staleAllowlist.slice(0, 5).join(' | ') || 'none'})`,
+  staleAllowlist.length === 0
+);
+
+console.log(`\n-- FINAL RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);
