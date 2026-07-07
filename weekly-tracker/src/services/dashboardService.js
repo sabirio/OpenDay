@@ -40,38 +40,12 @@ export async function getDiscrepancyHistory(projectId, limit = 20) {
   }));
 }
 
-/**
- * Get contractor reliability score for a given list of project IDs.
- * Score = 1 - (critical_discrepancies / total_discrepancies), per project.
- * Returns Map<projectId, { score, critical, warning, ok, total }>
- */
-export async function getContractorReliability(projectIds) {
-  if (!projectIds || projectIds.length === 0) return new Map();
-
+export async function fetchContractorReliabilityRecords(projectIds) {
+  if (!projectIds || projectIds.length === 0) return [];
   const { data: discs, error } = await supabase
     .from('site_visit_discrepancies')
     .select('project_id,status')
     .in('project_id', projectIds);
   if (error) throw error;
-
-  const byProject = new Map();
-  for (const d of discs || []) {
-    if (!byProject.has(d.project_id)) byProject.set(d.project_id, { ok: 0, warning: 0, critical: 0 });
-    const bucket = byProject.get(d.project_id);
-    if      (d.status === 'critical') bucket.critical++;
-    else if (d.status === 'warning')  bucket.warning++;
-    else                              bucket.ok++;
-  }
-
-  const result = new Map();
-  for (const pid of projectIds) {
-    const b     = byProject.get(pid) || { ok: 0, warning: 0, critical: 0 };
-    const total = b.ok + b.warning + b.critical;
-    result.set(pid, {
-      ...b,
-      total,
-      score: total > 0 ? Math.round((1 - b.critical / total) * 100) : null,
-    });
-  }
-  return result;
+  return discs || [];
 }

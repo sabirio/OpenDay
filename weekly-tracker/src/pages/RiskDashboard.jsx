@@ -3,7 +3,8 @@ import { computePortfolioContractorScores } from "../engines/contractorEngine";
 import { useRiskRows } from "../hooks/useRiskRows";
 import { getProjectTrend } from "../services/ganttService";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
-import { getDiscrepancyHistory, getContractorReliability } from "../services/dashboardService";
+import { getDiscrepancyHistory } from "../services/dashboardService";
+import { loadContractorReliability } from "../hooks/useContractorReliability";
 import { computeRiskSummaryStats } from "../engines/portfolioRiskEngine";
 import RiskSummaryKpis from "../components/risk/RiskSummaryKpis";
 import CriticalWarnings from "../components/risk/CriticalWarnings";
@@ -51,7 +52,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     setGanttSpiLoading(true);
     const ids = projects.map(p => p.id);
     Promise.all([
-      getContractorReliability(ids),
+      loadContractorReliability(ids),
       Promise.all(ids.map(id => getProjectTrend(id, 8).then(t => [id, t]))),
       Promise.all(ids.map(id => getDiscrepancyHistory(id, 10).then(d => [id, d]))),
     ]).then(([reliability, trends, discs]) => {
