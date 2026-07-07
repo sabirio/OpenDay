@@ -1,4 +1,4 @@
-import { RISK_COLORS } from "../engines/riskEngine";
+import { RISK_COLORS } from "../config/riskConfig";
 
 export function RiskGauge({ score, level, color }) {
   const R = 45, C = 2 * Math.PI * R, dash = (score / 100) * C;

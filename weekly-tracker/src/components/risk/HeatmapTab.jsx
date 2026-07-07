@@ -1,4 +1,4 @@
-import { RISK_COLORS, RISK_DIMENSIONS } from "../../engines/riskEngine";
+import { RISK_COLORS, RISK_DIMENSIONS } from "../../config/riskConfig";
 import { DimCell } from "../RiskGauge";
 
 function HeatmapTab({ sortedByRisk }) {

@@ -1,4 +1,4 @@
-import { RISK_COLORS } from "../engines/riskEngine";
+import { RISK_COLORS } from "../config/riskConfig";
 import { getScoreTier, SCORE_TIER_COLORS, getScheduleDeviationColor } from "../config/statusColors";
 import { RiskBadge, HealthBadge } from "./RiskGauge";
 import { MiniRiskSparkline } from "./ScoreBar";

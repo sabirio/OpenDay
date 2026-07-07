@@ -1,4 +1,4 @@
-import { RISK_COLORS } from "../../engines/riskEngine";
+import { RISK_COLORS } from "../../config/riskConfig";
 import { RiskBadge } from "../RiskGauge";
 import Glyph from "./Glyph";
 
