@@ -17,7 +17,7 @@ import EscalationsTab from "../components/risk/EscalationsTab";
 import ContractorsTab from "../components/risk/ContractorsTab";
 import PmAlignmentTab from "../components/risk/PmAlignmentTab";
 import GanttSpiTab from "../components/risk/GanttSpiTab";
-import { RISK_COLORS } from "../engines/riskEngine";
+import { RISK_COLORS } from "../config/riskConfig";
 import { useAuth } from "../auth/AuthContext";
 import PrintHeader from "../components/print/PrintHeader";
 import ExportButton from "../components/print/ExportButton";

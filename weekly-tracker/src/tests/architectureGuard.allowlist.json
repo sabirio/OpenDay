@@ -180,7 +180,6 @@
     "pages/Projects.jsx:2:layer-import:page imports services: ../services/ganttService",
     "pages/Projects.jsx:3:layer-import:page imports services: ../services/projectService",
     "pages/Projects.jsx:4:layer-import:page imports services: ../services/conflictGuard",
-    "pages/RiskDashboard.jsx:20:layer-import:page imports engines: ../engines/riskEngine",
     "pages/RiskDashboard.jsx:71:status-literal:const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === \"CRITICAL\"), [sortedByRisk]);",
     "pages/SiteVisitReport.jsx:10:layer-import:page imports services: ../services/contractorReportService",
     "pages/SiteVisitReport.jsx:8:layer-import:page imports services: ../services/ganttService",
