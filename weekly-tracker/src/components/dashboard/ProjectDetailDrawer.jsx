@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { computeProjectSummary } from '../../engines/projectSummaryEngine';
 import { formatDate } from '../../utils/reportUtils';
-import { RISK_LEVEL_COLORS } from '../../config/statusColors';
+import { RISK_LEVEL_COLORS, getReportAgeColor } from '../../config/statusColors';
 import { SchedBadge } from './DashboardWidgets';
 import PhaseProgress from './PhaseProgress';
 import TimelineFlag from './TimelineFlag';
@@ -11,10 +11,10 @@ const RL = RISK_LEVEL_COLORS;
 
 function ReportAgeBadge({ daysSince }) {
   if (daysSince === null) return <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-alert)' }}>Never reported</span>;
-  if (daysSince === 0)    return <span style={{ fontSize: 11, color: 'var(--status-done)' }}>Today</span>;
-  if (daysSince <= 7)     return <span style={{ fontSize: 11, color: 'var(--status-done)' }}>{daysSince}d ago</span>;
-  if (daysSince <= 14)    return <span style={{ fontSize: 11, color: 'var(--status-warn)' }}>{daysSince}d ago</span>;
-  return <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-alert)' }}>Overdue {daysSince}d</span>;
+  const color = getReportAgeColor(daysSince);
+  if (daysSince === 0)    return <span style={{ fontSize: 11, color }}>Today</span>;
+  if (daysSince <= 14)    return <span style={{ fontSize: 11, color }}>{daysSince}d ago</span>;
+  return <span style={{ fontSize: 11, fontWeight: 700, color }}>Overdue {daysSince}d</span>;
 }
 
 function StatusDot({ ok, critical }) {

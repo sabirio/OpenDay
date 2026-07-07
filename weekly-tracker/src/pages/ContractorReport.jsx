@@ -7,8 +7,9 @@ import {
   submitReport as submitContractorReport,
 } from "../services/contractorReportService";
 import { getById as getProjectById } from "../services/projectService";
-import { computeWPCumulativeStatuses, computeCumulativeStatuses } from "../utils/reportUtils";
+import { computeWPCumulativeStatuses, computeCumulativeStatuses, buildCumulativeWPStatuses, daysSince } from "../utils/reportUtils";
 import { calculateProjectProgressResult, calculateRawWPAverageProgress } from "../engines/progressEngine";
+import { getConstructionWeekInfo } from "../utils/scheduleUtils";
 import { getWPGrouping, isZonedTemplate } from "../core/projects/grouping/getWPGrouping";
 import { buildV2ProgressTemplate } from "../core/projects/weights/buildV2ProgressTemplate";
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
@@ -29,8 +30,6 @@ import WorkPackageProgressSection from "../components/contractor/WorkPackageProg
 import LookAheadDeclarationSection from "../components/contractor/LookAheadDeclarationSection";
 import {
   deriveOldPhasesFromPackages,
-  getConstructionWeekInfo,
-  buildCumulativeWPStatuses,
   makeInitialForm,
   validateContractorReport,
 } from "../components/contractor/formHelpers";
@@ -381,8 +380,7 @@ function ContractorReport({ projects, reports }) {
   const weekInfo = startDate && endDate ? getConstructionWeekInfo(startDate, endDate, refDate) : null;
   const weekPct = weekInfo && weekInfo.totalWeeks > 0 ? Math.round((weekInfo.weekNumber / weekInfo.totalWeeks) * 100) : 0;
 
-  const lastReportDate = prevReport ? new Date(prevReport.reportingDate || prevReport.submittedAt) : null;
-  const daysSinceLast = lastReportDate ? Math.floor((new Date() - lastReportDate) / 86400000) : null;
+  const daysSinceLast = prevReport ? daysSince(prevReport.reportingDate || prevReport.submittedAt) : null;
 
 
   return (

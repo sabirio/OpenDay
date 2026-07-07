@@ -13,7 +13,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult, calculateWPTaskWeightedProgress, calculateRawWPAverageProgress, calculateGanttPhaseAverageProgress, calculatePhaseAverageProgressWithOverrides } =
+const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult, calculateWPTaskWeightedProgress, calculateRawWPAverageProgress, calculateGanttPhaseAverageProgress, calculatePhaseAverageProgressWithOverrides, getWPStatusTier, getDefaultProgressForGanttStatus } =
   await import('../engines/progressEngine.js');
 
 const { getCommands } = await import('../engines/commandEngine.js');
@@ -317,6 +317,33 @@ console.log('\ncalculatePhaseAverageProgressWithOverrides — pinned against pre
     calculatePhaseAverageProgressWithOverrides(
       [{ id: 'a' }, { id: 'b', actual_progress: 50 }], {}
     ) === 25);
+}
+
+// ── getWPStatusTier — pinned against pre-refactor sharedUtils.statusColor()/
+// PhaseStepper.jsx/PhaseTimeline.jsx local score-threshold duplicates
+// (architecture-conformance pass: 3 UI files independently reimplemented
+// this exact >=1/>=0.5/>=0.3 tiering) ───────────────────────────────────────
+console.log('\ngetWPStatusTier — pinned against pre-refactor UI score-threshold duplicates');
+{
+  assert('Completed (score 1) -> done',        getWPStatusTier('Completed') === 'done');
+  assert('In Progress (score 0.5) -> good',    getWPStatusTier('In Progress') === 'good');
+  assert('Delayed (score 0.3) -> warn',        getWPStatusTier('Delayed') === 'warn');
+  assert('Not Started (score 0) -> muted',     getWPStatusTier('Not Started') === 'muted');
+  assert('Not Applicable (score null) -> muted (?? 0 fallback)', getWPStatusTier('Not Applicable') === 'muted');
+  assert('unknown status -> muted (?? 0 fallback)', getWPStatusTier('bogus-status') === 'muted');
+  assert('undefined status -> muted, no throw', getWPStatusTier(undefined) === 'muted');
+}
+
+// ── getDefaultProgressForGanttStatus — pinned against pre-refactor
+// GanttWPSection.jsx (contractor)/GanttPMTaskRow.jsx (PM site-visit) local
+// duplicates (architecture-conformance pass) ────────────────────────────────
+console.log('\ngetDefaultProgressForGanttStatus — pinned against pre-refactor GanttWPSection/GanttPMTaskRow duplicates');
+{
+  assert('completed -> always 100, regardless of current progress', getDefaultProgressForGanttStatus('completed', 40) === 100);
+  assert('not_started -> always 0, regardless of current progress', getDefaultProgressForGanttStatus('not_started', 77) === 0);
+  assert('in_progress -> keeps current progress unchanged',         getDefaultProgressForGanttStatus('in_progress', 42) === 42);
+  assert('delayed -> keeps current progress unchanged',             getDefaultProgressForGanttStatus('delayed', 42) === 42);
+  assert('blocked -> keeps current progress unchanged',             getDefaultProgressForGanttStatus('blocked', 42) === 42);
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────

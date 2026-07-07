@@ -1,5 +1,6 @@
-import { WP_STATUS_SCORES } from '../../config/statusScores';
-
+// Only ever fed report.projectScheduleStatus (a 3-value enum: On Track/At
+// Risk/Critical, plus legacy 'Delayed') — all covered by SCHED_COLOR, so no
+// WP-status fallback is needed here.
 const SCHED_COLOR = {
   'On Track': 'var(--status-done)',
   'Critical': 'var(--status-alert)',
@@ -9,14 +10,7 @@ const SCHED_COLOR = {
 
 export function StatusBadge({ value }) {
   if (!value || value === '-') return <span style={{ color: 'var(--text-muted)' }}>—</span>;
-  const scheduleColor = SCHED_COLOR[value] || null;
-  const score = WP_STATUS_SCORES[value] ?? null;
-  const color = scheduleColor ?? (
-    score >= 1   ? 'var(--status-done)'  :
-    score >= 0.5 ? 'var(--status-warn)'  :
-    score > 0    ? 'var(--accent)'       :
-                   'var(--text-muted)'
-  );
+  const color = SCHED_COLOR[value] || 'var(--text-muted)';
   return (
     <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: 'var(--accent-subtle)', color, border: '1px solid var(--border)' }}>
       {value}

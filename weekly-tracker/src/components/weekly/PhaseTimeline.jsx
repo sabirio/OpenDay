@@ -4,8 +4,10 @@
  * Clicking a phase cell opens its WP detail in a full-width panel below.
  */
 import { useState, Fragment } from 'react';
-import { WP_STATUS_SCORES } from '../../config/statusScores';
+import { getWPStatusTier } from '../../engines/progressEngine';
 import { statusColor, statusStyles } from './sharedUtils';
+
+const TIER_GLYPH = { done: '✓', good: '▶', warn: '⚠', muted: '·' };
 
 function DeltaIndicator({ d }) {
   if (!d) return null;
@@ -202,8 +204,7 @@ export default function PhaseTimeline({ phases, mergedStatuses, wpDeltas, phaseC
                   const wpStatus = entry.status || 'Not Started';
                   const tc       = statusColor(wpStatus);
                   const ts       = statusStyles(wpStatus);
-                  const score    = WP_STATUS_SCORES[wpStatus] ?? 0;
-                  const lbl      = score >= 1 ? '✓' : score >= 0.5 ? '▶' : score >= 0.3 ? '⚠' : '·';
+                  const lbl      = TIER_GLYPH[getWPStatusTier(wpStatus)];
                   const wpDelta  = wpDeltas?.[activePhase.id]?.[taskName];
                   return (
                     <div key={taskName} style={{

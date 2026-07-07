@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { ProjectSchema, ProgressHistoryRowSchema } from '../schemas/projectSchema';
 import { validateArray, validateOne } from '../schemas/validate';
+import { isoWeekToMonday } from '../utils/scheduleUtils';
 
 const LEGACY_PHASE_MAP = {
   'Demolition works':        'demolition',
@@ -155,11 +156,7 @@ export async function getById(id) {
 }
 
 export async function getProgressSnapshot(isoWeekStr) {
-  const [yearStr, weekStr] = isoWeekStr.split('-W');
-  const year = parseInt(yearStr), week = parseInt(weekStr);
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const jan4Day = jan4.getUTCDay() || 7;
-  const monday = new Date(jan4.getTime() - (jan4Day - 1) * 86400000 + (week - 1) * 7 * 86400000);
+  const monday = isoWeekToMonday(isoWeekStr);
   const nextMonday = new Date(monday.getTime() + 7 * 86400000);
 
   const { data, error } = await supabase

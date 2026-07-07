@@ -1,4 +1,5 @@
 import { RISK_COLORS } from "../../engines/riskEngine";
+import { getOpeningUrgencyColor, getScheduleDeviationColor } from "../../config/statusColors";
 import { RiskGauge, HealthBadge } from "../RiskGauge";
 import { FactorPill, MiniRiskSparkline } from "../ScoreBar";
 import { RiskTable } from "../RiskTable";
@@ -73,7 +74,7 @@ function OverviewTab({ sortedByRisk, expandedRow, setExpandedRow }) {
                   {[
                     { label: "Expected", value: `${schedDev.expectedPct}%`, color: "var(--text-primary)" },
                     { label: "Actual",   value: `${schedDev.actualPct}%`,   color: "var(--text-primary)" },
-                    { label: "Deviation", value: schedDev.deviationPct > 0 ? `−${schedDev.deviationPct}%` : "On track", color: schedDev.deviationPct > 15 ? "var(--status-alert)" : schedDev.deviationPct > 5 ? "var(--status-warn)" : "var(--status-done)" },
+                    { label: "Deviation", value: schedDev.deviationPct > 0 ? `−${schedDev.deviationPct}%` : "On track", color: getScheduleDeviationColor(schedDev.deviationPct) },
                     schedDev.predictedDelayDays > 0 && { label: "Pred. delay", value: `+${schedDev.predictedDelayDays}d`, color: "var(--status-alert)" },
                     schedDev.predictedDelayDays > 0 && schedDev.predictedOpeningDate && { label: "Pred. opening", value: schedDev.predictedOpeningDate.toLocaleDateString("en-GB"), color: "var(--status-alert)" },
                   ].filter(Boolean).map(({ label, value, color }) => (
@@ -93,7 +94,7 @@ function OverviewTab({ sortedByRisk, expandedRow, setExpandedRow }) {
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-muted)", marginBottom: 6 }}>Risk Evolution</div>
                 <MiniRiskSparkline points={evolution} />
                 {dTo !== null && (
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 10, fontSize: 12, fontWeight: 700, color: dTo < 0 ? "var(--status-alert)" : dTo < 30 ? "var(--status-alert)" : dTo < 90 ? "var(--status-warn)" : "var(--status-done)" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 10, fontSize: 12, fontWeight: 700, color: getOpeningUrgencyColor(dTo) }}>
                     {dTo < 0 ? <><Glyph name="block" /> {Math.abs(dTo)}d overdue</> : <><Glyph name="calendar" /> {dTo}d to open</>}
                   </div>
                 )}

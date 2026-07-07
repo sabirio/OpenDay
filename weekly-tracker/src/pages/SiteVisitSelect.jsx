@@ -1,16 +1,11 @@
 import { useNavigate } from 'react-router-dom';
+import { daysUntil } from '../utils/reportUtils';
+import { getOpeningUrgencyColor } from '../config/statusColors';
 
 function ProjectRow({ project }) {
   const navigate = useNavigate();
-  const daysToOpening = project.targetOpeningDate
-    ? Math.ceil((new Date(project.targetOpeningDate) - new Date()) / 86400000)
-    : null;
-  const urgencyColor =
-    daysToOpening === null ? 'var(--text-muted)'
-    : daysToOpening < 0   ? 'var(--status-alert)'
-    : daysToOpening < 30  ? 'var(--status-alert)'
-    : daysToOpening < 90  ? 'var(--status-warn)'
-    : 'var(--status-done)';
+  const daysToOpening = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
+  const urgencyColor = getOpeningUrgencyColor(daysToOpening);
 
   const openingLabel =
     daysToOpening === null  ? null

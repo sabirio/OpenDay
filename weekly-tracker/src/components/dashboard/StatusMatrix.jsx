@@ -1,4 +1,5 @@
 import { formatDate } from '../../utils/reportUtils';
+import { getOpeningUrgencyColor, getReportAgeColor } from '../../config/statusColors';
 import { SchedBadge, RiskBadge } from './DashboardWidgets';
 import { calculateProgressDelta } from '../../engines/progressDeltaEngine';
 
@@ -9,10 +10,10 @@ function currentPhaseLabel(row) {
 
 function reportTag({ latestReport, daysSinceReport }) {
   if (!latestReport)         return <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-alert)' }}>Missing</span>;
-  if (daysSinceReport === 0) return <span style={{ fontSize: 11, color: 'var(--status-done)' }}>Today</span>;
-  if (daysSinceReport <= 7)  return <span style={{ fontSize: 11, color: 'var(--status-done)' }}>{daysSinceReport}d ago</span>;
-  if (daysSinceReport <= 14) return <span style={{ fontSize: 11, color: 'var(--status-warn)' }}>{daysSinceReport}d ago</span>;
-  return <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-alert)' }}>Overdue {daysSinceReport}d</span>;
+  const color = getReportAgeColor(daysSinceReport);
+  if (daysSinceReport === 0) return <span style={{ fontSize: 11, color }}>Today</span>;
+  if (daysSinceReport <= 14) return <span style={{ fontSize: 11, color }}>{daysSinceReport}d ago</span>;
+  return <span style={{ fontSize: 11, fontWeight: 700, color }}>Overdue {daysSinceReport}d</span>;
 }
 
 export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, snapshotData = {}, snapshotMode = false }) {
@@ -40,7 +41,7 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
               const phase       = currentPhaseLabel(row);
               const schedStatus = latestReport?.projectScheduleStatus;
               const isOpen      = drawerProjectId === String(project.id);
-              const dToC        = daysToOpening === null ? 'var(--text-muted)' : daysToOpening < 0 ? 'var(--status-alert)' : daysToOpening < 30 ? 'var(--status-alert)' : daysToOpening < 90 ? 'var(--status-warn)' : 'var(--status-done)';
+              const dToC        = getOpeningUrgencyColor(daysToOpening);
 
               const snapRow        = snapshotMode ? snapshotData[project.id] : null;
               const displayProgress = snapRow != null ? Math.round(snapRow.overall_progress) : progress;

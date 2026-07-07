@@ -1,4 +1,5 @@
 import { ScoreBar } from "../ScoreBar";
+import { getScoreTier, SCORE_TIER_COLORS } from "../../config/statusColors";
 import FilterBar from "./FilterBar";
 
 function ContractorsTab({
@@ -65,7 +66,7 @@ function ContractorsTab({
                         {contScore.pmAlignmentDetails.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>No PM site visits recorded yet</div>}
                         {contScore.pmAlignmentDetails.map((d, i) => (
                           <div key={i} style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 6 }}>
-                            Visit {new Date(d.visitDate).toLocaleDateString("en-GB")}: <span style={{ fontWeight: 700, color: d.matchRate >= 80 ? "var(--status-done)" : d.matchRate >= 60 ? "var(--status-warn)" : "var(--status-alert)" }}>{d.matchRate}% match</span>
+                            Visit {new Date(d.visitDate).toLocaleDateString("en-GB")}: <span style={{ fontWeight: 700, color: SCORE_TIER_COLORS[getScoreTier(d.matchRate)] }}>{d.matchRate}% match</span>
                             {d.overstatements > 0 && <span style={{ color: "var(--status-alert)", marginLeft: 8 }}>· {d.overstatements} overstated</span>}
                           </div>
                         ))}

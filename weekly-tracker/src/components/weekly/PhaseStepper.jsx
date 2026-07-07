@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { WP_STATUS_SCORES } from '../../config/statusScores';
-import { calculateWPTaskWeightedProgress } from '../../engines/progressEngine';
+import { calculateWPTaskWeightedProgress, getWPStatusTier } from '../../engines/progressEngine';
 import { statusColor, statusStyles } from './sharedUtils';
+
+const TIER_GLYPH = { done: '✓', good: '▶', warn: '⚠', muted: '·' };
 
 const SHORT_NAME = name =>
   name
@@ -145,8 +146,7 @@ export default function PhaseStepper({ workPackages, mergedStatuses, reportKey, 
                     const status = entry.status || 'Not Started';
                     const tc     = statusColor(status);
                     const ts     = statusStyles(status);
-                    const score  = WP_STATUS_SCORES[status] ?? 0;
-                    const lbl    = score >= 1 ? '✓' : score >= 0.5 ? '▶' : score >= 0.3 ? '⚠' : '·';
+                    const lbl    = TIER_GLYPH[getWPStatusTier(status)];
                     const delta  = wpDeltas?.[activeWP.id]?.[taskName];
                     return (
                       <div key={taskName} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: '1px solid var(--border)' }}>

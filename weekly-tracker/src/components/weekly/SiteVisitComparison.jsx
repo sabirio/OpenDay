@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { formatDate } from '../../utils/reportUtils';
+import { getScoreTier, SCORE_TIER_COLORS } from '../../config/statusColors';
 import { KpiCard } from '../dashboard/DashboardWidgets';
 
 const SCHED_CHIP = {
@@ -13,7 +14,7 @@ const SCHED_FALLBACK = { bg: 'var(--bg-elevated)', color: 'var(--text-muted)' };
 export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, onExpandedChange }) {
   const cols = ['Item', 'GC Report', 'PM Observed', 'Δ', 'Result'];
   const matchRateColor = (rate) =>
-    rate === null ? 'var(--text-muted)' : rate >= 80 ? 'var(--status-done)' : rate >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
+    rate === null ? 'var(--text-muted)' : SCORE_TIER_COLORS[getScoreTier(rate)];
 
   return (
     <section className="weekly-comparison-section">

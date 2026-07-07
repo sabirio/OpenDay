@@ -1,3 +1,7 @@
+import { getScoreTier } from '../../config/statusColors';
+
+const SCORE_TIER_TONE = { good: 'good', warn: 'warning', critical: 'critical' };
+
 function TruthCell({ label, value, sub, tone = 'neutral' }) {
   return (
     <div className={`weekly-truth-cell tone-${tone}`}>
@@ -59,7 +63,7 @@ export default function ReportTruthBar({
         label="PM match"
         value={matchRate !== null && matchRate !== undefined ? `${matchRate}%` : '—'}
         sub={svKpis?.totalVisits > 0 ? `${svKpis.totalVisits} visit${svKpis.totalVisits === 1 ? '' : 's'}` : 'not verified'}
-        tone={matchRate === null || matchRate === undefined ? 'warning' : matchRate >= 80 ? 'good' : matchRate >= 60 ? 'warning' : 'critical'}
+        tone={matchRate === null || matchRate === undefined ? 'warning' : SCORE_TIER_TONE[getScoreTier(matchRate)]}
       />
       <TruthCell label="Risk" value={risk} tone={risk === '—' ? 'neutral' : risk === 'High' ? 'critical' : 'warning'} />
       <TruthCell label="Blocked" value={blocked} tone={blocked === 'Yes' ? 'critical' : blocked === 'No' ? 'good' : 'neutral'} />

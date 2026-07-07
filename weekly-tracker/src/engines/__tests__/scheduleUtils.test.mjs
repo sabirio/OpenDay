@@ -1,7 +1,14 @@
-// scheduleUtils.test.mjs — unit tests for computeExpectedPct (AD-001)
+// scheduleUtils.test.mjs — unit tests for computeExpectedPct (AD-001) and the
+// ISO-week / construction-week helpers added during the "no domain logic in
+// UI" architecture-conformance pass (moved out of Dashboard.jsx,
+// services/projectService.js and components/contractor/formHelpers.js).
 // Run: node src/engines/__tests__/scheduleUtils.test.mjs
 
-import { computeExpectedPct, DAY_MS } from '../../utils/scheduleUtils.js';
+import {
+  computeExpectedPct, DAY_MS,
+  isoWeekToMonday, currentISOWeek,
+  calculateWeeksBetween, getConstructionWeekInfo,
+} from '../../utils/scheduleUtils.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -184,6 +191,67 @@ console.log('\nE) referenceDate parameter');
     { constructionStartDate: iso(start.getTime()), constructionEndDate: iso(end.getTime()) },
   );
   check('E4: default referenceDate = today → ~50%', Math.abs(pct - 50) <= 1);
+}
+
+// ── F) isoWeekToMonday — pinned against pre-refactor Dashboard.jsx/projectService.js output ──
+
+console.log('\nF) isoWeekToMonday');
+
+// F1: known ISO week -> known Monday (2026-W27 -> 2026-06-29, verified against ISO 8601 calendar)
+check('F1: 2026-W27 -> 2026-06-29 (Monday)',
+  isoWeekToMonday('2026-W27').toISOString().split('T')[0] === '2026-06-29');
+
+// F2: week 1 of 2027 (ISO week 1 is the week containing the year's first Thursday)
+check('F2: 2027-W01 -> 2027-01-04 (Monday)',
+  isoWeekToMonday('2027-W01').toISOString().split('T')[0] === '2027-01-04');
+
+// F3: consecutive weeks are exactly 7 days apart
+{
+  const w1 = isoWeekToMonday('2026-W10').getTime();
+  const w2 = isoWeekToMonday('2026-W11').getTime();
+  check('F3: consecutive weeks are exactly 7 days apart', (w2 - w1) === 7 * DAY_MS);
+}
+
+// ── G) currentISOWeek — round-trips through isoWeekToMonday ──────────────────
+
+console.log('\nG) currentISOWeek');
+
+// G1: format is YYYY-Www
+check('G1: format matches /^\\d{4}-W\\d{2}$/', /^\d{4}-W\d{2}$/.test(currentISOWeek()));
+
+// G2: today falls within [monday, monday+7days) of its own reported week
+{
+  const now = new Date();
+  const wk = currentISOWeek(now);
+  const monday = isoWeekToMonday(wk);
+  const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  check('G2: today is within [Monday, Monday+7d) of currentISOWeek(today)',
+    todayUTC.getTime() >= monday.getTime() && todayUTC.getTime() < monday.getTime() + 7 * DAY_MS);
+}
+
+// G3: explicit reference date -> deterministic week (2026-07-07 is in ISO week 2026-W28)
+check('G3: explicit reference date 2026-07-07 -> 2026-W28',
+  currentISOWeek(new Date('2026-07-07T12:00:00Z')) === '2026-W28');
+
+// ── H) calculateWeeksBetween / getConstructionWeekInfo — pinned against pre-refactor formHelpers.js output ──
+
+console.log('\nH) calculateWeeksBetween / getConstructionWeekInfo');
+
+check('H1: exactly 7 days -> 1 week', calculateWeeksBetween(new Date('2026-01-01'), new Date('2026-01-08')) === 1);
+check('H2: 8 days -> rounds up to 2 weeks', calculateWeeksBetween(new Date('2026-01-01'), new Date('2026-01-09')) === 2);
+check('H3: end before start -> clamped to 0, not negative', calculateWeeksBetween(new Date('2026-01-08'), new Date('2026-01-01')) === 0);
+
+{
+  const start = new Date('2026-01-01');
+  const end   = new Date('2026-03-01'); // 59 days -> 9 weeks
+  check('H4: reference before start -> weekNumber 0',
+    getConstructionWeekInfo(start, end, new Date('2025-12-01')).weekNumber === 0);
+  check('H5: reference at/after end -> weekNumber === totalWeeks (construction complete)',
+    getConstructionWeekInfo(start, end, end).weekNumber === getConstructionWeekInfo(start, end, end).totalWeeks);
+  check('H6: reference exactly at start -> week 1',
+    getConstructionWeekInfo(start, end, start).weekNumber === 1);
+  check('H7: weekNumber never exceeds totalWeeks even mid-window',
+    getConstructionWeekInfo(start, end, new Date('2026-02-15')).weekNumber <= getConstructionWeekInfo(start, end, end).totalWeeks);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

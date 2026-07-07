@@ -1,4 +1,5 @@
 import { formatDate } from '../../utils/reportUtils';
+import { getOpeningUrgencyColor } from '../../config/statusColors';
 import { SchedBadge, RiskBadge } from './DashboardWidgets';
 
 export default function OverviewTab({ allRows, onSelect }) {
@@ -20,7 +21,7 @@ export default function OverviewTab({ allRows, onSelect }) {
                 </thead>
                 <tbody>
                   {withOpening.map(({ project, latestReport, progress, daysToOpening, riskLevel }) => {
-                    const dToC       = daysToOpening < 0 ? 'var(--status-alert)' : daysToOpening < 30 ? 'var(--status-alert)' : daysToOpening < 90 ? 'var(--status-warn)' : 'var(--status-done)';
+                    const dToC       = getOpeningUrgencyColor(daysToOpening);
                     const isCritical = daysToOpening < 30 && progress < 80;
                     const isWarn     = !isCritical && daysToOpening < 60 && progress < 60;
                     const progColor  = progress >= 75 ? 'var(--status-done)' : progress >= 40 ? 'var(--accent)' : 'var(--status-warn)';

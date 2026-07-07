@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { calculatePhaseAverageProgressWithOverrides } from "../../engines/progressEngine";
+import { calculatePhaseAverageProgressWithOverrides, getDefaultProgressForGanttStatus } from "../../engines/progressEngine";
 
 const GANTT_STATUS_OPTS = [
   { value: 'not_started', label: 'Not Started', bg: 'var(--field-bg-subtle)', color: 'var(--field-text-secondary)', border: 'var(--field-border-strong)' },
@@ -19,8 +19,7 @@ function GanttWPRow({ task, entry, onChange }) {
     onChange({ progress_pct: val, status: autoStatus });
   }
   function setStatus(val) {
-    const autoPct = val === 'completed' ? 100 : val === 'not_started' ? 0 : pct;
-    onChange({ progress_pct: autoPct, status: val });
+    onChange({ progress_pct: getDefaultProgressForGanttStatus(val, pct), status: val });
   }
 
   return (

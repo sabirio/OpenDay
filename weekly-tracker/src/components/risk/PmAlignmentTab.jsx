@@ -1,6 +1,6 @@
 import { isSevereScheduleStatus } from "../../utils/reportUtils";
 import { computePmAlignmentItems, summarizeAlignmentItems } from "../../engines/pmAlignmentEngine";
-import { RISK_LEVEL_COLORS } from "../../config/statusColors";
+import { RISK_LEVEL_COLORS, getScoreTier, SCORE_TIER_COLORS } from "../../config/statusColors";
 import FilterBar from "./FilterBar";
 import Glyph from "./Glyph";
 
@@ -74,7 +74,7 @@ function PmAlignmentTab({
             <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 2 }}>{project.storeCode} — {project.shoppingMallName}</div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
               {project.generalContractor && <span style={{ marginRight: 10, color: "var(--text-secondary)", fontWeight: 600 }}>{project.generalContractor}</span>}
-              PM Alignment Score: <span style={{ fontWeight: 700, color: contScore.pmAlignmentScore >= 80 ? "var(--status-done)" : contScore.pmAlignmentScore >= 60 ? "var(--status-warn)" : "var(--status-alert)" }}>{contScore.pmAlignmentScore} / 100</span>
+              PM Alignment Score: <span style={{ fontWeight: 700, color: SCORE_TIER_COLORS[getScoreTier(contScore.pmAlignmentScore)] }}>{contScore.pmAlignmentScore} / 100</span>
               {" · "}{visitsSorted.length} site visit{visitsSorted.length !== 1 ? "s" : ""}
             </div>
             {visitsSorted.map((visit, vi) => {
@@ -82,7 +82,7 @@ function PmAlignmentTab({
               const gcAtVisit = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || sorted[sorted.length - 1];
               const items = computePmAlignmentItems(gcAtVisit, visit);
               const { matchRate, overstatements, matches } = summarizeAlignmentItems(items);
-              const matchColor = matchRate >= 80 ? "var(--status-done)" : matchRate >= 60 ? "var(--status-warn)" : "var(--status-alert)";
+              const matchColor = SCORE_TIER_COLORS[getScoreTier(matchRate)];
               return (
                 <div key={vi} style={{ background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", marginBottom: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>

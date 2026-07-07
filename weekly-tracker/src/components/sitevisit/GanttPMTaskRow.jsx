@@ -1,4 +1,5 @@
 import { computeWPObservationDiscrepancy } from '../../engines/discrepancyEngine';
+import { getDefaultProgressForGanttStatus } from '../../engines/progressEngine';
 
 const ACCENT = "var(--field-accent-sitevisit)";
 
@@ -33,9 +34,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
   const discStyle = discStatus !== 'ok' ? DISC_STYLE[discStatus] : null;
 
   function handleStatusClick(statusValue) {
-    const autoPct =
-      statusValue === 'completed'  ? 100 :
-      statusValue === 'not_started' ? 0  : curProgress;
+    const autoPct = getDefaultProgressForGanttStatus(statusValue, curProgress);
     onChange({ ...(pmEntry || {}), observed_progress: autoPct, observed_status: statusValue });
   }
 

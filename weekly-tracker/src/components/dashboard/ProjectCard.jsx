@@ -1,5 +1,5 @@
 import { LineChart, SchedBadge } from './DashboardWidgets';
-import { formatDate } from '../../utils/reportUtils';
+import { formatDate, daysSince } from '../../utils/reportUtils';
 import { SPI_STATUS } from '../../config/statusColors';
 
 /**
@@ -7,10 +7,7 @@ import { SPI_STATUS } from '../../config/statusColors';
  * metrics — optional gantt metrics: { spi, spiStatus, criticalHealth, lastVisitDate, taskCount }
  */
 export default function ProjectCard({ project, latestReport, progress, color, progressPoints, projReports, onSelect, metrics }) {
-  const today      = new Date();
-  const visitDays  = metrics?.lastVisitDate
-    ? Math.floor((today - new Date(metrics.lastVisitDate)) / 86400000)
-    : null;
+  const visitDays  = metrics?.lastVisitDate ? daysSince(metrics.lastVisitDate) : null;
   const visitOverdue = visitDays !== null && visitDays > 14;
 
   return (

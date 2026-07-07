@@ -1,4 +1,5 @@
 // ── SPI sparkline (SVG, no external library) ──────────────────────────────────
+import { getSPIStatus, SPI_STATUS } from '../../config/statusColors';
 
 function SPISparkline({ points, width = 140, height = 44 }) {
   const valid = (points || []).filter(p => p.spi !== null);
@@ -13,7 +14,7 @@ function SPISparkline({ points, width = 140, height = 44 }) {
 
   const d     = valid.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i)},${toY(p.spi)}`).join(' ');
   const last  = valid[valid.length - 1].spi;
-  const color = last >= 0.95 ? 'var(--status-done)' : last >= 0.80 ? 'var(--status-warn)' : 'var(--status-alert)';
+  const color = SPI_STATUS[getSPIStatus(last)].color;
   const refY  = toY(1.0);
 
   return (

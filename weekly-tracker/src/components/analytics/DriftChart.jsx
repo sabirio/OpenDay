@@ -1,3 +1,5 @@
+import { getScoreTier, SCORE_TIER_COLORS } from '../../config/statusColors';
+
 const PATTERN_LABELS = {
   systematic_overstatement: 'Systematic Overstatement',
   panic_report:             'Panic Report',
@@ -35,7 +37,7 @@ export default function DriftChart({ driftProfile }) {
   const biasStyle = biasBadgeColor(Math.abs(biasPct));
 
   const driftColor    = avgHistoricalDrift > 0.1 ? 'var(--status-alert)' : avgHistoricalDrift < -0.1 ? 'var(--status-done)' : 'var(--text-muted)';
-  const reliabColor   = reliabilityScore >= 80 ? 'var(--status-done)' : reliabilityScore >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
+  const reliabColor   = SCORE_TIER_COLORS[getScoreTier(reliabilityScore)];
 
   return (
     <div style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', minWidth: 220 }}>

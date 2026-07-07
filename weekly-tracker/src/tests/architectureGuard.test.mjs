@@ -64,7 +64,6 @@ const ALLOWED_LEGACY_IMPORTERS = new Set([
   'components/contractor/ReportingWorkPackagesSection.jsx',
   'components/contractor/WorkPackageProgressSection.jsx',
   'components/sitevisit/ComparisonResultsView.jsx',
-  'components/sitevisit/gcReferenceHelpers.js',
   'components/sitevisit/SiteVisitFormView.jsx',
   'config/dashboardConstants.js',
   'engines/legacyReportEngine.js',
@@ -104,9 +103,14 @@ check(
   'WeeklyReports.jsx legacy import no longer includes WP_STATUS_SCORES',
   !!weeklyLegacyImportLine && !weeklyLegacyImportLine.includes('WP_STATUS_SCORES')
 );
+// UI-domain-logic pass: the page's own current-vs-cumulative status score
+// comparison moved into reportUtils.pickReconciledStatusEntry(), so
+// WeeklyReports.jsx no longer needs WP_STATUS_SCORES at all (from either
+// module) — a stronger version of "no legacy import" than importing the
+// canonical map directly.
 check(
-  'WeeklyReports.jsx imports WP_STATUS_SCORES from config/statusScores instead',
-  /import\s*\{\s*WP_STATUS_SCORES\s*\}\s*from\s+["']\.\.\/config\/statusScores(\.js)?["']/.test(weeklyReportsText)
+  'WeeklyReports.jsx no longer imports WP_STATUS_SCORES from any module (reconciliation moved to reportUtils.pickReconciledStatusEntry)',
+  !/import\s*\{[^}]*\bWP_STATUS_SCORES\b[^}]*\}\s*from/.test(weeklyReportsText)
 );
 
 // Every remaining importer of the legacy modules must be on the audited

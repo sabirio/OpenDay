@@ -1,4 +1,4 @@
-import { WP_STATUS_SCORES } from "../../config/workPackages";
+import { compareWPTaskStatus } from "../../config/statusScores";
 
 // ── GC reference status helpers ───────────────────────────────────────────────
 
@@ -77,9 +77,8 @@ export function comparisonResult(pmStatus, gcStatus) {
   if (pmStatus === "Not Applicable" || gcStatus === "Not Applicable") return null;
   if (!pmStatus) return { type: "not-assessed", badge: "Not assessed", color: "var(--field-text-label)", bg: "white",    border: "var(--field-bg-subtle)" };
   if (!gcStatus) return { type: "no-gc",        badge: "No GC data",   color: "var(--field-text-secondary)",  bg: "var(--field-bg-faint-alt)", border: "var(--field-border)" };
-  const ps = WP_STATUS_SCORES[pmStatus] ?? 0;
-  const gs = WP_STATUS_SCORES[gcStatus] ?? 0;
-  if (ps === gs) return { type: "match",        badge: "✓ Match",       color: "var(--field-success-fg-dark)", bg: "var(--field-success-bg)", border: "var(--field-success-border)" };
-  if (ps < gs)   return { type: "discrepancy",  badge: "⚠ Discrepancy", color: "var(--field-danger-fg-dark)", bg: "var(--field-danger-bg)", border: "var(--field-danger-border)" };
-  return               { type: "pm-higher",    badge: "↑ PM ahead",    color: "var(--field-warning-fg-dark)", bg: "var(--field-warning-bg-subtle)", border: "var(--field-warning-border)" };
+  const cmp = compareWPTaskStatus(pmStatus, gcStatus); // 'match' | 'pm-higher' | 'gc-higher' — pmStatus/gcStatus already guaranteed truthy above
+  if (cmp === "match")     return { type: "match",       badge: "✓ Match",       color: "var(--field-success-fg-dark)", bg: "var(--field-success-bg)", border: "var(--field-success-border)" };
+  if (cmp === "gc-higher") return { type: "discrepancy", badge: "⚠ Discrepancy", color: "var(--field-danger-fg-dark)", bg: "var(--field-danger-bg)", border: "var(--field-danger-border)" };
+  return                          { type: "pm-higher",   badge: "↑ PM ahead",    color: "var(--field-warning-fg-dark)", bg: "var(--field-warning-bg-subtle)", border: "var(--field-warning-border)" };
 }

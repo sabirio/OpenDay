@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   computeWPCumulativeStatuses,
   isWPReport,
+  pickReconciledStatusEntry,
 } from "../utils/reportUtils";
 import { calculateProgressComparison, computeProgressSeries } from "../engines/progressEngine";
 import { calculateWorkPackageDeltas, computePhaseChangeFlags, classifyPhases } from "../engines/progressDeltaEngine";
@@ -14,10 +15,7 @@ import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
 // `wpsConfig`/`displayWorkPackages` below, gated on isWPReport(). Audited
 // Wave 4 Step 4.6; not swapped, replacement is non-trivial. See TEMPLATE_MODEL.md.
-// WP_STATUS_SCORES (P1.1) moved to config/statusScores.js — it scores both
-// canonical and legacy-format statuses, so it's imported separately below.
 import { WORK_PACKAGES } from "../config/workPackages";
-import { WP_STATUS_SCORES } from "../config/statusScores";
 import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from "../config/masterTaskLibrary";
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
 import { computeAdditionalWorksSummary } from "../engines/additionalWorksEngine";
@@ -217,9 +215,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
       for (const task of wp.tasks) {
         const e = current?.[wp.id]?.[task.name]    || {};
         const c = cumulative?.[wp.id]?.[task.name] || {};
-        const eScore = WP_STATUS_SCORES[e.status] ?? -1;
-        const cScore = WP_STATUS_SCORES[c.status] ?? -1;
-        merged[wp.id][task.name] = cScore >= eScore ? (c.status ? c : e) : (e.status ? e : c);
+        merged[wp.id][task.name] = pickReconciledStatusEntry(e, c);
       }
     }
     return merged;

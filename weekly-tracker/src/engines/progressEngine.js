@@ -96,6 +96,41 @@ export function calculateActivityProgress(entry) {
   return 0;
 }
 
+/**
+ * Default progress value implied by picking a Gantt-task status button
+ * ('not_started'|'in_progress'|'completed'|'delayed'|'blocked' — the
+ * project_gantt_tasks vocabulary, distinct from WP_STATUS_SCORES' status
+ * strings). completed always implies 100, not_started always implies 0;
+ * any other status leaves the existing progress value untouched.
+ * Consolidates a rule GanttWPSection.jsx (contractor) and
+ * GanttPMTaskRow.jsx (PM site-visit) each independently reimplemented
+ * (architecture-conformance pass).
+ * @param {string} status
+ * @param {number} currentProgress — kept as-is for any non-terminal status
+ * @returns {number}
+ */
+export function getDefaultProgressForGanttStatus(status, currentProgress) {
+  if (status === 'completed')   return 100;
+  if (status === 'not_started') return 0;
+  return currentProgress;
+}
+
+/**
+ * Classifies a WP task status into a display tier, using the same score
+ * cutoffs PhaseStepper.jsx/PhaseTimeline.jsx/sharedUtils.js independently
+ * reimplemented (score>=1 done, >=0.5 good, >=0.3 warn, else muted) —
+ * single source of truth so UI only maps tier -> color/glyph.
+ * @param {string} status
+ * @returns {'done'|'good'|'warn'|'muted'}
+ */
+export function getWPStatusTier(status) {
+  const score = WP_STATUS_SCORES[status] ?? 0;
+  if (score >= 1)   return 'done';
+  if (score >= 0.5) return 'good';
+  if (score >= 0.3) return 'warn';
+  return 'muted';
+}
+
 // ── Phase level ───────────────────────────────────────────────────────────────
 
 /**

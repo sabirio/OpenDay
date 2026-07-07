@@ -1,4 +1,7 @@
 import { WORK_PACKAGES, makeEmptyWPStatuses } from "../../config/workPackages";
+// calculateWeeksBetween/getConstructionWeekInfo moved to utils/scheduleUtils.js;
+// buildCumulativeWPStatuses moved to utils/reportUtils.js (architecture-
+// conformance pass — this file is components/, calc must live in engines/core).
 
 // WP id → old phase name mapping for backward compat
 export const WP_TO_OLD_PHASE = {
@@ -28,41 +31,6 @@ export function derivePackagesFromOldPhases(phases) {
     for (const id of map[p] || []) result.add(id);
   }
   return [...result];
-}
-
-export function calculateWeeksBetween(start, end) {
-  return Math.max(0, Math.ceil((end - start) / (1000 * 60 * 60 * 24 * 7)));
-}
-
-export function getConstructionWeekInfo(start, end, reference) {
-  const totalWeeks = calculateWeeksBetween(start, end);
-  if (reference < start) return { totalWeeks, weekNumber: 0, label: "Before construction start" };
-  if (reference >= end) return { totalWeeks, weekNumber: totalWeeks, label: `Construction complete · ${totalWeeks} weeks` };
-  const weekNumber = Math.min(Math.floor((reference - start) / (1000 * 60 * 60 * 24 * 7)) + 1, totalWeeks);
-  return { totalWeeks, weekNumber, label: `Week ${weekNumber} of ${totalWeeks}` };
-}
-
-// Build cumulative best WP statuses across all project reports
-const _WP_SCORES = { 'Not Applicable': null, 'Not Started': 0, 'In Progress': 0.5, 'Completed': 1, 'Delayed': 0.3 };
-export function buildCumulativeWPStatuses(allReports) {
-  const base = makeEmptyWPStatuses();
-  for (const report of allReports) {
-    const snap = report.workPackageStatuses;
-    if (!snap) continue;
-    for (const wp of WORK_PACKAGES) {
-      const pkgSnap = snap[wp.id] || {};
-      for (const task of wp.tasks) {
-        const s = pkgSnap[task.name];
-        if (!s) continue;
-        const cur = base[wp.id][task.name];
-        if ((_WP_SCORES[s.status] ?? -1) > (_WP_SCORES[cur.status] ?? -1) ||
-            (s.progress || 0) > (cur.progress || 0)) {
-          base[wp.id][task.name] = { ...cur, ...s };
-        }
-      }
-    }
-  }
-  return base;
 }
 
 export function makeInitialForm(prevReport, cumulativeStatuses) {

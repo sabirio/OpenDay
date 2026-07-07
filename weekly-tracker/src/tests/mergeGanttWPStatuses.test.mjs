@@ -31,7 +31,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { computeWPCumulativeStatuses } = await import('../utils/reportUtils.js');
+const { computeWPCumulativeStatuses, pickReconciledStatusEntry, buildCumulativeWPStatuses } = await import('../utils/reportUtils.js');
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -205,6 +205,79 @@ console.log('\n6) Cumulative best across reports; equal progress → first-seen'
   const e = merged(reports);
   // effectivePct for all three = 0 (explicit numeric 0) → none is strictly greater → first-seen wins
   check('6c: all progress:0 → first-seen kept (not status-score winner)', e?.marker === 'first');
+}
+
+// ── 7. pickReconciledStatusEntry — extracted verbatim from WeeklyReports.jsx
+// (architecture-conformance pass). Deliberately scores missing/Not-Applicable
+// as -1 (worse than Not Started's 0), NOT the same as getWPStatusScore()'s
+// ?? 0 fallback — swapping to ?? 0 would flip case 7d below (verified during
+// the extraction: with ?? 0, Not Applicable ties Not Started at 0 and its
+// truthy .status string wins the "cumulative.status ? cumulative : current"
+// tie-break, silently preferring N/A over a real Not Started entry).
+console.log('\n7) pickReconciledStatusEntry — current vs cumulative reconciliation');
+{
+  const cur = { status: 'Not Started' };
+  const cum = {}; // cumulative missing entirely
+  check('7a: cumulative missing entirely -> current (real data) wins', pickReconciledStatusEntry(cur, cum) === cur);
+}
+{
+  const cur = {}; // current missing entirely
+  const cum = { status: 'Not Started' };
+  check('7b: current missing entirely -> cumulative (real data) wins', pickReconciledStatusEntry(cur, cum) === cum);
+}
+{
+  const cur = { status: 'In Progress' }; // score 0.5
+  const cum = { status: 'Completed' };   // score 1
+  check('7c: cumulative has strictly higher score -> cumulative wins', pickReconciledStatusEntry(cur, cum) === cum);
+}
+{
+  // The exact case the -1 sentinel protects: explicit Not Applicable on the
+  // cumulative side must NOT beat a real Not Started on the current side.
+  const cur = { status: 'Not Started' };  // score 0
+  const cum = { status: 'Not Applicable' }; // score null -> -1
+  check('7d: explicit Not Applicable cumulative does NOT beat real Not Started current', pickReconciledStatusEntry(cur, cum) === cur);
+}
+{
+  const cur = { status: 'Not Started' };
+  const cum = { status: 'Not Started' };
+  check('7e: tie (equal score, both real) -> cumulative wins (cScore >= eScore)', pickReconciledStatusEntry(cur, cum) === cum);
+}
+{
+  check('7f: both missing -> no throw, returns something falsy-status', !pickReconciledStatusEntry({}, {}).status);
+}
+
+// ── 8. buildCumulativeWPStatuses — moved verbatim from
+// components/contractor/formHelpers.js (architecture-conformance pass); its
+// local _WP_SCORES duplicate of WP_STATUS_SCORES was dropped for the
+// canonical map already imported by reportUtils.js. Distinct from
+// computeWPCumulativeStatuses() above: "OR" comparator (status improves OR
+// progress improves), used only to prefill a new contractor report form.
+console.log('\n8) buildCumulativeWPStatuses — form-prefill cumulative merge (OR comparator)');
+{
+  const reports = [
+    { workPackageStatuses: { preconstruction: { 'Site setup & hoarding': { status: 'Not Started', progress: 0 } } } },
+    { workPackageStatuses: { preconstruction: { 'Site setup & hoarding': { status: 'In Progress', progress: 30 } } } },
+  ];
+  const base = buildCumulativeWPStatuses(reports);
+  check('8a: later report with better status+progress wins', base.preconstruction['Site setup & hoarding'].progress === 30);
+}
+{
+  // OR comparator: progress improves even though status regresses (or is equal) -> still takes the update
+  const reports = [
+    { workPackageStatuses: { preconstruction: { 'Site setup & hoarding': { status: 'In Progress', progress: 10 } } } },
+    { workPackageStatuses: { preconstruction: { 'Site setup & hoarding': { status: 'In Progress', progress: 25 } } } },
+  ];
+  const base = buildCumulativeWPStatuses(reports);
+  check('8b: OR comparator — higher progress alone wins even with unchanged status', base.preconstruction['Site setup & hoarding'].progress === 25);
+}
+{
+  check('8c: no reports -> empty-but-defined structure, no throw',
+    buildCumulativeWPStatuses([]).preconstruction['Site setup & hoarding'] !== undefined);
+}
+{
+  const reports = [{ workPackageStatuses: null }, { }];
+  check('8d: reports with no workPackageStatuses are skipped, no throw — base stays at makeEmptyWPStatuses() default',
+    buildCumulativeWPStatuses(reports).preconstruction['Site setup & hoarding'].status === 'Not Started');
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

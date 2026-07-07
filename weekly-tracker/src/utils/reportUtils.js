@@ -24,6 +24,8 @@ import {
 
 import {
   WP_STATUS_SCORES,
+  WORK_PACKAGES,
+  makeEmptyWPStatuses,
 } from "../config/workPackages.js";
 
 // ─── LEGACY FORMAT SUPPORT ────────────────────────────────────────────────────
@@ -181,6 +183,65 @@ function mergeGanttWPStatuses(snapshots) {
     }
   }
   return merged;
+}
+
+/**
+ * Reconciles one task's "currently selected report" entry against its
+ * "cumulative up to that date" entry, keeping whichever has the higher
+ * effective status score. Deliberately scores a missing/Not-Applicable
+ * entry as -1 (worse than Not Started's 0) so an explicit Not Started
+ * always wins over an absent/inapplicable comparison — NOT the same as
+ * getWPStatusScore()'s `?? 0` fallback (that would make Not Applicable
+ * indistinguishable from Not Started here and could flip the result).
+ * Extracted verbatim from WeeklyReports.jsx (architecture-conformance pass).
+ *
+ * @param {{status?: string}|undefined} currentEntry
+ * @param {{status?: string}|undefined} cumulativeEntry
+ * @returns {object} whichever of the two entries wins
+ */
+export function pickReconciledStatusEntry(currentEntry, cumulativeEntry) {
+  const e = currentEntry || {};
+  const c = cumulativeEntry || {};
+  const eScore = WP_STATUS_SCORES[e.status] ?? -1;
+  const cScore = WP_STATUS_SCORES[c.status] ?? -1;
+  return cScore >= eScore ? (c.status ? c : e) : (e.status ? e : c);
+}
+
+/**
+ * Builds the cumulative best WP statuses across all of a project's reports,
+ * used ONLY to prefill a new contractor report form's starting state
+ * (ContractorReport.jsx's makeInitialForm) — NOT the same question as
+ * computeWPCumulativeStatuses() below (which drives the read-only progress
+ * DISPLAY on WeeklyReports.jsx). Deliberately kept as its own function
+ * rather than merged into computeWPCumulativeStatuses/mergeGanttWPStatuses:
+ * this one prefers whichever entry looks most advanced by EITHER status OR
+ * numeric progress (an "OR" comparator, generous for a form starting
+ * point), while mergeGanttWPStatuses compares a single combined
+ * effectivePct per entry (accurate for display) — forcing them into one
+ * algorithm would change one of the two behaviors.
+ * Moved from components/contractor/formHelpers.js (architecture-conformance
+ * pass); its local `_WP_SCORES` duplicate of WP_STATUS_SCORES was dropped
+ * in favor of the canonical map already imported by this file.
+ */
+export function buildCumulativeWPStatuses(allReports) {
+  const base = makeEmptyWPStatuses();
+  for (const report of allReports) {
+    const snap = report.workPackageStatuses;
+    if (!snap) continue;
+    for (const wp of WORK_PACKAGES) {
+      const pkgSnap = snap[wp.id] || {};
+      for (const task of wp.tasks) {
+        const s = pkgSnap[task.name];
+        if (!s) continue;
+        const cur = base[wp.id][task.name];
+        if ((WP_STATUS_SCORES[s.status] ?? -1) > (WP_STATUS_SCORES[cur.status] ?? -1) ||
+            (s.progress || 0) > (cur.progress || 0)) {
+          base[wp.id][task.name] = { ...cur, ...s };
+        }
+      }
+    }
+  }
+  return base;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { RISK_COLORS } from "../engines/riskEngine";
+import { getScoreTier, SCORE_TIER_COLORS, getScheduleDeviationColor } from "../config/statusColors";
 import { RiskBadge, HealthBadge } from "./RiskGauge";
 import { MiniRiskSparkline } from "./ScoreBar";
 
@@ -100,11 +101,11 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                   <div style={{ display: "flex", gap: 8 }}>
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Perf</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: contScore.performanceScore >= 80 ? "var(--status-done)" : contScore.performanceScore >= 60 ? "var(--status-warn)" : "var(--status-alert)" }}>{contScore.performanceScore}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: SCORE_TIER_COLORS[getScoreTier(contScore.performanceScore)] }}>{contScore.performanceScore}</div>
                     </div>
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Acc</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: contScore.pmAlignmentScore >= 80 ? "var(--status-done)" : contScore.pmAlignmentScore >= 60 ? "var(--status-warn)" : "var(--status-alert)" }}>{contScore.pmAlignmentScore}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: SCORE_TIER_COLORS[getScoreTier(contScore.pmAlignmentScore)] }}>{contScore.pmAlignmentScore}</div>
                     </div>
                   </div>
                 </td>
@@ -150,7 +151,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                             {[
                               { label: "Expected",    value: `${schedDev.expectedPct}%`,  color: "var(--text-secondary)" },
                               { label: "Actual",      value: `${schedDev.actualPct}%`,    color: "var(--text-secondary)" },
-                              { label: "Deviation",   value: schedDev.deviationPct > 0 ? `−${schedDev.deviationPct}%` : "On track", color: schedDev.deviationPct > 15 ? "var(--status-alert)" : schedDev.deviationPct > 5 ? "var(--status-warn)" : "var(--status-done)" },
+                              { label: "Deviation",   value: schedDev.deviationPct > 0 ? `−${schedDev.deviationPct}%` : "On track", color: getScheduleDeviationColor(schedDev.deviationPct) },
                               schedDev.predictedDelayDays > 0 && { label: "Pred. delay", value: `+${schedDev.predictedDelayDays}d`, color: "var(--status-alert)" },
                             ].filter(Boolean).map(({ label, value, color }) => (
                               <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 6 }}>
@@ -167,7 +168,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                           { label: "Performance", pts: contScore.performanceScore },
                           { label: "PM Alignment", pts: contScore.pmAlignmentScore },
                         ].map(({ label, pts }) => {
-                          const barColor = pts >= 80 ? "var(--status-done)" : pts >= 60 ? "var(--status-warn)" : "var(--status-alert)";
+                          const barColor = SCORE_TIER_COLORS[getScoreTier(pts)];
                           return (
                             <div key={label} style={{ marginBottom: 10 }}>
                               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
