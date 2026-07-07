@@ -3,24 +3,6 @@ import { supabase } from '../lib/supabase';
 const AUDIT_LOG_COLUMNS = 'id, table_name, record_id, action, changed_by, changed_at, diff';
 
 /**
- * Fetch audit log entries for a single record (e.g. one contractor_reports row).
- * @param {string} tableName - e.g. 'contractor_reports'
- * @param {string|number} recordId
- * @param {number} [limit]
- */
-export async function fetchAuditLog(tableName, recordId, limit = 50) {
-  const { data, error } = await supabase
-    .from('audit_log')
-    .select(AUDIT_LOG_COLUMNS)
-    .eq('table_name', tableName)
-    .eq('record_id', String(recordId))
-    .order('changed_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  return data ?? [];
-}
-
-/**
  * Fetch all recent audit entries for a project across projects/contractor_reports/
  * site_visits, merged and sorted newest-first.
  *

@@ -25,5 +25,3 @@ export const ContractorReportSchema = z.object({
   workPackageStatuses: z.record(z.string(), z.record(z.string(), WPTaskEntrySchema)).optional(),
   photos: z.array(z.string()).optional(),
 }).passthrough();
-
-export const ContractorReportArraySchema = z.array(ContractorReportSchema);

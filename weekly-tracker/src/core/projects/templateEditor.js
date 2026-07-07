@@ -1,3 +1,5 @@
+import { normalizeWeightsTo100 } from './weights/normalizeWeightsTo100.js';
+
 const phases = t => Array.isArray(t?.phases) ? t.phases : [];
 const wps    = t => Array.isArray(t?.workPackages) ? t.workPackages : [];
 
@@ -54,28 +56,19 @@ export function computeTemplateWeightSums(template) {
   return { weightSum, durSums };
 }
 
+// F-13/F-14 consolidation: delegates to the canonical largest-remainder
+// rounding in normalizeWeightsTo100.js (used elsewhere by
+// ProjectScopeConfigurator.jsx) instead of reimplementing the same
+// algorithm here. Adapts between this file's phases-array contract and
+// that function's (orderedIds, weights) map contract.
 export function normalizeWeights(template) {
   const ps = phases(template);
   if (ps.length === 0) return template;
 
-  const sum = ps.reduce((s, p) => s + (p.progressWeight || 0), 0);
+  const orderedIds = ps.map(p => p.id);
+  const weights = Object.fromEntries(ps.map(p => [p.id, p.progressWeight]));
+  const normalized = normalizeWeightsTo100(orderedIds, weights);
 
-  let rounded;
-  if (sum === 0) {
-    const base  = Math.floor(100 / ps.length);
-    const extra = 100 - base * ps.length;
-    rounded = ps.map((_, i) => i < extra ? base + 1 : base);
-  } else {
-    rounded = ps.map(p => Math.round((p.progressWeight || 0) / sum * 100));
-  }
-
-  // Fix rounding drift by adjusting the phase with the largest weight
-  const drift = 100 - rounded.reduce((s, w) => s + w, 0);
-  if (drift !== 0) {
-    const maxIdx = rounded.reduce((best, w, i) => w > rounded[best] ? i : best, 0);
-    rounded[maxIdx] += drift;
-  }
-
-  const updatedPhases = ps.map((p, i) => ({ ...p, progressWeight: rounded[i] }));
+  const updatedPhases = ps.map(p => ({ ...p, progressWeight: normalized[p.id] }));
   return { ...template, phases: updatedPhases };
 }

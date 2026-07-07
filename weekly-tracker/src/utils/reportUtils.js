@@ -8,8 +8,6 @@
  *   progressEngine.js itself imports and calls these directly to build the
  *   Gantt-format cumulative status object it computes progress from — they
  *   are part of the canonical pipeline, not a migration target.
- * - Dead code: getPackageProgressMap() — exported, zero external callers
- *   (kept per no-delete rule).
  *
  * Wave 6: do not add a blanket "do not use this file" banner here — half of
  * it is load-bearing for progressEngine.js. See PROGRESS_MODEL.md before
@@ -25,9 +23,7 @@ import {
 } from "../config/reportWeights.js";
 
 import {
-  WORK_PACKAGES,
   WP_STATUS_SCORES,
-  computePackageProgress,
 } from "../config/workPackages.js";
 
 // ─── LEGACY FORMAT SUPPORT ────────────────────────────────────────────────────
@@ -43,8 +39,9 @@ import {
  * @legacy — supports old weekly-report format (demolitionStatus / constructionStatuses / …)
  * Keep until all projects are migrated to Gantt workPackageStatuses format.
  * Do NOT call from new code. Use progressEngine.js → calculateProjectProgressResult() instead.
+ * Not exported — used only internally in this file (no external importer found).
  */
-export const PHASE_ORDER = [
+const PHASE_ORDER = [
   "Demolition works",
   "Construction works",
   "Testing & Commissioning",
@@ -212,18 +209,6 @@ export function computeWPCumulativeStatuses(projectReports) {
     projectScheduleStatus: latest?.projectScheduleStatus,
     currentPhase: latest?.currentPhase || latest?.currentPhases?.[0],
   };
-}
-
-/**
- * Get per-package progress map { [wpId]: 0-100 } from a WP report.
- */
-export function getPackageProgressMap(wpStatuses) {
-  if (!wpStatuses) return {};
-  const map = {};
-  for (const wp of WORK_PACKAGES) {
-    map[wp.id] = computePackageProgress(wpStatuses, wp.id);
-  }
-  return map;
 }
 
 /**

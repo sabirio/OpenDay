@@ -172,19 +172,3 @@ export function computePortfolioMissing(projects, reports) {
   const avgProgress = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.progress, 0) / rows.length) : 0;
   return { missingCount: missing.length, missing, blocked, support, avgProgress };
 }
-
-/**
- * Roll up per-project command lists into a portfolio-level summary.
- *
- * @param {Command[][]} allProjectCommands - one Command[] per project (from commandEngine.getCommands)
- * @returns {{ criticalCount: number, warningCount: number, mostUrgent: Command|null }}
- */
-export function computePortfolioCommands(allProjectCommands) {
-  const SEV_ORDER = { critical: 0, warning: 1, info: 2 };
-  const all = allProjectCommands.flat();
-  const criticalCount = all.filter(c => c.severity === 'critical').length;
-  const warningCount  = all.filter(c => c.severity === 'warning').length;
-  const sorted  = [...all].sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity]);
-  const mostUrgent = sorted[0] ?? null;
-  return { criticalCount, warningCount, mostUrgent };
-}

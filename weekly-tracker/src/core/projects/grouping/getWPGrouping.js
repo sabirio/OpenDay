@@ -1,5 +1,5 @@
 import { getWPById, getPhaseById } from '../../../config/masterTaskLibrary.js';
-import { getWPByIdV2, retailFitoutV2, CATEGORY_LIBRARY } from '../../../domains/construction/templates/retailFitoutV2.js';
+import { getWPByIdV2, retailFitoutV2, CATEGORY_LIBRARY, V2_TEMPLATE_TYPE } from '../../../domains/construction/templates/retailFitoutV2.js';
 
 /**
  * Single source of truth for "how should this work package's row be
@@ -18,7 +18,7 @@ import { getWPByIdV2, retailFitoutV2, CATEGORY_LIBRARY } from '../../../domains/
  *         | null} null when wpId isn't found in the resolved template at all
  */
 export function getWPGrouping(templateType, wpId) {
-  if (templateType === 'retail-fitout-v2') {
+  if (templateType === V2_TEMPLATE_TYPE) {
     const wp = getWPByIdV2(wpId);
     if (!wp) return null;
     const zone = retailFitoutV2.zones.find(z => z.id === wp.zoneId);
@@ -42,7 +42,7 @@ export function getWPGrouping(templateType, wpId) {
 
 /** True when a templateType uses the zoned v1-incompatible grouping model. */
 export function isZonedTemplate(templateType) {
-  return templateType === 'retail-fitout-v2';
+  return templateType === V2_TEMPLATE_TYPE;
 }
 
 /**

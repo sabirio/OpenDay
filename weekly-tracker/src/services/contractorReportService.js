@@ -74,19 +74,6 @@ export async function getLastReport(projectId) {
 }
 
 /**
- * Get all reports for a project, ordered newest first.
- */
-export async function getAllReports(projectId) {
-  const { data, error } = await supabase
-    .from('contractor_reports')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('report_date', { ascending: false });
-  if (error) throw error;
-  return data || [];
-}
-
-/**
  * Fetch canonical contractor reports and adapt them for legacy-shaped screens.
  */
 export async function getAllReportsForScreens() {
@@ -157,33 +144,5 @@ export async function getReportsForProjectForScreens(projectId) {
     adaptContractorReportsToLegacy(reports || [], wpsByReportId, { [projectId]: projectRow?.template_type }),
     'contractor_reports'
   );
-}
-
-/**
- * Get a specific report with WP line items.
- */
-export async function getReportById(reportId) {
-  const { data: report, error } = await supabase
-    .from('contractor_reports')
-    .select('*')
-    .eq('id', reportId)
-    .single();
-  if (error) throw error;
-
-  const { data: wps, error: wErr } = await supabase
-    .from('contractor_report_wps')
-    .select('*')
-    .eq('report_id', reportId);
-  if (wErr) throw wErr;
-
-  return {
-    ...report,
-    wps: (wps || []).map(w => ({
-      wpId:        w.wp_id,
-      progress_pct: w.progress_pct,
-      status:      w.status,
-      comment:     w.comment,
-    })),
-  };
 }
 

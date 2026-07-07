@@ -1,5 +1,4 @@
-import { computeZoneWeights } from './computeZoneWeights.js';
-import { normalizeWeightsTo100 } from './normalizeWeightsTo100.js';
+import { computeZoneWeights, computeZoneCategoryShares } from './computeZoneWeights.js';
 import { retailFitoutV2, CATEGORY_LIBRARY } from '../../../domains/construction/templates/retailFitoutV2.js';
 
 /**
@@ -34,15 +33,7 @@ export function buildV2ProgressTemplate(zoneAreas = {}, activeZoneIds = null, ac
     const zoneWeight = zoneWeights[zone.id];
     if (zoneWeight == null) continue; // zone excluded by activeZoneIds
 
-    const zoneCategories = zone.categories.filter(c => !activeCategoryIds || activeCategoryIds.includes(c.id));
-    if (zoneCategories.length === 0) continue;
-
-    const catIds = zoneCategories.map(c => c.id);
-    const catWeights = Object.fromEntries(zoneCategories.map(c => [c.id, c.weight]));
-    const categoryShares = normalizeWeightsTo100(catIds, catWeights);
-
-    for (const cat of zoneCategories) {
-      const share = categoryShares[cat.id] ?? 0;
+    for (const { category: cat, share } of computeZoneCategoryShares(zone, activeCategoryIds)) {
       const progressWeight = Math.round(zoneWeight * (share / 100) * 1000) / 1000;
       const lib = CATEGORY_LIBRARY[cat.id];
 

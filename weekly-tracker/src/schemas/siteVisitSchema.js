@@ -29,5 +29,3 @@ export const SiteVisitSchema = z.object({
   visitedBy: z.string().nullable().optional(),
   pmScheduleAssessment: z.string().nullable().optional(),
 }).passthrough();
-
-export const SiteVisitArraySchema = z.array(SiteVisitSchema);

@@ -17,14 +17,6 @@ export function statusStyles(status) {
   return              { color: 'var(--text-muted)',    bg: 'var(--bg-elevated)',     border: 'var(--border)' };
 }
 
-export function deriveOverallStatus(statuses) {
-  if (!statuses.length) return 'Not Started';
-  if (statuses.some(s => s === 'Delayed'))    return 'Delayed';
-  if (statuses.every(s => s === 'Completed')) return 'Completed';
-  if (statuses.some(s => s === 'Completed' || s === 'In Progress')) return 'In Progress';
-  return 'Not Started';
-}
-
 // parseAdditionalWorksCost / formatAdditionalWorksSum moved to
 // engines/additionalWorksEngine.js (architecture-conformance pass) —
 // alongside the aggregation that consumes them.

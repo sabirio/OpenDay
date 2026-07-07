@@ -10,6 +10,7 @@ import GcInvitationModal from "../components/projects/GcInvitationModal";
 import ProjectEditorModal from "../components/projects/ProjectEditorModal";
 import ProjectFilters from "../components/projects/ProjectFilters";
 import ProjectTable from "../components/projects/ProjectTable";
+import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
 
 const emptyProject = {
   storeCode: "",
@@ -151,10 +152,10 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           } else {
             // First-time generation — tasks start at 0 (correct for new projects).
             // Scope configurator stores selected WPs in scope.workPackages; use those when present.
-            const isV2 = newProject.templateType === 'retail-fitout-v2';
+            const isV2 = newProject.templateType === V2_TEMPLATE_TYPE;
             const scopeWPIds = newProject.scope?.workPackages;
             const templateId = isV2
-              ? 'retail-fitout-v2'
+              ? V2_TEMPLATE_TYPE
               : (scopeWPIds?.length > 0 ? 'custom' : newProject.templateType || 'standard_with_demo');
             const tOptions = isV2
               ? {
@@ -341,7 +342,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           isolated configurator; every other templateType keeps the existing
           flat phase/WP one, untouched. */}
       {showScopeConfigurator && (
-        newProject.templateType === 'retail-fitout-v2' ? (
+        newProject.templateType === V2_TEMPLATE_TYPE ? (
           <ZonedScopeConfigurator
             initialScope={newProject.scope}
             areas={newProject.scope?.zoneAreas ?? {}}

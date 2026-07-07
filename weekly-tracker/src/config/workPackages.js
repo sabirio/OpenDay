@@ -224,10 +224,6 @@ export function getPackageById(id) {
   return WORK_PACKAGES.find(wp => wp.id === id) || null;
 }
 
-export function getAllTaskNames() {
-  return WORK_PACKAGES.flatMap(wp => wp.tasks.map(t => t.name));
-}
-
 // Returns groups for a WP, falling back to single-task groups if wp.groups is absent.
 export function getWPGroups(wpId) {
   const wp = getPackageById(wpId);

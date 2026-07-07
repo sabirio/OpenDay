@@ -1,5 +1,6 @@
 import { WP_STATUS_SCORES } from '../config/statusScores.js';
 import { getDefaultPhaseWeights } from '../config/masterTaskLibrary.js';
+import { calculateWPTaskWeightedProgress } from './progressEngine.js';
 
 // Effective % for a single task entry — mirrors PhaseStepper.wpProgress logic.
 function taskEffectivePct(entry) {
@@ -52,21 +53,9 @@ export function computePhaseChangeFlags(wpDeltas) {
   return flags;
 }
 
-// Effective % for a single phase given its WP status map — mirrors PhaseStepper.wpProgress.
-function phasePct(wp, statuses) {
-  const taskMap = statuses?.[wp.id] || {};
-  let totalWeight = 0, weightedScore = 0;
-  for (const task of wp.tasks) {
-    const entry = taskMap[task.name];
-    if (!entry) continue;
-    const score = WP_STATUS_SCORES[entry.status];
-    if (score == null) continue;
-    const eff = entry.progress > 0 ? entry.progress / 100 : score;
-    totalWeight += task.weight ?? 1;
-    weightedScore += (task.weight ?? 1) * eff;
-  }
-  return totalWeight === 0 ? 0 : Math.round((weightedScore / totalWeight) * 100);
-}
+// F-13/F-14 consolidation: was a byte-identical duplicate of progressEngine's
+// calculateWPTaskWeightedProgress() — delegates to it instead.
+const phasePct = calculateWPTaskWeightedProgress;
 
 /**
  * Classifies each phase as 'done' | 'current' | 'upcoming' and attaches a week-over-week

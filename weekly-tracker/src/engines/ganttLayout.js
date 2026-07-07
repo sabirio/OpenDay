@@ -2,6 +2,8 @@
 // Converts ganttResult into pixel positions for the SVG renderer.
 
 import { filterRulesForWPs } from '../config/dependencyRules.js';
+import { filterRulesForWPsV2 } from '../config/dependencyRulesV2.js';
+import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2.js';
 
 const ROW_HEIGHT    = 36;   // px per WP row
 const PHASE_ROW_H   = 32;   // px per phase header row
@@ -46,6 +48,9 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
  * @param {object} keyDates         — { targetOpeningDate, constructionCompletionDate, forecastOpeningDate }
  * @param {object[]} discrepancies  — from discrepancyEngine
  * @param {object} [collapseState]  — { [phaseId]: boolean } — true = collapsed
+ * @param {string|null} [templateType] — project.templateType; selects which
+ *   dependency-rule set buildArrows() filters against (v1 default vs v2 when
+ *   this equals V2_TEMPLATE_TYPE). Omitted/anything else = v1, unchanged.
  * @returns Full layout object
  */
 export function calculateLayout(
@@ -54,7 +59,8 @@ export function calculateLayout(
   containerWidth = 900,
   keyDates = {},
   discrepancies = [],
-  collapseState = {}
+  collapseState = {},
+  templateType = null
 ) {
   if (!ganttResult || ganttResult.length === 0) return null;
 
@@ -91,7 +97,6 @@ export function calculateLayout(
       phaseMap[wp.phaseId] = {
         id:         wp.phaseId,
         label:      wp.phaseLabel,
-        color:      wp.phaseColor,
         phaseOrder: wp.phaseOrder,
         wps:        [],
       };
@@ -136,7 +141,6 @@ export function calculateLayout(
           barY:        y + (ROW_HEIGHT - BAR_HEIGHT) / 2,
           barHeight:   BAR_HEIGHT,
           rowIndex,
-          phaseColor:  phase.color,
           discrepancy,
         });
         rowIndex++;
@@ -150,7 +154,7 @@ export function calculateLayout(
   const timelineHeaders = buildTimelineHeaders(timelineStart, timelineEnd, viewMode, dateToX, pixelsPerDay);
 
   // ── Dependency arrows ────────────────────────────────────────────────────
-  const arrows = buildArrows(tasks, ganttResult);
+  const arrows = buildArrows(tasks, ganttResult, templateType);
 
   // ── Key date vertical lines ──────────────────────────────────────────────
   const keyDateLines = buildKeyDateLines(keyDates, dateToX);
@@ -217,9 +221,12 @@ function buildTimelineHeaders(timelineStart, timelineEnd, viewMode, dateToX, pix
 
 // ─── Dependency arrows ────────────────────────────────────────────────────────
 
-function buildArrows(tasks, ganttResult) {
+function buildArrows(tasks, ganttResult, templateType = null) {
   const wpIds = ganttResult.map(w => w.id);
-  const rules = filterRulesForWPs(wpIds);
+  // F-11: pick the dependency-rule set matching this project's template —
+  // was previously always the v1 set, so a v2 project's WP ids never
+  // matched any rule and zero arrows were ever drawn.
+  const rules = templateType === V2_TEMPLATE_TYPE ? filterRulesForWPsV2(wpIds) : filterRulesForWPs(wpIds);
   const taskMap = Object.fromEntries(tasks.map(t => [t.id, t]));
 
   const arrows = [];

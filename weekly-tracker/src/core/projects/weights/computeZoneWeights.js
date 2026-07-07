@@ -47,9 +47,14 @@ export function computeZoneWeights(template, areas = {}, activeZoneIds = null) {
   const areaIds   = areaZones.map(z => z.id);
   const hasUsableArea = areaIds.some(id => Number(areas[id]) > 0);
 
+  // Each zone's own area is clamped to >=0 independently — hasUsableArea only
+  // decides whether *any* zone has real area data (vs. falling back to
+  // defaultWeight ratios entirely); it must not let one zone's negative/
+  // garbage value flow raw into the proportional split just because a
+  // sibling zone happens to have a valid positive area (F-01).
   const rawWeights = {};
   for (const z of areaZones) {
-    rawWeights[z.id] = hasUsableArea ? (Number(areas[z.id]) || 0) : (z.defaultWeight ?? 0);
+    rawWeights[z.id] = hasUsableArea ? Math.max(0, Number(areas[z.id]) || 0) : (z.defaultWeight ?? 0);
   }
 
   // Proportional split on a 0-100 scale, then rescale to the actual remaining budget.
@@ -72,6 +77,28 @@ export function computeZoneWeights(template, areas = {}, activeZoneIds = null) {
   }
 
   return result;
+}
+
+/**
+ * A single zone's active categories paired with their re-normalized share
+ * (0-100, summing to 100 across the zone's active categories) — the shared
+ * step between computeZonedEffectiveWeights() below and
+ * buildV2ProgressTemplate.js (F-13/F-14 consolidation: was reimplemented
+ * inline there).
+ *
+ * @param {{categories: Array<{id:string, weight:number}>}} zone
+ * @param {string[]|null} [activeCategoryIds] — null = every category in the zone is active
+ * @returns {Array<{category: {id:string, weight:number}, share: number}>}
+ */
+export function computeZoneCategoryShares(zone, activeCategoryIds = null) {
+  const zoneCategories = zone.categories.filter(c => !activeCategoryIds || activeCategoryIds.includes(c.id));
+  if (zoneCategories.length === 0) return [];
+
+  const catIds = zoneCategories.map(c => c.id);
+  const catWeights = Object.fromEntries(zoneCategories.map(c => [c.id, c.weight]));
+  const categoryShares = normalizeWeightsTo100(catIds, catWeights);
+
+  return zoneCategories.map(category => ({ category, share: categoryShares[category.id] ?? 0 }));
 }
 
 /**
@@ -109,15 +136,7 @@ export function computeZonedEffectiveWeights(template, categoryLibrary, options 
     const zoneWeight = zoneWeights[zone.id];
     if (zoneWeight == null) continue; // zone excluded by activeZoneIds
 
-    const zoneCategories = zone.categories.filter(c => !activeCategoryIds || activeCategoryIds.includes(c.id));
-    if (zoneCategories.length === 0) continue;
-
-    const catIds = zoneCategories.map(c => c.id);
-    const catWeights = Object.fromEntries(zoneCategories.map(c => [c.id, c.weight]));
-    const categoryShares = normalizeWeightsTo100(catIds, catWeights);
-
-    for (const cat of zoneCategories) {
-      const share = categoryShares[cat.id] ?? 0;
+    for (const { category: cat, share } of computeZoneCategoryShares(zone, activeCategoryIds)) {
       const wps = (categoryLibrary[cat.id]?.workPackages ?? [])
         .filter(wp => !scopeWPIds || scopeWPIds.includes(wp.id));
       for (const wp of wps) {

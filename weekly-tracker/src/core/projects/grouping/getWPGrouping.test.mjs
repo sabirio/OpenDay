@@ -1,12 +1,26 @@
 // getWPGrouping.test.mjs — v1 phase / v2 zone-category grouping contract.
 // Run: node src/core/projects/grouping/getWPGrouping.test.mjs
 import { getWPGrouping, isZonedTemplate, groupGanttTasksByZone } from './getWPGrouping.js';
+import { V2_TEMPLATE_TYPE, retailFitoutV2 } from '../../../domains/construction/templates/retailFitoutV2.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
   if (cond) { pass++; console.log(`  OK ${name}`); }
   else      { fail++; console.error(`  FAIL ${name}`); }
 };
+
+console.log('\nV2_TEMPLATE_TYPE — F-04 shared-constant regression');
+{
+  check('V2_TEMPLATE_TYPE is exported and equals the literal every screen used to hardcode',
+    V2_TEMPLATE_TYPE === 'retail-fitout-v2');
+  check('retailFitoutV2.id is the SAME constant reference, not a second independent literal',
+    retailFitoutV2.id === V2_TEMPLATE_TYPE);
+  check('getWPGrouping(V2_TEMPLATE_TYPE, ...) behaves identically to the old raw-string call',
+    JSON.stringify(getWPGrouping(V2_TEMPLATE_TYPE, 'common.mep_backbone.hvac_equipment')) ===
+    JSON.stringify(getWPGrouping('retail-fitout-v2', 'common.mep_backbone.hvac_equipment')));
+  check('isZonedTemplate(V2_TEMPLATE_TYPE) is still true after the refactor',
+    isZonedTemplate(V2_TEMPLATE_TYPE) === true);
+}
 
 console.log('\ngetWPGrouping — v1 (phase model)');
 {

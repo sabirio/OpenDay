@@ -120,16 +120,6 @@ export function getPhasesInOrder() {
   return [...PHASES].sort((a, b) => a.order - b.order);
 }
 
-export function getWPsInOrder() {
-  const phaseOrder = Object.fromEntries(PHASES.map(p => [p.id, p.order]));
-  return [...WORK_PACKAGES].sort((a, b) => {
-    const pDiff = (phaseOrder[a.phaseId] || 0) - (phaseOrder[b.phaseId] || 0);
-    if (pDiff !== 0) return pDiff;
-    // Within same phase, preserve array order
-    return WORK_PACKAGES.indexOf(a) - WORK_PACKAGES.indexOf(b);
-  });
-}
-
 /**
  * getScopedGanttWorkPackages(scope)
  *
@@ -156,14 +146,6 @@ export function getScopedGanttWorkPackages(scope = null) {
       };
     })
     .filter(Boolean);
-}
-
-export function getWPsForTemplate(templateId) {
-  if (templateId === 'standard_with_demo') return getWPsInOrder();
-  if (templateId === 'standard_no_demo') {
-    return getWPsInOrder().filter(wp => wp.phaseId !== 'demolition');
-  }
-  return getWPsInOrder(); // custom: caller filters
 }
 
 export function getDefaultPhaseWeights() {

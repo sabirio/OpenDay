@@ -42,7 +42,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false },
 });
 
-// ── ISO week number — same algorithm as reportService.create() ────────────────
+// ── ISO week number — same algorithm reportService.js's now-removed create() used ──
 function isoWeekNumber(dateStr) {
   const d   = new Date(dateStr);
   const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));

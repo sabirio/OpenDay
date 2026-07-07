@@ -22,17 +22,11 @@ import { computeContractorScores } from '../../engines/contractorEngine';
 import { computeProjectHealth } from '../../engines/projectHealthEngine';
 import { computeOpeningReadiness } from '../../engines/openingReadinessEngine';
 import { WORK_PACKAGES as GANTT_WPS } from '../../config/masterTaskLibrary';
-import { ALL_WORK_PACKAGES_V2 } from '../../domains/construction/templates/retailFitoutV2';
+import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
 import { buildV2OpeningReadinessOptions } from '../projects/scope/buildV2OpeningReadinessOptions';
 import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
 import { isTemplateValid } from '../projects';
-
-// v2 (zoned) projects are selected by templateType, never templateId (see
-// retailFitoutV2.js header) — matches the literal getWPGrouping.js already
-// checks against, kept as a plain string here too (no shared constant module
-// exists to import from without creating one for a single comparison).
-const V2_TEMPLATE_TYPE = 'retail-fitout-v2';
 
 // Mirrors WeeklyReports.jsx's gatedTemplate resolution (pinned template ->
 // fallback to the active template -> gated on isTemplateValid) so progress

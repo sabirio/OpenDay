@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { retailFitoutV2, CATEGORY_LIBRARY } from '../../domains/construction/templates/retailFitoutV2';
+import { retailFitoutV2, CATEGORY_LIBRARY, V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2';
 import { computeZoneWeights } from '../../core/projects/weights/computeZoneWeights';
 
 const ALL_ZONE_IDS = retailFitoutV2.zones.map(z => z.id);
@@ -130,7 +130,7 @@ export default function ZonedScopeConfigurator({ initialScope, areas = {}, onSav
 
   function handleSave() {
     onSave({
-      template: 'retail-fitout-v2',
+      template: V2_TEMPLATE_TYPE,
       zones: [...activeZoneIds],
       categories: [...activeCategoryIds],
       workPackages: [...activeWPIds],

@@ -283,8 +283,15 @@ export const CATEGORY_LIBRARY = {
   },
 };
 
+// Single source of truth for the v2 templateType identifier (F-04) — every
+// other file that needs to check `project.templateType === 'retail-fitout-v2'`
+// imports this constant instead of re-declaring the string literal, so a
+// future rename/typo can't silently misclassify a v2 project as v1 in just
+// one of the several places that used to duplicate it.
+export const V2_TEMPLATE_TYPE = 'retail-fitout-v2';
+
 export const retailFitoutV2 = {
-  id: 'retail-fitout-v2',
+  id: V2_TEMPLATE_TYPE,
   version: 'v2',
   label: 'Retail Fit-Out (Zoned)',
   zones: [

@@ -1,4 +1,5 @@
 import { PHASES, WORK_PACKAGES, getWPsByPhase } from './masterTaskLibrary.js';
+import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2.js';
 
 export const TEMPLATES = [
   {
@@ -32,7 +33,7 @@ export const TEMPLATES = [
     // scope is resolved via ZonedScopeConfigurator.jsx + computeZoneWeights.js,
     // never through resolveTemplateWPs()/buildCustomSelectorState() below —
     // those stay v1-only (flat phase/WP model) and are untouched by this entry.
-    id: 'retail-fitout-v2',
+    id: V2_TEMPLATE_TYPE,
     label: 'Retail Fit-Out (Zoned) — v2',
     description: 'Zoned retail fit-out: common areas + sales floor + back-of-house, weighted by floor area',
     icon: '🏬',

@@ -6,10 +6,8 @@ import { calculatePhaseProgress } from './progressEngine';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
 import { classifyDiscrepancy } from './discrepancyEngine';
 import { computeOpeningReadiness } from './openingReadinessEngine';
-import { ALL_WORK_PACKAGES_V2 } from '../domains/construction/templates/retailFitoutV2';
+import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2';
 import { buildV2OpeningReadinessOptions } from '../core/projects/scope/buildV2OpeningReadinessOptions';
-
-const V2_TEMPLATE_TYPE = 'retail-fitout-v2';
 
 const GANTT_PHASE_COLORS = [
   '#6366f1','#0ea5e9','#10b981','#f59e0b','#8b5cf6',
@@ -164,22 +162,14 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
     };
   }
 
-  // ── 3. Risk ───────────────────────────────────────────────────────────────
-  const riskScore = computeProjectRiskScore(project, projReports, progress, projSiteVisits || []);
-  const riskLevel = getRiskLevel(riskScore.score);
-
-  const sched = latest?.projectScheduleStatus;
-  const scheduleRisk =
-    sched === 'Critical' ? 'CRITICAL' :
-    sched === 'Delayed'  ? 'HIGH'     :
-    sched === 'At Risk'  ? 'AT_RISK'  : 'OK';
-
-  // ── 4. Opening ────────────────────────────────────────────────────────────
-  // scopeWPIds must be passed here — without it, buildBlockerRecords() (in
-  // openingReadinessEngine.js) checks blocker WPs against the FULL canonical
-  // template regardless of this project's actual scope, flagging any
-  // out-of-scope blocker (never reported on, so always "Not Started") as
-  // still incomplete. Matches evaluateProjectState.js's scoping.
+  // ── 3. Opening ────────────────────────────────────────────────────────────
+  // Computed before Risk (below) so computeProjectRiskScore can read
+  // readiness.verdict — matches evaluateProjectState.js's order (the A3
+  // pattern). scopeWPIds must be passed here — without it, buildBlockerRecords()
+  // (in openingReadinessEngine.js) checks blocker WPs against the FULL
+  // canonical template regardless of this project's actual scope, flagging
+  // any out-of-scope blocker (never reported on, so always "Not Started") as
+  // still incomplete.
   const { scopeWPIds, templateOptions } = resolveOpeningReadinessInputs(project);
   const openingReadiness = computeOpeningReadiness(
     wpCumulativeStatuses,
@@ -188,6 +178,20 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
     templateOptions
   );
   const openingStatus = openingReadiness.status;
+
+  // ── 4. Risk ───────────────────────────────────────────────────────────────
+  // readiness passed as the 5th arg (F-02 fix) — without it, the "Opening not
+  // achievable" +20pt factor (riskEngine.js) can never fire here, so this
+  // drawer's risk.level/score could diverge from evaluateProjectState.js's
+  // canonical Home/Dashboard value for the identical project.
+  const riskScore = computeProjectRiskScore(project, projReports, progress, projSiteVisits || [], openingReadiness);
+  const riskLevel = getRiskLevel(riskScore.score);
+
+  const sched = latest?.projectScheduleStatus;
+  const scheduleRisk =
+    sched === 'Critical' ? 'CRITICAL' :
+    sched === 'Delayed'  ? 'HIGH'     :
+    sched === 'At Risk'  ? 'AT_RISK'  : 'OK';
 
   const risk = {
     level: riskLevel,

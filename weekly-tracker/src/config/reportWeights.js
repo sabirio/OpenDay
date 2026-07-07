@@ -23,10 +23,6 @@ export const statusScores = {
   "Not ready for handover": 0.25,
 };
 
-export const demolitionWeights = {
-  "Demolition works": 10,
-};
-
 export const constructionWeights = {
   "Flooring installation": 8,
   "Drywall partition installation": 10,
@@ -61,12 +57,4 @@ export const phaseWeights = {
   "Testing & Commissioning": 0.2,
   Handover: 0.15,
   total: 1,
-};
-
-export const wpStatusScores = {
-  'Not Started': 0,
-  'In Progress': 0.5,
-  Completed: 1,
-  'Not Applicable': null,
-  Delayed: 0.3, // legacy — kept for historical records only, not selectable in UI
 };

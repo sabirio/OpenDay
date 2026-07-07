@@ -46,6 +46,60 @@ console.log('\ncomputeZoneWeights');
     sumOf(zeroAreas) === 100 && zeroAreas.sales > zeroAreas.boh);
 }
 
+console.log('\ncomputeZoneWeights — F-01 regression: negative/garbage area in one zone must not produce a negative weight');
+{
+  // Root repro from the diagnostic audit: sales=-100 (typo/paste/stray minus),
+  // boh=300 (a real, valid area). Before the fix, hasUsableArea's `.some(>0)`
+  // check passed (boh is usable) and let sales' raw -100 flow unclamped into
+  // the proportional split, producing sales: -32.5.
+  const mixedSign = computeZoneWeights(retailFitoutV2, { sales: -100, boh: 300 });
+  check('no zone weight goes negative when one area is negative and another is positive',
+    Object.values(mixedSign).every(w => w >= 0));
+  check('the negative-area zone is clamped to a 0 share, not a negative one', mixedSign.sales === 0);
+  check('the remaining budget goes entirely to the valid positive-area zone', mixedSign.boh === 65);
+  check('grand total still sums to exactly 100', sumOf(mixedSign) === 100);
+
+  // Both areas negative (no zone has a *usable*, i.e. positive, area) must
+  // still fall back to the defaultWeight ratio, exactly like the all-zero
+  // case above — this must NOT regress into the clamped-raw-value path.
+  const bothNegative = computeZoneWeights(retailFitoutV2, { sales: -100, boh: -300 });
+  check('both-negative areas falls back to defaultWeight ratio (unchanged pre-fix behavior)',
+    sumOf(bothNegative) === 100 && bothNegative.sales > bothNegative.boh &&
+    close(bothNegative.sales, 45, 1) && close(bothNegative.boh, 20, 1));
+
+  // Positive-input cases must be byte-identical to their pre-fix values —
+  // the clamp must be a no-op whenever the input was already non-negative.
+  check('0/0 unaffected by the clamp (still exact defaultWeight fallback)',
+    close(computeZoneWeights(retailFitoutV2, { sales: 0, boh: 0 }).sales, 45, 1));
+  check('500/500 unaffected by the clamp', computeZoneWeights(retailFitoutV2, { sales: 500, boh: 500 }).sales === 32.5);
+  check('700/300 unaffected by the clamp (spec-exact 45.5/19.5)',
+    computeZoneWeights(retailFitoutV2, { sales: 700, boh: 300 }).sales === 45.5);
+  check('numeric strings ("700"/"300") still coerce correctly and are unaffected by the clamp',
+    computeZoneWeights(retailFitoutV2, { sales: '700', boh: '300' }).sales === 45.5);
+
+  // Full cascade: buildV2ProgressTemplate must never hand progressEngine a
+  // negative progressWeight for any category, for any area input.
+  const { buildV2ProgressTemplate } = await import('./buildV2ProgressTemplate.js');
+  const negativeAreaTemplate = buildV2ProgressTemplate({ sales: -100, boh: 300 }, null, null);
+  check('buildV2ProgressTemplate never produces a negative category progressWeight',
+    negativeAreaTemplate.phases.every(p => p.progressWeight >= 0));
+
+  // And the top-level progress number itself must never go negative (nor
+  // become the pre-fix "-0") even when every WP in the garbage-area zone is
+  // reported 100% complete.
+  const { calculateProjectProgress } = await import('../../../engines/progressEngine.js');
+  const wpStatuses = {};
+  for (const wp of negativeAreaTemplate.workPackages) {
+    if (!wp.id.startsWith('sales.')) continue;
+    if (!wpStatuses[wp.phaseId]) wpStatuses[wp.phaseId] = {};
+    wpStatuses[wp.phaseId][wp.label] = { status: 'Completed', progress: 100 };
+  }
+  const scopeWPIds = negativeAreaTemplate.workPackages.map(w => w.id);
+  const progress = calculateProjectProgress(wpStatuses, scopeWPIds, null, negativeAreaTemplate);
+  check('project-wide progress is a sane non-negative number, not -0, even with a garbage-area zone fully reported',
+    Object.is(progress, -0) === false && progress >= 0);
+}
+
 console.log('\ncomputeZonedEffectiveWeights');
 {
   const full = computeZonedEffectiveWeights(retailFitoutV2, CATEGORY_LIBRARY);

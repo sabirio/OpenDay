@@ -6,7 +6,6 @@ import {
   buildProjectWPsV2,
   calculateGantt,
   calculateKeyDates,
-  calculateForecastOpening,
   GANTT_ENGINE_VERSION,
 } from '../engines/ganttEngine';
 import { DEPENDENCY_RULES } from '../config/dependencyRules';
@@ -14,9 +13,8 @@ import { DEPENDENCY_RULES_V2 } from '../config/dependencyRulesV2';
 import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth } from '../engines/spiEngine';
 import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
-import { ALL_WORK_PACKAGES_V2 } from '../domains/construction/templates/retailFitoutV2';
+import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE as V2_TEMPLATE_ID } from '../domains/construction/templates/retailFitoutV2';
 
-const V2_TEMPLATE_ID = 'retail-fitout-v2';
 const V2_COMPLETION_MARKER = 'common.commissioning.integrated_systems_test';
 const V2_OPENING_MARKER = 'common.handover.keys_possession';
 
@@ -308,6 +306,28 @@ export async function regenerateGantt(projectId) {
     .upsert(rows, { onConflict: 'project_id,wp_id' });
   if (error) throw error;
 
+  // F-03: archive any previously-active row whose WP fell out of the new
+  // scope (e.g. a zone/category/WP deselected in the scope configurator
+  // since the last generation) — without this, getProjectGantt() (which
+  // only filters is_archived, never scope) keeps surfacing it in the
+  // Contractor Report / PM Site Visit forms forever. Rows still in the new
+  // scope are already re-asserted `is_archived: false` by the upsert above,
+  // so widening scope back un-archives them automatically (via the same
+  // onConflict upsert — no duplicate rows) with no separate un-archive step
+  // needed here. Progress/weight calculations are unaffected by this flag
+  // either way — they already scope strictly via getScopeWPIds(project.scope),
+  // never via is_archived.
+  const newWpIds = new Set(rows.map(r => r.wp_id));
+  const toArchive = existingTasks.filter(t => !t.is_archived && !newWpIds.has(t.id));
+  if (toArchive.length > 0) {
+    const { error: archiveErr } = await supabase
+      .from('project_gantt_tasks')
+      .update({ is_archived: true })
+      .eq('project_id', projectId)
+      .in('wp_id', toArchive.map(t => t.id));
+    if (archiveErr) throw archiveErr;
+  }
+
   await updateGanttDates(projectId, {
     constructionCompletionDate: constructionCompletionDate?.toISOString().split('T')[0] || null,
     ganttGeneratedAt:           new Date().toISOString(),
@@ -315,58 +335,6 @@ export async function regenerateGantt(projectId) {
   });
 
   return ganttResult;
-}
-
-// ─── Forecast update ──────────────────────────────────────────────────────────
-
-export async function updateForecast(projectId) {
-  const tasks = await getProjectGantt(projectId);
-  if (!tasks.length) return;
-
-  const { data: projectRow } = await supabase
-    .from('projects')
-    .select('template_type')
-    .eq('id', projectId)
-    .single();
-  const dependencyRules = projectRow?.template_type === V2_TEMPLATE_ID ? DEPENDENCY_RULES_V2 : DEPENDENCY_RULES;
-
-  const { forecastOpeningDate } = calculateForecastOpening(tasks, new Date(), dependencyRules);
-  if (!forecastOpeningDate) return;
-
-  await updateGanttDates(projectId, {
-    forecastOpeningDate: forecastOpeningDate.toISOString().split('T')[0],
-  });
-
-  return forecastOpeningDate;
-}
-
-// ─── Scope management ─────────────────────────────────────────────────────────
-
-/**
- * Add a new WP to project scope.
- * Inserts into project_gantt_tasks and recalculates Gantt dates.
- */
-export async function addWPToScope(projectId, wpId) {
-  const { error } = await supabase
-    .from('project_gantt_tasks')
-    .update({ is_archived: false })
-    .eq('project_id', projectId)
-    .eq('wp_id', wpId);
-  if (error) throw error;
-
-  await regenerateGantt(projectId);
-}
-
-/**
- * Remove a WP from project scope (archive it, don't delete).
- */
-export async function removeWPFromScope(projectId, wpId) {
-  const { error } = await supabase
-    .from('project_gantt_tasks')
-    .update({ is_archived: true })
-    .eq('project_id', projectId)
-    .eq('wp_id', wpId);
-  if (error) throw error;
 }
 
 // ─── Manual date override (drag resize) ──────────────────────────────────────
@@ -399,88 +367,6 @@ export async function updateGanttDiscrepancy(projectId, wpId, { siteVisitProgres
     .eq('project_id', projectId)
     .eq('wp_id', wpId);
   if (error) throw error;
-}
-
-// ─── Refresh planned_progress column ─────────────────────────────────────────
-
-/**
- * Compute planned_progress for every active task of a project at today's date
- * and persist it to the planned_progress column.
- * Requires: ALTER TABLE project_gantt_tasks ADD COLUMN IF NOT EXISTS planned_progress NUMERIC(5,2) DEFAULT 0
- */
-export async function refreshPlannedProgress(projectId) {
-  const { data: tasks, error } = await supabase
-    .from('project_gantt_tasks')
-    .select('id,planned_start,planned_end,is_archived')
-    .eq('project_id', projectId);
-  if (error) throw error;
-  if (!tasks || tasks.length === 0) return;
-
-  const today = new Date();
-
-  const updates = tasks
-    .filter(t => !t.is_archived)
-    .map(t => {
-      const start = new Date(t.planned_start);
-      const end   = new Date(t.planned_end);
-      let pct;
-      if (isNaN(start) || isNaN(end) || end <= start) {
-        pct = 100;
-      } else if (today <= start) {
-        pct = 0;
-      } else if (today >= end) {
-        pct = 100;
-      } else {
-        pct = Math.min(100, (today - start) / (end - start) * 100);
-      }
-      return { id: t.id, planned_progress: Math.round(pct * 100) / 100 };
-    });
-
-  for (const u of updates) {
-    await supabase
-      .from('project_gantt_tasks')
-      .update({ planned_progress: u.planned_progress })
-      .eq('id', u.id);
-  }
-}
-
-/**
- * Compute SPI + critical path health for a single project.
- * Returns { spi, spiStatus, criticalHealth, lastVisitDate, taskCount }
- */
-export async function getProjectMetrics(projectId) {
-  const today = new Date();
-  const { data: tasks, error } = await supabase
-    .from('project_gantt_tasks')
-    .select('wp_id,planned_start,planned_end,actual_progress,is_critical,is_archived')
-    .eq('project_id', projectId);
-  if (error) throw error;
-
-  const { data: projectRow } = await supabase
-    .from('projects')
-    .select('scope, template_type')
-    .eq('id', projectId)
-    .single();
-  const wpList = projectRow?.template_type === V2_TEMPLATE_ID ? ALL_WORK_PACKAGES_V2 : GANTT_WPS;
-  const scopeWPIds = getScopeWPIds(projectRow?.scope ?? null, wpList);
-
-  const spi            = computeSPIFromTasks(tasks || [], today, scopeWPIds);
-  const criticalHealth = computeCriticalHealth(tasks || [], today, scopeWPIds);
-
-  const { data: visits } = await supabase
-    .from('site_visits')
-    .select('visit_date')
-    .eq('project_id', projectId)
-    .order('visit_date', { ascending: false })
-    .limit(1);
-
-  return {
-    spi,
-    spiStatus:     getSPIStatus(spi),
-    criticalHealth,
-    lastVisitDate: visits?.[0]?.visit_date ?? null,
-    taskCount:     (tasks || []).filter(t => !t.is_archived && (!scopeWPIds || scopeWPIds.includes(t.wp_id))).length,
-  };
 }
 
 /**

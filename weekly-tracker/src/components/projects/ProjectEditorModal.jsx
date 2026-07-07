@@ -1,6 +1,7 @@
 import { Field, FieldRow, FormSection } from "./ProjectFormParts";
 import ConflictWarning from "../ConflictWarning";
 import { TEMPLATES } from "../../config/projectTemplates";
+import { V2_TEMPLATE_TYPE } from "../../domains/construction/templates/retailFitoutV2";
 
 export default function ProjectEditorModal({
   project,
@@ -179,7 +180,7 @@ export default function ProjectEditorModal({
             );
           })()}
 
-          {project.templateType === 'retail-fitout-v2' && (
+          {project.templateType === V2_TEMPLATE_TYPE && (
             <FormSection title="Zone Areas (m²)" accentColor="var(--accent)">
               <FieldRow>
                 <Field label="Sales Floor Area">
@@ -189,7 +190,10 @@ export default function ProjectEditorModal({
                     name="scope.zoneAreas.sales"
                     value={project.scope?.zoneAreas?.sales ?? ''}
                     onChange={(e) => {
-                      const v = e.target.value === '' ? '' : Number(e.target.value);
+                      // Clamped to >=0 at entry (defense-in-depth, F-01) — the
+                      // engine (computeZoneWeights.js) is independently robust
+                      // to a negative value reaching it regardless.
+                      const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0);
                       onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, sales: v } } }));
                     }}
                     style={inputStyle}
@@ -203,7 +207,10 @@ export default function ProjectEditorModal({
                     name="scope.zoneAreas.boh"
                     value={project.scope?.zoneAreas?.boh ?? ''}
                     onChange={(e) => {
-                      const v = e.target.value === '' ? '' : Number(e.target.value);
+                      // Clamped to >=0 at entry (defense-in-depth, F-01) — the
+                      // engine (computeZoneWeights.js) is independently robust
+                      // to a negative value reaching it regardless.
+                      const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0);
                       onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, boh: v } } }));
                     }}
                     style={inputStyle}

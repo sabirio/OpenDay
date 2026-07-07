@@ -36,7 +36,7 @@ Unlike `workPackages.js`/`reportWeights.js` (purely legacy, superseded), `report
 |---|---|---|
 | `PHASE_ORDER`, `getStatusScore()`, `computeCumulativeStatuses()`, `estimateProgressFromStatuses()` | ⚠️ `@legacy` (already marked in source) | Old 4-phase flat-status format only (`demolitionStatus`/`constructionStatuses`/etc). Superseded by `progressEngine.calculateProjectProgressResult()`. |
 | `isWPReport()`, `mergeGanttWPStatuses()` (private), `computeWPCumulativeStatuses()` | ✅ **canonical-adjacent — do NOT mark legacy** | `progressEngine.js` itself imports and calls these directly (lines 31–35, 199–200) to build the Gantt-format cumulative status object it computes progress from. They are part of the canonical pipeline, physically located in this file. |
-| `getPackageProgressMap()` | 🪦 dead code | Exported but zero external callers found (grepped whole `src/` tree). Not removed this wave — no-delete rule. |
+| `getPackageProgressMap()` | 🗑️ removed | Was dead code (zero external callers) — deleted in the dead-code cleanup pass, along with the now-unused `WORK_PACKAGES`/`computePackageProgress` imports it alone required. |
 
 **Consequence:** a file-level `@legacy` banner (as a literal reading of a generic "mark the whole file legacy" instruction might suggest) would be **incorrect** here — it would misdirect a future reader into thinking `computeWPCumulativeStatuses`/`isWPReport` should also be avoided/migrated, when in fact the canonical engine depends on them being right here. The existing **per-function** `@legacy` JSDoc banners (already present in the source, predating this wave) are the accurate and sufficient marking — see the top-of-file note added in Wave 6 for a file-level map pointing to this document.
 

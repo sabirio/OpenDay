@@ -36,7 +36,7 @@ Net effect: **removing a WP from a project's scope did not exclude it from SPI o
 
 **Fix:** `computeSPIFromTasks(tasks, referenceDate, scopeWPIds)` and `computeCriticalHealth(tasks, referenceDate, scopeWPIds)` now accept an optional `scopeWPIds` (from `getScopeWPIds(project.scope, GANTT_WPS)`) and filter `!t.is_archived && (!scopeWPIds || scopeWPIds.includes(t.wp_id))`. `scopeWPIds` defaults to `null` (= no additional filtering) so existing callers that don't yet pass it are unaffected; call sites were updated to pass it where the project/scope was available. This does not change the SPI/critical-health arithmetic — only which tasks are included as input.
 
-`addWPToScope()` / `removeWPFromScope()` remain dead code (out of scope for this wave — a real fix would need to wire the `ProjectScopeConfigurator` save flow to call `regenerateGantt()`, which already respects scope on rebuild, or explicitly archive removed WPs). Flagged for a future pass.
+**Update (F-03 fix, diagnostic-audit follow-up):** `regenerateGantt()` now archives any previously-active row whose WP fell out of the newly-computed scope itself, right after its upsert — the real fix flagged above as a future pass. `addWPToScope()` / `removeWPFromScope()` were never wired into that flow (both remained dead code, zero callers) and were deleted in the dead-code cleanup pass rather than adopted, since building the archive logic directly into `regenerateGantt()` (the function that actually runs on every scope-affecting save) was the more minimally-invasive fix.
 
 ## Known duplication (not a bug, not fixed this wave)
 

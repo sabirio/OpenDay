@@ -110,57 +110,6 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
-export async function getLastSiteVisit(projectId) {
-  const { data, error } = await supabase
-    .from('site_visits')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('visit_date', { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  if (!data || data.length === 0) return null;
-
-  const visit = data[0];
-  const { data: wps, error: wErr } = await supabase
-    .from('site_visit_wps')
-    .select('*')
-    .eq('site_visit_id', visit.id);
-  if (wErr) throw wErr;
-
-  return mapRow({ ...visit, wps: wps || [] });
-}
-
-export async function getAllSiteVisits(projectId) {
-  const { data, error } = await supabase
-    .from('site_visits')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('visit_date', { ascending: false });
-  if (error) throw error;
-  return (data || []).map(mapRow);
-}
-
-export async function getSiteVisitForReport(contractorReportId) {
-  if (!contractorReportId) return null;
-
-  const { data, error } = await supabase
-    .from('site_visits')
-    .select('*')
-    .eq('contractor_report_id', contractorReportId)
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-
-  const { data: wps, error: wErr } = await supabase
-    .from('site_visit_wps')
-    .select('*')
-    .eq('site_visit_id', data.id);
-  if (wErr) throw wErr;
-
-  return mapRow({ ...data, wps: wps || [] });
-}
-
 function mapRow(row) {
   if (!row) return row;
   return {

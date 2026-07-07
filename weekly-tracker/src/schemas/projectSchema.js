@@ -31,5 +31,3 @@ export const ProjectSchema = z.object({
   scope: ScopeSchema,
   progressHistory: z.array(ProgressHistoryRowSchema).optional(),
 }).passthrough();
-
-export const ProjectArraySchema = z.array(ProjectSchema);
