@@ -108,3 +108,23 @@ export function computeCriticalHealth(tasks, referenceDate = new Date(), scopeWP
     label: behind === 0 ? 'healthy' : behind / critical.length <= 0.5 ? 'warning' : 'critical',
   };
 }
+
+export function computeProjectTrendPoints(reports = [], tasks = []) {
+  const activeTasks = (tasks || []).filter(t => !t.is_archived);
+
+  return (reports || []).map(r => {
+    const refDate = new Date(r.report_date ?? r.reportingDate);
+    const planned = activeTasks.length > 0
+      ? activeTasks.reduce((s, t) => s + computePlannedPct(t.planned_start, t.planned_end, refDate), 0) / activeTasks.length
+      : null;
+    const actual = r.overall_progress ?? r.overallProgress ?? 0;
+    const spi    = planned && planned >= 1 ? Math.round(actual / planned * 100) / 100 : null;
+    return {
+      weekLabel:       `W${r.week_number ?? r.weekNumber}`,
+      reportDate:      r.report_date ?? r.reportingDate,
+      spi,
+      overallProgress: actual,
+      plannedAvg:      planned !== null ? Math.round(planned) : null,
+    };
+  });
+}

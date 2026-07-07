@@ -2,7 +2,7 @@
 // No Supabase dependency; spiEngine.js has no imports at all.
 // Run: node src/tests/spiEngine.test.mjs
 
-import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth, computeCalendarSpi } from '../engines/spiEngine.js';
+import { computePlannedPct, computeSPIFromTasks, computeCriticalHealth, computeCalendarSpi, computeProjectTrendPoints } from '../engines/spiEngine.js';
 import { getSPIStatus } from '../config/statusColors.js';
 
 let pass = 0, fail = 0;
@@ -219,6 +219,27 @@ check('F7: 0 → critical',       getSPIStatus(0)    === 'critical');
 // F8: null / undefined → no_schedule
 check('F8: null → no_schedule',      getSPIStatus(null)      === 'no_schedule');
 check('F9: undefined → no_schedule', getSPIStatus(undefined) === 'no_schedule');
+
+// ── G) computeProjectTrendPoints ─────────────────────────────────────────────
+
+console.log('\nG) computeProjectTrendPoints');
+
+{
+  const reportDate = now.toISOString().slice(0, 10);
+  const start = iso(now.getTime() - 50 * DAY);
+  const end   = iso(now.getTime() + 50 * DAY);
+  const trend = computeProjectTrendPoints(
+    [{ report_date: reportDate, week_number: 12, overall_progress: 25 }],
+    [
+      { is_archived: false, planned_start: start, planned_end: end },
+      { is_archived: true, planned_start: start, planned_end: end },
+    ]
+  );
+  check('G1: emits one trend point', trend.length === 1);
+  check('G2: week label preserved', trend[0].weekLabel === 'W12');
+  check('G3: plannedAvg rounds planned percentage', Math.abs(trend[0].plannedAvg - 50) <= 1);
+  check('G4: spi computed from actual/planned', trend[0].spi !== null && Math.abs(trend[0].spi - 0.5) <= 0.02);
+}
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

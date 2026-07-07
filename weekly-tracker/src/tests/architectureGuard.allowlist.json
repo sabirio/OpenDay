@@ -182,7 +182,6 @@
     "pages/Projects.jsx:4:layer-import:page imports services: ../services/conflictGuard",
     "pages/RiskDashboard.jsx:18:layer-import:page imports engines: ../engines/riskEngine",
     "pages/RiskDashboard.jsx:2:layer-import:page imports engines: ../engines/contractorEngine",
-    "pages/RiskDashboard.jsx:4:layer-import:page imports services: ../services/ganttService",
     "pages/RiskDashboard.jsx:6:layer-import:page imports services: ../services/dashboardService",
     "pages/RiskDashboard.jsx:69:status-literal:const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === \"CRITICAL\"), [sortedByRisk]);",
     "pages/RiskDashboard.jsx:8:layer-import:page imports engines: ../engines/portfolioRiskEngine",
@@ -219,8 +218,6 @@
     "services/ganttService.js:13:layer-import:service imports engines: ../engines/spiEngine",
     "services/ganttService.js:14:layer-import:service imports core: ../core/projects/scope/getScopeWPIds",
     "services/ganttService.js:4:layer-import:service imports engines: ../engines/ganttEngine",
-    "services/ganttService.js:459:service-purity:const spi    = planned && planned >= 1 ? Math.round(actual / planned * 100) / 100 : null;",
-    "services/ganttService.js:465:service-purity:plannedAvg:      planned !== null ? Math.round(planned) : null,",
     "services/siteVisitService.js:5:layer-import:service imports engines: ../engines/discrepancyEngine"
   ]
 }

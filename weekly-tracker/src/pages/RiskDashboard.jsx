@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { computePortfolioContractorScores } from "../engines/contractorEngine";
 import { useRiskRows } from "../hooks/useRiskRows";
-import { getProjectTrend } from "../services/ganttService";
+import { loadProjectTrend } from "../hooks/useProjectTrend";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { getDiscrepancyHistory } from "../services/dashboardService";
 import { loadContractorReliability } from "../hooks/useContractorReliability";
@@ -53,7 +53,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
     const ids = projects.map(p => p.id);
     Promise.all([
       loadContractorReliability(ids),
-      Promise.all(ids.map(id => getProjectTrend(id, 8).then(t => [id, t]))),
+      Promise.all(ids.map(id => loadProjectTrend(id, 8).then(t => [id, t]))),
       Promise.all(ids.map(id => getDiscrepancyHistory(id, 10).then(d => [id, d]))),
     ]).then(([reliability, trends, discs]) => {
       setReliabilityMap(reliability);

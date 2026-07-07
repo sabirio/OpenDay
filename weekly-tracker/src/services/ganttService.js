@@ -432,7 +432,7 @@ export async function loadAllGanttMetrics(projectIds) {
  * Weekly SPI trend for a project (up to weeksBack data points).
  * Each point: { weekLabel, reportDate, spi, overallProgress, plannedAvg }
  */
-export async function getProjectTrend(projectId, weeksBack = 8) {
+export async function fetchProjectTrendInputs(projectId, weeksBack = 8) {
   const [reportsRes, tasksRes] = await Promise.all([
     supabase
       .from('contractor_reports')
@@ -446,23 +446,10 @@ export async function getProjectTrend(projectId, weeksBack = 8) {
       .eq('project_id', projectId),
   ]);
   if (reportsRes.error) throw reportsRes.error;
+  if (tasksRes.error) throw tasksRes.error;
 
-  const reports = (reportsRes.data || []).reverse();
-  const tasks   = (tasksRes.data || []).filter(t => !t.is_archived);
-
-  return reports.map(r => {
-    const refDate = new Date(r.report_date);
-    const planned = tasks.length > 0
-      ? tasks.reduce((s, t) => s + computePlannedPct(t.planned_start, t.planned_end, refDate), 0) / tasks.length
-      : null;
-    const actual = r.overall_progress ?? 0;
-    const spi    = planned && planned >= 1 ? Math.round(actual / planned * 100) / 100 : null;
-    return {
-      weekLabel:       `W${r.week_number}`,
-      reportDate:      r.report_date,
-      spi,
-      overallProgress: actual,
-      plannedAvg:      planned !== null ? Math.round(planned) : null,
-    };
-  });
+  return {
+    reports: (reportsRes.data || []).reverse(),
+    tasks:   tasksRes.data || [],
+  };
 }
