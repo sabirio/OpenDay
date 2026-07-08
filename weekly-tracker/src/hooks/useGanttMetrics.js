@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadAllGanttMetrics } from '../services/ganttService';
+import { loadAllGanttMetrics } from '../core/gantt/ganttOrchestrationModel';
 import { isGanttStale } from '../engines/ganttEngine';
 
 /**

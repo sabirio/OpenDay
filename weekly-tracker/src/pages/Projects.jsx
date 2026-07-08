@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { generateAndSaveGantt, regenerateGantt } from "../services/ganttService";
+import { generateAndSaveGantt, regenerateGantt } from "../hooks/useGanttOrchestration";
 import { getById as getProjectById } from "../services/projectService";
 import { checkConflict } from "../services/conflictGuard";
 import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";

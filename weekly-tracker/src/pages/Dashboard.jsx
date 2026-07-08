@@ -3,7 +3,7 @@ import {
   computePortfolioAlerts, computeContractorPerf, computePortfolioKpis,
 } from "../engines/portfolioEngine";
 import { computeSiteVisitData, computeSiteVisitKpis } from "../engines/siteVisitEngine";
-import { regenerateGantt } from "../services/ganttService";
+import { regenerateGantt } from "../hooks/useGanttOrchestration";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
 import SummaryPanel from "../components/dashboard/SummaryPanel";
 import StatusMatrix from "../components/dashboard/StatusMatrix";
