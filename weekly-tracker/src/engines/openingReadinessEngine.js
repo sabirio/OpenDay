@@ -151,6 +151,14 @@ function computeVerdict(daysToOpening, requiredDays) {
 }
 
 /**
+ * Magnitude of a negative daysToOpening for "Xd OVERDUE"-style display —
+ * single source for a Math.abs() several dashboard cards each reimplemented.
+ */
+export function daysOverdueCount(daysToOpening) {
+  return Math.abs(daysToOpening);
+}
+
+/**
  * Compute opening readiness from latest cumulative WP statuses.
  *
  * @param {object|null}  wpCumulativeStatuses  - merged workPackageStatuses object

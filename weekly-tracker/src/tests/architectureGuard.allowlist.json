@@ -52,8 +52,6 @@
     "components/ProjectScopeConfigurator.jsx:212:calculation:<span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{Math.round(wp.duration_pct * 100)}%</span>",
     "components/ProjectScopeConfigurator.jsx:234:calculation:Σ {activeTotal} / 100",
     "components/ProjectScopeConfigurator.jsx:80:calculation:const totalOk       = Math.round(activeTotal) === 100;",
-    "components/risk/CriticalWarnings.jsx:16:calculation:<div style={{ fontSize: 12, color: \"var(--text-primary)\", marginBottom: 2 }}>Risk Score: <strong style={{ color: \"var(--status-alert)\" }}>{riskScore.score} / 100</strong></div>",
-    "components/risk/CriticalWarnings.jsx:18:calculation:{dTo !== null && <div style={{ display: \"inline-flex\", alignItems: \"center\", gap: 4, fontSize: 12, fontWeight: 700, color: dTo < 0 ? \"var(--status-alert)\" : \"var(--status-warn)\" }}>{dTo < 0 ? <><Glyph name=\"block\" /> {Math.abs(dTo)}d OVERDUE</> : <><Glyph name=\"calendar\" /> {dTo}d to opening</>}</div>}",
     "components/risk/GanttSpiTab.jsx:88:calculation:const critCount = discs.filter(d => d.status === 'critical').length;",
     "components/risk/GanttSpiTab.jsx:89:calculation:const warnCount = discs.filter(d => d.status === 'warning').length;",
     "components/risk/PmAlignmentTab.jsx:54:calculation:{pmAlignRows.filter(r => r.projSiteVisits.length > 0).length === 0 && (",

@@ -15,7 +15,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { computeOpeningReadiness } = await import('../openingReadinessEngine.js');
+const { computeOpeningReadiness, daysOverdueCount } = await import('../openingReadinessEngine.js');
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -171,6 +171,13 @@ console.log('\nF) A3 follow-up — scopeWPIds excludes an out-of-scope blocker e
     !rScoped.criticalBlockers.some(b => b.task === 'Furniture & Fixtures'));
   check('scoped call still flags every in-scope blocker',
     rScoped.criticalBlockers.length + rScoped.softBlockers.length === scopeWithoutFurniture.length);
+}
+
+console.log('\nG) daysOverdueCount');
+{
+  check('negative days -> positive magnitude', daysOverdueCount(-5) === 5);
+  check('zero days -> 0', daysOverdueCount(0) === 0);
+  check('positive days -> unchanged magnitude', daysOverdueCount(12) === 12);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
