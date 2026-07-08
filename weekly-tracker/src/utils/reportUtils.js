@@ -329,8 +329,22 @@ export const DAY_MS = 86400000;
 
 // ─── Schedule status predicates ───────────────────────────────────────────────
 
-export function isBadScheduleStatus(status)    { return status === "At Risk" || status === "Delayed" || status === "Critical"; }
-export function isSevereScheduleStatus(status) { return status === "Delayed" || status === "Critical"; }
+// Single source of truth for the projectScheduleStatus/pmScheduleAssessment
+// vocabulary — every raw "'At Risk'"-style literal comparison elsewhere in
+// the app should import these instead of hardcoding the string.
+export const SCHEDULE_STATUS = Object.freeze({
+  ON_TRACK: "On Track",
+  AT_RISK:  "At Risk",
+  DELAYED:  "Delayed",
+  CRITICAL: "Critical",
+});
+
+export function isBadScheduleStatus(status) {
+  return status === SCHEDULE_STATUS.AT_RISK || status === SCHEDULE_STATUS.DELAYED || status === SCHEDULE_STATUS.CRITICAL;
+}
+export function isSevereScheduleStatus(status) {
+  return status === SCHEDULE_STATUS.DELAYED || status === SCHEDULE_STATUS.CRITICAL;
+}
 
 // ─── Report freshness helpers ─────────────────────────────────────────────────
 

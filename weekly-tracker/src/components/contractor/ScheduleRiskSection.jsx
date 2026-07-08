@@ -1,4 +1,5 @@
 import { FormSection, ToggleGroup, ChipGroup, TextAreaField } from "./FormParts";
+import { isBadScheduleStatus } from "../../utils/reportUtils";
 
 const riskOptions = [
   { label: "Resource Availability",          description: "Shortage of manpower, equipment, or site supervision within the next 2–3 weeks." },
@@ -28,7 +29,7 @@ function ScheduleRiskSection({ form, updateField, toggleCheckbox }) {
         />
       </FormSection>
 
-      {(form.projectScheduleStatus === "At Risk" || form.projectScheduleStatus === "Critical") && (
+      {isBadScheduleStatus(form.projectScheduleStatus) && (
         <FormSection title="Risk Details" accentColor="var(--field-danger-fg)">
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 10 }}>Main Risk Indication</div>

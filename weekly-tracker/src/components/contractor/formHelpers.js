@@ -1,4 +1,5 @@
 import { WORK_PACKAGES, makeEmptyWPStatuses } from "../../config/workPackages";
+import { isBadScheduleStatus } from "../../utils/reportUtils";
 // calculateWeeksBetween/getConstructionWeekInfo moved to utils/scheduleUtils.js;
 // buildCumulativeWPStatuses moved to utils/reportUtils.js (architecture-
 // conformance pass — this file is components/, calc must live in engines/core).
@@ -95,10 +96,7 @@ export function validateContractorReport(form, photoUrls) {
   const errors = [];
   if (!form.reportingDate) errors.push("Reporting date is required.");
   if (!(form.currentPackages || []).length) errors.push("Select at least one active work package.");
-  if (
-    form.projectScheduleStatus === "At Risk" ||
-    form.projectScheduleStatus === "Critical"
-  ) {
+  if (isBadScheduleStatus(form.projectScheduleStatus)) {
     if (!form.risks.length) errors.push("Select at least one risk indication.");
     if (!form.riskOwners.length) errors.push("Select at least one risk owner.");
     if (!form.riskScale) errors.push("Risk scale is required.");
