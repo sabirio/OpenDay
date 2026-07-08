@@ -2,6 +2,7 @@ import { WORK_PACKAGES } from "../../config/workPackages";
 import PhotoGallery from "../shared/PhotoGallery";
 import StatusPill from "./StatusPill";
 import { getGCTaskEntry, comparisonResult } from "./gcReferenceHelpers";
+import { isSevereScheduleStatus } from "../../utils/reportUtils";
 
 const ACCENT = "var(--field-accent-sitevisit)";
 
@@ -128,8 +129,8 @@ function ComparisonResultsView({ project, projectReports, savedVisit, onNewVisit
                     <div style={{ fontSize: 10, color: ACCENT, fontWeight: 700, marginBottom: 4 }}>PM Assessment</div>
                     <span style={{
                       display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                      background: savedVisit.pmScheduleAssessment === "On Track" ? "var(--field-success-bg)" : savedVisit.pmScheduleAssessment === "Critical" ? "var(--field-danger-bg)" : "var(--field-warning-bg)",
-                      color: savedVisit.pmScheduleAssessment === "On Track" ? "var(--field-success-fg-dark)" : savedVisit.pmScheduleAssessment === "Critical" ? "var(--field-danger-fg-dark)" : "var(--field-warning-fg-dark)",
+                      background: savedVisit.pmScheduleAssessment === "On Track" ? "var(--field-success-bg)" : isSevereScheduleStatus(savedVisit.pmScheduleAssessment) ? "var(--field-danger-bg)" : "var(--field-warning-bg)",
+                      color: savedVisit.pmScheduleAssessment === "On Track" ? "var(--field-success-fg-dark)" : isSevereScheduleStatus(savedVisit.pmScheduleAssessment) ? "var(--field-danger-fg-dark)" : "var(--field-warning-fg-dark)",
                     }}>
                       {savedVisit.pmScheduleAssessment}
                     </span>

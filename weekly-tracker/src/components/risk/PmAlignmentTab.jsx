@@ -1,4 +1,4 @@
-import { isSevereScheduleStatus } from "../../utils/reportUtils";
+import { isSevereScheduleStatus, SCHEDULE_STATUS } from "../../utils/reportUtils";
 import { computePmAlignmentItems, summarizeAlignmentItems } from "../../hooks/usePmAlignmentPresentation";
 import { RISK_LEVEL_COLORS, getScoreTier, SCORE_TIER_COLORS } from "../../config/statusColors";
 import FilterBar from "./FilterBar";
@@ -114,8 +114,8 @@ function PmAlignmentTab({
                             const isMatch   = item.mismatchType === "Match";
                             const isPmAhead = item.mismatchType === "PM ahead";
                             const sev = SEV_COLORS[item.severity];
-                            const rowBg     = item.severity === "CRITICAL" ? 'var(--status-alert-bg)' : item.severity === "HIGH" ? 'var(--status-warn-bg)' : item.severity === "MEDIUM" ? 'var(--status-warn-bg)' : isPmAhead ? 'var(--status-done-bg)' : 'transparent';
-                            const typeColor = item.severity === "CRITICAL" ? "var(--status-alert)" : item.severity === "HIGH" ? "var(--status-warn)" : item.severity === "MEDIUM" ? "var(--status-warn)" : isPmAhead ? "var(--status-done)" : "var(--text-muted)";
+                            const rowBg     = sev ? sev.bg   : isPmAhead ? 'var(--status-done-bg)' : 'transparent';
+                            const typeColor = sev ? sev.text : isPmAhead ? 'var(--status-done)'    : 'var(--text-muted)';
                             return (
                               <tr key={ii} style={{ borderBottom: "1px solid var(--border)", background: rowBg, opacity: isMatch ? 0.6 : 1 }}>
                                 <td style={{ padding: "7px 10px", fontSize: 12, color: "var(--text-secondary)", maxWidth: 220 }}>{item.name}</td>
@@ -140,7 +140,7 @@ function PmAlignmentTab({
                   )}
                   {visit.pmScheduleAssessment && (
                     <div style={{ marginTop: 10, fontSize: 12, color: "var(--text-muted)" }}>
-                      PM schedule assessment: <span style={{ fontWeight: 700, color: isSevereScheduleStatus(visit.pmScheduleAssessment) ? "var(--status-alert)" : visit.pmScheduleAssessment === "At Risk" ? "var(--status-warn)" : "var(--status-done)" }}>{visit.pmScheduleAssessment}</span>
+                      PM schedule assessment: <span style={{ fontWeight: 700, color: isSevereScheduleStatus(visit.pmScheduleAssessment) ? "var(--status-alert)" : visit.pmScheduleAssessment === SCHEDULE_STATUS.AT_RISK ? "var(--status-warn)" : "var(--status-done)" }}>{visit.pmScheduleAssessment}</span>
                     </div>
                   )}
                 </div>
