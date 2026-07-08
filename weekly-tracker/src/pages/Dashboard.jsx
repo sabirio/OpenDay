@@ -13,6 +13,7 @@ import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { useAllRows } from "../hooks/useAllRows";
 import { SPI_STATUS } from "../config/statusColors";
+import { SCHEDULE_STATUS } from "../utils/reportUtils";
 import { isoWeekToMonday, currentISOWeek } from "../utils/scheduleUtils";
 import Icon from "../components/shared/Icon";
 
@@ -56,10 +57,10 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
       const q=searchQuery.toLowerCase();
       if (!(project.storeCode||"").toLowerCase().includes(q)&&!(project.shoppingMallName||"").toLowerCase().includes(q)&&!(project.city||"").toLowerCase().includes(q)) return false;
     }
-    if (filterStatus==="on-track"&&latestReport?.projectScheduleStatus!=="On Track") return false;
-    if (filterStatus==="at-risk"&&latestReport?.projectScheduleStatus!=="At Risk") return false;
-    if (filterStatus==="delayed"&&latestReport?.projectScheduleStatus!=="Delayed") return false;
-    if (filterStatus==="critical"&&latestReport?.projectScheduleStatus!=="Critical") return false;
+    if (filterStatus==="on-track"&&latestReport?.projectScheduleStatus!==SCHEDULE_STATUS.ON_TRACK) return false;
+    if (filterStatus==="at-risk"&&latestReport?.projectScheduleStatus!==SCHEDULE_STATUS.AT_RISK) return false;
+    if (filterStatus==="delayed"&&latestReport?.projectScheduleStatus!==SCHEDULE_STATUS.DELAYED) return false;
+    if (filterStatus==="critical"&&latestReport?.projectScheduleStatus!==SCHEDULE_STATUS.CRITICAL) return false;
     if (filterStatus==="no-report"&&latestReport) return false;
     if (filterStatus==="missing"&&!missingReport) return false;
     return true;
