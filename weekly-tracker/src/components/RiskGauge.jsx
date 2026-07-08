@@ -1,7 +1,10 @@
 import { RISK_COLORS } from "../config/riskConfig";
+import { MAX_RISK_SCORE } from "../hooks/useRiskLevelPresentation";
+import { computeGaugeArc } from "../hooks/useChartMathPresentation";
 
 export function RiskGauge({ score, level, color }) {
-  const R = 45, C = 2 * Math.PI * R, dash = (score / 100) * C;
+  const R = 45;
+  const { circumference: C, dash } = computeGaugeArc(score, MAX_RISK_SCORE, R);
   return (
     <svg width={110} height={110} viewBox="0 0 110 110">
       <circle cx={55} cy={55} r={R} fill="none" stroke="var(--border)" strokeWidth={10} />

@@ -1,5 +1,8 @@
+import { ratioToPercent, valueToSparkY } from "../hooks/useChartMathPresentation";
+import { formatSignedRiskPoints } from "../hooks/useRiskLevelPresentation";
+
 export function ScoreBar({ label, pts, max, color }) {
-  const pct = Math.round((pts / max) * 100);
+  const pct = ratioToPercent(pts, max);
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
@@ -26,7 +29,7 @@ export function FactorPill({ f }) {
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 8, fontSize: 11, fontWeight: 600, background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
       <span>{f.name}</span>
-      <span style={{ fontWeight: 800 }}>{neg ? `−${Math.abs(f.pts)}` : `+${f.pts}`}</span>
+      <span style={{ fontWeight: 800 }}>{formatSignedRiskPoints(f.pts)}</span>
     </div>
   );
 }
@@ -35,7 +38,7 @@ export function MiniRiskSparkline({ points }) {
   if (points.length < 2) return <span style={{ fontSize: 11, color: "var(--text-muted)" }}>—</span>;
   const w = 84, h = 30;
   const xs = points.map((_, i) => (i / (points.length - 1)) * w);
-  const sy = v => h - (v / 100) * h;
+  const sy = v => valueToSparkY(v, 0, 100, h);
   const poly = points.map((p, i) => `${xs[i]},${sy(p.score)}`).join(" ");
   const last = points[points.length - 1], prev = points[points.length - 2];
   const delta = last.score - prev.score;

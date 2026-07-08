@@ -1,1 +1,7 @@
-export { RISK_LEVELS, isHighOrCriticalLevel } from '../../engines/riskEngine';
+export {
+  RISK_LEVELS,
+  isHighOrCriticalLevel,
+  MAX_RISK_SCORE,
+  formatSignedRiskPoints,
+  computeFactorBarWidthPct,
+} from '../../engines/riskEngine';

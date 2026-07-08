@@ -79,6 +79,21 @@ export function isHighOrCriticalLevel(level) {
   return DIM_LEVEL_ORDER.indexOf(level) >= DIM_LEVEL_ORDER.indexOf(RISK_LEVELS.HIGH);
 }
 
+// Risk score is always on a 0-100 scale (see getRiskLevel's cut points
+// above) — display code showing "score / 100" should import this instead
+// of hardcoding the denominator.
+export const MAX_RISK_SCORE = 100;
+
+/** "+12" / "−5" — signed display string for a risk factor's points delta. */
+export function formatSignedRiskPoints(pts) {
+  return pts < 0 ? `−${Math.abs(pts)}` : `+${pts}`;
+}
+
+/** 0-100 bar width for a risk factor's |pts| against a max scale (RiskTable's factor bars). */
+export function computeFactorBarWidthPct(pts, maxPts = 20) {
+  return Math.min(100, Math.round((Math.abs(pts) / maxPts) * 100));
+}
+
 // A2: bias-adjusted risk is a separate, opt-in view derived from the
 // canonical riskScore plus the drift engine's additive factor - it never
 // mutates riskScore itself (see computeRiskRowsModel.js).
