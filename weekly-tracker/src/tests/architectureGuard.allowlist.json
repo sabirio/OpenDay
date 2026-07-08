@@ -33,8 +33,6 @@
     "components/dashboard/TimelineFlag.jsx:68:calculation:{opening.slack >= 0 ? `+${opening.slack}d slack` : `short ${Math.ceil(-opening.slack)}d`}",
     "components/dashboard/TimelineFlag.jsx:72:calculation:Needs ~{Math.ceil(opening.requiredDays)}d to close remaining blockers · {opening.daysToOpening}d left",
     "components/dashboard/TimelineFlag.jsx:89:calculation:{Math.ceil(b.remainingDays)}d",
-    "components/GanttChart.jsx:1:layer-import:component imports engines: ../engines/ganttLayout.js",
-    "components/GanttChart.jsx:2:layer-import:component imports engines: ../engines/progressEngine.js",
     "components/GanttChart.jsx:204:calculation:const prog     = Math.max(0, Math.min(100, actual_progress ?? 0));",
     "components/GanttChart.jsx:247:calculation:const progW  = Math.max(0, (prog / 100) * width);",
     "components/GanttChart.jsx:256:calculation:width={Math.max(2, width) + 4} height={barHeight + 4}",

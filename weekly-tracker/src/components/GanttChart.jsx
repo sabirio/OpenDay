@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { calculateLayout } from '../engines/ganttLayout.js';
-import { calculateGanttPhaseAverageProgress } from '../engines/progressEngine.js';
+import { calculateLayout } from '../hooks/useGanttLayout.js';
+import { calculateGanttPhaseAverageProgress } from '../hooks/useProgressPresentation.js';
 import GanttLegend from './gantt/GanttLegend.jsx';
 
 function addDaysLocal(date, days) {
