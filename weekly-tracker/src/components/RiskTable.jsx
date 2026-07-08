@@ -1,6 +1,6 @@
 import { RISK_COLORS } from "../config/riskConfig";
 import { getScoreTier, SCORE_TIER_COLORS, getScheduleDeviationColor } from "../config/statusColors";
-import { isHighOrCriticalLevel } from "../hooks/useRiskLevelPresentation";
+import { isHighOrCriticalLevel, MAX_RISK_SCORE, formatSignedRiskPoints, computeFactorBarWidthPct } from "../hooks/useRiskLevelPresentation";
 import { RiskBadge, HealthBadge } from "./RiskGauge";
 import { MiniRiskSparkline } from "./ScoreBar";
 
@@ -123,13 +123,13 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                         <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Risk Factors</div>
                         {riskScore.factors.map((f, i) => {
                           const fc  = factorColor(f.pts);
-                          const barW = Math.min(100, Math.round((Math.abs(f.pts) / 20) * 100));
+                          const barW = computeFactorBarWidthPct(f.pts);
                           return (
                             <div key={i} style={{ marginBottom: 9 }} title={FACTOR_TOOLTIPS[f.name]}>
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
                                 <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{f.name}</span>
                                 <span style={{ fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 5, background: fc.badge, color: fc.text, flexShrink: 0, marginLeft: 6 }}>
-                                  {f.pts < 0 ? `−${Math.abs(f.pts)}` : `+${f.pts}`}
+                                  {formatSignedRiskPoints(f.pts)}
                                 </span>
                               </div>
                               <div style={{ background: "var(--border)", borderRadius: 3, height: 4, overflow: "hidden" }}>
@@ -174,7 +174,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                             <div key={label} style={{ marginBottom: 10 }}>
                               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
                                 <span style={{ color: "var(--text-muted)" }}>{label}</span>
-                                <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>{pts}/100</span>
+                                <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>{pts}/{MAX_RISK_SCORE}</span>
                               </div>
                               <div style={{ background: "var(--border)", borderRadius: 3, height: 5, overflow: "hidden" }}>
                                 <div style={{ width: `${pts}%`, height: "100%", background: barColor, borderRadius: 3 }} />
