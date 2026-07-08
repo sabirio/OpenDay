@@ -1,8 +1,11 @@
 ﻿import { useState } from "react";
-import { supabase } from "../lib/supabase";
 import { generateAndSaveGantt, regenerateGantt } from "../hooks/useGanttOrchestration";
-import { getById as getProjectById } from "../services/projectService";
-import { checkConflict } from "../services/conflictGuard";
+import {
+  getProjectById,
+  checkProjectConflict,
+  grantContractorInviteAccess,
+  sendContractorInviteLink,
+} from "../hooks/useProjectEditorOrchestration";
 import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
 import ZonedScopeConfigurator from "../components/projects/ZonedScopeConfigurator";
 import ProjectDetailModal from "../components/projects/ProjectDetailModal";
@@ -73,10 +76,8 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     setGcInviteStatus('sending');
 
     // Step 1: grant access (idempotent — safe for repeated calls, multiple projects)
-    const { data: rpcData, error: rpcError } = await supabase.rpc('invite_contractor', {
-      contractor_email: gcEmail,
-    });
-    if (rpcError || rpcData?.error) {
+    const granted = await grantContractorInviteAccess(gcEmail);
+    if (!granted) {
       setGcInviteStatus('error');
       return;
     }
@@ -85,22 +86,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     await onSaveProject({ ...gcModal, contractorEmail: gcEmail });
 
     // Step 3: send magic link — skip gracefully if rate-limited (access is already granted)
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: gcEmail,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/contractor-select`,
-      },
-    });
-
-    if (otpError) {
-      // Rate limit = user already exists, access still granted
-      const isRateLimit = otpError.message?.toLowerCase().includes('rate') ||
-                          otpError.status === 429;
-      setGcInviteStatus(isRateLimit ? 'access_granted' : 'error');
-    } else {
-      setGcInviteStatus('sent');
-    }
+    setGcInviteStatus(await sendContractorInviteLink(gcEmail));
   }
 
   function handleChange(e) {
@@ -129,7 +115,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   async function saveProject() {
     if (editingProjectId) {
       const { conflict: isConflict, serverUpdatedAt } =
-        await checkConflict('projects', editingProjectId, newProject.updatedAt);
+        await checkProjectConflict(editingProjectId, newProject.updatedAt);
       if (isConflict) {
         setConflict({ serverUpdatedAt });
         return;
