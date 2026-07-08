@@ -1,5 +1,5 @@
-import { computeWPObservationDiscrepancy } from '../../engines/discrepancyEngine';
-import { getDefaultProgressForGanttStatus } from '../../engines/progressEngine';
+import { computeWPObservationDiscrepancy } from '../../hooks/useDiscrepancyPresentation';
+import { getDefaultProgressForGanttStatus } from '../../hooks/useProgressPresentation';
 
 const ACCENT = "var(--field-accent-sitevisit)";
 

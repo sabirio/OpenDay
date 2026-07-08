@@ -91,8 +91,6 @@
     "components/shared/PhotoUpload.jsx:2:layer-import:component imports lib/supabase: ../../lib/supabase",
     "components/sitevisit/ComparisonResultsView.jsx:131:status-literal:background: savedVisit.pmScheduleAssessment === \"On Track\" ? \"var(--field-success-bg)\" : savedVisit.pmScheduleAssessment === \"Critical\" ? \"var(--field-danger-bg)\" : \"var(--field-warning-bg)\",",
     "components/sitevisit/ComparisonResultsView.jsx:132:status-literal:color: savedVisit.pmScheduleAssessment === \"On Track\" ? \"var(--field-success-fg-dark)\" : savedVisit.pmScheduleAssessment === \"Critical\" ? \"var(--field-danger-fg-dark)\" : \"var(--field-warning-fg-dark)\",",
-    "components/sitevisit/GanttPMTaskRow.jsx:1:layer-import:component imports engines: ../../engines/discrepancyEngine",
-    "components/sitevisit/GanttPMTaskRow.jsx:1:layer-import:component imports engines: ../../engines/progressEngine",
     "components/sitevisit/GanttPMTaskRow.jsx:102:calculation:{discStyle.icon} GC claimed {gcProgress}% ({gcStatus.replace('_', ' ')}) — {curProgress !== gcProgress ? `${Math.abs(curProgress - gcProgress)}pp gap` : 'status mismatch'}",
     "components/sitevisit/GanttSuccessView.jsx:20:calculation:const discrepancyCount = flagged.filter(d => d.signedDelta < 0).length;",
     "components/sitevisit/GanttSuccessView.jsx:21:calculation:const pmAheadCount     = flagged.filter(d => d.signedDelta > 0).length;",
