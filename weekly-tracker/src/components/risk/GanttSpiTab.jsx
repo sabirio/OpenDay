@@ -1,4 +1,5 @@
 import { SPI_STATUS } from "../../config/statusColors";
+import { countDiscrepanciesByStatus } from "../../hooks/useDiscrepancyPresentation";
 import SPISparkline from "./SPISparkline";
 import Glyph from "./Glyph";
 
@@ -85,8 +86,7 @@ function GanttSpiTab({ ganttSpiLoading, ganttMetricsMap, allRows, projectTrends,
         {allRows.map(({ project }) => {
           const discs = discHistory[project.id] || [];
           if (discs.length === 0) return null;
-          const critCount = discs.filter(d => d.status === 'critical').length;
-          const warnCount = discs.filter(d => d.status === 'warning').length;
+          const { critical: critCount, warning: warnCount } = countDiscrepanciesByStatus(discs);
           return (
             <div key={project.id} style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>

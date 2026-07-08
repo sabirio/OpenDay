@@ -52,8 +52,6 @@
     "components/ProjectScopeConfigurator.jsx:212:calculation:<span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{Math.round(wp.duration_pct * 100)}%</span>",
     "components/ProjectScopeConfigurator.jsx:234:calculation:Σ {activeTotal} / 100",
     "components/ProjectScopeConfigurator.jsx:80:calculation:const totalOk       = Math.round(activeTotal) === 100;",
-    "components/risk/GanttSpiTab.jsx:88:calculation:const critCount = discs.filter(d => d.status === 'critical').length;",
-    "components/risk/GanttSpiTab.jsx:89:calculation:const warnCount = discs.filter(d => d.status === 'warning').length;",
     "components/risk/PmAlignmentTab.jsx:54:calculation:{pmAlignRows.filter(r => r.projSiteVisits.length > 0).length === 0 && (",
     "components/risk/PmAlignmentTab.jsx:56:calculation:{allRows.filter(r => r.projSiteVisits.length > 0).length === 0",
     "components/risk/PmAlignmentTab.jsx:77:calculation:PM Alignment Score: <span style={{ fontWeight: 700, color: SCORE_TIER_COLORS[getScoreTier(contScore.pmAlignmentScore)] }}>{contScore.pmAlignmentScore} / 100</span>",

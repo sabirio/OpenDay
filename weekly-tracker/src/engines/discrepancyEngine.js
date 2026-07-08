@@ -11,6 +11,16 @@ export function discrepancySeverity(delta) {
   return 'ok';
 }
 
+/** Count a discrepancy-history list by its (already-classified) status field. */
+export function countDiscrepanciesByStatus(discs) {
+  let critical = 0, warning = 0;
+  for (const d of discs) {
+    if (d.status === 'critical') critical++;
+    else if (d.status === 'warning') warning++;
+  }
+  return { critical, warning };
+}
+
 /**
  * Classify a PM-vs-GC comparison into match / discrepancy / pm-higher.
  *

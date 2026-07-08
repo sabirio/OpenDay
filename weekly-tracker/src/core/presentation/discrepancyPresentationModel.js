@@ -1,1 +1,1 @@
-export { computeWPObservationDiscrepancy } from '../../engines/discrepancyEngine';
+export { computeWPObservationDiscrepancy, countDiscrepanciesByStatus } from '../../engines/discrepancyEngine';

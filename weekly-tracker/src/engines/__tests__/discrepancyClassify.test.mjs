@@ -1,7 +1,7 @@
 // discrepancyClassify.test.mjs — unit tests for AD-005 canonical functions
 // Run: node src/engines/__tests__/discrepancyClassify.test.mjs
 
-import { discrepancySeverity, classifyDiscrepancy } from '../../engines/discrepancyEngine.js';
+import { discrepancySeverity, classifyDiscrepancy, countDiscrepanciesByStatus } from '../../engines/discrepancyEngine.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -111,6 +111,15 @@ check('E3: delta=-5 (boundary) → still match',
 
 check('E4: delta=-6 → discrepancy (over boundary)',
   classifyDiscrepancy({ pmRank: 1, gcRank: 1, delta: -6 }).type === 'discrepancy');
+
+console.log('\nF) countDiscrepanciesByStatus');
+{
+  const discs = [{ status: 'critical' }, { status: 'warning' }, { status: 'critical' }, { status: 'ok' }];
+  const counts = countDiscrepanciesByStatus(discs);
+  check('critical count', counts.critical === 2);
+  check('warning count', counts.warning === 1);
+  check('empty list -> zeros', countDiscrepanciesByStatus([]).critical === 0 && countDiscrepanciesByStatus([]).warning === 0);
+}
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);
