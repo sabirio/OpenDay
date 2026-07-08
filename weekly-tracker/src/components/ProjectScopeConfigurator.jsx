@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { WORK_PACKAGES, getPhasesInOrder, getWPsByPhase, getDefaultPhaseWeights } from '../config/masterTaskLibrary';
-import { normalizeWeightsTo100, sumWeights } from '../core/projects';
+import { normalizeWeightsTo100, sumWeights } from '../hooks/useProjectScopeModel';
 
 const ALL_PHASE_IDS = getPhasesInOrder().map(p => p.id);
 const ALL_WP_IDS    = WORK_PACKAGES.map(wp => wp.id);

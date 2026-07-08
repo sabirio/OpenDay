@@ -54,7 +54,6 @@
     "components/projects/ProjectEditorModal.jsx:196:calculation:const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0);",
     "components/projects/ProjectEditorModal.jsx:213:calculation:const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0);",
     "components/projects/ProjectTable.jsx:64:calculation:{daysLeft > 0 ? `${daysLeft}d left` : daysLeft === 0 ? \"Today\" : `${Math.abs(daysLeft)}d overdue`}",
-    "components/ProjectScopeConfigurator.jsx:2:layer-import:component imports core: ../core/projects",
     "components/ProjectScopeConfigurator.jsx:212:calculation:<span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{Math.round(wp.duration_pct * 100)}%</span>",
     "components/ProjectScopeConfigurator.jsx:234:calculation:Σ {activeTotal} / 100",
     "components/ProjectScopeConfigurator.jsx:80:calculation:const totalOk       = Math.round(activeTotal) === 100;",
