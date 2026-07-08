@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { retailFitoutV2, CATEGORY_LIBRARY, V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2';
-import { computeZoneWeights } from '../../core/projects/weights/computeZoneWeights';
+import { computeZoneWeights } from '../../hooks/useZoneWeights';
 
 const ALL_ZONE_IDS = retailFitoutV2.zones.map(z => z.id);
 const ALL_CATEGORY_IDS = retailFitoutV2.zones.flatMap(z => z.categories.map(c => c.id));
