@@ -61,9 +61,6 @@
     "components/risk/CriticalWarnings.jsx:18:calculation:{dTo !== null && <div style={{ display: \"inline-flex\", alignItems: \"center\", gap: 4, fontSize: 12, fontWeight: 700, color: dTo < 0 ? \"var(--status-alert)\" : \"var(--status-warn)\" }}>{dTo < 0 ? <><Glyph name=\"block\" /> {Math.abs(dTo)}d OVERDUE</> : <><Glyph name=\"calendar\" /> {dTo}d to opening</>}</div>}",
     "components/risk/GanttSpiTab.jsx:88:calculation:const critCount = discs.filter(d => d.status === 'critical').length;",
     "components/risk/GanttSpiTab.jsx:89:calculation:const warnCount = discs.filter(d => d.status === 'warning').length;",
-    "components/risk/OverviewTab.jsx:28:status-literal:{sortedByRisk.filter(r => r.riskScore.level === \"CRITICAL\" || r.riskScore.level === \"HIGH\").map(({ project, riskScore, schedDev, trend, escalations, evolution, actions, health, evm, driftProfile, monteCarlo, daysToOpening }) => {",
-    "components/risk/OverviewTab.jsx:56:status-literal:const ac = a.priority === \"HIGH\" ? { bg: 'var(--status-alert-bg)', text: 'var(--status-alert)', border: 'var(--border)' } : { bg: 'var(--status-warn-bg)', text: 'var(--status-warn)', border: 'var(--border)' };",
-    "components/risk/OverviewTab.jsx:98:calculation:{dTo < 0 ? <><Glyph name=\"block\" /> {Math.abs(dTo)}d overdue</> : <><Glyph name=\"calendar\" /> {dTo}d to open</>}",
     "components/risk/PmAlignmentTab.jsx:117:status-literal:const rowBg     = item.severity === \"CRITICAL\" ? 'var(--status-alert-bg)' : item.severity === \"HIGH\" ? 'var(--status-warn-bg)' : item.severity === \"MEDIUM\" ? 'var(--status-warn-bg)' : isPmAhead ? 'var(--status-done-bg)' : 'transparent';",
     "components/risk/PmAlignmentTab.jsx:118:status-literal:const typeColor = item.severity === \"CRITICAL\" ? \"var(--status-alert)\" : item.severity === \"HIGH\" ? \"var(--status-warn)\" : item.severity === \"MEDIUM\" ? \"var(--status-warn)\" : isPmAhead ? \"var(--status-done)\" : \"var(--text-muted)\";",
     "components/risk/PmAlignmentTab.jsx:143:status-literal:PM schedule assessment: <span style={{ fontWeight: 700, color: isSevereScheduleStatus(visit.pmScheduleAssessment) ? \"var(--status-alert)\" : visit.pmScheduleAssessment === \"At Risk\" ? \"var(--status-warn)\" : \"var(--status-done)\" }}>{visit.pmScheduleAssessment}</span>",
@@ -73,11 +70,6 @@
     "components/risk/SPISparkline.jsx:8:calculation:const minV  = Math.min(0.5, ...valid.map(p => p.spi));",
     "components/risk/SPISparkline.jsx:9:calculation:const maxV  = Math.max(1.5, ...valid.map(p => p.spi));",
     "components/RiskGauge.jsx:4:calculation:const R = 45, C = 2 * Math.PI * R, dash = (score / 100) * C;",
-    "components/RiskTable.jsx:125:calculation:const barW = Math.min(100, Math.round((Math.abs(f.pts) / 20) * 100));",
-    "components/RiskTable.jsx:131:calculation:{f.pts < 0 ? `−${Math.abs(f.pts)}` : `+${f.pts}`}",
-    "components/RiskTable.jsx:176:calculation:<span style={{ fontWeight: 700, color: \"var(--text-secondary)\" }}>{pts}/100</span>",
-    "components/RiskTable.jsx:225:status-literal:const isHigh = a.priority === \"HIGH\";",
-    "components/RiskTable.jsx:29:status-literal:if (level === \"HIGH\" || level === \"CRITICAL\") return \"var(--status-alert)\";",
     "components/ScoreBar.jsx:2:calculation:const pct = Math.round((pts / max) * 100);",
     "components/ScoreBar.jsx:29:calculation:<span style={{ fontWeight: 800 }}>{neg ? `−${Math.abs(f.pts)}` : `+${f.pts}`}</span>",
     "components/ScoreBar.jsx:38:calculation:const sy = v => h - (v / 100) * h;",
@@ -116,7 +108,6 @@
     "core/projects/weights/buildWeightAuditModel.js:32:calculation:const totalPW    = phases.reduce((s, p) => s + (p.progressWeight ?? 0), 0);",
     "core/projects/weights/buildWeightAuditModel.js:37:calculation:const phaseWPSum = phaseWPs.reduce((s, wp) => s + (wp.duration_pct ?? 0), 0);",
     "core/projects/weights/buildWeightAuditModel.js:44:calculation:progressWeightPct:  totalPW > 0 ? (pw / totalPW) * 100 : 0,",
-    "pages/RiskDashboard.jsx:71:status-literal:const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === \"CRITICAL\"), [sortedByRisk]);",
     "pages/SiteVisitSelect.jsx:12:calculation:: daysToOpening < 0    ? `${Math.abs(daysToOpening)}d overdue`",
     "pages/Dashboard.jsx:60:status-literal:if (filterStatus===\"at-risk\"&&latestReport?.projectScheduleStatus!==\"At Risk\") return false;",
     "pages/Dashboard.jsx:61:status-literal:if (filterStatus===\"delayed\"&&latestReport?.projectScheduleStatus!==\"Delayed\") return false;",
@@ -130,6 +121,10 @@
     "pages/WeightAudit.jsx:251:calculation:{(wp.duration_pct * 100).toFixed(0)}%",
     "pages/WeightAudit.jsx:253:calculation:{(wp.durationPctInPhase * 100).toFixed(0)}% in phase",
     "pages/WeightAudit.jsx:256:calculation:{(wp.effectiveWeight * 100).toFixed(2)}%",
-    "pages/WeightAudit.jsx:258:calculation:<MiniBar pct={wp.effectiveWeight * 100} color={wp.inScope ? 'var(--accent)' : 'var(--text-muted)'} />"
+    "pages/WeightAudit.jsx:258:calculation:<MiniBar pct={wp.effectiveWeight * 100} color={wp.inScope ? 'var(--accent)' : 'var(--text-muted)'} />",
+    "components/risk/OverviewTab.jsx:99:calculation:{dTo < 0 ? <><Glyph name=\"block\" /> {Math.abs(dTo)}d overdue</> : <><Glyph name=\"calendar\" /> {dTo}d to open</>}",
+    "components/RiskTable.jsx:126:calculation:const barW = Math.min(100, Math.round((Math.abs(f.pts) / 20) * 100));",
+    "components/RiskTable.jsx:132:calculation:{f.pts < 0 ? `−${Math.abs(f.pts)}` : `+${f.pts}`}",
+    "components/RiskTable.jsx:177:calculation:<span style={{ fontWeight: 700, color: \"var(--text-secondary)\" }}>{pts}/100</span>"
   ]
 }

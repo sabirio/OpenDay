@@ -51,11 +51,32 @@ function factorsToReasons(factors) {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
+// Single source of truth for the risk-level vocabulary getRiskLevel() below
+// produces — every "level === 'HIGH'"-style comparison elsewhere in the app
+// should import these instead of hardcoding the string.
+export const RISK_LEVELS = Object.freeze({
+  LOW:      "LOW",
+  MEDIUM:   "MEDIUM",
+  HIGH:     "HIGH",
+  CRITICAL: "CRITICAL",
+});
+
 export function getRiskLevel(score) {
-  if (score >= 81) return "CRITICAL";
-  if (score >= 61) return "HIGH";
-  if (score >= 31) return "MEDIUM";
-  return "LOW";
+  if (score >= 81) return RISK_LEVELS.CRITICAL;
+  if (score >= 61) return RISK_LEVELS.HIGH;
+  if (score >= 31) return RISK_LEVELS.MEDIUM;
+  return RISK_LEVELS.LOW;
+}
+
+// True for HIGH or CRITICAL — the two-tier "needs attention now" gate several
+// screens independently reimplemented as `level === 'HIGH' || level === 'CRITICAL'`.
+// Ordering comes from DIM_LEVEL_ORDER (the same source escalationEngine.js
+// already sorts by), so this also degrades safely for vocabularies that
+// share just the 'HIGH'/'CRITICAL' strings without the full 4-tier scale
+// (e.g. actionEngine's priority, projectSummaryEngine's scheduleRisk) —
+// unrecognized values simply return false.
+export function isHighOrCriticalLevel(level) {
+  return DIM_LEVEL_ORDER.indexOf(level) >= DIM_LEVEL_ORDER.indexOf(RISK_LEVELS.HIGH);
 }
 
 // A2: bias-adjusted risk is a separate, opt-in view derived from the

@@ -1,5 +1,6 @@
 import { RISK_COLORS } from "../../config/riskConfig";
 import { getOpeningUrgencyColor, getScheduleDeviationColor } from "../../config/statusColors";
+import { isHighOrCriticalLevel } from "../../hooks/useRiskLevelPresentation";
 import { RiskGauge, HealthBadge } from "../RiskGauge";
 import { FactorPill, MiniRiskSparkline } from "../ScoreBar";
 import { RiskTable } from "../RiskTable";
@@ -25,7 +26,7 @@ function OverviewTab({ sortedByRisk, expandedRow, setExpandedRow }) {
       )}
 
       {/* CRITICAL / HIGH detail cards */}
-      {sortedByRisk.filter(r => r.riskScore.level === "CRITICAL" || r.riskScore.level === "HIGH").map(({ project, riskScore, schedDev, trend, escalations, evolution, actions, health, evm, driftProfile, monteCarlo, daysToOpening }) => {
+      {sortedByRisk.filter(r => isHighOrCriticalLevel(r.riskScore.level)).map(({ project, riskScore, schedDev, trend, escalations, evolution, actions, health, evm, driftProfile, monteCarlo, daysToOpening }) => {
         const c = riskScore.color;
         const dTo = daysToOpening;
         return (
@@ -53,7 +54,7 @@ function OverviewTab({ sortedByRisk, expandedRow, setExpandedRow }) {
                     <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Recommended Actions</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       {actions.map((a, i) => {
-                        const ac = a.priority === "HIGH" ? { bg: 'var(--status-alert-bg)', text: 'var(--status-alert)', border: 'var(--border)' } : { bg: 'var(--status-warn-bg)', text: 'var(--status-warn)', border: 'var(--border)' };
+                        const ac = isHighOrCriticalLevel(a.priority) ? { bg: 'var(--status-alert-bg)', text: 'var(--status-alert)', border: 'var(--border)' } : { bg: 'var(--status-warn-bg)', text: 'var(--status-warn)', border: 'var(--border)' };
                         return (
                           <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "5px 8px", borderRadius: 7, background: ac.bg, border: `1px solid ${ac.border}` }}>
                             <span style={{ fontSize: 9, fontWeight: 800, color: ac.text, textTransform: "uppercase", marginTop: 2, flexShrink: 0 }}>{a.priority}</span>

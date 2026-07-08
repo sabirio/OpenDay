@@ -18,6 +18,7 @@ import ContractorsTab from "../components/risk/ContractorsTab";
 import PmAlignmentTab from "../components/risk/PmAlignmentTab";
 import GanttSpiTab from "../components/risk/GanttSpiTab";
 import { RISK_COLORS } from "../config/riskConfig";
+import { RISK_LEVELS } from "../hooks/useRiskLevelPresentation";
 import { useAuth } from "../auth/AuthContext";
 import PrintHeader from "../components/print/PrintHeader";
 import ExportButton from "../components/print/ExportButton";
@@ -68,7 +69,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
   const allRows = useRiskRows(projects, reports, siteVisits, useSCurve);
 
   const sortedByRisk   = useMemo(() => [...allRows].sort((a, b) => b.riskScore.score - a.riskScore.score), [allRows]);
-  const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === "CRITICAL"), [sortedByRisk]);
+  const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === RISK_LEVELS.CRITICAL), [sortedByRisk]);
   const allEscalations = useMemo(() => allRows.flatMap(({ project, escalations }) => escalations.map(e => ({ ...e, project }))), [allRows]);
 
   // Unique values for filter dropdowns

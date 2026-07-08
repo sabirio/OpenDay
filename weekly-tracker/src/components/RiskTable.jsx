@@ -1,5 +1,6 @@
 import { RISK_COLORS } from "../config/riskConfig";
 import { getScoreTier, SCORE_TIER_COLORS, getScheduleDeviationColor } from "../config/statusColors";
+import { isHighOrCriticalLevel } from "../hooks/useRiskLevelPresentation";
 import { RiskBadge, HealthBadge } from "./RiskGauge";
 import { MiniRiskSparkline } from "./ScoreBar";
 
@@ -26,7 +27,7 @@ function factorColor(pts) {
 }
 
 function levelBorderColor(level) {
-  if (level === "HIGH" || level === "CRITICAL") return "var(--status-alert)";
+  if (isHighOrCriticalLevel(level)) return "var(--status-alert)";
   if (level === "MEDIUM") return "var(--status-warn)";
   return "var(--border)";
 }
@@ -222,7 +223,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                         {actions && actions.length > 0 ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                             {actions.map((a, i) => {
-                              const isHigh = a.priority === "HIGH";
+                              const isHigh = isHighOrCriticalLevel(a.priority);
                               const bg     = isHigh ? "var(--status-alert-bg)" : "var(--status-warn-bg)";
                               const text   = isHigh ? "var(--status-alert)"    : "var(--status-warn)";
                               return (
