@@ -23,7 +23,7 @@ function sortReportsAscending(reports) {
   );
 }
 
-function buildProgressContext({ selectedProject, selectedReport, projectReports, overallProgress }) {
+function buildProgressContext({ selectedProject, selectedReport, overallProgress }) {
   if (!selectedProject) {
     return { progressComparison: null, selectedProgress: null, currentHistRow: null };
   }
