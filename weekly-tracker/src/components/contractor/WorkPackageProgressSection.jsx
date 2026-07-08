@@ -2,7 +2,7 @@ import { WORK_PACKAGES } from "../../config/workPackages";
 import { FormSection } from "./FormParts";
 import { PhaseSection } from "./GanttWPSection";
 import { WPSection } from "./LegacyWPSection";
-import { isZonedTemplate, groupGanttTasksByZone } from "../../core/projects/grouping/getWPGrouping";
+import { isZonedTemplate, groupGanttTasksByZone } from "../../hooks/useWPGrouping";
 
 function ZoneBlock({ zoneId, zoneLabel, categories, ganttWpProgress, onUpdateProgress, projectId }) {
   return (

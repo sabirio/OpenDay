@@ -4,7 +4,7 @@ import LegacyPMTaskRow from "./LegacyPMTaskRow";
 import GanttPMTaskRow from "./GanttPMTaskRow";
 import { getGCTaskEntry } from "./gcReferenceHelpers";
 import PhotoUpload from "../shared/PhotoUpload";
-import { isZonedTemplate, groupGanttTasksByZone } from "../../core/projects/grouping/getWPGrouping";
+import { isZonedTemplate, groupGanttTasksByZone } from "../../hooks/useWPGrouping";
 
 function SiteVisitFormView({
   project, projectReports, form, set, errors,
