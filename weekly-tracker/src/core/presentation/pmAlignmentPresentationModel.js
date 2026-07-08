@@ -1,1 +1,6 @@
-export { computePmAlignmentItems, summarizeAlignmentItems } from '../../engines/pmAlignmentEngine';
+export {
+  computePmAlignmentItems,
+  summarizeAlignmentItems,
+  MAX_ALIGNMENT_SCORE,
+  filterRowsWithSiteVisits,
+} from '../../engines/pmAlignmentEngine';

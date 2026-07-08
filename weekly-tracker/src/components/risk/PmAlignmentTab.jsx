@@ -1,5 +1,10 @@
 import { isSevereScheduleStatus, SCHEDULE_STATUS } from "../../utils/reportUtils";
-import { computePmAlignmentItems, summarizeAlignmentItems } from "../../hooks/usePmAlignmentPresentation";
+import {
+  computePmAlignmentItems,
+  summarizeAlignmentItems,
+  MAX_ALIGNMENT_SCORE,
+  filterRowsWithSiteVisits,
+} from "../../hooks/usePmAlignmentPresentation";
 import { RISK_LEVEL_COLORS, getScoreTier, SCORE_TIER_COLORS } from "../../config/statusColors";
 import FilterBar from "./FilterBar";
 import Glyph from "./Glyph";
@@ -51,15 +56,15 @@ function PmAlignmentTab({
         )}
       </div>
 
-      {pmAlignRows.filter(r => r.projSiteVisits.length > 0).length === 0 && (
+      {filterRowsWithSiteVisits(pmAlignRows).length === 0 && (
         <div className="dashboard-summary-card" style={{ margin: 0, textAlign: "center", color: "var(--text-muted)", padding: "60px 0" }}>
-          {allRows.filter(r => r.projSiteVisits.length > 0).length === 0
+          {filterRowsWithSiteVisits(allRows).length === 0
             ? "No PM site visits recorded yet. Complete a PM Site Visit Report to see comparison data here."
             : "No projects match the selected filters."}
         </div>
       )}
 
-      {pmAlignRows.filter(r => r.projSiteVisits.length > 0).map(({ project, projSiteVisits, sorted, contScore }) => {
+      {filterRowsWithSiteVisits(pmAlignRows).map(({ project, projSiteVisits, sorted, contScore }) => {
         const visitsSorted = [...projSiteVisits]
           .sort((a, b) => new Date(b.visitDate || b.submittedAt) - new Date(a.visitDate || a.submittedAt))
           .filter(visit => {
@@ -74,7 +79,7 @@ function PmAlignmentTab({
             <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)", marginBottom: 2 }}>{project.storeCode} — {project.shoppingMallName}</div>
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
               {project.generalContractor && <span style={{ marginRight: 10, color: "var(--text-secondary)", fontWeight: 600 }}>{project.generalContractor}</span>}
-              PM Alignment Score: <span style={{ fontWeight: 700, color: SCORE_TIER_COLORS[getScoreTier(contScore.pmAlignmentScore)] }}>{contScore.pmAlignmentScore} / 100</span>
+              PM Alignment Score: <span style={{ fontWeight: 700, color: SCORE_TIER_COLORS[getScoreTier(contScore.pmAlignmentScore)] }}>{contScore.pmAlignmentScore} / {MAX_ALIGNMENT_SCORE}</span>
               {" · "}{visitsSorted.length} site visit{visitsSorted.length !== 1 ? "s" : ""}
             </div>
             {visitsSorted.map((visit, vi) => {

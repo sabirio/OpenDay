@@ -58,6 +58,7 @@ const {
   computePmAlignmentItems,
   computeConfidenceLevel,
   summarizeAlignmentItems,
+  filterRowsWithSiteVisits,
   CONS_KEYS,
   TEST_KEYS,
   HAND_KEYS,
@@ -496,6 +497,19 @@ console.log('\nF) WP-format drift pattern detection');
   check('F5: major overstatement remains CRITICAL', byTask['Demolition works']?.severity === 'CRITICAL');
   check('F6: moderate overstatement remains HIGH', byTask['Waste removal & disposal']?.severity === 'HIGH');
   check('F7: matching task has no severity', byTask['Partitions & drywall']?.severity === null);
+}
+
+console.log('\nG) filterRowsWithSiteVisits');
+{
+  const rows = [
+    { id: 1, projSiteVisits: [] },
+    { id: 2, projSiteVisits: [{}] },
+    { id: 3, projSiteVisits: [{}, {}] },
+  ];
+  const withVisits = filterRowsWithSiteVisits(rows);
+  check('excludes rows with zero site visits', !withVisits.some(r => r.id === 1));
+  check('includes rows with at least one site visit', withVisits.length === 2);
+  check('empty input -> empty output', filterRowsWithSiteVisits([]).length === 0);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

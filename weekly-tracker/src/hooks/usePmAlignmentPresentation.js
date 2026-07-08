@@ -1,1 +1,6 @@
-export { computePmAlignmentItems, summarizeAlignmentItems } from '../core/presentation/pmAlignmentPresentationModel.js';
+export {
+  computePmAlignmentItems,
+  summarizeAlignmentItems,
+  MAX_ALIGNMENT_SCORE,
+  filterRowsWithSiteVisits,
+} from '../core/presentation/pmAlignmentPresentationModel.js';

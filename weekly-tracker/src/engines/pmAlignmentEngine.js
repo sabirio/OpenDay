@@ -288,3 +288,14 @@ export function summarizeAlignmentItems(items) {
   const matchRate = items.length > 0 ? Math.round((matches.length / items.length) * 100) : 100;
   return { matchRate, overstatements, matches };
 }
+
+// pmAlignmentScore (see contScore.pmAlignmentScore, computed by contractorEngine)
+// is on a 0-100 scale — display code showing "score / 100" should import this
+// instead of hardcoding the denominator.
+export const MAX_ALIGNMENT_SCORE = 100;
+
+/** Rows that have at least one PM site visit recorded — PmAlignmentTab.jsx's
+ * "anything to show?" gate, single-sourced instead of reimplemented per call site. */
+export function filterRowsWithSiteVisits(rows) {
+  return rows.filter(r => r.projSiteVisits.length > 0);
+}
