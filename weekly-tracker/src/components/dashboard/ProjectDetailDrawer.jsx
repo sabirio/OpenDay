@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { computeProjectSummary } from '../../engines/projectSummaryEngine';
+import { useEffect, useState } from 'react';
+import { useProjectDetailDrawerModel } from '../../hooks/useProjectDetailDrawerModel';
 import { formatDate } from '../../utils/reportUtils';
 import { RISK_LEVEL_COLORS, getReportAgeColor } from '../../config/statusColors';
 import { SchedBadge } from './DashboardWidgets';
@@ -41,12 +41,9 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
 
-  const { project, progress, projReports, wpCumulativeStatuses, color, confidence } = row || {};
+  const { project, color, confidence } = row || {};
 
-  const summary = useMemo(() => {
-    if (!row) return null;
-    return computeProjectSummary(project, projReports, projSiteVisits, progress, wpCumulativeStatuses);
-  }, [row, project, projReports, projSiteVisits, progress, wpCumulativeStatuses]);
+  const summary = useProjectDetailDrawerModel(row, projSiteVisits);
 
   if (!row || !summary) return null;
 
