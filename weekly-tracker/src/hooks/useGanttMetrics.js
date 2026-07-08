@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadAllGanttMetrics } from '../core/gantt/ganttOrchestrationModel';
-import { isGanttStale } from '../engines/ganttEngine';
+import { loadAllGanttMetrics, isGanttStale } from '../core/gantt/ganttOrchestrationModel';
 
 /**
  * Loads Gantt SPI metrics for a list of projects.

@@ -4,7 +4,10 @@ import {
   calculateGantt,
   calculateKeyDates,
   GANTT_ENGINE_VERSION,
+  isGanttStale,
 } from '../../engines/ganttEngine';
+
+export { isGanttStale };
 import { computeSPIFromTasks, computeCriticalHealth } from '../../engines/spiEngine';
 import { getSPIStatus } from '../../config/statusColors';
 import { DEPENDENCY_RULES } from '../../config/dependencyRules';

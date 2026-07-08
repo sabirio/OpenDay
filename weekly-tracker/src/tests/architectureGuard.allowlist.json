@@ -130,7 +130,6 @@
     "core/projects/weights/buildWeightAuditModel.js:32:calculation:const totalPW    = phases.reduce((s, p) => s + (p.progressWeight ?? 0), 0);",
     "core/projects/weights/buildWeightAuditModel.js:37:calculation:const phaseWPSum = phaseWPs.reduce((s, wp) => s + (wp.duration_pct ?? 0), 0);",
     "core/projects/weights/buildWeightAuditModel.js:44:calculation:progressWeightPct:  totalPW > 0 ? (pw / totalPW) * 100 : 0,",
-    "hooks/useGanttMetrics.js:2:layer-import:hook imports engines: ../engines/ganttEngine",
     "pages/Dashboard.jsx:1:layer-import:page imports engines: ../engines/portfolioEngine",
     "pages/Dashboard.jsx:17:layer-import:page imports services: ../services/projectService",
     "pages/Dashboard.jsx:4:layer-import:page imports engines: ../engines/siteVisitEngine",

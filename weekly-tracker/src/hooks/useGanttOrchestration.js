@@ -1,1 +1,1 @@
-export { generateAndSaveGantt, regenerateGantt, loadScopedGanttTasks } from '../core/gantt/ganttOrchestrationModel.js';
+export { generateAndSaveGantt, regenerateGantt, loadScopedGanttTasks, isGanttStale } from '../core/gantt/ganttOrchestrationModel.js';
