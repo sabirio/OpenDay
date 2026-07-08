@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { calculatePhaseAverageProgressWithOverrides, getDefaultProgressForGanttStatus } from "../../engines/progressEngine";
+import { useGanttStatusDefaultProgress, useGanttWPSectionModel } from "../../hooks/useGanttWPSectionModel";
 
 const GANTT_STATUS_OPTS = [
   { value: 'not_started', label: 'Not Started', bg: 'var(--field-bg-subtle)', color: 'var(--field-text-secondary)', border: 'var(--field-border-strong)' },
@@ -10,6 +10,7 @@ const GANTT_STATUS_OPTS = [
 ];
 
 function GanttWPRow({ task, entry, onChange }) {
+  const getDefaultProgressForGanttStatus = useGanttStatusDefaultProgress();
   const pct    = entry?.progress_pct ?? task.actual_progress ?? 0;
   const status = entry?.status       ?? task.status          ?? 'not_started';
   const pctColor = pct >= 100 ? 'var(--field-success-fg)' : pct >= 50 ? 'var(--field-accent-contractor)' : 'var(--field-text-secondary)';
@@ -83,8 +84,7 @@ export function PhaseSection({ phaseKey, tasks, ganttWpProgress, onUpdateProgres
     } catch { return false; }
   });
 
-  const phasePct = calculatePhaseAverageProgressWithOverrides(tasks, ganttWpProgress);
-  const allComplete = phasePct === 100;
+  const { phasePct, allComplete } = useGanttWPSectionModel(tasks, ganttWpProgress);
 
   // Auto-close when the last task reaches 100% (skip on first mount)
   const mounted = useRef(false);

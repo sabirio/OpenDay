@@ -16,7 +16,6 @@
     "components/analytics/EvmWidget.jsx:81:calculation:<div style={{ width: `${(gauge / gaugeW) * 100}%`, height: '100%', background: c, borderRadius: 3, transition: 'width 0.3s' }} />",
     "components/contractor/formHelpers.js:100:status-literal:form.projectScheduleStatus === \"Critical\"",
     "components/contractor/formHelpers.js:99:status-literal:form.projectScheduleStatus === \"At Risk\" ||",
-    "components/contractor/GanttWPSection.jsx:1:layer-import:component imports engines: ../../engines/progressEngine",
     "components/contractor/LegacyWPSection.jsx:91:calculation:const completedCnt = taskNames.filter(t => pkgStatuses?.[t]?.status === \"Completed\").length;",
     "components/contractor/LegacyWPSection.jsx:92:calculation:const inProgCnt    = taskNames.filter(t => pkgStatuses?.[t]?.status === \"In Progress\").length;",
     "components/contractor/ScheduleRiskSection.jsx:31:status-literal:{(form.projectScheduleStatus === \"At Risk\" || form.projectScheduleStatus === \"Critical\") && (",
