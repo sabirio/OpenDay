@@ -1,6 +1,7 @@
 import { RISK_COLORS } from "../../config/riskConfig";
 import { getOpeningUrgencyColor, getScheduleDeviationColor } from "../../config/statusColors";
 import { isHighOrCriticalLevel } from "../../hooks/useRiskLevelPresentation";
+import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
 import { RiskGauge, HealthBadge } from "../RiskGauge";
 import { FactorPill, MiniRiskSparkline } from "../ScoreBar";
 import { RiskTable } from "../RiskTable";
@@ -96,7 +97,7 @@ function OverviewTab({ sortedByRisk, expandedRow, setExpandedRow }) {
                 <MiniRiskSparkline points={evolution} />
                 {dTo !== null && (
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 10, fontSize: 12, fontWeight: 700, color: getOpeningUrgencyColor(dTo) }}>
-                    {dTo < 0 ? <><Glyph name="block" /> {Math.abs(dTo)}d overdue</> : <><Glyph name="calendar" /> {dTo}d to open</>}
+                    {dTo < 0 ? <><Glyph name="block" /> {daysOverdueCount(dTo)}d overdue</> : <><Glyph name="calendar" /> {dTo}d to open</>}
                   </div>
                 )}
               </div>

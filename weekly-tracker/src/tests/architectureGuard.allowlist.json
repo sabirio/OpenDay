@@ -93,7 +93,6 @@
     "pages/WeightAudit.jsx:251:calculation:{(wp.duration_pct * 100).toFixed(0)}%",
     "pages/WeightAudit.jsx:253:calculation:{(wp.durationPctInPhase * 100).toFixed(0)}% in phase",
     "pages/WeightAudit.jsx:256:calculation:{(wp.effectiveWeight * 100).toFixed(2)}%",
-    "pages/WeightAudit.jsx:258:calculation:<MiniBar pct={wp.effectiveWeight * 100} color={wp.inScope ? 'var(--accent)' : 'var(--text-muted)'} />",
-    "components/risk/OverviewTab.jsx:99:calculation:{dTo < 0 ? <><Glyph name=\"block\" /> {Math.abs(dTo)}d overdue</> : <><Glyph name=\"calendar\" /> {dTo}d to open</>}"
+    "pages/WeightAudit.jsx:258:calculation:<MiniBar pct={wp.effectiveWeight * 100} color={wp.inScope ? 'var(--accent)' : 'var(--text-muted)'} />"
   ]
 }
