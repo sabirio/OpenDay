@@ -1,12 +1,7 @@
 import { formatDate } from '../../utils/reportUtils';
 import { getOpeningUrgencyColor, getReportAgeColor } from '../../config/statusColors';
 import { SchedBadge, RiskBadge } from './DashboardWidgets';
-import { calculateProgressDelta } from '../../engines/progressDeltaEngine';
-
-function currentPhaseLabel(row) {
-  const { cumulativeStatuses, latestReport } = row;
-  return cumulativeStatuses?.currentPhase || (Array.isArray(latestReport?.currentPhases) ? latestReport.currentPhases.join(' + ') : latestReport?.currentPhase);
-}
+import { useStatusMatrixRows } from '../../hooks/useStatusMatrixRows';
 
 function reportTag({ latestReport, daysSinceReport }) {
   if (!latestReport)         return <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-alert)' }}>Missing</span>;
@@ -17,6 +12,8 @@ function reportTag({ latestReport, daysSinceReport }) {
 }
 
 export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, snapshotData = {}, snapshotMode = false }) {
+  const matrixRows = useStatusMatrixRows(rows, snapshotData, snapshotMode);
+
   return (
     <div className="dashboard-summary-card" style={{ marginBottom: 16 }}>
       <div style={{ marginBottom: 14 }}>
@@ -36,20 +33,11 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan="12" style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>No matching projects.</td></tr>
-            ) : rows.map((row) => {
-              const { project, latestReport, progress, color, daysToOpening, daysSinceReport, riskLevel, missingReport } = row;
-              const phase       = currentPhaseLabel(row);
+            ) : matrixRows.map((row) => {
+              const { project, latestReport, color, daysToOpening, daysSinceReport, riskLevel, missingReport, phase, displayProgress, noSnapData, delta } = row;
               const schedStatus = latestReport?.projectScheduleStatus;
               const isOpen      = drawerProjectId === String(project.id);
               const dToC        = getOpeningUrgencyColor(daysToOpening);
-
-              const snapRow        = snapshotMode ? snapshotData[project.id] : null;
-              const displayProgress = snapRow != null ? Math.round(snapRow.overall_progress) : progress;
-              const noSnapData      = snapshotMode && snapRow == null;
-
-              const delta = !snapshotMode
-                ? calculateProgressDelta(progress, project.progressHistory)
-                : null;
 
               return (
                 <tr
