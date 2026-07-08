@@ -2,9 +2,9 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   loadContractorReportFallbackContext,
-  loadContractorGanttTasks,
   submitContractorReportModel,
 } from "../hooks/useContractorReportOrchestration";
+import { loadScopedGanttTasks } from "../hooks/useGanttOrchestration";
 import { buildCumulativeWPStatuses, daysSince } from "../utils/reportUtils";
 import { getConstructionWeekInfo, getConstructionWeekPercent } from "../utils/scheduleUtils";
 import {
@@ -129,7 +129,7 @@ function ContractorReport({ projects, reports }) {
       setGanttLoading(true);
 
       const activeWPIds = project?.scope?.workPackages;
-      const tasks = await loadContractorGanttTasks(project.id, activeWPIds);
+      const tasks = await loadScopedGanttTasks(project.id, activeWPIds);
 
       if (isMounted) {
         setGanttTasks(tasks);

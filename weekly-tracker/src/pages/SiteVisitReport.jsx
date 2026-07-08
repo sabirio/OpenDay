@@ -5,9 +5,8 @@ import { useState, useEffect } from "react";
 // replace with masterTaskLibrary (different task-name vocabulary). Audited
 // Wave 4 Step 4.6.
 import { makeEmptyPMWPStatuses } from "../config/workPackages";
-import { getProjectGantt } from "../services/ganttService";
-import { submitSiteVisit } from "../services/siteVisitService";
-import { getLastReport as getLastContractorReport } from "../services/contractorReportService";
+import { loadScopedGanttTasks } from "../hooks/useGanttOrchestration";
+import { getLastContractorReport, submitSiteVisitModel } from "../hooks/useSiteVisitOrchestration";
 import { useAuth } from "../auth/AuthContext";
 import GanttSuccessView from "../components/sitevisit/GanttSuccessView";
 import ComparisonResultsView from "../components/sitevisit/ComparisonResultsView";
@@ -81,10 +80,9 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
   useEffect(() => {
     if (!project?.id) return;
     setGanttLoading(true);
-    getProjectGantt(project.id)
-      .then(rawTasks => {
-        const activeWPIds = project?.scope?.workPackages;
-        const tasks = activeWPIds ? (rawTasks || []).filter(t => activeWPIds.includes(t.id)) : (rawTasks || []);
+    const activeWPIds = project?.scope?.workPackages;
+    loadScopedGanttTasks(project.id, activeWPIds)
+      .then(tasks => {
         setGanttTasks(tasks);
         // Pre-fill PM observations from current gantt progress. A restored
         // draft's per-task edits win over the server default for that task —
@@ -174,7 +172,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
             gc_status:         task.status ?? 'not_started',
           };
         });
-        const result = await submitSiteVisit(projectId, lastContractorReportId, wpObservationsArray, {
+        const result = await submitSiteVisitModel(projectId, lastContractorReportId, wpObservationsArray, {
           visitDate:              form.visitDate,
           visitedBy:              user.id,
           overallNote:            form.observations || '',

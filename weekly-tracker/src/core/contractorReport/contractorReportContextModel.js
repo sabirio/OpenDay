@@ -1,6 +1,5 @@
 import { getById as getProjectById } from '../../services/projectService';
 import { getReportsForProjectForScreens } from './contractorReportScreensModel.js';
-import { getProjectGantt } from '../../services/ganttService';
 
 /**
  * Conditionally fetch the project/reports the page doesn't already have as
@@ -13,13 +12,4 @@ export async function loadContractorReportFallbackContext(projectId, { hasProjec
     hasReports ? Promise.resolve(null) : getReportsForProjectForScreens(projectId),
   ]);
   return { loadedProject, loadedReports };
-}
-
-/**
- * Gantt WP tasks for the contractor report form, narrowed to the project's
- * configured scope (unscoped projects see everything).
- */
-export async function loadContractorGanttTasks(projectId, activeWPIds) {
-  const rawTasks = await getProjectGantt(projectId);
-  return activeWPIds ? (rawTasks || []).filter(t => activeWPIds.includes(t.id)) : (rawTasks || []);
 }

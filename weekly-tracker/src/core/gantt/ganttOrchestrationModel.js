@@ -18,6 +18,7 @@ import {
   fetchProjectForGanttRegeneration,
   fetchGanttMetricsRawData,
   getProjectGanttFull,
+  getProjectGantt,
 } from '../../services/ganttService';
 import { updateGanttDates } from '../../services/projectService';
 
@@ -248,4 +249,15 @@ export async function loadAllGanttMetrics(projectIds) {
     });
   }
   return result;
+}
+
+/**
+ * Gantt WP tasks for a project's report/visit forms, narrowed to its
+ * configured scope (unscoped projects see everything). Shared by
+ * ContractorReport.jsx and SiteVisitReport.jsx via their respective
+ * orchestration hooks — same fetch+filter, single source of truth.
+ */
+export async function loadScopedGanttTasks(projectId, activeWPIds) {
+  const rawTasks = await getProjectGantt(projectId);
+  return activeWPIds ? (rawTasks || []).filter(t => activeWPIds.includes(t.id)) : (rawTasks || []);
 }

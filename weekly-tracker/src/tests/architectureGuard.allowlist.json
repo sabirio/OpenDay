@@ -141,9 +141,6 @@
     "pages/Projects.jsx:3:layer-import:page imports services: ../services/projectService",
     "pages/Projects.jsx:4:layer-import:page imports services: ../services/conflictGuard",
     "pages/RiskDashboard.jsx:71:status-literal:const criticalRows   = useMemo(() => sortedByRisk.filter(r => r.riskScore.level === \"CRITICAL\"), [sortedByRisk]);",
-    "pages/SiteVisitReport.jsx:10:layer-import:page imports services: ../services/contractorReportService",
-    "pages/SiteVisitReport.jsx:8:layer-import:page imports services: ../services/ganttService",
-    "pages/SiteVisitReport.jsx:9:layer-import:page imports services: ../services/siteVisitService",
     "pages/SiteVisitSelect.jsx:12:calculation:: daysToOpening < 0    ? `${Math.abs(daysToOpening)}d overdue`",
     "pages/TemplateEditor.jsx:1:layer-import:page imports core: ../core/projects/templateEditor.js",
     "pages/TemplateEditor.jsx:135:calculation:{' '}/ 100",
@@ -158,7 +155,6 @@
     "pages/WeightAudit.jsx:257:calculation:{(wp.effectiveWeight * 100).toFixed(2)}%",
     "pages/WeightAudit.jsx:259:calculation:<MiniBar pct={wp.effectiveWeight * 100} color={wp.inScope ? 'var(--accent)' : 'var(--text-muted)'} />",
     "pages/WeightAudit.jsx:5:layer-import:page imports core: ../core/projects/scope/getScopeWPIds",
-    "pages/WeightAudit.jsx:77:calculation:const sumOk          = auditModel ? Math.abs(auditModel.effectiveSum - 1) <= 0.001 : true;",
-    "services/siteVisitService.js:5:layer-import:service imports engines: ../engines/discrepancyEngine"
+    "pages/WeightAudit.jsx:77:calculation:const sumOk          = auditModel ? Math.abs(auditModel.effectiveSum - 1) <= 0.001 : true;"
   ]
 }

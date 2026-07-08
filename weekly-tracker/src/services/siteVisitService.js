@@ -1,26 +1,20 @@
 import { supabase } from '../lib/supabase';
-import { updateGanttDiscrepancy } from './ganttService';
 import { SiteVisitSchema, SiteVisitWPSchema } from '../schemas/siteVisitSchema';
 import { validateArray } from '../schemas/validate';
-import { computeWPObservationDiscrepancy } from '../engines/discrepancyEngine';
 
-// ─── Submit site visit ────────────────────────────────────────────────────────
+// ─── Submit site visit (pure I/O primitives — orchestration lives in
+// core/siteVisit/submitSiteVisitModel.js) ──────────────────────────────────────
 
-/**
- * Submit a PM site visit with per-WP observations.
- *
- * @param {string} projectId
- * @param {string|null} contractorReportId  — links visit to a specific report
- * @param {Array<{ wpId, observed_progress, observed_status, pm_note }>} wpObservationsArray
- * @param {object} [meta] — { visitDate, overallNote }
- * @returns { siteVisit, discrepancies }
- */
-export async function submitSiteVisit(projectId, contractorReportId, wpObservationsArray, meta = {}) {
+export async function getCurrentUserId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data?.user?.id) throw new Error('Cannot submit site visit without authenticated user');
+  return data.user.id;
+}
+
+export async function insertSiteVisitHeader(projectId, contractorReportId, visitedBy, meta = {}) {
   const visitDate = meta.visitDate || new Date().toISOString().split('T')[0];
-  const visitedBy = meta.visitedBy || await getCurrentUserId();
-
-  // 1. Insert site_visits header
-  const { data: siteVisit, error: svErr } = await supabase
+  const { data: siteVisit, error } = await supabase
     .from('site_visits')
     .insert([{
       project_id:               projectId,
@@ -33,79 +27,19 @@ export async function submitSiteVisit(projectId, contractorReportId, wpObservati
     }])
     .select()
     .single();
-  if (svErr) throw svErr;
+  if (error) throw error;
+  return siteVisit;
+}
 
-  // 2. Insert site_visit_wps observations (calculate discrepancy live)
-  // gc_progress and gc_status are passed per-task from the caller (SiteVisitReport.jsx).
-  const discrepancies = [];
-  const observationRows = wpObservationsArray.map(w => {
-    const { gcProgress, pmProgress, gcStatus, signedDelta, absDelta, discStatus } = computeWPObservationDiscrepancy(w);
+export async function insertSiteVisitWPObservations(rows) {
+  const { error } = await supabase.from('site_visit_wps').insert(rows);
+  if (error) throw error;
+}
 
-    if (absDelta > 0) {
-      discrepancies.push({
-        wpId:                w.wpId,
-        contractor_progress: gcProgress,
-        site_visit_progress: pmProgress,
-        delta:               absDelta,
-        // P2.2: signedDelta preserves direction (negative = PM found LESS
-        // than the contractor claimed, i.e. an overstatement; positive = PM
-        // found MORE). `delta` above is abs-only, which loses this — needed
-        // by GanttSuccessView to bucket "discrepancy" vs "PM ahead" without
-        // re-deriving its own (and previously inconsistent) comparison.
-        // Progress alone can't always tell direction either: when both sides
-        // report 0% but disagree on status rank (e.g. not_started vs
-        // blocked), site_visit_progress === contractor_progress === 0.
-        signedDelta:         signedDelta,
-        status:              discStatus,
-      });
-    }
-
-    return {
-      site_visit_id:      siteVisit.id,
-      project_id:         projectId,
-      wp_id:              w.wpId,
-      observed_progress:  pmProgress,
-      observed_status:    w.observed_status || 'not_started',
-      pm_note:            w.pm_note         || null,
-      discrepancy_status: discStatus,
-      discrepancy_delta:  signedDelta,
-      gc_status:          gcStatus,
-    };
-  });
-
-  const { error: wErr } = await supabase
-    .from('site_visit_wps')
-    .insert(observationRows);
-  if (wErr) throw wErr;
-
-  // 3. Save discrepancy summary to site_visit_discrepancies
-  if (discrepancies.length > 0) {
-    const discRows = discrepancies.map(d => ({
-      site_visit_id:          siteVisit.id,
-      project_id:             projectId,
-      wp_id:                  d.wpId,
-      contractor_progress:    d.contractor_progress,
-      site_visit_progress:    d.site_visit_progress,
-      delta:                  d.delta,
-      status:                 d.status,
-    }));
-
-    const { error: dErr } = await supabase
-      .from('site_visit_discrepancies')
-      .insert(discRows);
-    if (dErr) console.error('Discrepancy save error (non-fatal):', dErr);
-  }
-
-  // 4. Update project_gantt_tasks with discrepancy fields
-  for (const d of discrepancies) {
-    await updateGanttDiscrepancy(projectId, d.wpId, {
-      siteVisitProgress: d.site_visit_progress,
-      discrepancyStatus: d.status,
-      discrepancyDelta:  d.delta,
-    }).catch(() => {}); // non-fatal
-  }
-
-  return { siteVisit, discrepancies };
+export async function insertSiteVisitDiscrepancies(rows) {
+  if (rows.length === 0) return;
+  const { error } = await supabase.from('site_visit_discrepancies').insert(rows);
+  if (error) console.error('Discrepancy save error (non-fatal):', error);
 }
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────
@@ -164,11 +98,4 @@ export async function create(visit) {
     .single();
   if (error) throw error;
   return mapRow(data);
-}
-
-async function getCurrentUserId() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
-  if (!data?.user?.id) throw new Error('Cannot submit site visit without authenticated user');
-  return data.user.id;
 }
