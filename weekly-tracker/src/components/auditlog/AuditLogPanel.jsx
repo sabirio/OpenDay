@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { fetchProjectAuditLog } from '../../services/auditLogService';
+import { useProjectAuditLog } from '../../hooks/useProjectAuditLog';
 import Icon from '../shared/Icon';
 
 const ACTION_STYLE = {
@@ -21,21 +20,7 @@ function formatValue(v) {
 }
 
 export default function AuditLogPanel({ projectId }) {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (!projectId) return;
-    let alive = true;
-    setLoading(true);
-    setError(null);
-    fetchProjectAuditLog(projectId)
-      .then(rows => { if (alive) setLogs(rows); })
-      .catch(err => { if (alive) setError(err?.message || 'Failed to load audit log'); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [projectId]);
+  const { logs, loading, error } = useProjectAuditLog(projectId);
 
   if (loading) return <p style={{ fontSize: 13, color: 'var(--text-muted)', padding: 16 }}>Loading audit log…</p>;
   if (error) return <p style={{ fontSize: 13, color: 'var(--status-alert)', padding: 16 }}>{error}</p>;
