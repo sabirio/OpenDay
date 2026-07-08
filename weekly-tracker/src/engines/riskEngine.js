@@ -58,6 +58,16 @@ export function getRiskLevel(score) {
   return "LOW";
 }
 
+// A2: bias-adjusted risk is a separate, opt-in view derived from the
+// canonical riskScore plus the drift engine's additive factor - it never
+// mutates riskScore itself (see computeRiskRowsModel.js).
+export function computeAdjustedRisk(riskScore, driftRiskFactor) {
+  const score = driftRiskFactor
+    ? Math.min(100, riskScore.score + driftRiskFactor.pts)
+    : riskScore.score;
+  return { score, level: getRiskLevel(score) };
+}
+
 // ── Schedule Deviation ────────────────────────────────────────────────────────
 
 export function computeScheduleDeviation(project, progress) {

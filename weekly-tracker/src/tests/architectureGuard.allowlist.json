@@ -130,7 +130,6 @@
     "core/projects/weights/buildWeightAuditModel.js:32:calculation:const totalPW    = phases.reduce((s, p) => s + (p.progressWeight ?? 0), 0);",
     "core/projects/weights/buildWeightAuditModel.js:37:calculation:const phaseWPSum = phaseWPs.reduce((s, wp) => s + (wp.duration_pct ?? 0), 0);",
     "core/projects/weights/buildWeightAuditModel.js:44:calculation:progressWeightPct:  totalPW > 0 ? (pw / totalPW) * 100 : 0,",
-    "core/risk/computeRiskRowsModel.js:57:calculation:? Math.min(100, riskScore.score + driftRiskFactor.pts)",
     "hooks/useGanttMetrics.js:1:layer-import:hook imports services: ../services/ganttService",
     "hooks/useGanttMetrics.js:2:layer-import:hook imports engines: ../engines/ganttEngine",
     "pages/ContractorReport.jsx:1:layer-import:page imports services: ../services/reportService",
