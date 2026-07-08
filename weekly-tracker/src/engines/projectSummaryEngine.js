@@ -1,7 +1,7 @@
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
 import { getPhasesInOrder, WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
 import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
-import { DAY_MS, isMissingReport } from '../utils/reportUtils';
+import { DAY_MS, isMissingReport, SCHEDULE_STATUS } from '../utils/reportUtils';
 import { calculatePhaseProgress } from './progressEngine';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
 import { classifyDiscrepancy } from './discrepancyEngine';
@@ -51,6 +51,19 @@ function getGCStatus(gcReport, wpId, taskName) {
   if (!gcReport) return null;
   const e = gcReport.workPackageStatuses?.[wpId]?.[taskName];
   return e != null ? (e.status || null) : null;
+}
+
+/**
+ * Human-readable label for a computeProjectSummary() risk.scheduleRisk
+ * value ('OK'|'AT_RISK'|'HIGH'|'CRITICAL') — the exact inverse of the
+ * scheduleRisk mapping above, single-sourced here so display code (e.g.
+ * ProjectDetailDrawer.jsx) never re-derives its own copy of the mapping.
+ */
+export function getScheduleRiskLabel(scheduleRisk) {
+  if (scheduleRisk === 'CRITICAL') return SCHEDULE_STATUS.CRITICAL;
+  if (scheduleRisk === 'HIGH')     return SCHEDULE_STATUS.DELAYED;
+  if (scheduleRisk === 'AT_RISK')  return SCHEDULE_STATUS.AT_RISK;
+  return SCHEDULE_STATUS.ON_TRACK;
 }
 
 /**
@@ -189,9 +202,9 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
 
   const sched = latest?.projectScheduleStatus;
   const scheduleRisk =
-    sched === 'Critical' ? 'CRITICAL' :
-    sched === 'Delayed'  ? 'HIGH'     :
-    sched === 'At Risk'  ? 'AT_RISK'  : 'OK';
+    sched === SCHEDULE_STATUS.CRITICAL ? 'CRITICAL' :
+    sched === SCHEDULE_STATUS.DELAYED  ? 'HIGH'     :
+    sched === SCHEDULE_STATUS.AT_RISK  ? 'AT_RISK'  : 'OK';
 
   const risk = {
     level: riskLevel,

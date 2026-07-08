@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useProjectDetailDrawerModel } from '../../hooks/useProjectDetailDrawerModel';
 import { formatDate } from '../../utils/reportUtils';
 import { RISK_LEVEL_COLORS, getReportAgeColor } from '../../config/statusColors';
+import { isHighOrCriticalLevel } from '../../hooks/useRiskLevelPresentation';
+import { getScheduleRiskLabel } from '../../hooks/useScheduleRiskPresentation';
+import { isOpeningCritical } from '../../hooks/useOpeningSeverity';
 import { SchedBadge } from './DashboardWidgets';
 import PhaseProgress from './PhaseProgress';
 import TimelineFlag from './TimelineFlag';
@@ -194,8 +197,8 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
               </div>
               <div style={{ display: 'grid', gap: 7 }}>
                 {[
-                  { l: 'Schedule',   ok: risk.scheduleRisk === 'OK',    crit: risk.scheduleRisk === 'CRITICAL' || risk.scheduleRisk === 'HIGH',       v: risk.scheduleRisk === 'OK' ? 'On Track' : risk.scheduleRisk === 'AT_RISK' ? 'At Risk' : risk.scheduleRisk === 'HIGH' ? 'Delayed' : 'Critical', testId: null },
-                  { l: 'Opening',    ok: risk.openingStatus === 'Ready', crit: risk.openingStatus === 'Critical' || risk.openingStatus === 'Overdue',  v: risk.openingStatus, testId: null },
+                  { l: 'Schedule',   ok: risk.scheduleRisk === 'OK',    crit: isHighOrCriticalLevel(risk.scheduleRisk),       v: getScheduleRiskLabel(risk.scheduleRisk), testId: null },
+                  { l: 'Opening',    ok: risk.openingStatus === 'Ready', crit: isOpeningCritical({ status: risk.openingStatus }),  v: risk.openingStatus, testId: null },
                   { l: 'PM vs GC',   ok: risk.discrepancyStatus === 'OK', crit: risk.discrepancyStatus === 'HAS_DISCREPANCIES',                       v: risk.discrepancyStatus === 'OK' ? 'Match' : risk.discrepancyStatus === 'HAS_DISCREPANCIES' ? 'Discrepancies' : risk.discrepancyStatus === 'NO_VISIT' ? 'No Visit' : '—', testId: null },
                   { l: 'Reports',    ok: !risk.missingReport,  crit: risk.missingReport,    v: risk.missingReport ? 'Missing/Overdue' : 'Up to date', testId: 'missing-report-status' },
                   { l: 'Blocked',    ok: !risk.blocked,        crit: risk.blocked,          v: risk.blocked ? 'Yes' : 'No',                           testId: null },
