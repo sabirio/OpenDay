@@ -1,19 +1,12 @@
-﻿import { normalizeReport } from "../services/reportService";
-import { useParams } from "react-router-dom";
+﻿import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
-import { getProjectGantt } from "../services/ganttService";
 import {
-  getReportsForProjectForScreens,
-  submitReport as submitContractorReport,
-} from "../services/contractorReportService";
-import { getById as getProjectById } from "../services/projectService";
-import { computeWPCumulativeStatuses, computeCumulativeStatuses, buildCumulativeWPStatuses, daysSince } from "../utils/reportUtils";
-import { calculateProjectProgressResult, calculateRawWPAverageProgress } from "../engines/progressEngine";
-import { getConstructionWeekInfo } from "../utils/scheduleUtils";
-import { getWPGrouping, isZonedTemplate } from "../core/projects/grouping/getWPGrouping";
-import { buildV2ProgressTemplate } from "../core/projects/weights/buildV2ProgressTemplate";
-import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
-import { ALL_WORK_PACKAGES_V2 } from "../domains/construction/templates/retailFitoutV2";
+  loadContractorReportFallbackContext,
+  loadContractorGanttTasks,
+  submitContractorReportModel,
+} from "../hooks/useContractorReportOrchestration";
+import { buildCumulativeWPStatuses, daysSince } from "../utils/reportUtils";
+import { getConstructionWeekInfo, getConstructionWeekPercent } from "../utils/scheduleUtils";
 import {
   LoadingReportState,
   ProjectNotFoundState,
@@ -51,15 +44,11 @@ function ContractorReport({ projects, reports }) {
     setContextLoading(true);
     setContextError(null);
 
-    Promise.all([
-      projects.some((p) => String(p.id) === projectId)
-        ? Promise.resolve(null)
-        : getProjectById(projectId),
-      reports.length > 0
-        ? Promise.resolve(null)
-        : getReportsForProjectForScreens(projectId),
-    ])
-      .then(([loadedProject, loadedReports]) => {
+    loadContractorReportFallbackContext(projectId, {
+      hasProject: projects.some((p) => String(p.id) === projectId),
+      hasReports: reports.length > 0,
+    })
+      .then(({ loadedProject, loadedReports }) => {
         if (!isMounted) return;
         if (loadedProject) setFallbackProject(loadedProject);
         if (loadedReports) setFallbackReports(loadedReports);
@@ -139,9 +128,8 @@ function ContractorReport({ projects, reports }) {
     try {
       setGanttLoading(true);
 
-      const rawTasks = await getProjectGantt(project.id);
       const activeWPIds = project?.scope?.workPackages;
-      const tasks = activeWPIds ? (rawTasks || []).filter(t => activeWPIds.includes(t.id)) : (rawTasks || []);
+      const tasks = await loadContractorGanttTasks(project.id, activeWPIds);
 
       if (isMounted) {
         setGanttTasks(tasks);
@@ -252,93 +240,11 @@ function ContractorReport({ projects, reports }) {
     try {
       const currentPhases = deriveOldPhasesFromPackages(form.currentPackages);
 
-      // When Gantt path is active, synthesize workPackageStatuses from the
-      // slider inputs (ganttWpProgress) so Weekly Reports can display real progress.
-      // Without this, the saved report has all tasks at "Not Started" (0%).
-      const isV2 = isZonedTemplate(project.templateType);
-      let workPackageStatuses = form.workPackageStatuses || {};
-      if (ganttTasks.length > 0) {
-        const synthesized = {};
-        for (const task of ganttTasks) {
-          const entry = ganttWpProgress[task.id] || {};
-          const pct = entry.progress_pct ?? task.actual_progress ?? 0;
-          const ganttStatus = entry.status ?? task.status ?? 'not_started';
-          const wpStatus =
-            ganttStatus === 'completed' ? 'Completed'
-            : (ganttStatus === 'in_progress' || ganttStatus === 'delayed' || ganttStatus === 'blocked') ? 'In Progress'
-            : 'Not Started';
-          // v2's workPackageStatuses is keyed by categoryId, not the zoneId
-          // task.phaseId carries (see buildV2ProgressTemplate.js) — resolved
-          // live via getWPGrouping, never trusted from the stored task row.
-          const wpId = isV2 ? (getWPGrouping(project.templateType, task.id)?.categoryId ?? task.phaseId) : task.phaseId;
-          const taskName = task.label;
-          if (wpId && taskName) {
-            if (!synthesized[wpId]) synthesized[wpId] = {};
-            synthesized[wpId][taskName] = { status: wpStatus, progress: pct };
-          }
-        }
-        workPackageStatuses = synthesized;
-      }
-
-      const mainReportPayload = normalizeReport({
-        id: Date.now(),
-        projectId: project.id,
-        storeCode: project.storeCode,
-        projectName: project.shoppingMallName,
-        contractor: project.generalContractor,
-        submittedAt: new Date().toISOString(),
-        previousReportId: prevReport?.id ?? null,
-
-        ...form,
-
-        currentPhase: currentPhases[0] || "",
-        currentPhases,
-        currentPackages: form.currentPackages || [],
-        workPackageStatuses,
-        photos: photoUrls,
-      });
-
-      // Compute cumulative progress (all prior reports + this one) before saving,
-      // so the history row stores the same number the Weekly Reports screen shows.
-      const projectReports = reports.filter(r => String(r.projectId) === String(project.id));
-      const allReports = [...projectReports, mainReportPayload];
-      const wpCum  = computeWPCumulativeStatuses(allReports);
-      const legCum = computeCumulativeStatuses(allReports);
-      const scopeWPIds = isV2 ? getScopeWPIds(project.scope, ALL_WORK_PACKAGES_V2) : null;
-      const v2Template = isV2
-        ? buildV2ProgressTemplate(project.scope?.zoneAreas, project.scope?.zones ?? null, project.scope?.categories ?? null)
-        : null;
-      const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template).progress;
-
-      const wpProgressArray = ganttTasks.length > 0
-        ? Object.entries(ganttWpProgress).map(([wpId, value]) => ({
-            wpId,
-            progress_pct: value.progress_pct ?? 0,
-            status: value.status ?? "not_started",
-            comment: value.comment ?? "",
-          }))
-        : [];
-
-      // P1.4: this is a RAW, unweighted average of this single report's WP
-      // percentages — NOT the canonical phase-weighted progress. It becomes
-      // contractor_reports.overall_progress (the "what the contractor just
-      // submitted" signal), distinct from cumulativeProgress above (canonical
-      // calculateProjectProgressResult() output across all reports to date),
-      // which becomes progress_history.overall_progress — the official number
-      // every other screen treats as "the" project progress. Do not let this
-      // raw average silently become official progress: the RPC
-      // (018_submit_contractor_report_rpc.sql) only falls back to it for
-      // progress_history when cumulativeProgress is missing, so always send
-      // cumulativeProgress explicitly, as this call does.
-      const contractorRawAverageProgress = calculateRawWPAverageProgress(wpProgressArray, cumulativeProgress);
-
-      await submitContractorReport(project.id, wpProgressArray, {
-        reportDate: mainReportPayload.reportingDate,
-        overallProgress: contractorRawAverageProgress,
-        masterReportId: mainReportPayload.id,
-        reportSnapshot: mainReportPayload,
-        cumulativeProgress,
-        photoUrls,
+      // Synthesis (Gantt slider inputs -> workPackageStatuses), normalization,
+      // and cumulative-progress math all live in submitContractorReportModel
+      // (core/contractorReport) — this page only supplies the raw form state.
+      await submitContractorReportModel({
+        project, form, photoUrls, prevReport, ganttTasks, ganttWpProgress, reports, currentPhases,
       });
 
       clearDraft();
@@ -378,7 +284,7 @@ function ContractorReport({ projects, reports }) {
   const endDate = project.constructionEndDate ? new Date(project.constructionEndDate) : null;
   const refDate = form.reportingDate ? new Date(form.reportingDate) : new Date();
   const weekInfo = startDate && endDate ? getConstructionWeekInfo(startDate, endDate, refDate) : null;
-  const weekPct = weekInfo && weekInfo.totalWeeks > 0 ? Math.round((weekInfo.weekNumber / weekInfo.totalWeeks) * 100) : 0;
+  const weekPct = getConstructionWeekPercent(weekInfo);
 
   const daysSinceLast = prevReport ? daysSince(prevReport.reportingDate || prevReport.submittedAt) : null;
 

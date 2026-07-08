@@ -79,3 +79,11 @@ export function getConstructionWeekInfo(start, end, reference) {
   const weekNumber = Math.min(Math.floor((reference - start) / (7 * DAY_MS)) + 1, totalWeeks);
   return { totalWeeks, weekNumber, label: `Week ${weekNumber} of ${totalWeeks}` };
 }
+
+/**
+ * Percent of construction elapsed, given a getConstructionWeekInfo() result.
+ * @param {{weekNumber: number, totalWeeks: number}|null} weekInfo
+ */
+export function getConstructionWeekPercent(weekInfo) {
+  return weekInfo && weekInfo.totalWeeks > 0 ? Math.round((weekInfo.weekNumber / weekInfo.totalWeeks) * 100) : 0;
+}
