@@ -67,10 +67,10 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
 
   const defaultSorted = useMemo(()=>[...filteredRows].sort((a,b)=>a.priorityScore-b.priorityScore||a.progress-b.progress),[filteredRows]);
 
-  // Single dashboard read-model — kpis, gantt-enriched rows (reused for
-  // alerts, SPI banner, SummaryPanel), alerts, contractor perf, and site
-  // visit data/kpis all composed together from the same inputs.
-  const { kpis, ganttEnrichedRows, spiRows, alerts, contractorPerf, svData, svKpis } =
+  // Single dashboard read-model — kpis, gantt-enriched rows (composed
+  // internally into alerts + SPI banner/SummaryPanel rows), contractor
+  // perf, and site visit data/kpis all derived from the same inputs.
+  const { kpis, spiRows, alerts, contractorPerf, svData, svKpis } =
     useDashboardModel({ projects, reports, siteVisits, allRows, ganttMetrics });
 
   // SPI banner items: pulled from unified alerts, undismissed, worst SPI first.
