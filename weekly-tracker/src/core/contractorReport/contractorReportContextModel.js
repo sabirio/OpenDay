@@ -1,5 +1,5 @@
 import { getById as getProjectById } from '../../services/projectService';
-import { getReportsForProjectForScreens } from '../../services/contractorReportService';
+import { getReportsForProjectForScreens } from './contractorReportScreensModel.js';
 import { getProjectGantt } from '../../services/ganttService';
 
 /**

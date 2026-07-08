@@ -20,7 +20,7 @@ import { validateArray, validateOne } from '../schemas/validate.js';
 import { ProjectSchema, ProgressHistoryRowSchema } from '../schemas/projectSchema.js';
 import { ContractorReportSchema } from '../schemas/contractorReportSchema.js';
 import { SiteVisitSchema, SiteVisitWPSchema } from '../schemas/siteVisitSchema.js';
-import { adaptContractorReportToLegacy } from '../services/contractorReportAdapter.js';
+import { adaptContractorReportToLegacy } from '../core/contractorReport/adaptContractorReportToLegacy.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {

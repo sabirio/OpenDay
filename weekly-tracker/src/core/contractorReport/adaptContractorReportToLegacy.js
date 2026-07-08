@@ -1,11 +1,16 @@
 /**
  * Adapts contractor_reports + contractor_report_wps rows to the legacy report
  * shape consumed by screens that have not been migrated yet.
+ *
+ * Pure adapter (no I/O) — relocated from services/contractorReportAdapter.js
+ * (architecture-conformance pass): it composes core/projects/grouping's
+ * getWPGrouping, which a services/ file must never import.
  */
 
-import { getWPById, getPhaseById } from '../config/masterTaskLibrary.js';
-import { getWPByIdV2, retailFitoutV2 } from '../domains/construction/templates/retailFitoutV2.js';
-import { getWPGrouping, isZonedTemplate } from '../core/projects/grouping/getWPGrouping.js';
+import { getWPById, getPhaseById } from '../../config/masterTaskLibrary.js';
+import { getWPByIdV2, retailFitoutV2 } from '../../domains/construction/templates/retailFitoutV2.js';
+import { getWPGrouping, isZonedTemplate } from '../projects/grouping/getWPGrouping.js';
+import { clampProgressPct } from '../../engines/progressEngine.js';
 
 const STATUS_TO_LEGACY = {
   completed: "Completed",
@@ -34,7 +39,7 @@ function toFiniteProgress(value, label) {
     if (value != null) console.warn(`[contractorReportAdapter] non-numeric ${label}:`, value);
     return 0;
   }
-  return Math.min(100, Math.max(0, n));
+  return clampProgressPct(n);
 }
 
 // contractor_report_wps.wp_id stores the fine-grained work-package id (e.g.
@@ -47,12 +52,13 @@ function toFiniteProgress(value, label) {
 // truth shared with the contractor/site-visit form UIs — rather than
 // duplicating v1/v2 branching logic.
 function buildWorkPackageStatuses(wps, templateType = null) {
-  return (wps || []).reduce((acc, wp) => {
+  const acc = {};
+  for (const wp of (wps || [])) {
     const meta    = isZonedTemplate(templateType) ? getWPByIdV2(wp.wp_id) : getWPById(wp.wp_id);
     const grouping = getWPGrouping(templateType, wp.wp_id);
     const groupId = grouping?.categoryId || grouping?.phaseId || wp.wp_id;
     const label   = meta?.label || wp.wp_id;
-    if (!groupId) return acc;
+    if (!groupId) continue;
 
     if (!acc[groupId]) acc[groupId] = {};
     acc[groupId][label] = {
@@ -60,8 +66,8 @@ function buildWorkPackageStatuses(wps, templateType = null) {
       progress: toFiniteProgress(wp.progress_pct, `contractor_report_wps.progress_pct (wp_id=${wp.wp_id})`),
       comment: wp.comment || "",
     };
-    return acc;
-  }, {});
+  }
+  return acc;
 }
 
 // v2 categories have no explicit "order" field (unlike v1 phases) — this

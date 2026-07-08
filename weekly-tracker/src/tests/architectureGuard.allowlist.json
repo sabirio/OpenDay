@@ -159,7 +159,6 @@
     "pages/WeightAudit.jsx:259:calculation:<MiniBar pct={wp.effectiveWeight * 100} color={wp.inScope ? 'var(--accent)' : 'var(--text-muted)'} />",
     "pages/WeightAudit.jsx:5:layer-import:page imports core: ../core/projects/scope/getScopeWPIds",
     "pages/WeightAudit.jsx:77:calculation:const sumOk          = auditModel ? Math.abs(auditModel.effectiveSum - 1) <= 0.001 : true;",
-    "services/contractorReportAdapter.js:8:layer-import:service imports core: ../core/projects/grouping/getWPGrouping.js",
     "services/siteVisitService.js:5:layer-import:service imports engines: ../engines/discrepancyEngine"
   ]
 }

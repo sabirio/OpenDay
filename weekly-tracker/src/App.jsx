@@ -6,7 +6,7 @@ import ProtectedRoute from "./auth/ProtectedRoute";
 import { useAuth } from "./auth/AuthContext";
 import { getDefaultRoute } from "./engines/permissionEngine";
 import * as projectService from "./services/projectService";
-import * as contractorReportService from "./services/contractorReportService";
+import { getAllReportsForScreens } from "./core/contractorReport/contractorReportScreensModel.js";
 import * as siteVisitService from "./services/siteVisitService";
 import { fetchAllTemplates } from "./data/templatesApi";
 import { constructionRetailV1 } from "./domains/construction/templates/constructionRetailV1";
@@ -180,7 +180,7 @@ function App() {
     setPortfolioState('loading');
     setPortfolioError(null);
     Promise.all([
-      contractorReportService.getAllReportsForScreens(),
+      getAllReportsForScreens(),
       siteVisitService.getAll(),
       fetchAllTemplates(),
     ]).then(([r, s, t]) => {

@@ -1,16 +1,13 @@
-﻿import { supabase } from '../lib/supabase';
-import { adaptContractorReportsToLegacy } from './contractorReportAdapter';
-import { ContractorReportSchema } from '../schemas/contractorReportSchema';
-import { validateArray } from '../schemas/validate';
+import { supabase } from '../lib/supabase';
 
-// в”Ђв”Ђв”Ђ Submit contractor report в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Submit contractor report ──────────────────────────────────────────────────
 
 /**
  * Submit a contractor report with per-WP progress data.
  *
  * @param {string} projectId
  * @param {Array<{ wpId, progress_pct, status, comment }>} wpProgressArray
- * @param {object} [meta] вЂ” { reportDate, overallProgress, photoUrls }
+ * @param {object} [meta] — { reportDate, overallProgress, photoUrls }
  * @returns { report, wpLineItems }
  */
 export async function submitReport(projectId, wpProgressArray, meta = {}) {
@@ -39,8 +36,7 @@ export async function submitReport(projectId, wpProgressArray, meta = {}) {
   };
 }
 
-// Get last report
-// в”Ђв”Ђв”Ђ Get last report в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ─── Get last report ────────────────────────────────────────────────────────────
 
 /**
  * Get the most recent contractor report for a project, with WP line items.
@@ -73,10 +69,10 @@ export async function getLastReport(projectId) {
   };
 }
 
-/**
- * Fetch canonical contractor reports and adapt them for legacy-shaped screens.
- */
-export async function getAllReportsForScreens() {
+// ─── Raw fetch for "screens" shape (pure I/O — adaptation/validation lives in
+// core/contractorReport/contractorReportScreensModel.js) ───────────────────────
+
+export async function fetchAllContractorReportsRaw() {
   const [reportsRes, wpsRes, projectsRes] = await Promise.all([
     supabase
       .from('contractor_reports')
@@ -93,22 +89,14 @@ export async function getAllReportsForScreens() {
   if (wpsRes.error) throw wpsRes.error;
   if (projectsRes.error) throw projectsRes.error;
 
-  const wpsByReportId = {};
-  for (const wp of wpsRes.data || []) {
-    if (!wpsByReportId[wp.report_id]) wpsByReportId[wp.report_id] = [];
-    wpsByReportId[wp.report_id].push(wp);
-  }
-  const templateTypeByProjectId = {};
-  for (const p of projectsRes.data || []) templateTypeByProjectId[p.id] = p.template_type;
-
-  return validateArray(
-    ContractorReportSchema,
-    adaptContractorReportsToLegacy(reportsRes.data || [], wpsByReportId, templateTypeByProjectId),
-    'contractor_reports'
-  );
+  return {
+    reports:  reportsRes.data || [],
+    wps:      wpsRes.data || [],
+    projects: projectsRes.data || [],
+  };
 }
 
-export async function getReportsForProjectForScreens(projectId) {
+export async function fetchContractorReportsForProjectRaw(projectId) {
   const [{ data: reports, error }, { data: projectRow, error: projectError }] = await Promise.all([
     supabase
       .from('contractor_reports')
@@ -124,8 +112,10 @@ export async function getReportsForProjectForScreens(projectId) {
   if (error) throw error;
   if (projectError) throw projectError;
 
-  const reportIds = (reports || []).map((report) => report.id);
-  if (reportIds.length === 0) return [];
+  const reports_ = reports || [];
+  const templateType = projectRow?.template_type;
+  const reportIds = reports_.map((report) => report.id);
+  if (reportIds.length === 0) return { reports: [], wps: [], templateType };
 
   const { data: wps, error: wpsError } = await supabase
     .from('contractor_report_wps')
@@ -133,16 +123,5 @@ export async function getReportsForProjectForScreens(projectId) {
     .in('report_id', reportIds);
   if (wpsError) throw wpsError;
 
-  const wpsByReportId = {};
-  for (const wp of wps || []) {
-    if (!wpsByReportId[wp.report_id]) wpsByReportId[wp.report_id] = [];
-    wpsByReportId[wp.report_id].push(wp);
-  }
-
-  return validateArray(
-    ContractorReportSchema,
-    adaptContractorReportsToLegacy(reports || [], wpsByReportId, { [projectId]: projectRow?.template_type }),
-    'contractor_reports'
-  );
+  return { reports: reports_, wps: wps || [], templateType };
 }
-

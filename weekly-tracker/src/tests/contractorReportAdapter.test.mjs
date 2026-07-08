@@ -1,7 +1,7 @@
 // contractorReportAdapter.test.mjs - legacy adapter contract.
 // Run: node src/tests/contractorReportAdapter.test.mjs
 
-import { adaptContractorReportToLegacy } from '../services/contractorReportAdapter.js';
+import { adaptContractorReportToLegacy } from '../core/contractorReport/adaptContractorReportToLegacy.js';
 
 let pass = 0, fail = 0;
 function check(label, condition) {

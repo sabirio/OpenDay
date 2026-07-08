@@ -83,6 +83,17 @@ function resolveTemplate(template) {
 // ── Activity level ────────────────────────────────────────────────────────────
 
 /**
+ * Clamp a raw progress value into the valid 0-100 range. Callers pass
+ * already-numeric-coerced input — NaN handling is the caller's job (e.g.
+ * adaptContractorReportToLegacy.js's toFiniteProgress boundary check).
+ * @param {number} value
+ * @returns {number}
+ */
+export function clampProgressPct(value) {
+  return Math.min(100, Math.max(0, value));
+}
+
+/**
  * Extract 0-100 progress from a single Gantt task entry.
  * Prefers numeric `progress` field; falls back to status text.
  * @param {{progress?: number, status?: string}|null|undefined} entry
