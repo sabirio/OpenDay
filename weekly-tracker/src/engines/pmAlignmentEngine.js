@@ -2,7 +2,7 @@
 import { getStatusScore, DAY_MS } from "../utils/reportUtils";
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
 import { constructionWeights, testingWeights, handoverWeights } from "../config/reportWeights";
-import { CONFIDENCE_WEIGHTS, CONFIDENCE_LEVEL_THRESHOLDS } from "../config/confidenceConfig";
+import { CONFIDENCE_WEIGHTS, CONFIDENCE_LEVEL_THRESHOLDS, CONFIDENCE_LEVELS } from "../config/confidenceConfig";
 
 /** @typedef {import('../types').AlignmentItem} AlignmentItem */
 /** @typedef {import('../types').AlignmentSummary} AlignmentSummary */
@@ -267,7 +267,7 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
   const pts = Math.max(0, Math.min(maxPts, rawPts));
 
   const ratio = maxPts > 0 ? pts / maxPts : 0;
-  const level = ratio >= CONFIDENCE_LEVEL_THRESHOLDS.HIGH ? "HIGH" : ratio >= CONFIDENCE_LEVEL_THRESHOLDS.MEDIUM ? "MEDIUM" : "LOW";
+  const level = ratio >= CONFIDENCE_LEVEL_THRESHOLDS.HIGH ? CONFIDENCE_LEVELS.HIGH : ratio >= CONFIDENCE_LEVEL_THRESHOLDS.MEDIUM ? CONFIDENCE_LEVELS.MEDIUM : CONFIDENCE_LEVELS.LOW;
   const color   = level === "HIGH" ? "var(--status-done)"  : level === "MEDIUM" ? "var(--status-warn)" : "var(--text-muted)";
   const colorBg = level === "HIGH" ? "var(--status-done-bg)" : level === "MEDIUM" ? "var(--status-warn-bg)" : "var(--bg-elevated)";
   const label =

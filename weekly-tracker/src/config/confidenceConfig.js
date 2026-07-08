@@ -37,3 +37,13 @@ export const CONFIDENCE_WEIGHTS = {
 // above, minus any applied penalties) — not a fixed literal, so adding a new
 // positive factor above doesn't silently change what counts as "HIGH".
 export const CONFIDENCE_LEVEL_THRESHOLDS = { HIGH: 0.75, MEDIUM: 0.4 };
+
+// Single source of truth for the confidence-level vocabulary
+// computeConfidenceLevel() produces (pmAlignmentEngine.js) — every
+// "conf.level === 'HIGH'"-style comparison elsewhere should import this
+// instead of hardcoding the string.
+export const CONFIDENCE_LEVELS = Object.freeze({
+  LOW:    "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH:   "HIGH",
+});

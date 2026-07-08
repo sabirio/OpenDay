@@ -1,3 +1,5 @@
+import { CONFIDENCE_LEVELS } from '../../../config/confidenceConfig.js';
+
 /**
  * confidenceModifier.js — apply data-confidence dampening to assembled insights.
  * Pure function — no engine imports.
@@ -22,7 +24,7 @@ export function applyConfidence(insights, confidenceByProjectId) {
     const conf = confidenceByProjectId[ins.projectId];
     if (!conf) return ins;
 
-    if (conf.level === 'HIGH') return ins;
+    if (conf.level === CONFIDENCE_LEVELS.HIGH) return ins;
 
     if (conf.level === 'MEDIUM') {
       return {

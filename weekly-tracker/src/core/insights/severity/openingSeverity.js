@@ -1,4 +1,5 @@
 import { isBadScheduleStatus } from '../../../utils/reportUtils.js';
+import { RISK_LEVELS } from '../../../engines/riskEngine.js';
 
 /**
  * Shared "does this project's opening-readiness reflect risk?" predicates —
@@ -52,7 +53,7 @@ export function isProjectAtRisk(row) {
  * @param {{riskLevel?: string, readiness?: {status?: string}|null}} row
  */
 export function isProjectCritical(row) {
-  return row.riskLevel === 'CRITICAL' || isOpeningCritical(row.readiness);
+  return row.riskLevel === RISK_LEVELS.CRITICAL || isOpeningCritical(row.readiness);
 }
 
 /**

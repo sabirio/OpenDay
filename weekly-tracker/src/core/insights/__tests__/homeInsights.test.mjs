@@ -1,6 +1,24 @@
 // homeInsights.test.mjs — unit tests for buildHomeInsights + summarizeInsights.
 // Run: node src/core/insights/__tests__/homeInsights.test.mjs
-import { buildHomeInsights, summarizeInsights } from '../selectors/homeInsights.js';
+//
+// NOTE: homeInsights.js composes adapters (portfolioAlerts.js, openingSeverity.js)
+// that import engines/riskEngine.js, which uses Vite-style extensionless imports
+// (e.g. '../utils/reportUtils') that Node ESM rejects. Same loader trick as
+// tests/riskEngine.test.mjs — appends '.js' to relative specifiers lacking an
+// extension.
+import { register } from 'node:module';
+const loaderSrc = `
+export async function resolve(specifier, context, nextResolve) {
+  if (specifier.startsWith('.') && !specifier.match(/\\.[mc]?js$/)) {
+    return nextResolve(specifier + '.js', context);
+  }
+  return nextResolve(specifier, context);
+}`;
+register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
+
+// Dynamic import AFTER loader is registered — static imports are hoisted
+// above register() and would resolve before the hook applies.
+const { buildHomeInsights, summarizeInsights } = await import('../selectors/homeInsights.js');
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
