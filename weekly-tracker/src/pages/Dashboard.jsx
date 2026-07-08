@@ -1,9 +1,7 @@
 import { useMemo, useState, useCallback } from "react";
-import {
-  computePortfolioAlerts, computeContractorPerf, computePortfolioKpis,
-} from "../engines/portfolioEngine";
-import { computeSiteVisitData, computeSiteVisitKpis } from "../engines/siteVisitEngine";
 import { regenerateGantt } from "../hooks/useGanttOrchestration";
+import { useDashboardModel } from "../hooks/useDashboardModel";
+import { getProgressSnapshot } from "../hooks/useDashboardOrchestration";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
 import SummaryPanel from "../components/dashboard/SummaryPanel";
 import StatusMatrix from "../components/dashboard/StatusMatrix";
@@ -15,7 +13,6 @@ import ProjectDetailDrawer from "../components/dashboard/ProjectDetailDrawer";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { useAllRows } from "../hooks/useAllRows";
 import { SPI_STATUS } from "../config/statusColors";
-import { getProgressSnapshot } from "../services/projectService";
 import { isoWeekToMonday, currentISOWeek } from "../utils/scheduleUtils";
 import Icon from "../components/shared/Icon";
 
@@ -70,22 +67,11 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
 
   const defaultSorted = useMemo(()=>[...filteredRows].sort((a,b)=>a.priorityScore-b.priorityScore||a.progress-b.progress),[filteredRows]);
 
-  const kpis = useMemo(() => computePortfolioKpis(projects, allRows, reports), [projects, allRows, reports]);
-
-  // Single gantt-enriched row set — reused for alerts, SPI banner, and SummaryPanel.
-  const ganttEnrichedRows = useMemo(() =>
-    allRows.map(row => ({ ...row, gantt: ganttMetrics.get(row.project.id) || null }))
-  , [allRows, ganttMetrics]);
-
-  // SummaryPanel avg-SPI card shape
-  const spiRows = useMemo(() => ganttEnrichedRows.map(row => ({
-    evm: row.gantt?.spi != null ? { SPI: row.gantt.spi } : null,
-    monteCarlo: null,
-  })), [ganttEnrichedRows]);
-
-  // Unified alert source — SPI alerts are now PART of computePortfolioAlerts output
-  // when gantt data is present (type: 'spi' items, worst-SPI first within CRITICAL/HIGH tier).
-  const alerts = useMemo(() => computePortfolioAlerts(ganttEnrichedRows), [ganttEnrichedRows]);
+  // Single dashboard read-model — kpis, gantt-enriched rows (reused for
+  // alerts, SPI banner, SummaryPanel), alerts, contractor perf, and site
+  // visit data/kpis all composed together from the same inputs.
+  const { kpis, ganttEnrichedRows, spiRows, alerts, contractorPerf, svData, svKpis } =
+    useDashboardModel({ projects, reports, siteVisits, allRows, ganttMetrics });
 
   // SPI banner items: pulled from unified alerts, undismissed, worst SPI first.
   const spiAlerts = useMemo(() =>
@@ -109,12 +95,6 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
       }),
     }));
   },[allRows]);
-
-  const contractorPerf = useMemo(() => computeContractorPerf(allRows), [allRows]);
-
-  const svData = useMemo(() => computeSiteVisitData(siteVisits, projects, reports), [siteVisits, projects, reports]);
-
-  const svKpis = useMemo(() => computeSiteVisitKpis(svData), [svData]);
 
   const lastVisitDate = useMemo(() => {
     const dates = svData.map(d => d.visit?.visitDate || d.visit?.submittedAt).filter(Boolean);
