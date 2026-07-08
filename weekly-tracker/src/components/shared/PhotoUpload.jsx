@@ -1,24 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
-import { compressImage } from '../../utils/compressImage';
+import { getCurrentUserId, removePhotoPaths, uploadPhotoWithRetry } from '../../hooks/usePhotoUpload';
 import Icon from './Icon';
 
 const MAX_PHOTOS = 15;
-const UPLOAD_TIMEOUT_MS = 20_000;
-const RETRY_BACKOFF_MS = 1_500;
-
-// Neither compressImage() nor supabase-js's storage.upload() enforce their own
-// timeout — a stalled network request (bad mobile connection, or a backend
-// hiccup) leaves its promise pending forever. Without this, `uploading: true`
-// never flips back, Submit stays disabled with no error shown, and the only
-// recovery is reloading the whole form. Race against a timeout so a hang
-// becomes a normal, recoverable upload failure instead.
-function withTimeout(promise, ms, message) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
-  ]);
-}
 
 /**
  * PhotoUpload — capture/select up to MAX_PHOTOS images, compress them
@@ -81,34 +65,12 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
       ...entries.map(({ id, preview }) => ({ id, path: null, preview, uploading: true })),
     ]);
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user?.id) {
+    const userId = await getCurrentUserId();
+    if (!userId) {
       onError?.('Not signed in — cannot upload photos');
       const failedIds = new Set(entries.map(en => en.id));
       setPhotos(prev => prev.filter(p => !failedIds.has(p.id)));
       return;
-    }
-    const yearMonth = new Date().toISOString().slice(0, 7); // "2025-07"
-
-    // One attempt = compress + upload, each attempt gets its own storage path
-    // (a timed-out attempt's request may still land after we've moved on —
-    // reusing the same path could collide with it under upsert:false).
-    // compressImage() is wrapped too — a stalled canvas decode is just as
-    // capable of hanging forever as a stalled network request.
-    async function attemptUpload(file, seq) {
-      const compressed = await withTimeout(
-        compressImage(file),
-        UPLOAD_TIMEOUT_MS,
-        'Photo processing timed out — try a different photo.'
-      );
-      const path = `${projectId}/${yearMonth}/${user.id}_${Date.now()}_${seq}.jpg`;
-      const { error } = await withTimeout(
-        supabase.storage.from('site-photos').upload(path, compressed, { contentType: 'image/jpeg', upsert: false }),
-        UPLOAD_TIMEOUT_MS,
-        'Photo upload timed out — check your connection and try again.'
-      );
-      if (error) throw error;
-      return path;
     }
 
     // Uploads run in parallel, not one-at-a-time — previously a `for` loop
@@ -116,18 +78,13 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
     // the per-photo timeout+retry ceiling even when only one was actually
     // stuck (every thumbnail shows its spinner immediately, so a stalled
     // first photo made every later one look hung too, even though they
-    // hadn't started yet).
+    // hadn't started yet). Compress+upload+retry policy lives in
+    // core/photo/uploadPhotoModel.js — each attempt gets its own storage
+    // path there (a timed-out attempt's request may still land after we've
+    // moved on — reusing the same path could collide with it under upsert:false).
     async function uploadEntry({ id, file }, seq) {
       try {
-        let path;
-        try {
-          path = await attemptUpload(file, seq);
-        } catch {
-          // A single transient network hiccup shouldn't force the contractor
-          // to re-pick the photo from scratch — one retry after a short backoff.
-          await new Promise(r => setTimeout(r, RETRY_BACKOFF_MS));
-          path = await attemptUpload(file, seq);
-        }
+        const path = await uploadPhotoWithRetry(projectId, userId, file, seq);
         setPhotos(prev => prev.map(p => p.id === id ? { ...p, path, uploading: false } : p));
         return path;
       } catch (err) {
@@ -146,7 +103,7 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
     if (!photo || photo.uploading) return;
     setPhotos(prev => prev.filter(p => p.id !== photo.id));
     if (photo.path) {
-      const { error } = await supabase.storage.from('site-photos').remove([photo.path]);
+      const { error } = await removePhotoPaths([photo.path]);
       if (error) {
         onError?.(`Photo removed from the list, but the file may still be in storage: ${error.message}`);
       }

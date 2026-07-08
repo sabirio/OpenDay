@@ -80,3 +80,20 @@ export async function removePhotoPaths(paths) {
     return { removed: [], error };
   }
 }
+
+// ─── Upload (pure I/O primitives — retry/timeout orchestration lives in
+// core/photo/uploadPhotoModel.js) ───────────────────────────────────────────────
+
+export async function getCurrentUserId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user?.id) return null;
+  return data.user.id;
+}
+
+export async function uploadPhotoToBucket(path, fileBlob) {
+  const { error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, fileBlob, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw error;
+  return path;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getSignedPhotoUrls } from '../../services/photoService';
+import { getSignedPhotoUrls } from '../../hooks/usePhotoUpload';
 
 export default function PhotoGallery({ paths, title = 'Site Photos' }) {
   const photoPaths = useMemo(
