@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { calculateWPTaskWeightedProgress, getWPStatusTier } from '../../engines/progressEngine';
+import { calculateWPTaskWeightedProgress, getWPStatusTier } from '../../hooks/useProgressPresentation';
 import { statusColor, statusStyles } from './sharedUtils';
 
 const TIER_GLYPH = { done: '✓', good: '▶', warn: '⚠', muted: '·' };

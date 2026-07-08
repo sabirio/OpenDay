@@ -1,7 +1,7 @@
 // Pure utility functions for the Weekly Reports feature (no React).
 // Domain classification (status -> tier) lives in progressEngine.getWPStatusTier;
 // these just map that tier to presentation (color/style).
-import { getWPStatusTier } from '../../engines/progressEngine';
+import { getWPStatusTier } from '../../hooks/useProgressPresentation';
 
 const TIER_COLOR = {
   done:  'var(--status-done)',

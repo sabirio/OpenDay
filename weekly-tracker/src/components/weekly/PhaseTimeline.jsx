@@ -4,7 +4,7 @@
  * Clicking a phase cell opens its WP detail in a full-width panel below.
  */
 import { useState, Fragment } from 'react';
-import { getWPStatusTier } from '../../engines/progressEngine';
+import { getWPStatusTier } from '../../hooks/useProgressPresentation';
 import { statusColor, statusStyles } from './sharedUtils';
 
 const TIER_GLYPH = { done: '✓', good: '▶', warn: '⚠', muted: '·' };
