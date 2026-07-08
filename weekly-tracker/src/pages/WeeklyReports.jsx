@@ -1,31 +1,16 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-import {
-  computeWPCumulativeStatuses,
-  isWPReport,
-  pickReconciledStatusEntry,
-} from "../utils/reportUtils";
-import { calculateProgressComparison, computeProgressSeries } from "../engines/progressEngine";
-import { calculateWorkPackageDeltas, computePhaseChangeFlags, classifyPhases } from "../engines/progressDeltaEngine";
 import { useAllRows } from "../hooks/useAllRows";
+import { useWeeklyReportReviewModel } from "../hooks/useWeeklyReportReviewModel";
+import { useWeeklyGanttTasks } from "../hooks/useWeeklyGanttTasks";
 import { useAuth } from "../auth/AuthContext";
 import PrintHeader from "../components/print/PrintHeader";
 import ExportButton from "../components/print/ExportButton";
-import { SCHEDULE_CONFIG } from "../config/scheduleConfig";
 // TODO wave4: WORK_PACKAGES here is the intentional legacy-report fallback
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
-// `wpsConfig`/`displayWorkPackages` below, gated on isWPReport(). Audited
+// report model, gated on Gantt-vs-legacy report shape. Audited
 // Wave 4 Step 4.6; not swapped, replacement is non-trivial. See TEMPLATE_MODEL.md.
 import { WORK_PACKAGES } from "../config/workPackages";
-import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from "../config/masterTaskLibrary";
-import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
-import { computeAdditionalWorksSummary } from "../engines/additionalWorksEngine";
-import { deriveWPStatusesFromOldReport, mergeOldDerivedStatuses } from "../engines/legacyReportEngine";
-import { computePortfolioMissing } from "../engines/portfolioEngine";
-import { computeSiteVisitData, computeSiteVisitKpis } from "../engines/siteVisitEngine";
-import { getProjectGantt, updateWPDates } from "../services/ganttService";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
-import { validateTemplate, explainFromSnapshot, explainLive, taskProgressFromStatuses } from "../core/projects";
-import { constructionRetailV1 } from "../domains/construction/templates/constructionRetailV1";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
 import AllClearStrip      from "../components/weekly/AllClearStrip";
@@ -66,11 +51,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Stable labeled template for explain layer: GANTT_WPS (flat, with label+phaseId+duration_pct)
-// + constructionRetailV1.phases (with label+progressWeight). Labels are resolved here so the
-// explain output carries readable strings; ProgressNarrative needs no id→label lookup.
-const EXPLAIN_TEMPLATE = { workPackages: GANTT_WPS, phases: constructionRetailV1.phases };
-
 // ─── Main component ───────────────────────────────────────────────────────────
 function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
   const { user } = useAuth();
@@ -78,8 +58,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   const [selectedReportId,  setSelectedReportId]  = useState("");
   const [showMissingModal,  setShowMissingModal]  = useState(false);
   const [showGantt,         setShowGantt]         = useState(false);
-  const [ganttTasks,        setGanttTasks]        = useState([]);
-  const [ganttLoading,      setGanttLoading]      = useState(false);
   const [expandedVisitId,   setExpandedVisitId]   = useState(null);
   const [activeTemplate,    setActiveTemplate]    = useState(null);
   const [activeReviewTab,   setActiveReviewTab]   = useState("overview");
@@ -129,11 +107,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
     return idx > 0 ? sorted[idx - 1] : null;
   }, [selectedReport, projectReports, effectiveReportId]);
 
-  const templateIssues = useMemo(
-    () => (activeTemplate ? validateTemplate(activeTemplate) : []),
-    [activeTemplate]
-  );
-
   // Single read model — progress (and risk/contScore/health/readiness, when
   // needed) comes from useAllRows(), same as Dashboard/Home. No local
   // recomputation of calculateProjectProgress() here; template resolution
@@ -146,169 +119,43 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   );
   const overallProgress = selectedRow?.progress ?? 0;
 
-  const portfolioKpis = useMemo(
-    () => computePortfolioMissing(selectedProject ? [selectedProject] : [], reports),
-    [selectedProject, reports]
-  );
+  const {
+    templateErrorIssues,
+    portfolioKpis,
+    engineOutputs,
+    additionalWorksList,
+    mergedStatuses,
+    wpDeltas,
+    phaseChangeFlags,
+    progressSeries,
+    phaseClassifications,
+    svData,
+    svKpis,
+    riskCount,
+    explainResult,
+  } = useWeeklyReportReviewModel({
+    selectedProject,
+    selectedReport,
+    prevReport,
+    projectReports,
+    siteVisits,
+    overallProgress,
+    activeTemplate,
+    legacyWorkPackages: WORK_PACKAGES,
+  });
 
-  // Report-specific progress comparison: matched to whichever historical report
-  // is selected in the dropdown (current vs previous history row), not simply
-  // "latest vs previous" — a capability useAllRows() doesn't provide, so this
-  // stays page-local.
-  const engineOutputs = useMemo(() => {
-    if (!selectedProject) return null;
-
-    // Select the two history rows relevant to the selected report:
-    // "current" = row whose date matches selectedReport, "previous" = the row just before it.
-    // All history rows are available (projectService no longer caps at 2).
-    const allHistory  = [...(selectedProject.progressHistory ?? [])].sort(
-      (a, b) => new Date(a.recorded_at) - new Date(b.recorded_at) // oldest → newest
-    );
-    const selectedDate  = selectedReport?.reportingDate ?? null;
-    const currentIdx    = selectedDate
-      ? allHistory.findIndex(r => r.recorded_at?.slice(0, 10) === selectedDate)
-      : allHistory.length - 1; // no report selected → use most recent
-    const currentHistRow = currentIdx >= 0 ? allHistory[currentIdx] : null;
-    const prevHistRow    = currentIdx > 0  ? allHistory[currentIdx - 1] : null;
-    const selectedHistoryRows = [prevHistRow, currentHistRow].filter(Boolean);
-
-    // Use the history row's stored progress for the selected week, not the live cumulative.
-    // Also pass the report date as referenceDate so expectedPct is evaluated at that point in time.
-    const selectedProgress = currentHistRow?.overall_progress ?? null;
-    const refDate = selectedReport?.reportingDate ? new Date(selectedReport.reportingDate) : null;
-    const progressComparison = calculateProgressComparison(
-      selectedProject,
-      selectedProgress !== null ? selectedProgress : overallProgress,
-      selectedHistoryRows,
-      SCHEDULE_CONFIG,
-      refDate
-    );
-    return { progressComparison, selectedProgress, currentHistRow };
-  }, [selectedProject, selectedReport, overallProgress]);
-
-  const additionalWorksList = useMemo(() => {
-    const sorted = [...projectReports].sort((a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt));
-    return computeAdditionalWorksSummary(sorted);
-  }, [projectReports]);
-
-  const scopedGanttWPs = useMemo(
-    () => getScopedGanttWorkPackages(selectedProject?.scope ?? null),
-    [selectedProject]
-  );
-
-  // Merged WP statuses (current report + cumulative up to selected date) — passed to PhaseStepper
-  const mergedStatuses = useMemo(() => {
-    if (!selectedReport) return {};
-    const cutoff = selectedReport.reportingDate || selectedReport.submittedAt;
-    const reportsUpTo = projectReports.filter(
-      r => (r.reportingDate || r.submittedAt) <= cutoff
-    );
-    const wpReport       = isWPReport(selectedReport);
-    const current        = wpReport ? selectedReport.workPackageStatuses : deriveWPStatusesFromOldReport(selectedReport);
-    const cumulative     = wpReport
-      ? computeWPCumulativeStatuses(reportsUpTo)?.workPackageStatuses
-      : mergeOldDerivedStatuses(reportsUpTo.map(deriveWPStatusesFromOldReport));
-    const wpsConfig = wpReport ? scopedGanttWPs : WORK_PACKAGES;
-    const merged = {};
-    for (const wp of wpsConfig) {
-      merged[wp.id] = {};
-      for (const task of wp.tasks) {
-        const e = current?.[wp.id]?.[task.name]    || {};
-        const c = cumulative?.[wp.id]?.[task.name] || {};
-        merged[wp.id][task.name] = pickReconciledStatusEntry(e, c);
-      }
-    }
-    return merged;
-  }, [selectedReport, projectReports, scopedGanttWPs]);
-
-  // Explain result — reconstructs WHY the overall % is what it is.
-  // Prefers explainFromSnapshot when the history row has frozen effective_weights (version-proof).
-  // Falls back to explainLive (re-derived weights) for unsaved/legacy reports.
-  // Only wired for Gantt-format reports where label→wpId mapping is reliable.
-  const explainResult = useMemo(() => {
-    if (!isWPReport(selectedReport) || !mergedStatuses) return null;
-    try {
-      const taskProgress = taskProgressFromStatuses(mergedStatuses, EXPLAIN_TEMPLATE);
-      const histRow = engineOutputs?.currentHistRow;
-      if (histRow?.snapshot?.effective_weights && Object.keys(histRow.snapshot.effective_weights).length > 0) {
-        return explainFromSnapshot(histRow, taskProgress, EXPLAIN_TEMPLATE);
-      }
-      const scopeWPIds = getScopeWPIds(selectedProject?.scope, GANTT_WPS);
-      return explainLive(EXPLAIN_TEMPLATE, scopeWPIds, taskProgress, overallProgress);
-    } catch { return null; }
-  }, [selectedReport, mergedStatuses, engineOutputs, selectedProject, overallProgress]);
-
-  // Cumulative WP statuses as of the previous report's date — used for WP delta calculation.
-  const prevMergedStatuses = useMemo(() => {
-    if (!prevReport) return null;
-    const prevCutoff = prevReport.reportingDate || prevReport.submittedAt;
-    const reportsUpToPrev = projectReports.filter(
-      r => (r.reportingDate || r.submittedAt) <= prevCutoff
-    );
-    if (isWPReport(selectedReport)) {
-      return computeWPCumulativeStatuses(reportsUpToPrev)?.workPackageStatuses ?? null;
-    }
-    return mergeOldDerivedStatuses(reportsUpToPrev.map(deriveWPStatusesFromOldReport));
-  }, [prevReport, selectedReport, projectReports]);
-
-  const wpDeltas = useMemo(
-    () => calculateWorkPackageDeltas(mergedStatuses, prevMergedStatuses),
-    [mergedStatuses, prevMergedStatuses]
-  );
-
-  const phaseChangeFlags = useMemo(
-    () => computePhaseChangeFlags(wpDeltas),
-    [wpDeltas]
-  );
-
-  const progressSeries = useMemo(
-    () => computeProgressSeries(selectedProject?.progressHistory ?? []),
-    [selectedProject]
-  );
-
-  const displayWorkPackages = isWPReport(selectedReport) ? scopedGanttWPs : WORK_PACKAGES;
-
-  const phaseClassifications = useMemo(() => {
-    if (!selectedProject) return [];
-    // Full (unscoped) list so out-of-scope phases are still emitted in the timeline.
-    const fullPhaseList = isWPReport(selectedReport) ? getScopedGanttWorkPackages(null) : WORK_PACKAGES;
-    const scopePhaseIds = displayWorkPackages.map(p => p.id);
-    const scope = selectedProject.scope ?? null;
-    const ov = scope?.weightOverrides;
-    const phaseWeights = ov ? { ...getDefaultPhaseWeights(), ...ov } : getDefaultPhaseWeights();
-    return classifyPhases(fullPhaseList, mergedStatuses, prevMergedStatuses, scopePhaseIds, phaseWeights);
-  }, [selectedProject, selectedReport, displayWorkPackages, mergedStatuses, prevMergedStatuses]);
-
-  const svData = useMemo(() => {
-    if (!selectedProject) return [];
-    const projVisits = siteVisits.filter(v => String(v.projectId) === String(selectedProject.id));
-    return computeSiteVisitData(projVisits, [selectedProject], projectReports);
-  }, [selectedProject, siteVisits, projectReports]);
-  const svKpis = useMemo(() => computeSiteVisitKpis(svData), [svData]);
-
-  useEffect(() => {
-    if (!showGantt || !effectiveProjectId) return;
-    setGanttLoading(true);
-    getProjectGantt(effectiveProjectId)
-      .then(tasks => setGanttTasks(tasks || []))
-      .catch(() => setGanttTasks([]))
-      .finally(() => setGanttLoading(false));
-  }, [showGantt, effectiveProjectId]);
+  const { tasks: ganttTasks, loading: ganttLoading, resizeTask } = useWeeklyGanttTasks({
+    showGantt,
+    projectId: effectiveProjectId,
+  });
 
   const handleWPResize = useCallback(async (wpId, { plannedStart, plannedEnd, durationDays }) => {
-    setGanttTasks(prev => prev.map(t =>
-      t.id === wpId
-        ? { ...t, earlyStart: new Date(plannedStart), earlyFinish: new Date(plannedEnd), duration_days: durationDays }
-        : t
-    ));
     try {
-      await updateWPDates(effectiveProjectId, wpId, { plannedStart, plannedEnd, durationDays });
+      await resizeTask(wpId, { plannedStart, plannedEnd, durationDays });
     } catch (err) {
       console.error('[GanttResize] failed to save:', err);
     }
-  }, [effectiveProjectId]);
-
-  const riskCount = (selectedReport?.risks || []).filter(Boolean).length;
+  }, [resizeTask]);
   const reviewTabs = [
     { id: "overview", label: "Overview" },
     { id: "verification", label: "Verification" },
@@ -365,13 +212,13 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
         {selectedProject && (
           <section className="weekly-truth-console">
-            {templateIssues.filter(i => i.severity === 'error').length > 0 && (
+            {templateErrorIssues.length > 0 && (
               <div role="alert" className="weekly-template-alert">
                 <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
                   Active template is invalid — using built-in default weights. Fix in Template Editor:
                 </span>
                 <ul style={{ margin: '6px 0 0 0', paddingLeft: 20 }}>
-                  {templateIssues.filter(i => i.severity === 'error').map((e, idx) => (
+                  {templateErrorIssues.map((e, idx) => (
                     <li key={idx} style={{ color: 'var(--status-warn)', marginTop: 3 }}>{e.message}</li>
                   ))}
                 </ul>
