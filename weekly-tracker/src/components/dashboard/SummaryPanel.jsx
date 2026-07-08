@@ -1,7 +1,7 @@
 import { KpiCard } from './DashboardWidgets';
 import Icon from '../shared/Icon';
 import { formatDate } from '../../utils/reportUtils';
-import { computePortfolioAnalytics } from '../../engines/portfolioEngine';
+import { useDashboardSummaryPanelModel } from '../../hooks/useDashboardSummaryPanelModel';
 
 const DONUT_SEGMENTS = [
   { label: 'On Track',  key: 'On Track',  color: 'var(--text-primary)'  },
@@ -66,16 +66,7 @@ function SmallDonut({ counts, total }) {
 }
 
 export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], svKpis, lastVisitDate }) {
-  const analytics = rows && rows.length > 0 ? computePortfolioAnalytics(rows) : null;
-
-  const donutCounts = {
-    'On Track': allRows.filter(r => r.latestReport?.projectScheduleStatus === 'On Track').length,
-    'At Risk':  allRows.filter(r => r.latestReport?.projectScheduleStatus === 'At Risk').length,
-    'Delayed':  allRows.filter(r => r.latestReport?.projectScheduleStatus === 'Delayed').length,
-    'Critical': allRows.filter(r => r.latestReport?.projectScheduleStatus === 'Critical').length,
-    null:       allRows.filter(r => !r.latestReport).length,
-  };
-  const donutTotal = allRows.length;
+  const { analytics, donutCounts, donutTotal } = useDashboardSummaryPanelModel(rows, allRows);
 
   return (
     <>
