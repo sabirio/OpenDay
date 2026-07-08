@@ -1,5 +1,5 @@
 import { isSevereScheduleStatus } from "../../utils/reportUtils";
-import { computePmAlignmentItems, summarizeAlignmentItems } from "../../engines/pmAlignmentEngine";
+import { computePmAlignmentItems, summarizeAlignmentItems } from "../../hooks/usePmAlignmentPresentation";
 import { RISK_LEVEL_COLORS, getScoreTier, SCORE_TIER_COLORS } from "../../config/statusColors";
 import FilterBar from "./FilterBar";
 import Glyph from "./Glyph";
