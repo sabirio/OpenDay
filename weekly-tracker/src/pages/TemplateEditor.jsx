@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights, computeTemplateWeightSums } from '../core/projects/templateEditor.js';
-import { validateTemplate, isTemplateValid } from '../core/projects/validation/validateTemplate.js';
+import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights, computeTemplateWeightSums, validateTemplate, isTemplateValid } from '../hooks/useTemplateEditorModel.js';
 import { fetchActiveTemplate, saveTemplate } from '../data/templatesApi.js';
 
 const EPS = 0.001;

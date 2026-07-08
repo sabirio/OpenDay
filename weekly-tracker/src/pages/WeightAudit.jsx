@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchActiveTemplate, fetchTemplateById } from '../data/templatesApi';
-import { buildWeightAuditModel } from '../core/projects/weights/buildWeightAuditModel';
+import { buildWeightAuditModel, getScopeWPIds } from '../hooks/useWeightAuditModel';
 import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
-import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
 
 // Domain label maps — resolved once at module load, never in core
 const PHASE_LABELS = Object.fromEntries(
