@@ -1,3 +1,5 @@
+import { computeSparkRange, valueToSparkY, clamp, fractionToWidth, fractionToPercent } from '../../hooks/useChartMathPresentation';
+
 function spiColor(spi) {
   if (spi >= 1.0)  return 'var(--status-done)';
   if (spi >= 0.85) return 'var(--status-warn)';
@@ -17,21 +19,19 @@ function Sparkline({ history }) {
 
   const W = 160, H = 32;
   const spis   = history.map(p => p.spi);
-  const minSpi = Math.min(0.5, ...spis);
-  const maxSpi = Math.max(1.2, ...spis);
-  const range  = maxSpi - minSpi || 1;
+  const { min: minSpi, range } = computeSparkRange(spis, 0.5, 1.2);
 
   const pts = spis.map((s, i) => {
     const x = (i / (spis.length - 1)) * W;
-    const y = H - ((s - minSpi) / range) * H;
+    const y = valueToSparkY(s, minSpi, range, H);
     return `${x},${y}`;
   });
 
   return (
     <svg width={W} height={H} style={{ display: 'block' }}>
       <line
-        x1={0} y1={H - ((1.0 - minSpi) / range) * H}
-        x2={W} y2={H - ((1.0 - minSpi) / range) * H}
+        x1={0} y1={valueToSparkY(1.0, minSpi, range, H)}
+        x2={W} y2={valueToSparkY(1.0, minSpi, range, H)}
         stroke="var(--border)" strokeWidth={1} strokeDasharray="3,3"
       />
       <polyline points={pts.join(' ')} fill="none" stroke="var(--accent)" strokeWidth={2} />
@@ -55,7 +55,7 @@ export default function EvmWidget({ evm }) {
 
   const c      = spiColor(evm.SPI);
   const gaugeW = 64;
-  const gauge  = Math.round(Math.min(1, Math.max(0, evm.SPI)) * gaugeW);
+  const gauge  = fractionToWidth(clamp(evm.SPI, 0, 1), gaugeW);
 
   const tcpiChip = evm.tcpiStatus === 'unrealistic'
     ? { color: 'var(--status-alert)', bg: 'var(--status-alert-bg)', border: 'var(--border)' }
@@ -78,7 +78,7 @@ export default function EvmWidget({ evm }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden', marginBottom: 4 }}>
-            <div style={{ width: `${(gauge / gaugeW) * 100}%`, height: '100%', background: c, borderRadius: 3, transition: 'width 0.3s' }} />
+            <div style={{ width: `${fractionToPercent(gauge / gaugeW)}%`, height: '100%', background: c, borderRadius: 3, transition: 'width 0.3s' }} />
           </div>
           <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
             EV {evm.EV}% · PV {evm.PV}%
