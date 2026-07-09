@@ -1,16 +1,15 @@
 // ── SPI sparkline (SVG, no external library) ──────────────────────────────────
 import { getSPIStatus, SPI_STATUS } from '../../config/statusColors';
+import { computeSparkRange, valueToSparkY } from '../../hooks/useChartMathPresentation';
 
 function SPISparkline({ points, width = 140, height = 44 }) {
   const valid = (points || []).filter(p => p.spi !== null);
   if (valid.length < 2) return <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>No trend</span>;
 
-  const minV  = Math.min(0.5, ...valid.map(p => p.spi));
-  const maxV  = Math.max(1.5, ...valid.map(p => p.spi));
-  const range = maxV - minV || 1;
+  const { min: minV, range } = computeSparkRange(valid.map(p => p.spi), 0.5, 1.5);
   const xStep = width / (valid.length - 1);
   const toX   = i => (i * xStep).toFixed(1);
-  const toY   = v => (height - ((v - minV) / range) * height).toFixed(1);
+  const toY   = v => valueToSparkY(v, minV, range, height).toFixed(1);
 
   const d     = valid.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i)},${toY(p.spi)}`).join(' ');
   const last  = valid[valid.length - 1].spi;

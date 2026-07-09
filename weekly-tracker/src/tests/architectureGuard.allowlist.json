@@ -52,8 +52,6 @@
     "components/ProjectScopeConfigurator.jsx:212:calculation:<span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{Math.round(wp.duration_pct * 100)}%</span>",
     "components/ProjectScopeConfigurator.jsx:234:calculation:Σ {activeTotal} / 100",
     "components/ProjectScopeConfigurator.jsx:80:calculation:const totalOk       = Math.round(activeTotal) === 100;",
-    "components/risk/SPISparkline.jsx:8:calculation:const minV  = Math.min(0.5, ...valid.map(p => p.spi));",
-    "components/risk/SPISparkline.jsx:9:calculation:const maxV  = Math.max(1.5, ...valid.map(p => p.spi));",
     "components/sitevisit/GanttPMTaskRow.jsx:102:calculation:{discStyle.icon} GC claimed {gcProgress}% ({gcStatus.replace('_', ' ')}) — {curProgress !== gcProgress ? `${Math.abs(curProgress - gcProgress)}pp gap` : 'status mismatch'}",
     "components/sitevisit/GanttSuccessView.jsx:20:calculation:const discrepancyCount = flagged.filter(d => d.signedDelta < 0).length;",
     "components/sitevisit/GanttSuccessView.jsx:21:calculation:const pmAheadCount     = flagged.filter(d => d.signedDelta > 0).length;",
