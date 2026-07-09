@@ -3,13 +3,6 @@
   "generatedBy": "src/tests/architectureGuard.test.mjs --write-allowlist",
   "note": "Baseline of known architecture debt. Ratchet only: remove ids as code is fixed; do not add new ids except during an intentional baseline reset.",
   "knownViolations": [
-    "components/analytics/DriftChart.jsx:36:calculation:const biasPct   = Math.round((biasEwma ?? 0) * 100);",
-    "components/analytics/DriftChart.jsx:37:calculation:const biasStyle = biasBadgeColor(Math.abs(biasPct));",
-    "components/analytics/DriftChart.jsx:69:calculation:{avgHistoricalDrift > 0 ? '+' : ''}{Math.round(avgHistoricalDrift * 100)}%",
-    "components/analytics/DriftChart.jsx:81:calculation:{Math.abs(avgHistoricalDrift) >= 0.05 && (",
-    "components/analytics/DriftChart.jsx:84:calculation:<strong style={{ color: ps.color }}>{Math.abs(Math.round(avgHistoricalDrift * 100))}%</strong>",
-    "components/analytics/DriftChart.jsx:89:calculation:{worstProject && Math.abs(worstProject.avgDrift) > 0.05 && (",
-    "components/analytics/DriftChart.jsx:92:calculation:{' '}(avg {worstProject.avgDrift > 0 ? '+' : ''}{Math.round(worstProject.avgDrift * 100)}%)",
     "components/contractor/LegacyWPSection.jsx:91:calculation:const completedCnt = taskNames.filter(t => pkgStatuses?.[t]?.status === \"Completed\").length;",
     "components/contractor/LegacyWPSection.jsx:92:calculation:const inProgCnt    = taskNames.filter(t => pkgStatuses?.[t]?.status === \"In Progress\").length;",
     "components/dashboard/DashboardWidgets.jsx:43:calculation:const minX = Math.min(...xs), maxX = Math.max(...xs);",

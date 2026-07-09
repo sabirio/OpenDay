@@ -265,3 +265,28 @@ export function computeContractorDriftProfile(projects, reports, siteVisits, con
     reliable,
   };
 }
+
+// ─── Display formatting (DriftChart.jsx) ───────────────────────────────────────
+// avgHistoricalDrift/biasEwma/worstProject.avgDrift are all the same kind of
+// value — a signed proportion (e.g. 0.12 = +12%) — so one pair of formatters
+// covers all three instead of each display site re-deriving its own.
+
+/** A drift proportion (e.g. 0.12) as a signed rounded percent (e.g. 12). */
+export function formatDriftPct(drift) {
+  return Math.round((drift ?? 0) * 100);
+}
+
+/** Absolute rounded percent — for badge-color lookups that don't care about sign. */
+export function formatAbsDriftPct(drift) {
+  return Math.abs(Math.round((drift ?? 0) * 100));
+}
+
+/** Magnitude of a drift proportion, for significance-threshold comparisons. */
+export function driftMagnitude(drift) {
+  return Math.abs(drift ?? 0);
+}
+
+// Below this magnitude, a contractor's historical drift isn't worth calling
+// out in the UI — DriftChart.jsx's "historically overstates/understates by"
+// note and its "Worst: <project>" line both gate on this same bar.
+export const DRIFT_SIGNIFICANCE_THRESHOLD = 0.05;

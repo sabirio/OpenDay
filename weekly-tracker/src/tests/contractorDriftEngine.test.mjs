@@ -39,7 +39,8 @@ export async function resolve(specifier, context, nextResolve) {
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
 const { computeDriftTimeline, computeDriftPattern, computeContractorDriftProfile,
-        computeBiasEwma, computeAdjustedProgress, computeDriftRiskFactor } =
+        computeBiasEwma, computeAdjustedProgress, computeDriftRiskFactor,
+        formatDriftPct, formatAbsDriftPct, driftMagnitude, DRIFT_SIGNIFICANCE_THRESHOLD } =
   await import('../engines/contractorDriftEngine.js');
 
 let pass = 0, fail = 0;
@@ -335,6 +336,17 @@ check('F3: reliable but below threshold (5% < 8%) → null',
   // no contractorName → falls back to generic "Contractor" label
   const f = computeDriftRiskFactor({ reliable: true, biasEwma: 0.10, sampleCount: 4 });
   check('F5: missing contractorName → falls back to "Contractor"', f.value.startsWith('Contractor '));
+}
+
+console.log('\nG) Display formatting — formatDriftPct / formatAbsDriftPct / driftMagnitude');
+{
+  check('formatDriftPct(0.12) = 12', formatDriftPct(0.12) === 12);
+  check('formatDriftPct(-0.08) = -8', formatDriftPct(-0.08) === -8);
+  check('formatDriftPct(null) = 0', formatDriftPct(null) === 0);
+  check('formatAbsDriftPct(-0.08) = 8', formatAbsDriftPct(-0.08) === 8);
+  check('driftMagnitude(-0.08) = 0.08 (within float tolerance)', Math.abs(driftMagnitude(-0.08) - 0.08) < 1e-9);
+  check('driftMagnitude(null) = 0', driftMagnitude(null) === 0);
+  check('DRIFT_SIGNIFICANCE_THRESHOLD = 0.05', DRIFT_SIGNIFICANCE_THRESHOLD === 0.05);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

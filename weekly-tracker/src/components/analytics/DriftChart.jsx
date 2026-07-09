@@ -1,4 +1,10 @@
 import { getScoreTier, SCORE_TIER_COLORS } from '../../config/statusColors';
+import {
+  formatDriftPct,
+  formatAbsDriftPct,
+  driftMagnitude,
+  DRIFT_SIGNIFICANCE_THRESHOLD,
+} from '../../hooks/useDriftPresentation';
 
 const PATTERN_LABELS = {
   systematic_overstatement: 'Systematic Overstatement',
@@ -33,8 +39,8 @@ export default function DriftChart({ driftProfile }) {
   const patternLabel = PATTERN_LABELS[pattern.pattern] || pattern.pattern;
   const confColor    = CONF_COLOR[pattern.confidence]  || 'var(--text-muted)';
 
-  const biasPct   = Math.round((biasEwma ?? 0) * 100);
-  const biasStyle = biasBadgeColor(Math.abs(biasPct));
+  const biasPct   = formatDriftPct(biasEwma);
+  const biasStyle = biasBadgeColor(formatAbsDriftPct(biasEwma));
 
   const driftColor    = avgHistoricalDrift > 0.1 ? 'var(--status-alert)' : avgHistoricalDrift < -0.1 ? 'var(--status-done)' : 'var(--text-muted)';
   const reliabColor   = SCORE_TIER_COLORS[getScoreTier(reliabilityScore)];
@@ -66,7 +72,7 @@ export default function DriftChart({ driftProfile }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
         <div style={{ background: 'var(--bg-elevated)', borderRadius: 7, padding: '7px 9px', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: 18, fontWeight: 800, color: driftColor, lineHeight: 1 }}>
-            {avgHistoricalDrift > 0 ? '+' : ''}{Math.round(avgHistoricalDrift * 100)}%
+            {avgHistoricalDrift > 0 ? '+' : ''}{formatDriftPct(avgHistoricalDrift)}%
           </div>
           <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>Avg drift</div>
         </div>
@@ -78,18 +84,18 @@ export default function DriftChart({ driftProfile }) {
         </div>
       </div>
 
-      {Math.abs(avgHistoricalDrift) >= 0.05 && (
+      {driftMagnitude(avgHistoricalDrift) >= DRIFT_SIGNIFICANCE_THRESHOLD && (
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
           Historically {avgHistoricalDrift > 0 ? 'overstates' : 'understates'} by{' '}
-          <strong style={{ color: ps.color }}>{Math.abs(Math.round(avgHistoricalDrift * 100))}%</strong>
+          <strong style={{ color: ps.color }}>{formatAbsDriftPct(avgHistoricalDrift)}%</strong>
           {' '}(correction ×{correctionFactor.toFixed(2)})
         </div>
       )}
 
-      {worstProject && Math.abs(worstProject.avgDrift) > 0.05 && (
+      {worstProject && driftMagnitude(worstProject.avgDrift) > DRIFT_SIGNIFICANCE_THRESHOLD && (
         <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
           Worst: <span style={{ color: 'var(--text-primary)' }}>{worstProject.storeCode}</span>
-          {' '}(avg {worstProject.avgDrift > 0 ? '+' : ''}{Math.round(worstProject.avgDrift * 100)}%)
+          {' '}(avg {worstProject.avgDrift > 0 ? '+' : ''}{formatDriftPct(worstProject.avgDrift)}%)
         </div>
       )}
     </div>
