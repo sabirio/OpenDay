@@ -1,1 +1,1 @@
-export { calculateLayout } from '../../engines/ganttLayout.js';
+export { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS } from '../../engines/ganttLayout.js';

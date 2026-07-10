@@ -10,6 +10,9 @@ import {
   fractionToWidth,
   fractionToPercent,
   ratioToPercent,
+  percentToWidth,
+  minOf,
+  maxOf,
 } from '../chartMath.js';
 
 let pass = 0, fail = 0;
@@ -75,6 +78,23 @@ console.log('\n6) ratioToPercent');
   check('ratioToPercent(10, 20) = 50', ratioToPercent(10, 20) === 50);
   check('ratioToPercent rounds', ratioToPercent(1, 3) === 33);
   check('ratioToPercent(0, 20) = 0', ratioToPercent(0, 20) === 0);
+}
+
+// ── percentToWidth ────────────────────────────────────────────────────────────
+console.log('\n7) percentToWidth');
+{
+  check('percentToWidth(50, 200) = 100', percentToWidth(50, 200) === 100);
+  check('percentToWidth(0, 200) = 0', percentToWidth(0, 200) === 0);
+  check('percentToWidth unrounded (33.5, 100)', percentToWidth(33.5, 100) === 33.5);
+  check('percentToWidth negative pct stays negative (no clamp)', percentToWidth(-10, 100) === -10);
+}
+
+// ── minOf / maxOf ───────────────────────────────────────────────────────────────
+console.log('\n8) minOf / maxOf');
+{
+  check('minOf([5, 1, 3]) = 1', minOf([5, 1, 3]) === 1);
+  check('maxOf([5, 1, 3]) = 5', maxOf([5, 1, 3]) === 5);
+  check('minOf single-element list', minOf([7]) === 7);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

@@ -51,3 +51,19 @@ export function fractionToPercent(fraction) {
 export function ratioToPercent(value, max) {
   return Math.round((value / max) * 100);
 }
+
+/** Percent (0-100) scaled to a pixel width — unrounded, unclamped, for
+ * smooth SVG bar fills (contrast with fractionToWidth, which rounds). */
+export function percentToWidth(pct, widthPx) {
+  return (pct / 100) * widthPx;
+}
+
+/** Smallest value in a list. */
+export function minOf(values) {
+  return Math.min(...values);
+}
+
+/** Largest value in a list. */
+export function maxOf(values) {
+  return Math.max(...values);
+}

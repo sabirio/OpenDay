@@ -6,4 +6,7 @@ export {
   fractionToWidth,
   fractionToPercent,
   ratioToPercent,
+  percentToWidth,
+  minOf,
+  maxOf,
 } from '../core/presentation/chartMathPresentationModel.js';

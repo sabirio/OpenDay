@@ -8,7 +8,7 @@ import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitout
 const ROW_HEIGHT    = 36;   // px per WP row
 const PHASE_ROW_H   = 32;   // px per phase header row
 const BAR_HEIGHT    = 22;   // px bar height within row
-const MIN_PIXELS    = 600;  // minimum chart width
+export const MIN_PIXELS = 600;  // minimum chart width — also GanttChart.jsx's ResizeObserver floor
 
 // ─── Timeline helpers ─────────────────────────────────────────────────────────
 
@@ -18,8 +18,16 @@ function addDays(date, days) {
   return d;
 }
 
-function diffDays(start, end) {
+/** Whole days between two dates (end - start), rounded — also used by
+ * GanttChart.jsx's drag-resize for both the visual preview and the final
+ * duration, instead of each reimplementing the ms/day conversion. */
+export function diffDays(start, end) {
   return Math.round((new Date(end) - new Date(start)) / 86400000);
+}
+
+/** Mouse-drag pixel delta converted to whole days at the chart's current zoom. */
+export function pixelsToDays(pixelDelta, pixelsPerDay) {
+  return Math.round(pixelDelta / pixelsPerDay);
 }
 
 function startOfMonth(date) {

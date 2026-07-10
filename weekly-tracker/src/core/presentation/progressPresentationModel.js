@@ -9,4 +9,5 @@ export {
   getWPStatusTier,
   getDefaultProgressForGanttStatus,
   calculateGanttPhaseAverageProgress,
+  clampProgressPct,
 } from '../../engines/progressEngine';

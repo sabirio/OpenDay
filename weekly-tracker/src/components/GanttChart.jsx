@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { calculateLayout } from '../hooks/useGanttLayout.js';
-import { calculateGanttPhaseAverageProgress } from '../hooks/useProgressPresentation.js';
+import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS } from '../hooks/useGanttLayout.js';
+import { calculateGanttPhaseAverageProgress, clampProgressPct } from '../hooks/useProgressPresentation.js';
+import { clamp, percentToWidth, minOf, maxOf } from '../hooks/useChartMathPresentation.js';
 import GanttLegend from './gantt/GanttLegend.jsx';
 
 function addDaysLocal(date, days) {
@@ -201,7 +202,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
   const { x, barY, width, barHeight, isCritical, isBlocker,
           status, actual_progress, discrepancy } = task;
 
-  const prog     = Math.max(0, Math.min(100, actual_progress ?? 0));
+  const prog     = clampProgressPct(actual_progress ?? 0);
   const complete = status === 'completed' || prog >= 100;
   const notStarted = !complete && prog === 0;
 
@@ -244,7 +245,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
     strokeWidth = 2.5;
   }
 
-  const progW  = Math.max(0, (prog / 100) * width);
+  const progW  = clamp(percentToWidth(prog, width), 0, Infinity);
   const barMid = barY + barHeight / 2;
 
   return (
@@ -253,7 +254,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
       {isCritical && (
         <rect
           x={x - 2} y={barY - 2}
-          width={Math.max(2, width) + 4} height={barHeight + 4}
+          width={clamp(width, 2, Infinity) + 4} height={barHeight + 4}
           rx={6} fill="none"
           stroke={C.redCrit} strokeWidth={1.5} opacity={0.3}
           filter="url(#gantt-glow)"
@@ -263,7 +264,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
       {/* Bar background */}
       <rect
         x={x} y={barY}
-        width={Math.max(2, width)} height={barHeight}
+        width={clamp(width, 2, Infinity)} height={barHeight}
         rx={4} fill={bgFill}
         stroke={strokeColor} strokeWidth={strokeWidth}
         strokeDasharray={strokeDash}
@@ -326,7 +327,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
       {status === 'delayed' && (
         <rect
           x={x + width} y={barY}
-          width={Math.max(12, width * 0.15)} height={barHeight}
+          width={clamp(width * 0.15, 12, Infinity)} height={barHeight}
           rx={0} fill="none"
           stroke={C.red} strokeWidth={1.5} strokeDasharray="4,2" opacity={0.7}
         />
@@ -343,7 +344,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDragStart(e, 'left'); }}
           />
           <rect
-            x={x + Math.max(2, width) - 6} y={barY + 2} width={6} height={barHeight - 4} rx={2}
+            x={x + clamp(width, 2, Infinity) - 6} y={barY + 2} width={6} height={barHeight - 4} rx={2}
             fill="rgba(255,255,255,0.45)"
             style={{ cursor: 'ew-resize' }}
             onClick={(e) => e.stopPropagation()}
@@ -424,7 +425,7 @@ export default function GanttChart({
   useEffect(() => {
     if (!rightRef.current) return;
     const obs = new ResizeObserver(([e]) => {
-      setContainerW(Math.max(600, e.contentRect.width));
+      setContainerW(clamp(e.contentRect.width, MIN_PIXELS, Infinity));
     });
     obs.observe(rightRef.current);
     return () => obs.disconnect();
@@ -448,14 +449,14 @@ export default function GanttChart({
     if (!layout || !rightRef.current) return;
     const today = layout.keyDateLines.find(l => l.type === 'today');
     if (today) {
-      rightRef.current.scrollLeft = Math.max(0, today.x - containerW / 3);
+      rightRef.current.scrollLeft = clamp(today.x - containerW / 3, 0, Infinity);
     }
   }, [layout?.chartWidth, zoom]);
 
   const scrollToToday = useCallback(() => {
     if (!layout || !rightRef.current) return;
     const today = layout.keyDateLines.find(l => l.type === 'today');
-    if (today) rightRef.current.scrollLeft = Math.max(0, today.x - containerW / 3);
+    if (today) rightRef.current.scrollLeft = clamp(today.x - containerW / 3, 0, Infinity);
   }, [layout, containerW]);
 
   const fitAll = useCallback(() => {
@@ -491,7 +492,7 @@ export default function GanttChart({
     const { pixelsPerDay } = layout;
 
     const onMove = (e) => {
-      const dxDays = Math.round((e.clientX - dragState.startClientX) / pixelsPerDay);
+      const dxDays = pixelsToDays(e.clientX - dragState.startClientX, pixelsPerDay);
       let newStart = new Date(dragState.origEarlyStart.getTime());
       let newEnd   = new Date(dragState.origEarlyFinish.getTime());
 
@@ -502,7 +503,7 @@ export default function GanttChart({
         newStart = addDaysLocal(dragState.origEarlyStart, dxDays);
         if (newStart >= newEnd) newStart = addDaysLocal(newEnd, -1);
       }
-      const durationDays = Math.max(1, Math.round((newEnd - newStart) / 86400000));
+      const durationDays = clamp(diffDays(newStart, newEnd), 1, Infinity);
       const v = { wpId: dragState.wpId, earlyStart: newStart, earlyFinish: newEnd, durationDays };
       dragVisualRef.current = v;
       setDragVisualSt(v);
@@ -615,7 +616,7 @@ export default function GanttChart({
             }}>
               <div style={{
                 height: '100%', borderRadius: 2,
-                width: `${Math.min(100, prog)}%`,
+                width: `${clamp(prog, -Infinity, 100)}%`,
                 background: prog >= 100 ? C.green : prog > 0 ? C.blue : C.muted,
               }} />
             </div>
@@ -672,15 +673,15 @@ export default function GanttChart({
       // Collapsed: show summary bar across the phase row
       const pTasks = layoutTasks.filter(t => t.phaseId === phase.id);
       if (!pTasks.length) return null;
-      const minX = Math.min(...pTasks.map(t => t.x));
-      const maxX = Math.max(...pTasks.map(t => t.x + t.width));
+      const minX = minOf(pTasks.map(t => t.x));
+      const maxX = maxOf(pTasks.map(t => t.x + t.width));
       const avg  = calculateGanttPhaseAverageProgress(pTasks);
       const bY   = phase.y + (PHASE_ROW_H - BAR_H) / 2;
-      const w    = Math.max(4, maxX - minX);
+      const w    = clamp(maxX - minX, 4, Infinity);
       return (
         <g key={`phbar-${phase.id}`}>
           <rect x={minX} y={bY} width={w} height={BAR_H} rx={4} fill={`${phaseColor(phase.id)}44`} />
-          <rect x={minX} y={bY} width={w * avg / 100} height={BAR_H} rx={4} fill={phaseColor(phase.id)} opacity={0.85} />
+          <rect x={minX} y={bY} width={percentToWidth(avg, w)} height={BAR_H} rx={4} fill={phaseColor(phase.id)} opacity={0.85} />
           {w > 60 && (
             <text x={minX + w / 2} y={bY + BAR_H / 2 + 1}
               textAnchor="middle" dominantBaseline="middle"
@@ -794,11 +795,11 @@ export default function GanttChart({
               let displayTask = t;
               if (dragVisual?.wpId === t.id) {
                 const { pixelsPerDay: ppd, timelineStart: tls } = layout;
-                const dStart = Math.round((dragVisual.earlyStart - new Date(tls)) / 86400000);
+                const dStart = diffDays(tls, dragVisual.earlyStart);
                 displayTask = {
                   ...t,
                   x:            dStart * ppd,
-                  width:        Math.max(2, dragVisual.durationDays * ppd),
+                  width:        clamp(dragVisual.durationDays * ppd, 2, Infinity),
                   earlyStart:   dragVisual.earlyStart,
                   earlyFinish:  dragVisual.earlyFinish,
                   duration_days: dragVisual.durationDays,

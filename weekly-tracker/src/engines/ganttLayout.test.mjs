@@ -4,7 +4,7 @@
 // matched any v1 rule, so calculateLayout().arrows was always empty for v2.
 // Run: node src/engines/ganttLayout.test.mjs
 
-import { calculateLayout } from './ganttLayout.js';
+import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS } from './ganttLayout.js';
 import { filterRulesForWPsV2 } from '../config/dependencyRulesV2.js';
 import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2.js';
 
@@ -68,6 +68,16 @@ console.log('\ncalculateLayout — F-11: v1 project is byte-identical regardless
   check('v1 result is byte-identical (JSON) whether templateType is omitted, explicitly null, or a named v1 template',
     JSON.stringify(layoutOmitted.arrows) === JSON.stringify(layoutNull.arrows) &&
     JSON.stringify(layoutOmitted.arrows) === JSON.stringify(layoutNamed.arrows));
+}
+
+console.log('\ndiffDays / pixelsToDays / MIN_PIXELS — drag-resize helpers (GanttChart.jsx)');
+{
+  check('diffDays counts whole days forward', diffDays('2026-01-01', '2026-01-05') === 4);
+  check('diffDays is negative when end precedes start', diffDays('2026-01-05', '2026-01-01') === -4);
+  check('diffDays(x, x) === 0', diffDays('2026-01-01', '2026-01-01') === 0);
+  check('pixelsToDays rounds to nearest whole day', pixelsToDays(100, 30) === 3);
+  check('pixelsToDays handles negative drag (dragging left)', pixelsToDays(-100, 30) === -3);
+  check('MIN_PIXELS is the documented 600px floor', MIN_PIXELS === 600);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
