@@ -1,5 +1,5 @@
 // validateTemplate.test.mjs — zero-dependency smoke test. Run: node <thisfile>
-import { validateTemplate, isTemplateValid } from './validateTemplate.js';
+import { validateTemplate, isTemplateValid, countErrors } from './validateTemplate.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -61,6 +61,12 @@ let threw = false;
 try { validateTemplate({}); validateTemplate(null ?? {}); validateTemplate({ phases: [], workPackages: [] }); }
 catch { threw = true; }
 check('does not throw on empty/missing', threw === false);
+
+console.log('\n7) countErrors');
+check('0 errors for a healthy template', countErrors(h) === 0);
+check('counts only error-severity issues, not warnings',
+  countErrors(validateTemplate(badWeights)) === validateTemplate(badWeights).filter(i => i.severity === 'error').length);
+check('empty issues list -> 0', countErrors([]) === 0);
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

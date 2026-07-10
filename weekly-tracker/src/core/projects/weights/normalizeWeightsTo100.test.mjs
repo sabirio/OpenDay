@@ -9,7 +9,15 @@
 //
 // Zero-dependency: no imports beyond the module under test.
 
-import { normalizeWeightsTo100, sumWeights } from './normalizeWeightsTo100.js';
+import {
+  normalizeWeightsTo100,
+  sumWeights,
+  sumPhaseProgressWeights,
+  sumDurationPct,
+  isWithinEpsilon,
+  pctOfTotal,
+  WEIGHT_SUM_TARGET,
+} from './normalizeWeightsTo100.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -61,6 +69,44 @@ console.log('\nnormalizeWeightsTo100 — pinned against pre-refactor ProjectScop
     const total  = Object.values(result).reduce((s, w) => s + w, 0);
     check(`${label}: normalized weights always sum to exactly 100`, total === 100);
   }
+}
+
+console.log('\nsumPhaseProgressWeights');
+{
+  check('sums progressWeight across phases',
+    sumPhaseProgressWeights([{ progressWeight: 40 }, { progressWeight: 60 }]) === 100);
+  check('treats missing progressWeight as 0',
+    sumPhaseProgressWeights([{ progressWeight: 40 }, {}]) === 40);
+  check('empty list -> 0', sumPhaseProgressWeights([]) === 0);
+}
+
+console.log('\nsumDurationPct');
+{
+  check('sums duration_pct across work packages',
+    sumDurationPct([{ duration_pct: 0.5 }, { duration_pct: 0.5 }]) === 1);
+  check('treats missing duration_pct as 0',
+    sumDurationPct([{ duration_pct: 0.3 }, {}]) === 0.3);
+  check('empty list -> 0', sumDurationPct([]) === 0);
+}
+
+console.log('\nisWithinEpsilon');
+{
+  check('exact match -> true', isWithinEpsilon(100, 100) === true);
+  check('within default epsilon (0.001) -> true', isWithinEpsilon(100.0005, 100) === true);
+  check('outside default epsilon -> false', isWithinEpsilon(100.5, 100) === false);
+  check('custom epsilon widens the tolerance', isWithinEpsilon(101, 100, 1.5) === true);
+}
+
+console.log('\npctOfTotal');
+{
+  check('40/100 -> 40%', pctOfTotal(40, 100) === 40);
+  check('1/3 -> 33.33...% (unrounded)', Math.abs(pctOfTotal(1, 3) - 33.333333333333336) < 1e-9);
+  check('zero total -> 0 (guarded, no NaN/Infinity)', pctOfTotal(5, 0) === 0);
+}
+
+console.log('\nWEIGHT_SUM_TARGET');
+{
+  check('is 100', WEIGHT_SUM_TARGET === 100);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

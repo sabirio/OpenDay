@@ -5,7 +5,7 @@
 // (no engine/config imports), and retailFitoutV2.js has no imports at all, so
 // both resolve directly under plain `node` with no loader needed.
 
-import { computeZoneWeights, computeZonedEffectiveWeights } from './computeZoneWeights.js';
+import { computeZoneWeights, computeZonedEffectiveWeights, computeCategoryProgressWeight } from './computeZoneWeights.js';
 import { retailFitoutV2, CATEGORY_LIBRARY } from '../../../domains/construction/templates/retailFitoutV2.js';
 
 let pass = 0, fail = 0;
@@ -137,6 +137,14 @@ console.log('\ncomputeZonedEffectiveWeights');
   check('scopeWPIds excludes other WPs from the result entirely', Object.keys(oneWpOnly).length === 1);
   check('the one in-scope WP keeps its own zoneWeight×categoryShare×durationPct value',
     close(oneWpOnly['common.mep_backbone.electrical_panels'], full['common.mep_backbone.electrical_panels'], 0.01));
+}
+
+console.log('\ncomputeCategoryProgressWeight');
+{
+  check('zoneWeight 45.5 x share 40% -> 18.2', computeCategoryProgressWeight(45.5, 40) === 18.2);
+  check('rounds to 3 decimals', computeCategoryProgressWeight(33.333, 33.333) === 11.111);
+  check('share 0 -> 0', computeCategoryProgressWeight(45.5, 0) === 0);
+  check('zoneWeight 0 -> 0', computeCategoryProgressWeight(0, 40) === 0);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
