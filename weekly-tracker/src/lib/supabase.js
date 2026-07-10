@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createFetchWithTimeout } from './fetchWithTimeout.js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -24,12 +25,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // call lingers in the background).
 const REQUEST_TIMEOUT_MS = 15000;
 
-function fetchWithTimeout(input, init) {
-  const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-  const signal = init?.signal ? AbortSignal.any([init.signal, timeoutSignal]) : timeoutSignal;
-  return fetch(input, { ...init, signal });
-}
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  global: { fetch: fetchWithTimeout },
+  global: { fetch: createFetchWithTimeout(REQUEST_TIMEOUT_MS) },
 });
