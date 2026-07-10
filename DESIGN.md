@@ -155,3 +155,38 @@ Design requirements:
 ## Product-Specific Design Bar
 
 OpenDay should feel like an operational control center for construction fit-out projects. Design choices should strengthen progress truth verification, contractor vs PM comparison, schedule drift detection, opening readiness, construction risk intelligence, and portfolio visibility.
+
+## Code Architecture (Non-Visual)
+
+This section is separate from the visual system above — it documents the codebase's layering rules, which are load-bearing for how UI code may be written. Enforced by `weekly-tracker/src/tests/architectureGuard.test.mjs` in **HARD mode**: any violation fails the test suite and CI. There is no allowlist or baseline tolerance — the calculation-debt ratchet (103 → 0) closed 2026-07-10 and the guard was locked to hard-fail the same day (see `PROJECT_MEMORY.md`).
+
+### Layers
+
+```
+engines/  = atomic pure logic, ALL formulas, no side-effects.
+core/     = orchestration + read-models/state; composes engines, never computes.
+services/ = persistence/API, I/O only; no calculations, no engines/core imports.
+UI (pages/components/hooks) = display only.
+```
+
+Dependency direction: `UI -> hooks -> core -> engines`, and `core -> services`. Nothing flows backward.
+
+### UI access pattern
+
+Pages and components never import `engines/`, `core/`, or `services/` directly. They reach computed data only through:
+
+1. `core/presentation/<name>PresentationModel.js` — a thin facade that composes/re-exports from `engines/` (and occasionally other `core/` modules).
+2. `hooks/use<Name>Presentation.js` — a hook that re-exports from the matching presentation model.
+3. The component imports from the hook.
+
+Hooks may import `core/` (including `core/presentation/*`), but never `engines/` or `services/` directly.
+
+### How to add a new calculation
+
+1. Write the formula as a pure function in the matching `engines/*.js` file — search first, reuse an existing export before adding a new one ("one calculation, one source of truth").
+2. Add or extend its test file (`engines/__tests__/*.test.mjs`, or a sibling `*.test.mjs`).
+3. Re-export it from the relevant `core/presentation/*Model.js` facade.
+4. Re-export it from the matching `hooks/use*Presentation.js` hook.
+5. Import it in the UI component/page from the hook — never from `core/` or `engines/` directly.
+
+Skipping any step — inlining `Math.*`/`.reduce()` in a component, importing an engine directly into a page, computing inside a `service` — fails `architectureGuard.test.mjs` immediately.

@@ -200,3 +200,51 @@ Policies check lowercase ('admin'|'pm'|'viewer'|'contractor') — do NOT change 
   was **hidden** (2026-07-05) so users don't hit a dead feature. To finish: wire
   `onSave` → `templatesApi.saveTemplate(id, data)` (mind the copy-on-write versioning +
   data-shape match), re-add the NAV_ITEM in `rolePermissions.js`, add e2e coverage.
+
+---
+
+## Architecture Guard — Calculation Debt Closed (DONE 2026-07-10)
+
+**Scope:** `weekly-tracker/src/tests/architectureGuard.test.mjs`
+
+### Status
+
+| Ref | Task | Status | Notes |
+|-----|------|--------|-------|
+| ARCH-1 | Close all calculation-wave debt (103 violations) | ✅ DONE 2026-07-10 | Closed domain-by-domain across several sessions: risk-dashboard, gantt-chart, weekly-reports-progress, projects-scope-weights, dashboard-home, site-visit |
+| ARCH-2 | Flip architectureGuard soft → hard | ✅ DONE 2026-07-10 | Baseline allowlist (`architectureGuard.allowlist.json`) removed entirely; ANY violation now fails the build, with no grandfathering |
+
+### 4-layer canon (enforced by architectureGuard, HARD mode)
+
+```
+engines/  = atomic pure logic, ALL formulas, no side-effects.
+core/     = orchestration + read-models/state; composes engines, never computes.
+services/ = persistence/API, I/O only; no calculations, no engines/core imports.
+UI (pages/components/hooks) = display only.
+Direction: UI -> hooks -> core -> engines; core -> services.
+```
+
+UI never imports `engines/`/`core/`/`services/` directly — always via a
+`core/presentation/*Model.js` facade + a `hooks/use*Presentation.js` hook.
+Full description and the "how to add a new calculation" workflow live in
+`DESIGN.md`.
+
+### Key engines (source of truth per domain — reuse, don't duplicate)
+
+- `engines/chartMath.js` — generic SVG/gauge/sparkline pixel geometry (gauge arcs, spark ranges, clamp, percent/width conversions).
+- `engines/templateWeightsEngine.js` — template phase-weight/duration_pct sums, epsilon-tolerance checks, effective-weight computation.
+- `engines/zonedWeightsEngine.js` — retail fit-out v2 zone/category weighting.
+- `engines/templateValidationEngine.js` — template structural validation (weight sums, duration sums, dup ids, orphan WPs).
+- `engines/explainProgressEngine.js` — "why this %" attribution reconstruction + drift-significance check.
+- `engines/progressEngine.js` — canonical project/WP progress calculation.
+- `engines/riskEngine.js` — risk score/level computation.
+- `engines/openingReadinessEngine.js` — opening-date readiness, critical-chain/blocker scheduling.
+- `engines/discrepancyEngine.js` — PM-vs-GC site-visit discrepancy classification.
+- `engines/pmAlignmentEngine.js` — PM/GC alignment scoring.
+- `engines/contractorDriftEngine.js` — contractor over/under-reporting bias detection.
+
+### Baseline (2026-07-10, HARD guard)
+
+- `npm test`: 66 suites / 1667 checks — all green.
+- `npm run build`: OK. `npm run typecheck`: clean. `npm run lint`: 0 errors (32 pre-existing warnings, unrelated to arch work).
+- `architectureGuard.test.mjs`: 0 violations (A:0, B:0, C:0; layer-import/calculation/service-purity/status-literal all 0). No allowlist file exists — any new violation fails CI immediately, with file/line/rule and fix guidance printed inline.
