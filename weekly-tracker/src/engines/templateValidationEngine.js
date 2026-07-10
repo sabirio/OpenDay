@@ -1,8 +1,10 @@
+import { sumPhaseProgressWeights, sumDurationPct, isWithinEpsilon, WEIGHT_SUM_TARGET } from './templateWeightsEngine.js';
+
 const EPS = 0.001;
 
 function checkWeightSum(phases) {
-  const sum = phases.reduce((s, p) => s + (p.progressWeight || 0), 0);
-  if (Math.abs(sum - 100) > EPS) {
+  const sum = sumPhaseProgressWeights(phases);
+  if (!isWithinEpsilon(sum, WEIGHT_SUM_TARGET, EPS)) {
     return [{ severity: 'error', code: 'WEIGHT_SUM',
       message: `Phase progressWeights sum to ${sum.toFixed(4)}, expected 100.` }];
   }
@@ -14,8 +16,8 @@ function checkDurationSums(phases, wps) {
   for (const phase of phases) {
     const phaseWPs = wps.filter(wp => wp.phaseId === phase.id);
     if (phaseWPs.length === 0) continue;
-    const sum = phaseWPs.reduce((s, wp) => s + (wp.duration_pct || 0), 0);
-    if (Math.abs(sum - 1) > EPS) {
+    const sum = sumDurationPct(phaseWPs);
+    if (!isWithinEpsilon(sum, 1, EPS)) {
       issues.push({ severity: 'error', code: 'DURATION_SUM',
         message: `Phase "${phase.id}" work package duration_pct sums to ${sum.toFixed(4)}, expected 1.00.` });
     }
@@ -118,4 +120,9 @@ export function validateTemplate(template) {
 
 export function isTemplateValid(template) {
   return validateTemplate(template).every(issue => issue.severity !== 'error');
+}
+
+/** Count issues at 'error' severity — TemplateEditor.jsx's header badge. */
+export function countErrors(issues) {
+  return issues.filter(i => i.severity === 'error').length;
 }

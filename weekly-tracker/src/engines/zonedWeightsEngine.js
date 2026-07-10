@@ -47,6 +47,15 @@ export function computeZoneWeights(template, areas = {}, activeZoneIds = null) {
   return result;
 }
 
+/**
+ * A v2 category's synthetic-phase progressWeight — zoneWeight% x categoryShare%,
+ * rounded to 3 decimals. Single source for buildV2ProgressTemplate.js, which
+ * previously inlined this exact formula instead of delegating to this engine.
+ */
+export function computeCategoryProgressWeight(zoneWeight, share) {
+  return Math.round(zoneWeight * (share / 100) * 1000) / 1000;
+}
+
 export function computeZoneCategoryShares(zone, activeCategoryIds = null) {
   const zoneCategories = zone.categories.filter(c => !activeCategoryIds || activeCategoryIds.includes(c.id));
   if (zoneCategories.length === 0) return [];

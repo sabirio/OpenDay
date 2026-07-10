@@ -1,4 +1,4 @@
-import { computeZoneWeights, computeZoneCategoryShares } from './computeZoneWeights.js';
+import { computeZoneWeights, computeZoneCategoryShares, computeCategoryProgressWeight } from './computeZoneWeights.js';
 import { retailFitoutV2, CATEGORY_LIBRARY } from '../../../domains/construction/templates/retailFitoutV2.js';
 
 /**
@@ -34,7 +34,7 @@ export function buildV2ProgressTemplate(zoneAreas = {}, activeZoneIds = null, ac
     if (zoneWeight == null) continue; // zone excluded by activeZoneIds
 
     for (const { category: cat, share } of computeZoneCategoryShares(zone, activeCategoryIds)) {
-      const progressWeight = Math.round(zoneWeight * (share / 100) * 1000) / 1000;
+      const progressWeight = computeCategoryProgressWeight(zoneWeight, share);
       const lib = CATEGORY_LIBRARY[cat.id];
 
       phases.push({ id: cat.id, label: lib?.label ?? cat.id, progressWeight, order: order++ });

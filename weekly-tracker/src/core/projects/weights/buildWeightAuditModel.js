@@ -1,4 +1,5 @@
 import { computeEffectiveWeights } from './computeEffectiveWeights.js';
+import { sumWeights, sumPhaseProgressWeights, sumDurationPct, pctOfTotal } from './normalizeWeightsTo100.js';
 import { validateTemplate } from '../validation/validateTemplate.js';
 
 /**
@@ -27,21 +28,21 @@ export function buildWeightAuditModel(template, scopeWPIds, phaseLabels, wpLabel
 
   const phaseWeights    = Object.fromEntries(phases.map(p => [p.id, p.progressWeight ?? 0]));
   const effectiveWeights = computeEffectiveWeights(wps, scopeWPIds, phaseWeights);
-  const effectiveSum     = Object.values(effectiveWeights).reduce((s, w) => s + w, 0);
+  const effectiveSum     = sumWeights(Object.keys(effectiveWeights), effectiveWeights);
 
-  const totalPW    = phases.reduce((s, p) => s + (p.progressWeight ?? 0), 0);
+  const totalPW    = sumPhaseProgressWeights(phases);
   const inScopeSet = scopeWPIds ? new Set(scopeWPIds) : null;
 
   const phaseModels = phases.map(phase => {
     const phaseWPs   = wps.filter(wp => wp.phaseId === phase.id);
-    const phaseWPSum = phaseWPs.reduce((s, wp) => s + (wp.duration_pct ?? 0), 0);
+    const phaseWPSum = sumDurationPct(phaseWPs);
     const pw         = phase.progressWeight ?? 0;
 
     return {
       id:                 phase.id,
       label:              phaseLabels[phase.id] ?? phase.id,
       progressWeight:     pw,
-      progressWeightPct:  totalPW > 0 ? (pw / totalPW) * 100 : 0,
+      progressWeightPct:  pctOfTotal(pw, totalPW),
       wps: phaseWPs.map(wp => ({
         id:               wp.id,
         label:            wpLabels[wp.id] ?? wp.id,

@@ -4,8 +4,36 @@
  * but should not duplicate these formulas.
  */
 
+/** Target a template's phase progressWeights must sum to. */
+export const WEIGHT_SUM_TARGET = 100;
+
 export function sumWeights(orderedIds, weights) {
   return orderedIds.reduce((s, id) => s + (Number(weights[id]) || 0), 0);
+}
+
+/** Sum of a phase list's progressWeight — single source for the same
+ * reduce() independently reimplemented by templateValidationEngine,
+ * templateEditor.js and buildWeightAuditModel.js. */
+export function sumPhaseProgressWeights(phases) {
+  return phases.reduce((s, p) => s + (p.progressWeight || 0), 0);
+}
+
+/** Sum of a work-package list's duration_pct — single source for the same
+ * reduce() independently reimplemented by templateValidationEngine,
+ * computeEffectiveWeights (below) and buildWeightAuditModel.js. */
+export function sumDurationPct(wps) {
+  return wps.reduce((s, wp) => s + (wp.duration_pct || 0), 0);
+}
+
+/** Whether `value` is within `epsilon` of `target` — the tolerance check used
+ * by every "does this weight sum add up" validation/display in the app. */
+export function isWithinEpsilon(value, target, epsilon = 0.001) {
+  return Math.abs(value - target) <= epsilon;
+}
+
+/** value/total as an unrounded percent, zero-guarded against total <= 0. */
+export function pctOfTotal(value, total) {
+  return total > 0 ? (value / total) * 100 : 0;
 }
 
 export function normalizeWeightsTo100(orderedIds, weights) {
@@ -56,7 +84,7 @@ export function computeEffectiveWeights(workPackages, scopeWPIds = null, phaseWe
   const result = {};
   for (const phaseId of phaseIds) {
     const phaseWPs = byPhase[phaseId];
-    const pctSum = phaseWPs.reduce((s, wp) => s + (wp.duration_pct || 0), 0);
+    const pctSum = sumDurationPct(phaseWPs);
     const pw = phaseWeightOf(phaseId);
     for (const wp of phaseWPs) {
       const normPct = pctSum > 0 ? wp.duration_pct / pctSum : 1 / phaseWPs.length;

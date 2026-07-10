@@ -1,4 +1,4 @@
-import { normalizeWeightsTo100 } from './weights/normalizeWeightsTo100.js';
+import { normalizeWeightsTo100, sumPhaseProgressWeights } from './weights/normalizeWeightsTo100.js';
 
 const phases = t => Array.isArray(t?.phases) ? t.phases : [];
 const wps    = t => Array.isArray(t?.workPackages) ? t.workPackages : [];
@@ -46,7 +46,7 @@ export function movePhase(template, phaseId, direction) {
  * @returns {{ weightSum: number, durSums: Record<string, number> }}
  */
 export function computeTemplateWeightSums(template) {
-  const weightSum = phases(template).reduce((s, p) => s + (p.progressWeight || 0), 0);
+  const weightSum = sumPhaseProgressWeights(phases(template));
 
   const durSums = {};
   for (const wp of wps(template)) {

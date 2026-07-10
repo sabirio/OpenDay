@@ -1,1 +1,1 @@
-export { validateTemplate, isTemplateValid } from '../../../engines/templateValidationEngine.js';
+export { validateTemplate, isTemplateValid, countErrors } from '../../../engines/templateValidationEngine.js';
