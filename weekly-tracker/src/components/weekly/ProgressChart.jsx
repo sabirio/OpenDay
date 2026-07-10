@@ -4,6 +4,8 @@
  * No chart libraries — vanilla SVG with responsive viewBox.
  */
 
+import { valueToSparkY } from "../../hooks/useChartMathPresentation";
+
 const W = 1000, H = 150;
 const PAD = { t: 14, r: 24, b: 40, l: 56 };
 const PW  = W - PAD.l - PAD.r;
@@ -13,7 +15,7 @@ function xOf(i, n) {
   return PAD.l + (n < 2 ? PW / 2 : (i / (n - 1)) * PW);
 }
 function yOf(pct) {
-  return PAD.t + PH - (pct / 100) * PH;
+  return PAD.t + valueToSparkY(pct, 0, 100, PH);
 }
 
 export default function ProgressChart({ series, scheduleStatus, spi, reportCount, latestDate }) {

@@ -1,3 +1,5 @@
+import { valueToSparkY } from "../../hooks/useChartMathPresentation";
+
 const W = 360;
 const H = 92;
 const PAD = { t: 12, r: 12, b: 18, l: 28 };
@@ -9,7 +11,7 @@ function xOf(i, n) {
 }
 
 function yOf(pct) {
-  return PAD.t + PH - (pct / 100) * PH;
+  return PAD.t + valueToSparkY(pct, 0, 100, PH);
 }
 
 export default function CompactProgressTrend({ series, scheduleStatus, spi }) {

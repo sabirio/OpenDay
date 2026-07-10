@@ -13,6 +13,7 @@ import {
   percentToWidth,
   minOf,
   maxOf,
+  roundPct,
 } from '../chartMath.js';
 
 let pass = 0, fail = 0;
@@ -95,6 +96,15 @@ console.log('\n8) minOf / maxOf');
   check('minOf([5, 1, 3]) = 1', minOf([5, 1, 3]) === 1);
   check('maxOf([5, 1, 3]) = 5', maxOf([5, 1, 3]) === 5);
   check('minOf single-element list', minOf([7]) === 7);
+}
+
+// ── roundPct ──────────────────────────────────────────────────────────────────
+console.log('\n9) roundPct');
+{
+  check('roundPct(49.6) = 50', roundPct(49.6) === 50);
+  check('roundPct(49.4) = 49', roundPct(49.4) === 49);
+  check('roundPct(0) = 0', roundPct(0) === 0);
+  check('roundPct(-1.5) rounds toward +Infinity (Math.round semantics)', roundPct(-1.5) === -1);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

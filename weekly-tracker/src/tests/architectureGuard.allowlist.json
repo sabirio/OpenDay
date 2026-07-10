@@ -25,8 +25,6 @@
     "components/sitevisit/GanttSuccessView.jsx:20:calculation:const discrepancyCount = flagged.filter(d => d.signedDelta < 0).length;",
     "components/sitevisit/GanttSuccessView.jsx:21:calculation:const pmAheadCount     = flagged.filter(d => d.signedDelta > 0).length;",
     "components/sitevisit/GanttSuccessView.jsx:22:calculation:const confirmed        = Math.max(0, ganttTasks.length - flagged.length);",
-    "components/weekly/CompactProgressTrend.jsx:12:calculation:return PAD.t + PH - (pct / 100) * PH;",
-    "components/weekly/ProgressChart.jsx:16:calculation:return PAD.t + PH - (pct / 100) * PH;",
     "components/weekly/ProgressNarrative.jsx:171:calculation:Ahead {Math.abs(scheduleGap)}pp",
     "components/weekly/ProgressNarrative.jsx:177:calculation:Behind {Math.abs(scheduleGap)}pp",
     "components/weekly/ProgressNarrative.jsx:29:calculation:Why {Math.round(total)}%? <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>",

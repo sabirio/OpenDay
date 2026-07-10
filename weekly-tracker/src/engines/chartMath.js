@@ -67,3 +67,8 @@ export function minOf(values) {
 export function maxOf(values) {
   return Math.max(...values);
 }
+
+/** Round a percent (or any value) to the nearest whole number for display. */
+export function roundPct(value) {
+  return Math.round(value);
+}

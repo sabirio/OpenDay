@@ -9,4 +9,5 @@ export {
   percentToWidth,
   minOf,
   maxOf,
+  roundPct,
 } from '../core/presentation/chartMathPresentationModel.js';
