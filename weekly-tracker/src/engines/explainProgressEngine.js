@@ -91,3 +91,15 @@ export function explainProgress({
 
   return { total, officialTotal, drift, denominator, lines, byPhase, excluded };
 }
+
+/** Below this magnitude (pp), a total/officialTotal drift is not worth flagging in the UI. */
+export const EXPLAIN_DRIFT_THRESHOLD_PP = 0.5;
+
+/**
+ * Whether a computed drift is large enough to surface in the WhyPanel —
+ * ProgressNarrative.jsx's `drift != null && Math.abs(drift) > 0.5` check.
+ * @param {number|null} drift
+ */
+export function isExplainDriftSignificant(drift) {
+  return drift != null && Math.abs(drift) > EXPLAIN_DRIFT_THRESHOLD_PP;
+}

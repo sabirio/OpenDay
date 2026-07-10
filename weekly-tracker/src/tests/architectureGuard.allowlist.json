@@ -39,8 +39,6 @@
     "core/dashboard/statusMatrixModel.js:12:calculation:const displayProgress = snapRow != null ? Math.round(snapRow.overall_progress) : progress;",
     "core/insights/selectors/homeInsights.js:16:calculation:const codeToId = projects.reduce((acc, p) => {",
     "core/insights/selectors/homeInsights.js:23:calculation:const confidenceByProjectId = rows.reduce((acc, row) => {",
-    "core/projects/explain/explainProgress.js:48:calculation:const total      = lines.reduce((s, l) => s + l.contribution, 0);",
-    "core/projects/explain/explainProgress.js:49:calculation:const denominator = lines.reduce((s, l) => s + l.weight, 0);",
     "core/projects/templateEditor.js:49:calculation:const weightSum = phases(template).reduce((s, p) => s + (p.progressWeight || 0), 0);",
     "core/projects/weights/buildV2ProgressTemplate.js:37:calculation:const progressWeight = Math.round(zoneWeight * (share / 100) * 1000) / 1000;",
     "core/projects/weights/buildWeightAuditModel.js:30:calculation:const effectiveSum     = Object.values(effectiveWeights).reduce((s, w) => s + w, 0);",

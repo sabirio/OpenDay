@@ -1,5 +1,5 @@
-// explainProgress.test.mjs — zero-dependency smoke tests. Run: node <thisfile>
-import { explainProgress } from './explainProgress.js';
+// explainProgressEngine.test.mjs — zero-dependency smoke tests. Run: node <thisfile>
+import { explainProgress, isExplainDriftSignificant, EXPLAIN_DRIFT_THRESHOLD_PP } from './explainProgressEngine.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -68,6 +68,15 @@ check('phase B phaseProgress = 50',     Math.abs(phB.phaseProgress - 50) < 0.001
 check('phase A contribution = 28',      Math.abs(phA.contribution - 28) < 0.001);
 check('phase B contribution = 30',      Math.abs(phB.contribution - 30) < 0.001);
 check('phase labels present',           phA.label === 'Phase A' && phB.label === 'Phase B');
+
+// ── 5) isExplainDriftSignificant ──────────────────────────────────────────────
+console.log('\n5) isExplainDriftSignificant');
+check('null drift -> false',            isExplainDriftSignificant(null) === false);
+check('0 drift -> false',               isExplainDriftSignificant(0) === false);
+check('0.5 drift (boundary) -> false',  isExplainDriftSignificant(0.5) === false);
+check('0.51 drift -> true',             isExplainDriftSignificant(0.51) === true);
+check('-0.51 drift -> true',            isExplainDriftSignificant(-0.51) === true);
+check('threshold constant = 0.5',       EXPLAIN_DRIFT_THRESHOLD_PP === 0.5);
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

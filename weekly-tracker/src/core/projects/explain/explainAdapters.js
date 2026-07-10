@@ -1,5 +1,5 @@
 import { computeEffectiveWeights } from '../weights/computeEffectiveWeights.js';
-import { explainProgress } from './explainProgress.js';
+import { explainProgress } from '../../../engines/explainProgressEngine.js';
 
 // Same contract as progressEngine.calculateActivityProgress:
 // numeric progress wins; status text fallback Completed=100 / In Progress=50 / else 0.
