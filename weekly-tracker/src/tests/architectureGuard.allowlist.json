@@ -1,6 +1,0 @@
-{
-  "mode": "soft",
-  "generatedBy": "src/tests/architectureGuard.test.mjs --write-allowlist",
-  "note": "Baseline of known architecture debt. Ratchet only: remove ids as code is fixed; do not add new ids except during an intentional baseline reset.",
-  "knownViolations": []
-}

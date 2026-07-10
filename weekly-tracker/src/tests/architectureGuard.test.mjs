@@ -11,7 +11,7 @@
 // build until the allowlist is deliberately updated, so accidental legacy
 // coupling can't creep back in silently.
 
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 
@@ -24,7 +24,6 @@ function check(label, condition) {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const srcRoot    = path.resolve(__dirname, '..'); // weekly-tracker/src/
-const allowlistPath = path.join(__dirname, 'architectureGuard.allowlist.json');
 
 function walk(dir, acc = []) {
   for (const ent of readdirSync(dir, { withFileTypes: true })) {
@@ -147,11 +146,18 @@ check(
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 
 // -----------------------------------------------------------------------------
-// Soft architecture guard: layer boundaries + obvious calculation leaks.
+// HARD architecture guard: layer boundaries, calculation placement, and
+// service purity. Zero tolerance — ANY violation fails the build. There is
+// no baseline/allowlist; the calculation-debt ratchet (103 -> 0, closed
+// 2026-07-10) is done, so nothing is grandfathered in anymore.
 //
-// This is intentionally baseline-ratcheted. Existing debt is recorded in
-// architectureGuard.allowlist.json; new violations fail immediately, and fixed
-// violations make the allowlist stale so it can only shrink over time.
+// Canon this enforces:
+//   engines/  = all formulas, pure, no side-effects.
+//   core/     = orchestration + read-models; composes engines, never computes.
+//   services/ = persistence/I/O only; never imports engines/core, never computes.
+//   UI (pages/components/hooks) = display only; reaches engines/core ONLY via
+//     core/presentation/*Model.js facades + hooks/use*Presentation.js hooks.
+// Direction: UI -> hooks -> core -> engines; core -> services.
 // -----------------------------------------------------------------------------
 
 const IMPORT_RE = /^\s*import(?:[\s\S]*?)from\s+['"]([^'"]+)['"]/gm;
@@ -257,36 +263,26 @@ function scanArchitectureDebt() {
   return violations.sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function readAllowlist() {
-  try {
-    const parsed = JSON.parse(readFileSync(allowlistPath, 'utf8'));
-    return new Set(parsed.knownViolations ?? []);
-  } catch {
-    return new Set();
-  }
-}
+// Actionable guidance per rule — printed for every violation so a failing
+// build tells you exactly what to do, not just that something is wrong.
+const RULE_GUIDANCE = {
+  'layer-import':   'UI (pages/components) and hooks must never import engines/core/services/lib/supabase directly. Add or reuse a core/presentation/*Model.js facade + a hooks/use*Presentation.js hook, then import from the hook instead.',
+  'service-purity': 'services/ must be I/O-only — no formulas, no engines/core imports. Move this calculation into the matching engines/*.js file and have core/ call the engine; the service should only pass data through.',
+  'calculation':    'All formulas live in engines/. Move this line into the appropriate engines/*.js file (reuse an existing export if one already computes this), then expose it via a core/presentation/*Model.js facade + hooks/use*Presentation.js hook for UI/core to consume.',
+  'status-literal': 'Hardcoded status/severity string compared inline. Use a named constant/level map (e.g. RISK_LEVELS, CONFIDENCE_LEVELS) exported from the owning engine or config/*Config.js instead of a raw literal.',
+};
 
-function writeAllowlist(violations) {
-  const payload = {
-    mode: 'soft',
-    generatedBy: 'src/tests/architectureGuard.test.mjs --write-allowlist',
-    note: 'Baseline of known architecture debt. Ratchet only: remove ids as code is fixed; do not add new ids except during an intentional baseline reset.',
-    knownViolations: violations.map(v => v.id),
-  };
-  writeFileSync(allowlistPath, `${JSON.stringify(payload, null, 2)}\n`);
+function formatViolation(v) {
+  const guidance = RULE_GUIDANCE[v.rule] ?? 'See DESIGN.md for the canonical layer architecture.';
+  return `\n  [${v.rule}] ${v.file}:${v.line}\n    ${v.detail}\n    -> ${guidance}`;
 }
 
 const archViolations = scanArchitectureDebt();
-if (process.argv.includes('--write-allowlist')) {
-  writeAllowlist(archViolations);
-  console.log(`architectureGuard soft baseline written: ${archViolations.length} known violations`);
-  process.exit(0);
-}
 
-const allowedDebt = readAllowlist();
-const currentIds = new Set(archViolations.map(v => v.id));
-const newViolations = archViolations.filter(v => !allowedDebt.has(v.id));
-const staleAllowlist = [...allowedDebt].filter(id => !currentIds.has(id));
+if (process.argv.includes('--write-allowlist')) {
+  console.error('architectureGuard is HARD: there is no allowlist to (re)write anymore. Fix the violation(s) instead — see DESIGN.md.');
+  process.exit(1);
+}
 
 const debtBySeverity = archViolations.reduce((acc, v) => {
   acc[v.severity] = (acc[v.severity] ?? 0) + 1;
@@ -297,20 +293,18 @@ const debtByRule = archViolations.reduce((acc, v) => {
   return acc;
 }, {});
 
-console.log(
-  `Architecture debt: ${archViolations.length} known violations remaining ` +
-  `(A:${debtBySeverity.A ?? 0}, B:${debtBySeverity.B ?? 0}, C:${debtBySeverity.C ?? 0}; ` +
-  Object.entries(debtByRule).map(([rule, n]) => `${rule}:${n}`).join(', ') +
-  ')'
-);
+if (archViolations.length > 0) {
+  console.error(
+    `\nArchitecture guard (HARD): ${archViolations.length} violation(s) found ` +
+    `(A:${debtBySeverity.A ?? 0}, B:${debtBySeverity.B ?? 0}, C:${debtBySeverity.C ?? 0}; ` +
+    Object.entries(debtByRule).map(([rule, n]) => `${rule}:${n}`).join(', ') + ')'
+  );
+  archViolations.forEach(v => console.error(formatViolation(v)));
+}
 
 check(
-  `no new layer/calculation/service/status architecture violations (new: ${newViolations.map(v => v.id).slice(0, 5).join(' | ') || 'none'})`,
-  newViolations.length === 0
-);
-check(
-  `architecture allowlist has no stale fixed entries (stale: ${staleAllowlist.slice(0, 5).join(' | ') || 'none'})`,
-  staleAllowlist.length === 0
+  `architecture guard is HARD: zero layer-import/calculation/service-purity/status-literal violations allowed (found: ${archViolations.length})`,
+  archViolations.length === 0
 );
 
 console.log(`\n-- FINAL RESULT: ${pass} passed, ${fail} failed --\n`);
