@@ -1,0 +1,4 @@
+# Generated per local certification run — regenerate with fixtures.mjs.
+# Contains local-only UUIDs for a throwaway local Supabase instance, never
+# secrets (see env.mjs — all keys here are the public local-dev demo keys).
+fixture-state.json
