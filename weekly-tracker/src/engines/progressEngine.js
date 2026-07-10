@@ -94,6 +94,31 @@ export function clampProgressPct(value) {
 }
 
 /**
+ * Magnitude of a schedule gap (pp) for "Ahead/Behind Xpp"-style display —
+ * single source for a Math.abs() ProgressNarrative.jsx and ReportTruthBar.jsx
+ * each reimplemented, and this engine's own "Behind" reason text below.
+ */
+export function formatScheduleGapPp(scheduleGap) {
+  return Math.abs(scheduleGap);
+}
+
+/**
+ * Count how many of a WP group's tasks are Completed / In Progress —
+ * LegacyWPSection.jsx's group-header badge ("2/5", warn/done coloring).
+ * @param {string[]} taskNames
+ * @param {object} pkgStatuses — { [taskName]: { status } }
+ */
+export function countTasksByStatus(taskNames, pkgStatuses) {
+  let completed = 0, inProgress = 0;
+  for (const t of taskNames) {
+    const status = pkgStatuses?.[t]?.status;
+    if (status === 'Completed') completed++;
+    else if (status === 'In Progress') inProgress++;
+  }
+  return { completed, inProgress };
+}
+
+/**
  * Extract 0-100 progress from a single Gantt task entry.
  * Prefers numeric `progress` field; falls back to status text.
  * @param {{progress?: number, status?: string}|null|undefined} entry

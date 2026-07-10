@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getWPGroups } from "../../config/workPackages";
+import { countTasksByStatus } from "../../hooks/useProgressPresentation";
 import { FormSection } from "./FormParts";
 
 const WP_STATUS_OPTS = [
@@ -88,8 +89,7 @@ function WPTaskRow({ wpId, taskName, entry, prevEntry, onChange }) {
 function GroupRow({ group, wpId, pkgStatuses, prevPkgStatuses, onChange }) {
   const [expanded, setExpanded] = useState(true);
   const taskNames    = group.tasks;
-  const completedCnt = taskNames.filter(t => pkgStatuses?.[t]?.status === "Completed").length;
-  const inProgCnt    = taskNames.filter(t => pkgStatuses?.[t]?.status === "In Progress").length;
+  const { completed: completedCnt, inProgress: inProgCnt } = countTasksByStatus(taskNames, pkgStatuses);
   const allDone      = completedCnt === taskNames.length;
 
   return (

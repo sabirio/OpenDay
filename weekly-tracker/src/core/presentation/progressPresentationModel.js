@@ -10,4 +10,6 @@ export {
   getDefaultProgressForGanttStatus,
   calculateGanttPhaseAverageProgress,
   clampProgressPct,
+  formatScheduleGapPp,
+  countTasksByStatus,
 } from '../../engines/progressEngine';

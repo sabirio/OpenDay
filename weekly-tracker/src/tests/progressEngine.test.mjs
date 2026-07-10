@@ -13,7 +13,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult, calculateWPTaskWeightedProgress, calculateRawWPAverageProgress, calculateGanttPhaseAverageProgress, calculatePhaseAverageProgressWithOverrides, getWPStatusTier, getDefaultProgressForGanttStatus } =
+const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult, calculateWPTaskWeightedProgress, calculateRawWPAverageProgress, calculateGanttPhaseAverageProgress, calculatePhaseAverageProgressWithOverrides, getWPStatusTier, getDefaultProgressForGanttStatus, formatScheduleGapPp, countTasksByStatus } =
   await import('../engines/progressEngine.js');
 
 const { getCommands } = await import('../engines/commandEngine.js');
@@ -344,6 +344,28 @@ console.log('\ngetDefaultProgressForGanttStatus — pinned against pre-refactor 
   assert('in_progress -> keeps current progress unchanged',         getDefaultProgressForGanttStatus('in_progress', 42) === 42);
   assert('delayed -> keeps current progress unchanged',             getDefaultProgressForGanttStatus('delayed', 42) === 42);
   assert('blocked -> keeps current progress unchanged',             getDefaultProgressForGanttStatus('blocked', 42) === 42);
+}
+
+// ── formatScheduleGapPp ──────────────────────────────────────────────────────
+{
+  assert('formatScheduleGapPp(-7) = 7', formatScheduleGapPp(-7) === 7);
+  assert('formatScheduleGapPp(7) = 7', formatScheduleGapPp(7) === 7);
+  assert('formatScheduleGapPp(0) = 0', formatScheduleGapPp(0) === 0);
+}
+
+// ── countTasksByStatus ───────────────────────────────────────────────────────
+{
+  const pkgStatuses = {
+    a: { status: 'Completed' },
+    b: { status: 'In Progress' },
+    c: { status: 'Completed' },
+    d: { status: 'Not Started' },
+  };
+  const { completed, inProgress } = countTasksByStatus(['a', 'b', 'c', 'd', 'e'], pkgStatuses);
+  assert('countTasksByStatus counts Completed', completed === 2);
+  assert('countTasksByStatus counts In Progress', inProgress === 1);
+  assert('countTasksByStatus ignores missing entries (task "e")', completed + inProgress === 3);
+  assert('countTasksByStatus empty list -> zeros', countTasksByStatus([], {}).completed === 0);
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────

@@ -3,8 +3,6 @@
   "generatedBy": "src/tests/architectureGuard.test.mjs --write-allowlist",
   "note": "Baseline of known architecture debt. Ratchet only: remove ids as code is fixed; do not add new ids except during an intentional baseline reset.",
   "knownViolations": [
-    "components/contractor/LegacyWPSection.jsx:91:calculation:const completedCnt = taskNames.filter(t => pkgStatuses?.[t]?.status === \"Completed\").length;",
-    "components/contractor/LegacyWPSection.jsx:92:calculation:const inProgCnt    = taskNames.filter(t => pkgStatuses?.[t]?.status === \"In Progress\").length;",
     "components/dashboard/DashboardWidgets.jsx:43:calculation:const minX = Math.min(...xs), maxX = Math.max(...xs);",
     "components/dashboard/DashboardWidgets.jsx:44:calculation:const sx = x => pad.left + ((x - minX) / Math.max(1, maxX - minX)) * W;",
     "components/dashboard/DashboardWidgets.jsx:45:calculation:const sy = y => pad.top + H - (y / 100) * H;",

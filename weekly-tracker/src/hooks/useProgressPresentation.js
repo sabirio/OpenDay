@@ -4,4 +4,6 @@ export {
   getDefaultProgressForGanttStatus,
   calculateGanttPhaseAverageProgress,
   clampProgressPct,
+  formatScheduleGapPp,
+  countTasksByStatus,
 } from '../core/presentation/progressPresentationModel.js';
