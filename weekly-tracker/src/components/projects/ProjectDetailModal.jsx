@@ -2,6 +2,7 @@ import { PHASES } from "../../config/masterTaskLibrary";
 import { TEMPLATES } from "../../config/projectTemplates";
 import { getOpeningColor } from "../../config/thresholds";
 import { formatDate, daysUntil } from "../../utils/reportUtils";
+import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
 import { DetailField, FieldRow, FormSection } from "./ProjectFormParts";
 
 const PHASE_MAP = Object.fromEntries(
@@ -72,7 +73,7 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
                     <div style={{ fontSize: 13, fontWeight: 700, color: openingColor }}>{formatDate(project.targetOpeningDate)}</div>
                     {daysLeft !== null && (
                       <div style={{ fontSize: 11, color: openingColor, marginTop: 2 }}>
-                        {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? "Today" : `${Math.abs(daysLeft)} days overdue`}
+                        {daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? "Today" : `${daysOverdueCount(daysLeft)} days overdue`}
                       </div>
                     )}
                   </div>

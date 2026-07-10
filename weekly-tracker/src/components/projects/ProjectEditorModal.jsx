@@ -2,6 +2,7 @@ import { Field, FieldRow, FormSection } from "./ProjectFormParts";
 import ConflictWarning from "../ConflictWarning";
 import { TEMPLATES } from "../../config/projectTemplates";
 import { V2_TEMPLATE_TYPE } from "../../domains/construction/templates/retailFitoutV2";
+import { clamp } from "../../hooks/useChartMathPresentation";
 
 export default function ProjectEditorModal({
   project,
@@ -193,7 +194,7 @@ export default function ProjectEditorModal({
                       // Clamped to >=0 at entry (defense-in-depth, F-01) — the
                       // engine (computeZoneWeights.js) is independently robust
                       // to a negative value reaching it regardless.
-                      const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0);
+                      const v = e.target.value === '' ? '' : clamp(Number(e.target.value) || 0, 0, Infinity);
                       onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, sales: v } } }));
                     }}
                     style={inputStyle}
@@ -210,7 +211,7 @@ export default function ProjectEditorModal({
                       // Clamped to >=0 at entry (defense-in-depth, F-01) — the
                       // engine (computeZoneWeights.js) is independently robust
                       // to a negative value reaching it regardless.
-                      const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value) || 0);
+                      const v = e.target.value === '' ? '' : clamp(Number(e.target.value) || 0, 0, Infinity);
                       onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, boh: v } } }));
                     }}
                     style={inputStyle}

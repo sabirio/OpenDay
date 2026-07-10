@@ -1,5 +1,6 @@
 import { getOpeningColor } from "../../config/thresholds";
 import { formatDate, daysUntil } from "../../utils/reportUtils";
+import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
 
 export default function ProjectTable({ projects, totalProjects, onViewProject, onEditProject, onInviteContractor }) {
   return (
@@ -61,7 +62,7 @@ export default function ProjectTable({ projects, totalProjects, onViewProject, o
                         <div>
                           <div style={{ fontSize: 12, fontWeight: 700, color: openingColor, whiteSpace: "nowrap" }}>{formatDate(project.targetOpeningDate)}</div>
                           <div style={{ fontSize: 11, color: openingColor }}>
-                            {daysLeft > 0 ? `${daysLeft}d left` : daysLeft === 0 ? "Today" : `${Math.abs(daysLeft)}d overdue`}
+                            {daysLeft > 0 ? `${daysLeft}d left` : daysLeft === 0 ? "Today" : `${daysOverdueCount(daysLeft)}d overdue`}
                           </div>
                         </div>
                       ) : <span style={{ color: "var(--text-muted)" }}>-</span>}
