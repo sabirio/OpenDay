@@ -1,4 +1,5 @@
 import { getScoreTier } from '../../config/statusColors';
+import { formatScheduleGapPp } from '../../hooks/useProgressPresentation';
 
 const SCORE_TIER_TONE = { good: 'good', warn: 'warning', critical: 'critical' };
 
@@ -22,8 +23,8 @@ function deltaLabel(delta) {
 function vsPlanLabel(progressComparison, selectedProgress) {
   if (selectedProgress === null) return '—';
   if (!progressComparison?.scheduleStatus) return '—';
-  if (progressComparison.scheduleStatus === 'ahead') return `Ahead ${Math.abs(progressComparison.scheduleGap)}pp`;
-  if (progressComparison.scheduleStatus === 'behind') return `Behind ${Math.abs(progressComparison.scheduleGap)}pp`;
+  if (progressComparison.scheduleStatus === 'ahead') return `Ahead ${formatScheduleGapPp(progressComparison.scheduleGap)}pp`;
+  if (progressComparison.scheduleStatus === 'behind') return `Behind ${formatScheduleGapPp(progressComparison.scheduleGap)}pp`;
   if (progressComparison.scheduleStatus === 'on_track') return 'On track';
   return '—';
 }

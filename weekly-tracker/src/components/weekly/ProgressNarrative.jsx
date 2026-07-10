@@ -6,6 +6,9 @@
  * No calculations here — all numbers come from the engine.
  */
 import { useState } from "react";
+import { roundPct, clamp } from "../../hooks/useChartMathPresentation";
+import { formatScheduleGapPp } from "../../hooks/useProgressPresentation";
+import { isExplainDriftSignificant } from "../../hooks/useExplainProgressPresentation";
 
 // ── Why this %? expandable attribution panel ──────────────────────────────────
 function WhyPanel({ explainResult }) {
@@ -26,7 +29,7 @@ function WhyPanel({ explainResult }) {
         }}
         aria-expanded={open}
       >
-        Why {Math.round(total)}%? <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
+        Why {roundPct(total)}%? <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
@@ -35,7 +38,7 @@ function WhyPanel({ explainResult }) {
           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
             Based on <strong style={{ color: 'var(--text-secondary)' }}>{lines.length}</strong> active work package{lines.length !== 1 ? 's' : ''} · weights sum to {denominator.toFixed(2)}
             {' · '}<span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{source === 'snapshot' ? 'frozen weights' : 'live weights'}</span>
-            {drift != null && Math.abs(drift) > 0.5 && (
+            {isExplainDriftSignificant(drift) && (
               <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--status-alert)' }}>[drift {drift > 0 ? '+' : ''}{drift.toFixed(1)}pp]</span>
             )}
           </div>
@@ -52,13 +55,13 @@ function WhyPanel({ explainResult }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
                       <span style={{ color: 'var(--text-secondary)' }}>{p.label}</span>
                       <span style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                        {Math.round(p.phaseProgress)}%
+                        {roundPct(p.phaseProgress)}%
                         {' · '}
                         <strong style={{ color: 'var(--text-primary)' }}>{p.contribution.toFixed(1)}pp</strong>
                       </span>
                     </div>
                     <div style={{ background: 'var(--border)', borderRadius: 3, height: 4, overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.min(100, p.phaseProgress)}%`, height: '100%', background: 'var(--accent)', borderRadius: 3 }} />
+                      <div style={{ width: `${clamp(p.phaseProgress, -Infinity, 100)}%`, height: '100%', background: 'var(--accent)', borderRadius: 3 }} />
                     </div>
                   </div>
                 ))}
@@ -78,7 +81,7 @@ function WhyPanel({ explainResult }) {
                     <span style={{ color: 'var(--text-muted)', fontSize: 9, flexShrink: 0 }}>●</span>
                     <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{l.label}</span>
                     <span style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      {Math.round(l.progress)}% · <strong style={{ color: 'var(--text-primary)' }}>{l.contribution.toFixed(1)}pp</strong>
+                      {roundPct(l.progress)}% · <strong style={{ color: 'var(--text-primary)' }}>{l.contribution.toFixed(1)}pp</strong>
                     </span>
                   </div>
                 ))}
@@ -168,13 +171,13 @@ export default function ProgressNarrative({ progressComparison, selectedProgress
   } else if (scheduleStatus === 'ahead') {
     planNode = (
       <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--status-done)', lineHeight: 1 }}>
-        Ahead {Math.abs(scheduleGap)}pp
+        Ahead {formatScheduleGapPp(scheduleGap)}pp
       </span>
     );
   } else if (scheduleStatus === 'behind') {
     planNode = (
       <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--status-alert)', lineHeight: 1 }}>
-        Behind {Math.abs(scheduleGap)}pp
+        Behind {formatScheduleGapPp(scheduleGap)}pp
       </span>
     );
   } else if (scheduleStatus === 'on_track') {
