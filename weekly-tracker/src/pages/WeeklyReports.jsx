@@ -68,11 +68,15 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
     return projects.length ? String(projects[0].id) : "";
   }, [selectedProjectId, projects]);
 
+  const allRows = useAllRows(projects, reports, siteVisits, templatesById, activeTemplateFallback);
+  const selectedRow = useMemo(
+    () => allRows.find(r => String(r.project.id) === effectiveProjectId) ?? null,
+    [allRows, effectiveProjectId]
+  );
+
   const projectReports = useMemo(() =>
-    reports
-      .filter(r => String(r.projectId) === effectiveProjectId)
-      .sort((a, b) => new Date(b.reportingDate || b.submittedAt) - new Date(a.reportingDate || a.submittedAt)),
-    [reports, effectiveProjectId]
+    [...(selectedRow?.canonical?.snapshot?.contractorReports ?? [])].reverse(),
+    [selectedRow]
   );
 
   const effectiveReportId = useMemo(() => {
@@ -82,7 +86,8 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   }, [selectedReportId, projectReports]);
 
   const selectedReport  = projectReports.find(r => String(r.id) === effectiveReportId);
-  const selectedProject = projects.find(p => String(p.id) === effectiveProjectId);
+  const selectedProject = selectedRow?.canonical?.snapshot?.project
+    ?? projects.find(p => String(p.id) === effectiveProjectId);
 
   useEffect(() => {
     if (!selectedProject) { setActiveTemplate(null); return; }
@@ -112,12 +117,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   // recomputation of calculateProjectProgress() here; template resolution
   // (templatesById/activeTemplateFallback) is shared via useAllRows() so this
   // page can't silently diverge from Dashboard/Home again.
-  const allRows = useAllRows(projects, reports, siteVisits, templatesById, activeTemplateFallback);
-  const selectedRow = useMemo(
-    () => allRows.find(r => String(r.project.id) === effectiveProjectId) ?? null,
-    [allRows, effectiveProjectId]
-  );
-  const overallProgress = selectedRow?.progress ?? 0;
+  const overallProgress = selectedRow?.canonical?.progress?.overallProgress ?? 0;
 
   const {
     templateErrorIssues,
@@ -142,6 +142,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
     overallProgress,
     activeTemplate,
     legacyWorkPackages: WORK_PACKAGES,
+    canonicalResult: selectedRow?.canonical ?? null,
   });
 
   const { tasks: ganttTasks, loading: ganttLoading, resizeTask } = useWeeklyGanttTasks({

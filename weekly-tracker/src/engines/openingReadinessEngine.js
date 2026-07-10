@@ -194,9 +194,9 @@ export function shortfallDays(slack) {
  *   criticalChain: Array<{ wpId, phaseId, task, level, status, responsibleRole, remainingDays }>,
  * }}
  */
-export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate, scopeWPIds = null, templateOptions = null) {
+export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate, scopeWPIds = null, templateOptions = null, referenceDate = new Date()) {
   const targetDate = targetOpeningDate || null;
-  const daysToOpening = targetDate ? daysUntil(targetDate) : null;
+  const daysToOpening = targetDate ? daysUntil(targetDate, referenceDate) : null;
   const wpStatuses = wpCumulativeStatuses?.workPackageStatuses ?? wpCumulativeStatuses ?? null;
 
   const blockerWPs = templateOptions?.blockerWPs ?? BLOCKER_WPS;

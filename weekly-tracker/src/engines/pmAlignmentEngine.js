@@ -177,7 +177,7 @@ export function computePmAlignmentItems(gcReport, pmVisit) {
  * @param {Record<string, any>|null} latestReport
  * @returns {{level: 'LOW'|'MEDIUM'|'HIGH', pts: number, maxPts: number, color: string, colorBg: string, label: string, breakdown: Array<{dimension: string, earned: number, max: number, detail: string}>}}
  */
-export function computeConfidenceLevel(projReports, projSiteVisits, latestReport) {
+export function computeConfidenceLevel(projReports, projSiteVisits, latestReport, referenceDate = new Date()) {
   const W = CONFIDENCE_WEIGHTS;
   const breakdown = [];
   let maxPts = 0;
@@ -211,7 +211,7 @@ export function computeConfidenceLevel(projReports, projSiteVisits, latestReport
   let freshnessDetail = 'No recent report';
   if (latestReport) {
     const daysSince = Math.floor(
-      (Date.now() - new Date(latestReport.reportingDate || latestReport.submittedAt).getTime())
+      (new Date(referenceDate).getTime() - new Date(latestReport.reportingDate || latestReport.submittedAt).getTime())
       / DAY_MS
     );
     freshnessEarned = daysSince <= W.reportFreshnessFreshDays ? W.reportFreshnessMax

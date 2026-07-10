@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   loadContractorReportFallbackContext,
   submitContractorReportModel,
+  createClientRequestId,
 } from "../hooks/useContractorReportOrchestration";
 import { loadScopedGanttTasks } from "../hooks/useGanttOrchestration";
 import { buildCumulativeWPStatuses, daysSince } from "../utils/reportUtils";
@@ -106,6 +107,7 @@ function ContractorReport({ projects, reports }) {
     return draft?.form ? draft.form : makeInitialForm(null, null);
   });
   const prefillDone = useRef(Boolean(readDraft()?.form));
+  const clientRequestIdRef = useRef(readDraft()?.clientRequestId || createClientRequestId());
 
   useEffect(() => {
     // Wait for reports to load before prefilling (prevReport is null until Supabase responds)
@@ -184,7 +186,7 @@ function ContractorReport({ projects, reports }) {
   // stringify on each change; guarded against private-browsing/quota errors.
   useEffect(() => {
     try {
-      localStorage.setItem(draftKey, JSON.stringify({ form, ganttWpProgress, photoUrls, savedAt: new Date().toISOString() }));
+      localStorage.setItem(draftKey, JSON.stringify({ form, ganttWpProgress, photoUrls, clientRequestId: clientRequestIdRef.current, savedAt: new Date().toISOString() }));
     } catch { /* private browsing / quota exceeded — draft save is best-effort */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, ganttWpProgress, photoUrls]);
@@ -245,9 +247,11 @@ function ContractorReport({ projects, reports }) {
       // (core/contractorReport) — this page only supplies the raw form state.
       await submitContractorReportModel({
         project, form, photoUrls, prevReport, ganttTasks, ganttWpProgress, reports, currentPhases,
+        clientRequestId: clientRequestIdRef.current,
       });
 
       clearDraft();
+      clientRequestIdRef.current = createClientRequestId();
       setSubmitted(true);
     } catch (err) {
       console.error("Failed to submit report:", err);
@@ -273,6 +277,7 @@ function ContractorReport({ projects, reports }) {
           prefillDone.current = false;
           setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
           setPhotoUrls([]);
+          clientRequestIdRef.current = createClientRequestId();
           setSubmitted(false);
         }}
         onClose={() => window.history.back()}

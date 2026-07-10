@@ -348,16 +348,16 @@ export function isSevereScheduleStatus(status) {
 
 // ─── Report freshness helpers ─────────────────────────────────────────────────
 
-export function daysSince(dateStr) {
-  return Math.floor((Date.now() - new Date(dateStr).getTime()) / DAY_MS);
+export function daysSince(dateStr, referenceDate = new Date()) {
+  return Math.floor((new Date(referenceDate).getTime() - new Date(dateStr).getTime()) / DAY_MS);
 }
 
-export function daysUntil(dateStr) {
-  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / DAY_MS);
+export function daysUntil(dateStr, referenceDate = new Date()) {
+  return Math.ceil((new Date(dateStr).getTime() - new Date(referenceDate).getTime()) / DAY_MS);
 }
 
-export function isMissingReport(latestReport) {
+export function isMissingReport(latestReport, referenceDate = new Date()) {
   if (!latestReport) return true;
-  return daysSince(latestReport.reportingDate || latestReport.submittedAt) > 7;
+  return daysSince(latestReport.reportingDate || latestReport.submittedAt, referenceDate) > 7;
 }
 

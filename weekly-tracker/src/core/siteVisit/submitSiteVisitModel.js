@@ -1,11 +1,8 @@
 import { computeWPObservationDiscrepancy } from '../../engines/discrepancyEngine';
 import {
-  getCurrentUserId,
-  insertSiteVisitHeader,
-  insertSiteVisitWPObservations,
-  insertSiteVisitDiscrepancies,
+  submitSiteVisitAtomic,
 } from '../../services/siteVisitService';
-import { updateGanttDiscrepancy } from '../../services/ganttService';
+import { createClientRequestId, normalizeWriteError, validateUniqueWPItems } from '../write/writeCommand.js';
 
 /**
  * Submit a PM site visit with per-WP observations: computes each WP's
@@ -20,10 +17,8 @@ import { updateGanttDiscrepancy } from '../../services/ganttService';
  * @returns { siteVisit, discrepancies }
  */
 export async function submitSiteVisitModel(projectId, contractorReportId, wpObservationsArray, meta = {}) {
-  const visitedBy = meta.visitedBy || await getCurrentUserId();
-  const siteVisit = await insertSiteVisitHeader(projectId, contractorReportId, visitedBy, meta);
-
-  // gc_progress and gc_status are passed per-task from the caller (SiteVisitReport.jsx).
+  const clientRequestId = meta.clientRequestId || createClientRequestId();
+  validateUniqueWPItems(wpObservationsArray, 'site visit');
   const discrepancies = [];
   const observationRows = wpObservationsArray.map(w => {
     const { gcProgress, pmProgress, gcStatus, signedDelta, absDelta, discStatus } = computeWPObservationDiscrepancy(w);
@@ -48,40 +43,27 @@ export async function submitSiteVisitModel(projectId, contractorReportId, wpObse
     }
 
     return {
-      site_visit_id:      siteVisit.id,
-      project_id:         projectId,
-      wp_id:              w.wpId,
+      wpId:               w.wpId,
       observed_progress:  pmProgress,
       observed_status:    w.observed_status || 'not_started',
       pm_note:            w.pm_note         || null,
       discrepancy_status: discStatus,
       discrepancy_delta:  signedDelta,
       gc_status:          gcStatus,
+      gc_progress:        gcProgress,
+      signed_delta:       signedDelta,
+      absolute_delta:     absDelta,
     };
   });
-
-  await insertSiteVisitWPObservations(observationRows);
-
-  if (discrepancies.length > 0) {
-    const discRows = discrepancies.map(d => ({
-      site_visit_id:          siteVisit.id,
-      project_id:             projectId,
-      wp_id:                  d.wpId,
-      contractor_progress:    d.contractor_progress,
-      site_visit_progress:    d.site_visit_progress,
-      delta:                  d.delta,
-      status:                 d.status,
-    }));
-    await insertSiteVisitDiscrepancies(discRows);
+  try {
+    const result = await submitSiteVisitAtomic(projectId, contractorReportId, observationRows, {
+      ...meta,
+      clientRequestId,
+      calculatedAt: meta.calculatedAt || new Date().toISOString(),
+      calculationVersion: 'openday-canonical-core/1',
+    });
+    return { siteVisit: result?.siteVisit, discrepancies: result?.discrepancies || discrepancies, idempotentReplay: result?.idempotentReplay === true };
+  } catch (error) {
+    throw normalizeWriteError(error, 'site_visit.submit', clientRequestId);
   }
-
-  for (const d of discrepancies) {
-    await updateGanttDiscrepancy(projectId, d.wpId, {
-      siteVisitProgress: d.site_visit_progress,
-      discrepancyStatus: d.status,
-      discrepancyDelta:  d.delta,
-    }).catch(() => {}); // non-fatal
-  }
-
-  return { siteVisit, discrepancies };
 }

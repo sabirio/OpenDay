@@ -77,12 +77,13 @@ const result = await submitReport(71, wpProgressArray, {
   masterReportId: 777,
   reportSnapshot,
   photoUrls: ['u/71/a.jpg'],
+  clientRequestId: '00000000-0000-4000-8000-000000000001',
 });
 
 const rpcCall = calls.find(call => call.operation === 'rpc');
 const serviceSource = readFileSync(new URL('../services/contractorReportService.js', import.meta.url), 'utf8');
 
-check('calls submit_contractor_report RPC once', calls.filter(call => call.operation === 'rpc').length === 1);
+check('calls submit_contractor_report_atomic RPC once', calls.filter(call => call.operation === 'rpc').length === 1 && rpcCall.fnName === 'submit_contractor_report_atomic');
 check('does not touch tables directly during submit', !calls.some(call => call.operation === 'from'));
 check('returns saved contractor report id', result.report.id === 501);
 check('returns line item summary from RPC', result.lineItemCount === 2 && result.wpLineItems.length === 2);
@@ -92,6 +93,7 @@ check('maps wp progress array', rpcCall?.params?.p_wp_progress === wpProgressArr
 check('maps canonical cumulative progress', rpcCall?.params?.p_meta?.cumulativeProgress === 63);
 check('maps report snapshot', rpcCall?.params?.p_meta?.reportSnapshot === reportSnapshot);
 check('maps photo urls', rpcCall?.params?.p_meta?.photoUrls?.[0] === 'u/71/a.jpg');
+check('maps client request id', rpcCall?.params?.p_client_request_id === '00000000-0000-4000-8000-000000000001');
 check('service submit path has no direct inserts', !serviceSource.includes('.insert('));
 
 globalThis.__contractorReportServiceTest.rpcError = { message: 'Not authorized to submit for this project' };

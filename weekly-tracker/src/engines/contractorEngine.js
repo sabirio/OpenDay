@@ -3,7 +3,7 @@ import { calculateProjectProgressResult } from "./progressEngine";
 import { computePmAlignmentItems, summarizeAlignmentItems } from "./pmAlignmentEngine";
 import { computeScheduleDeviation } from "./riskEngine";
 
-export function computeContractorScores(project, projReports, projSiteVisits) {
+export function computeContractorScores(project, projReports, projSiteVisits, referenceDate = new Date()) {
   if (!projReports.length) {
     return { totalScore: 50, performanceScore: 50, pmAlignmentScore: 50, breakdown: { reporting: 10, pmAlignment: 15, progress: 12, issues: 8, communication: 5 }, pmAlignmentDetails: [] };
   }
@@ -52,7 +52,7 @@ export function computeContractorScores(project, projReports, projSiteVisits) {
   const wpCum  = computeWPCumulativeStatuses(projReports);
   const legCum = computeCumulativeStatuses(projReports) || {};
   const gcProgress = calculateProjectProgressResult(wpCum, legCum).progress;
-  const schedDev = computeScheduleDeviation(project, gcProgress);
+  const schedDev = computeScheduleDeviation(project, gcProgress, referenceDate);
   let progressPts;
   if (!schedDev) {
     progressPts = 15;

@@ -7,7 +7,7 @@ import { calculateProgressComparison, computeProgressSeries } from '../../engine
 import { calculateWorkPackageDeltas, computePhaseChangeFlags, classifyPhases } from '../../engines/progressDeltaEngine.js';
 import { computeAdditionalWorksSummary } from '../../engines/additionalWorksEngine.js';
 import { deriveWPStatusesFromOldReport, mergeOldDerivedStatuses } from '../../engines/legacyReportEngine.js';
-import { computePortfolioMissing } from '../../engines/portfolioEngine.js';
+import { computeCanonicalMissingSummary } from '../../engines/portfolioEngine.js';
 import { computeSiteVisitData, computeSiteVisitKpis } from '../../engines/siteVisitEngine.js';
 import { SCHEDULE_CONFIG } from '../../config/scheduleConfig.js';
 import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from '../../config/masterTaskLibrary.js';
@@ -120,10 +120,11 @@ export function buildWeeklyReportReviewModel({
   overallProgress = 0,
   activeTemplate = null,
   legacyWorkPackages = [],
+  canonicalResult = null,
 }) {
   const templateIssues = activeTemplate ? validateTemplate(activeTemplate) : [];
   const templateErrorIssues = templateIssues.filter(issue => issue.severity === 'error');
-  const portfolioKpis = computePortfolioMissing(selectedProject ? [selectedProject] : [], projectReports);
+  const portfolioKpis = computeCanonicalMissingSummary(canonicalResult ? [canonicalResult] : []);
   const engineOutputs = buildProgressContext({ selectedProject, selectedReport, projectReports, overallProgress });
   const additionalWorksList = computeAdditionalWorksSummary(sortReportsAscending(projectReports));
   const scopedGanttWPs = getScopedGanttWorkPackages(selectedProject?.scope ?? null);

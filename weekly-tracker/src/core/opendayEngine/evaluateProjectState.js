@@ -1,5 +1,6 @@
 /**
- * evaluateProjectState — the canonical per-project derived state.
+ * @deprecated Sprint 3 compatibility implementation. Production consumers
+ * must use runOpenDayOrchestrator(); new imports are blocked by architecture guard.
  *
  * P1.2: this is a pure extraction of the composition logic that used to live
  * inline in hooks/useAllRows.js (still the only caller). It does not
@@ -48,7 +49,8 @@ function resolveGatedTemplate(project, templatesById, activeTemplateFallback) {
  * @returns {import('./types.js').ProjectState}
  */
 export function evaluateProjectState(project, projReports, projSiteVisits = [], options = {}) {
-  const { templatesById = {}, activeTemplateFallback = null } = options;
+  const { templatesById = {}, activeTemplateFallback = null, calculatedAt = new Date().toISOString(), riskCompatibilityInput = null, canonicalScopeWPIds = null } = options;
+  const referenceDate = new Date(calculatedAt);
 
   const sorted = [...projReports].sort(
     (a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt)
@@ -58,7 +60,7 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   const latestReport = sorted[sorted.length - 1] || null;
 
   const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
-  const scopeWPIds = getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS);
+  const scopeWPIds = canonicalScopeWPIds ?? getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS);
   const phaseWeightOverrides = project?.scope?.weightOverrides ?? null;
   // v2 has no pinned-template concept (templateId/templatesById is a v1-only,
   // TemplateEditor-driven mechanism) — its "template" is instead built fresh
@@ -73,24 +75,24 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
     : estimateProgressFromStatuses(cumulativeStatuses);
 
   const progressPoints  = sorted.map((r, i) => ({ date: r.reportingDate || r.submittedAt, value: progressAtIndex(sorted, i) }));
-  const daysSinceReport = latestReport ? daysSince(latestReport.reportingDate || latestReport.submittedAt) : null;
-  const missingReport   = isMissingReport(latestReport);
-  const daysToOpening   = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
+  const daysSinceReport = latestReport ? daysSince(latestReport.reportingDate || latestReport.submittedAt, referenceDate) : null;
+  const missingReport   = isMissingReport(latestReport, referenceDate);
+  const daysToOpening   = project.targetOpeningDate ? daysUntil(project.targetOpeningDate, referenceDate) : null;
   // readiness is computed before riskScore (A3) so computeProjectRiskScore can
   // read readiness.verdict — the single source of truth for "can we actually
   // close everything in time" — rather than re-deriving it from scratch.
   const v2ReadinessOptions = isV2 ? buildV2OpeningReadinessOptions() : null;
-  const readiness       = computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate ?? null, scopeWPIds, v2ReadinessOptions);
-  const riskScore       = computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness);
+  const readiness       = computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate ?? null, scopeWPIds, v2ReadinessOptions, referenceDate);
+  const riskScore       = computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness, referenceDate, riskCompatibilityInput);
   const riskLevel       = riskScore.level;
   const priorityScore   = computePriorityScore(riskLevel, daysToOpening, missingReport);
-  const { progressComparison, prevProgressComparison } = buildWeekOverWeekComparison(project, progress, project.progressHistory ?? []);
-  const confidence      = computeConfidenceLevel(projReports, projSiteVisits, latestReport);
+  const { progressComparison, prevProgressComparison } = buildWeekOverWeekComparison(project, progress, project.progressHistory ?? [], undefined, referenceDate);
+  const confidence      = computeConfidenceLevel(projReports, projSiteVisits, latestReport, referenceDate);
   // contScore carries the contractor-vs-PM alignment/drift history (pmAlignmentScore,
   // pmAlignmentDetails - per-visit match rate over time) alongside performance/reporting
   // sub-scores. health folds riskScore + progress + contScore into one 0-100 project-health
   // number. Both via their canonical engines - no new calc here.
-  const contScore = computeContractorScores(project, projReports, projSiteVisits);
+  const contScore = computeContractorScores(project, projReports, projSiteVisits, referenceDate);
   const health    = computeProjectHealth(riskScore, progress, contScore, latestReport);
 
   return {

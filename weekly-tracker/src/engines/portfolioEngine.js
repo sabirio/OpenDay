@@ -2,8 +2,7 @@
 // Pure portfolio-level aggregations over pre-computed project rows.
 // Each function is stateless: in → out, nothing stored.
 
-import { computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isMissingReport, isBadScheduleStatus } from '../utils/reportUtils';
-import { calculateProjectProgressResult } from './progressEngine';
+import { isBadScheduleStatus } from '../utils/reportUtils';
 import { isProjectAtRisk, isProjectCritical } from '../core/insights/severity/openingSeverity.js';
 
 /** @typedef {import('../types').PortfolioKpis} PortfolioKpis */
@@ -154,21 +153,18 @@ export function computePortfolioKpis(projects, allRows, allReports) {
  * @param {Array<Record<string, any>>} reports
  * @returns {{missingCount: number, missing: Array<Record<string, any>>, blocked: number, support: number, avgProgress: number}}
  */
-export function computePortfolioMissing(projects, reports) {
-  const now  = new Date();
-  const rows = projects.map(p => {
-    const pReports  = reports.filter(r => String(r.projectId) === String(p.id));
-    const latest    = [...pReports].sort((a, b) => new Date(b.reportingDate || b.submittedAt).getTime() - new Date(a.reportingDate || a.submittedAt).getTime())[0];
-    const daysSince = latest ? Math.floor((now.getTime() - new Date(latest.reportingDate || latest.submittedAt).getTime()) / DAY_MS) : null;
-    const isMissing = isMissingReport(latest);
-    const wpCum     = computeWPCumulativeStatuses(pReports);
-    const legCum    = computeCumulativeStatuses(pReports);
-    const progress  = calculateProjectProgressResult(wpCum, legCum).progress;
-    return { project: p, latestReport: latest, daysSinceReport: daysSince, isMissing, progress };
-  });
-  const missing = rows.filter(r => r.isMissing);
-  const blocked = rows.filter(r => r.latestReport?.activitiesBlocked === "Yes").length;
-  const support = rows.filter(r => r.latestReport?.supportRequired === "Yes").length;
-  const avgProgress = rows.length > 0 ? Math.round(rows.reduce((s, r) => s + r.progress, 0) / rows.length) : 0;
+/** Portfolio-only aggregation over already-computed canonical project facts. */
+export function computeCanonicalMissingSummary(orchestratorResults = []) {
+  const rows = orchestratorResults.map(result => ({
+    project: result.snapshot.project,
+    latestReport: result.snapshot.latestContractorReport,
+    daysSinceReport: result.compatibility.legacyState.daysSinceReport,
+    isMissing: result.compatibility.legacyState.missingReport,
+    progress: result.progress.overallProgress,
+  }));
+  const missing = rows.filter(row => row.isMissing);
+  const blocked = rows.filter(row => row.latestReport?.activitiesBlocked === 'Yes').length;
+  const support = rows.filter(row => row.latestReport?.supportRequired === 'Yes').length;
+  const avgProgress = rows.length ? Math.round(rows.reduce((sum, row) => sum + row.progress, 0) / rows.length) : 0;
   return { missingCount: missing.length, missing, blocked, support, avgProgress };
 }

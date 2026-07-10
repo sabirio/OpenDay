@@ -1,12 +1,12 @@
 import { useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 // TODO wave4: legacy-report fallback (no Gantt plan) — mirrors the same dual-
 // format design documented at the top of ContractorReport.jsx. Non-trivial to
 // replace with masterTaskLibrary (different task-name vocabulary). Audited
 // Wave 4 Step 4.6.
 import { makeEmptyPMWPStatuses } from "../config/workPackages";
 import { loadScopedGanttTasks } from "../hooks/useGanttOrchestration";
-import { getLastContractorReport, submitSiteVisitModel } from "../hooks/useSiteVisitOrchestration";
+import { getLastContractorReport, submitSiteVisitModel, createClientRequestId } from "../hooks/useSiteVisitOrchestration";
 import { useAuth } from "../auth/AuthContext";
 import GanttSuccessView from "../components/sitevisit/GanttSuccessView";
 import ComparisonResultsView from "../components/sitevisit/ComparisonResultsView";
@@ -68,11 +68,12 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
   const [ganttLoading, setGanttLoading]       = useState(false);
   const [lastContractorReportId, setLastContractorReportId] = useState(null);
   const [pmWpObservations, setPmWpObservations] = useState(() => readDraft()?.pmWpObservations || {});
+  const clientRequestIdRef = useRef(readDraft()?.clientRequestId || createClientRequestId());
 
   // Persist the draft on every edit — cheap, plain-JSON state, best-effort.
   useEffect(() => {
     try {
-      localStorage.setItem(draftKey, JSON.stringify({ form, pmWpObservations, photoUrls, savedAt: new Date().toISOString() }));
+      localStorage.setItem(draftKey, JSON.stringify({ form, pmWpObservations, photoUrls, clientRequestId: clientRequestIdRef.current, savedAt: new Date().toISOString() }));
     } catch { /* private browsing / quota exceeded */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, pmWpObservations, photoUrls]);
@@ -151,6 +152,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
     setErrors([]);
     setPhotoUrls([]);
     setSubmitted(false);
+    clientRequestIdRef.current = createClientRequestId();
   }
 
   async function submit() {
@@ -178,6 +180,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
           overallNote:            form.observations || '',
           pmScheduleAssessment:   form.pmScheduleAssessment || null,
           photoUrls,
+          clientRequestId: clientRequestIdRef.current,
         });
         setSavedVisit({ ...form, ...result.siteVisit, discrepancies: result.discrepancies, _ganttFormat: true });
       } else {
@@ -194,6 +197,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
         setSavedVisit(saved);
       }
       clearDraft();
+      clientRequestIdRef.current = createClientRequestId();
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {

@@ -1,10 +1,12 @@
 import { compressImage } from '../../utils/compressImage';
 import { getCurrentUserId, uploadPhotoToBucket, removePhotoPaths, getSignedPhotoUrls } from '../../services/photoService';
+import { buildEvidencePath } from '../write/evidencePath.js';
 
 export { getCurrentUserId, removePhotoPaths, getSignedPhotoUrls };
 
 const UPLOAD_TIMEOUT_MS = 20_000;
 const RETRY_BACKOFF_MS = 1_500;
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 // Neither compressImage() nor supabase-js's storage.upload() enforce their own
 // timeout — a stalled network request (bad mobile connection, or a backend
@@ -19,14 +21,16 @@ function withTimeout(promise, ms, message) {
   ]);
 }
 
-async function attemptUpload(projectId, userId, file, seq) {
+async function attemptUpload(projectId, userId, file) {
   const compressed = await withTimeout(
     compressImage(file),
     UPLOAD_TIMEOUT_MS,
     'Photo processing timed out — try a different photo.'
   );
-  const yearMonth = new Date().toISOString().slice(0, 7); // "2025-07"
-  const path = `${projectId}/${yearMonth}/${userId}_${Date.now()}_${seq}.jpg`;
+  if (!compressed?.size || compressed.size > MAX_UPLOAD_BYTES) {
+    throw new Error('Processed photo must be between 1 byte and 5 MB.');
+  }
+  const path = buildEvidencePath(projectId, userId, new Date(), globalThis.crypto.randomUUID());
   return withTimeout(
     uploadPhotoToBucket(path, compressed),
     UPLOAD_TIMEOUT_MS,
@@ -39,11 +43,11 @@ async function attemptUpload(projectId, userId, file, seq) {
  * exact policy PhotoUpload.jsx applies per-file so N photos in a batch don't
  * all appear stuck when only one of them is.
  */
-export async function uploadPhotoWithRetry(projectId, userId, file, seq) {
+export async function uploadPhotoWithRetry(projectId, userId, file, _seq) {
   try {
-    return await attemptUpload(projectId, userId, file, seq);
+    return await attemptUpload(projectId, userId, file);
   } catch {
     await new Promise(r => setTimeout(r, RETRY_BACKOFF_MS));
-    return attemptUpload(projectId, userId, file, seq);
+    return attemptUpload(projectId, userId, file);
   }
 }

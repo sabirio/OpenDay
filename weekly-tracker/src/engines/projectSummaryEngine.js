@@ -70,8 +70,8 @@ export function getScheduleRiskLabel(scheduleRisk) {
  * Compute a high-level project summary for the detail drawer.
  * Returns: { contractor, pmVisit, risk, opening }
  */
-export function computeProjectSummary(project, projReports, projSiteVisits, progress, wpCumulativeStatuses) {
-  const now = new Date();
+export function computeProjectSummary(project, projReports, projSiteVisits, progress, wpCumulativeStatuses, referenceDate = new Date()) {
+  const now = new Date(referenceDate);
 
   // ── 1. Contractor Report ──────────────────────────────────────────────────
   const sorted = [...projReports].sort(
@@ -81,7 +81,7 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
   const daysSinceReport = latest
     ? Math.floor((now - new Date(latest.reportingDate || latest.submittedAt).getTime()) / DAY_MS)
     : null;
-  const missingReport = isMissingReport(latest);
+  const missingReport = isMissingReport(latest, now);
 
   const phaseProgress = wpCumulativeStatuses?.workPackageStatuses
     ? (() => {
@@ -188,7 +188,8 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
     wpCumulativeStatuses,
     project.targetOpeningDate || null,
     scopeWPIds,
-    templateOptions
+    templateOptions,
+    now
   );
   const openingStatus = openingReadiness.status;
 
@@ -197,7 +198,7 @@ export function computeProjectSummary(project, projReports, projSiteVisits, prog
   // achievable" +20pt factor (riskEngine.js) can never fire here, so this
   // drawer's risk.level/score could diverge from evaluateProjectState.js's
   // canonical Home/Dashboard value for the identical project.
-  const riskScore = computeProjectRiskScore(project, projReports, progress, projSiteVisits || [], openingReadiness);
+  const riskScore = computeProjectRiskScore(project, projReports, progress, projSiteVisits || [], openingReadiness, now);
   const riskLevel = getRiskLevel(riskScore.score);
 
   const sched = latest?.projectScheduleStatus;

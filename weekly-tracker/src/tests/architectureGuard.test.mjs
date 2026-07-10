@@ -143,6 +143,46 @@ check(
   staleAllowlistEntries.length === 0
 );
 
+// Canonical Core boundary: production consumers outside core/canonical must
+// use its public index, never reach into normalization/engine internals.
+const canonicalBoundaryViolations = sourceFiles
+  .filter(({ rel }) => !rel.startsWith('core/canonical/'))
+  .flatMap(({ rel, text }) => [...text.matchAll(/from\s+['"]([^'"]*core\/canonical[^'"]*)['"]/g)]
+    .filter(([, spec]) => !spec.endsWith('/canonical') && !spec.endsWith('/canonical/index.js'))
+    .map(([, spec]) => `${rel} -> ${spec}`));
+check(
+  `canonical core is consumed through its public index (violations: ${canonicalBoundaryViolations.join(', ') || 'none'})`,
+  canonicalBoundaryViolations.length === 0
+);
+
+const deprecatedProjectStateImporters = sourceFiles
+  .filter(({ rel, text }) => rel !== 'core/canonical/runOpenDayOrchestrator.js' && /from\s+['"][^'"]*opendayEngine\/evaluateProjectState/.test(text))
+  .map(({ rel }) => rel);
+check(
+  `evaluateProjectState is compatibility-only (new production importers: ${deprecatedProjectStateImporters.join(', ') || 'none'})`,
+  deprecatedProjectStateImporters.length === 0
+);
+
+const riskEngineText = readFileSync(path.join(srcRoot, 'engines/riskEngine.js'), 'utf8');
+check('riskEngine does not import raw progress calculators', !/from\s+['"][^'"]*progressEngine/.test(riskEngineText));
+
+const portfolioEngineText = readFileSync(path.join(srcRoot, 'engines/portfolioEngine.js'), 'utf8');
+check('portfolioEngine does not import raw project progress calculators', !/from\s+['"][^'"]*progressEngine/.test(portfolioEngineText));
+
+for (const rel of ['pages/ContractorReport.jsx', 'pages/SiteVisitReport.jsx']) {
+  const text = readFileSync(path.join(srcRoot, rel), 'utf8');
+  check(`${rel} does not call Supabase or low-level Tier-1 write primitives`,
+    !/\bsupabase\b|insertSiteVisitHeader|insertSiteVisitWPObservations|insertSiteVisitDiscrepancies|submitReport\(/.test(text));
+}
+
+const browserSource = sourceFiles.filter(({ rel }) => !rel.startsWith('migrations/') && !rel.startsWith('scripts/'));
+const serviceRoleLeaks = browserSource.filter(({ text }) => /SUPABASE_SERVICE_ROLE_KEY|service_role/.test(text)).map(({ rel }) => rel);
+check(`browser runtime contains no service-role credential references (found: ${serviceRoleLeaks.join(', ') || 'none'})`, serviceRoleLeaks.length === 0);
+
+const siteVisitSubmitText = readFileSync(path.join(srcRoot, 'core/siteVisit/submitSiteVisitModel.js'), 'utf8');
+check('site visit application command uses one atomic service and no legacy multi-write imports',
+  /submitSiteVisitAtomic/.test(siteVisitSubmitText) && !/insertSiteVisitHeader|insertSiteVisitWPObservations|insertSiteVisitDiscrepancies|updateGanttDiscrepancy/.test(siteVisitSubmitText));
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 
 // -----------------------------------------------------------------------------

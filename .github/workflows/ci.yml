@@ -2,8 +2,8 @@ name: CI
 
 on:
   pull_request:
-  push:
     branches: [main]
+  push:
 
 jobs:
   verify:
@@ -38,16 +38,14 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Architecture guard
+        run: npm run check:architecture
+
       - name: Build
-        if: ${{ env.HAS_SUPABASE_APP_ENV == 'true' }}
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
-
-      - name: Skip build/e2e notice
-        if: ${{ env.HAS_SUPABASE_APP_ENV != 'true' }}
-        run: echo "Skipping build/e2e because VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is not configured."
 
       - name: Install Playwright browser
         if: ${{ env.HAS_E2E_ENV == 'true' }}

@@ -13,6 +13,7 @@ export function useWeeklyReportReviewModel(input) {
       input.overallProgress,
       input.activeTemplate,
       input.legacyWorkPackages,
+      input.canonicalResult,
     ]
   );
 }

@@ -42,6 +42,25 @@ export async function insertSiteVisitDiscrepancies(rows) {
   if (error) console.error('Discrepancy save error (non-fatal):', error);
 }
 
+export async function submitSiteVisitAtomic(projectId, contractorReportId, observations, meta) {
+  const { data, error } = await supabase.rpc('submit_site_visit_atomic', {
+    p_project_id: projectId,
+    p_contractor_report_id: contractorReportId || null,
+    p_visit_date: meta.visitDate,
+    p_observations: observations,
+    p_meta: {
+      overallNote: meta.overallNote || null,
+      pmScheduleAssessment: meta.pmScheduleAssessment || null,
+      photoUrls: meta.photoUrls || [],
+      calculatedAt: meta.calculatedAt,
+      calculationVersion: meta.calculationVersion,
+    },
+    p_client_request_id: meta.clientRequestId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 // ─── Fetch ────────────────────────────────────────────────────────────────────
 
 function mapRow(row) {

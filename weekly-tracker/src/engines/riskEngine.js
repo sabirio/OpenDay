@@ -1,5 +1,5 @@
-import { computeCumulativeStatuses, computeWPCumulativeStatuses, getStatusScore, DAY_MS, daysSince, daysUntil, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
-import { calculateProjectProgressResult } from "./progressEngine";
+import { getStatusScore, DAY_MS, daysSince, daysUntil, isBadScheduleStatus, isSevereScheduleStatus } from "../utils/reportUtils";
+import { computeLegacyRiskTrend } from './riskCompatibilityEngine.js';
 import { computeExpectedPct } from "../utils/scheduleUtils";
 import { computeCalendarSpi } from "./spiEngine";
 import { getSPIStatus } from "../config/statusColors";
@@ -106,11 +106,11 @@ export function computeAdjustedRisk(riskScore, driftRiskFactor) {
 
 // ── Schedule Deviation ────────────────────────────────────────────────────────
 
-export function computeScheduleDeviation(project, progress) {
+export function computeScheduleDeviation(project, progress, referenceDate = new Date()) {
   const start = project.constructionStartDate ? new Date(project.constructionStartDate) : null;
   const end   = project.constructionEndDate   ? new Date(project.constructionEndDate)
               : project.targetOpeningDate     ? new Date(project.targetOpeningDate) : null;
-  const now = new Date();
+  const now = new Date(referenceDate);
   if (!start || !end || end <= start) return null;
   const totalDays   = Math.ceil((end - start) / DAY_MS);
   const elapsedDays = Math.max(0, Math.ceil((now - start) / DAY_MS));
@@ -126,34 +126,15 @@ export function computeScheduleDeviation(project, progress) {
 
 // ── Trend ─────────────────────────────────────────────────────────────────────
 
-export function computeTrend(sortedReports) {
-  if (sortedReports.length < 2) return { trend: "Insufficient data", icon: "—", color: "var(--text-muted)", avgDiff: 0 };
-  const points = sortedReports.map((_, i) => {
-    const slice = sortedReports.slice(0, i + 1);
-    const wpCum  = computeWPCumulativeStatuses(slice);
-    const legCum = computeCumulativeStatuses(slice);
-    return calculateProjectProgressResult(wpCum, legCum).progress;
-  });
-  const recent = points.slice(-Math.min(4, points.length));
-  const diffs  = recent.slice(1).map((v, i) => v - recent[i]);
-  if (!diffs.length) return { trend: "Insufficient data", icon: "—", color: "var(--text-muted)", avgDiff: 0 };
-  const avgDiff = Math.round(diffs.reduce((s, d) => s + d, 0) / diffs.length);
-  const lastDiff = diffs[diffs.length - 1];
-  const prevAvg  = diffs.length >= 2 ? diffs.slice(0, -1).reduce((s, d) => s + d, 0) / (diffs.length - 1) : avgDiff;
-  const velocitySlowing = diffs.length >= 2 && lastDiff < prevAvg - 2;
-  if (avgDiff >= 5)  return { trend: "Improving",       icon: "↑",  color: "var(--status-done)", avgDiff };
-  if (avgDiff >= 1)  return { trend: velocitySlowing ? "Acceleration Loss" : "Stable", icon: velocitySlowing ? "⚡" : "→", color: velocitySlowing ? "var(--status-warn)" : "var(--accent)", avgDiff };
-  if (avgDiff >= -2) return { trend: "Stalling",        icon: "⚠",  color: "var(--status-warn)", avgDiff };
-  return               { trend: "Deteriorating",        icon: "↓",  color: "var(--status-alert)", avgDiff };
-}
+export const computeTrend = computeLegacyRiskTrend;
 
 // ── No-Report Risk (dynamic, time-aware) ─────────────────────────────────────
 // Replaces the old fixed score=35 for projects with zero submitted reports.
 // Factors: expected progress by elapsed time, opening proximity, construction lag.
 
-function computeNoReportsRisk(project) {
+function computeNoReportsRisk(project, referenceDate = new Date()) {
   const W   = RISK_WEIGHTS.noReports;
-  const now = new Date();
+  const now = new Date(referenceDate);
   let score     = W.base;
   const factors = [{ name: "No reports submitted", value: "Unknown", pts: W.base }];
 
@@ -194,7 +175,7 @@ function computeNoReportsRisk(project) {
 
   // Opening proximity penalty — scales with how close the deadline is
   if (project.targetOpeningDate) {
-    const daysToOpen = daysUntil(project.targetOpeningDate);
+    const daysToOpen = daysUntil(project.targetOpeningDate, now);
     if (daysToOpen < 0) {
       score += W.openingOverdue;
       factors.push({ name: "Opening overdue — no reports", value: `${Math.abs(daysToOpen)}d overdue`, pts: W.openingOverdue });
@@ -220,15 +201,15 @@ function computeNoReportsRisk(project) {
 // All scoring weights come from RISK_WEIGHTS (riskWeights.js).
 // Extend that config to change scoring without touching engine logic.
 
-export function computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness = null) {
+export function computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness = null, referenceDate = new Date(), compatibilityInput = null) {
   // Dynamic risk for projects without reports
-  if (!projReports.length) return computeNoReportsRisk(project);
+  if (!projReports.length) return computeNoReportsRisk(project, referenceDate);
 
   const sorted = [...projReports].sort(
     (a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt)
   );
   const latest = sorted[sorted.length - 1];
-  const now    = new Date();
+  const now    = new Date(referenceDate);
   let score    = 0;
   const factors = [];
 
@@ -270,7 +251,7 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
   if (riskPts > 0) factors.push({ name: "Risk indicators", value: `${riskCount} reported`, pts: riskPts });
 
   // 5. Report staleness
-  const staleDays = daysSince(latest.reportingDate || latest.submittedAt);
+  const staleDays = daysSince(latest.reportingDate || latest.submittedAt, now);
   const S = RISK_WEIGHTS.reportStaleness;
   const stalePts = staleDays > 30 ? S.days30 : staleDays > 21 ? S.days21 : staleDays > 14 ? S.days14 : staleDays > 9 ? S.days9 : 0;
   score += stalePts;
@@ -278,7 +259,7 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
 
   // 6. Opening proximity
   if (project.targetOpeningDate) {
-    const daysToOpen = daysUntil(project.targetOpeningDate);
+    const daysToOpen = daysUntil(project.targetOpeningDate, now);
     const O = RISK_WEIGHTS.openingProximity;
     let openPts = daysToOpen < 0 ? O.overdue : daysToOpen < 21 ? O.days21 : daysToOpen < 45 ? O.days45 : daysToOpen < 90 ? O.days90 : daysToOpen < 180 ? O.days180 : 0;
     if (daysToOpen < 30 && progress < 80) openPts = Math.min(O.max, openPts + O.lowProgressBonus);
@@ -327,14 +308,14 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
   }
 
   // 9. PM site visit mismatch — overstatements and hidden risk
-  if (projSiteVisits && projSiteVisits.length > 0) {
-    const latestVisit = [...projSiteVisits].sort(
+  if (compatibilityInput || (projSiteVisits && projSiteVisits.length > 0)) {
+    const fallbackVisit = compatibilityInput ? null : [...projSiteVisits].sort(
       (a, b) => new Date(b.visitDate || b.submittedAt) - new Date(a.visitDate || a.submittedAt)
     )[0];
-    const visitDate = new Date(latestVisit.visitDate || latestVisit.submittedAt);
-    const gcAtVisit = sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || latest;
-    const items      = computePmAlignmentItems(gcAtVisit, latestVisit);
-    const overstated = items.filter(i => i.overstate).length;
+    const visitDate = fallbackVisit ? new Date(fallbackVisit.visitDate || fallbackVisit.submittedAt) : null;
+    const gcAtVisit = fallbackVisit ? (sorted.filter(r => new Date(r.reportingDate || r.submittedAt) <= visitDate).slice(-1)[0] || latest) : null;
+    const items = fallbackVisit ? computePmAlignmentItems(gcAtVisit, fallbackVisit) : [];
+    const overstated = compatibilityInput?.overstatedCount ?? items.filter(i => i.overstate).length;
     const PM = RISK_WEIGHTS.pmMismatch;
 
     if (overstated > 0) {
@@ -342,16 +323,18 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
       score += pts;
       factors.push({ name: "PM Site Visit mismatch", value: `${overstated} items overstated`, pts });
     }
-    const pmBad  = isBadScheduleStatus(latestVisit.pmScheduleAssessment);
-    const gcGood = latest.projectScheduleStatus === "On Track";
-    const gcBad  = latest.projectScheduleStatus === "At Risk";
+    const pmAssessment = compatibilityInput?.pmScheduleAssessment ?? fallbackVisit?.pmScheduleAssessment ?? null;
+    const gcSchedule = compatibilityInput?.contractorScheduleStatus ?? latest.projectScheduleStatus;
+    const pmBad  = isBadScheduleStatus(pmAssessment);
+    const gcGood = gcSchedule === "On Track";
+    const gcBad  = gcSchedule === "At Risk";
     if (pmBad && gcGood) {
-      const pts = isSevereScheduleStatus(latestVisit.pmScheduleAssessment) ? PM.hiddenRiskSevere : PM.hiddenRiskModerate;
+      const pts = isSevereScheduleStatus(pmAssessment) ? PM.hiddenRiskSevere : PM.hiddenRiskModerate;
       score += pts;
-      factors.push({ name: "Hidden risk (PM vs GC)", value: `PM: ${latestVisit.pmScheduleAssessment}, GC: On Track`, pts });
-    } else if (isSevereScheduleStatus(latestVisit.pmScheduleAssessment) && gcBad) {
+      factors.push({ name: "Hidden risk (PM vs GC)", value: `PM: ${pmAssessment}, GC: On Track`, pts });
+    } else if (isSevereScheduleStatus(pmAssessment) && gcBad) {
       score += PM.severityGap;
-      factors.push({ name: "Severity gap (PM vs GC)", value: `PM: ${latestVisit.pmScheduleAssessment}, GC: At Risk`, pts: PM.severityGap });
+      factors.push({ name: "Severity gap (PM vs GC)", value: `PM: ${pmAssessment}, GC: At Risk`, pts: PM.severityGap });
     }
   }
 

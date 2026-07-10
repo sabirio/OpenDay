@@ -18,13 +18,16 @@ export async function submitReport(projectId, wpProgressArray, meta = {}) {
     masterReportId: meta.masterReportId ?? null,
     reportSnapshot: meta.reportSnapshot ?? null,
     photoUrls: meta.photoUrls || [],
+    calculatedAt: meta.calculatedAt,
+    calculationVersion: meta.calculationVersion,
   };
 
-  const { data, error } = await supabase.rpc('submit_contractor_report', {
+  const { data, error } = await supabase.rpc('submit_contractor_report_atomic', {
     p_project_id: projectId,
     p_report_date: reportDate,
     p_wp_progress: wpProgressArray,
     p_meta: rpcMeta,
+    p_client_request_id: meta.clientRequestId,
   });
 
   if (error) throw error;
@@ -33,6 +36,7 @@ export async function submitReport(projectId, wpProgressArray, meta = {}) {
     report: data?.report,
     wpLineItems: data?.wpLineItems || [],
     lineItemCount: data?.lineItemCount ?? 0,
+    idempotentReplay: data?.idempotentReplay === true,
   };
 }
 
