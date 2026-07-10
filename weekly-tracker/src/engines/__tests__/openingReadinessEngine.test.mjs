@@ -15,7 +15,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { computeOpeningReadiness, daysOverdueCount } = await import('../openingReadinessEngine.js');
+const { computeOpeningReadiness, daysOverdueCount, roundUpDays, shortfallDays } = await import('../openingReadinessEngine.js');
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -178,6 +178,20 @@ console.log('\nG) daysOverdueCount');
   check('negative days -> positive magnitude', daysOverdueCount(-5) === 5);
   check('zero days -> 0', daysOverdueCount(0) === 0);
   check('positive days -> unchanged magnitude', daysOverdueCount(12) === 12);
+}
+
+console.log('\nH) roundUpDays');
+{
+  check('rounds up fractional days', roundUpDays(4.1) === 5);
+  check('whole days unchanged', roundUpDays(4) === 4);
+  check('0 -> 0', roundUpDays(0) === 0);
+}
+
+console.log('\nI) shortfallDays');
+{
+  check('negative slack -> positive shortfall, rounded up', shortfallDays(-4.5) === 5);
+  check('slack exactly 0 -> 0', shortfallDays(0) === 0);
+  check('positive slack -> 0 or negative (not a real shortfall)', shortfallDays(3) === -3);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

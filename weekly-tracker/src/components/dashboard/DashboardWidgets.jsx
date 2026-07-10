@@ -1,4 +1,5 @@
 import { RISK_LEVEL_COLORS } from '../../config/statusColors';
+import { minOf, maxOf, spanOrOne, scaleToRange, valueToSparkY, labelStep } from '../../hooks/useChartMathPresentation';
 
 const T = {
   bgSurface:  'var(--bg-surface)',
@@ -40,12 +41,13 @@ export function LineChart({ points = [], width = 480, height = 120, color = 'var
   const pad = { top: 10, right: 14, bottom: 28, left: 34 };
   const W = width - pad.left - pad.right, H = height - pad.top - pad.bottom;
   const xs = valid.map(p => new Date(p.date).getTime());
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const sx = x => pad.left + ((x - minX) / Math.max(1, maxX - minX)) * W;
-  const sy = y => pad.top + H - (y / 100) * H;
+  const minX = minOf(xs), maxX = maxOf(xs);
+  const rangeX = spanOrOne(minX, maxX);
+  const sx = x => pad.left + scaleToRange(x, minX, rangeX, W);
+  const sy = y => pad.top + valueToSparkY(y, 0, 100, H);
   const poly = valid.map(p => `${sx(new Date(p.date).getTime())},${sy(p.value)}`).join(' ');
   const yT = [0, 50, 100];
-  const step = Math.max(1, Math.floor(valid.length / 4));
+  const step = labelStep(valid.length);
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width="100%" style={{ display: 'block', overflow: 'visible' }}>
       {yT.map(v => <line key={v} x1={pad.left} y1={sy(v)} x2={pad.left + W} y2={sy(v)} stroke={T.border} strokeWidth={0.5} />)}

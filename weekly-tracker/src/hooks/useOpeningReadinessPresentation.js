@@ -1,1 +1,1 @@
-export { daysOverdueCount } from '../core/presentation/openingReadinessPresentationModel.js';
+export { daysOverdueCount, roundUpDays, shortfallDays } from '../core/presentation/openingReadinessPresentationModel.js';

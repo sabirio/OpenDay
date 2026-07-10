@@ -10,4 +10,7 @@ export {
   minOf,
   maxOf,
   roundPct,
+  spanOrOne,
+  scaleToRange,
+  labelStep,
 } from '../core/presentation/chartMathPresentationModel.js';

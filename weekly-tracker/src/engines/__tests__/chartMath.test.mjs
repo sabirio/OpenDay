@@ -14,6 +14,9 @@ import {
   minOf,
   maxOf,
   roundPct,
+  spanOrOne,
+  scaleToRange,
+  labelStep,
 } from '../chartMath.js';
 
 let pass = 0, fail = 0;
@@ -105,6 +108,30 @@ console.log('\n9) roundPct');
   check('roundPct(49.4) = 49', roundPct(49.4) === 49);
   check('roundPct(0) = 0', roundPct(0) === 0);
   check('roundPct(-1.5) rounds toward +Infinity (Math.round semantics)', roundPct(-1.5) === -1);
+}
+
+// ── spanOrOne ─────────────────────────────────────────────────────────────────
+console.log('\n10) spanOrOne');
+{
+  check('normal range unchanged', spanOrOne(0, 10) === 10);
+  check('flat domain (min===max) floors to 1', spanOrOne(5, 5) === 1);
+  check('inverted domain still floors to 1 (never negative)', spanOrOne(10, 5) === 1);
+}
+
+// ── scaleToRange ─────────────────────────────────────────────────────────────
+console.log('\n11) scaleToRange');
+{
+  check('value=min -> 0', scaleToRange(0, 0, 100, 300) === 0);
+  check('value=min+range -> full width', scaleToRange(100, 0, 100, 300) === 300);
+  check('midpoint -> half width', scaleToRange(50, 0, 100, 300) === 150);
+}
+
+// ── labelStep ────────────────────────────────────────────────────────────────
+console.log('\n12) labelStep');
+{
+  check('20 points, 4 max labels -> step 5', labelStep(20, 4) === 5);
+  check('fewer points than maxLabels -> step floors to 1', labelStep(3, 4) === 1);
+  check('default maxLabels is 4', labelStep(12) === 3);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

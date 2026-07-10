@@ -1,5 +1,6 @@
 import { formatDate } from '../../utils/reportUtils';
 import { getOpeningUrgencyColor, getReportAgeColor } from '../../config/statusColors';
+import { daysOverdueCount } from '../../hooks/useOpeningReadinessPresentation';
 import { SchedBadge, RiskBadge } from './DashboardWidgets';
 import { useStatusMatrixRows } from '../../hooks/useStatusMatrixRows';
 
@@ -82,7 +83,7 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
                   <td>{alerts.some(a => String(a.pid) === String(project.id)) ? <span style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--status-alert-bg)', color: 'var(--status-alert)', border: '1px solid var(--border)' }}>Yes</span> : <span style={{ fontSize: 12, color: 'var(--status-done)', fontWeight: 600 }}>No</span>}</td>
                   <td style={{ fontSize: 12, fontWeight: 600, color: dToC, whiteSpace: 'nowrap' }}>{project.targetOpeningDate ? formatDate(project.targetOpeningDate) : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                   <td style={{ fontWeight: 700, fontSize: 12, color: dToC, whiteSpace: 'nowrap' }}>
-                    {daysToOpening === null ? '—' : daysToOpening < 0 ? `${Math.abs(daysToOpening)}d OVR` : daysToOpening === 0 ? 'Today' : `${daysToOpening}d`}
+                    {daysToOpening === null ? '—' : daysToOpening < 0 ? `${daysOverdueCount(daysToOpening)}d OVR` : daysToOpening === 0 ? 'Today' : `${daysToOpening}d`}
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                   <td>{reportTag({ latestReport, daysSinceReport, missingReport })}</td>

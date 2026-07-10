@@ -158,6 +158,17 @@ export function daysOverdueCount(daysToOpening) {
   return Math.abs(daysToOpening);
 }
 
+/** Whole-days-remaining, rounded up — TimelineFlag's "Needs ~Xd" / criticalChain
+ * "Xd" readouts and this engine's own NOT_ACHIEVABLE/TIGHT reason text. */
+export function roundUpDays(days) {
+  return Math.ceil(days);
+}
+
+/** How many days short of slack a NOT_ACHIEVABLE verdict is, for "short by Xd". */
+export function shortfallDays(slack) {
+  return Math.ceil(-slack);
+}
+
 /**
  * Compute opening readiness from latest cumulative WP statuses.
  *
@@ -234,11 +245,11 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate,
   if (status === 'No Date') {
     reasons.push({ type: 'neutral', text: 'No target opening date set', source: 'schedule' });
   } else if (status === 'Overdue') {
-    reasons.push({ type: 'critical', text: `Opening date overdue by ${Math.abs(daysToOpening)}d`, source: 'schedule' });
+    reasons.push({ type: 'critical', text: `Opening date overdue by ${daysOverdueCount(daysToOpening)}d`, source: 'schedule' });
   } else if (verdict === 'NOT_ACHIEVABLE') {
-    reasons.push({ type: 'critical', text: `Not achievable — needs ~${Math.ceil(requiredDays)}d to close remaining blockers, only ${daysToOpening}d left (short by ${Math.ceil(-slack)}d)`, source: 'schedule' });
+    reasons.push({ type: 'critical', text: `Not achievable — needs ~${roundUpDays(requiredDays)}d to close remaining blockers, only ${daysToOpening}d left (short by ${shortfallDays(slack)}d)`, source: 'schedule' });
   } else if (verdict === 'TIGHT') {
-    reasons.push({ type: 'warning', text: `Tight — needs ~${Math.ceil(requiredDays)}d to close remaining blockers, ${daysToOpening}d left`, source: 'schedule' });
+    reasons.push({ type: 'warning', text: `Tight — needs ~${roundUpDays(requiredDays)}d to close remaining blockers, ${daysToOpening}d left`, source: 'schedule' });
   } else if (status === 'Critical') {
     reasons.push({ type: 'critical', text: `Critical opening: ${daysToOpening}d remaining`, source: 'schedule' });
   } else if (status === 'At Risk') {

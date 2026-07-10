@@ -13,19 +13,15 @@ import { sortInsights }         from '../insight.js';
  * @returns {import('../insight.js').Insight[]}
  */
 export function buildHomeInsights({ rows, alerts, commands, projects }) {
-  const codeToId = projects.reduce((acc, p) => {
-    if (p.storeCode) acc[p.storeCode] = p.id;
-    return acc;
-  }, {});
+  const codeToId = Object.fromEntries(
+    projects.filter(p => p.storeCode).map(p => [p.storeCode, p.id])
+  );
 
   // Build confidence lookup keyed by projectId (UUID).
   // rows come from useAllRows which computes confidence per project.
-  const confidenceByProjectId = rows.reduce((acc, row) => {
-    if (row.project?.id && row.confidence) {
-      acc[row.project.id] = row.confidence;
-    }
-    return acc;
-  }, {});
+  const confidenceByProjectId = Object.fromEntries(
+    rows.filter(row => row.project?.id && row.confidence).map(row => [row.project.id, row.confidence])
+  );
 
   const merged = mergeInsights(
     alertsToInsights(alerts),

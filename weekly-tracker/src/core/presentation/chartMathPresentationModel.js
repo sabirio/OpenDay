@@ -10,4 +10,7 @@ export {
   minOf,
   maxOf,
   roundPct,
+  spanOrOne,
+  scaleToRange,
+  labelStep,
 } from '../../engines/chartMath.js';

@@ -1,6 +1,7 @@
 import { KpiCard } from './DashboardWidgets';
 import Icon from '../shared/Icon';
 import { formatDate } from '../../utils/reportUtils';
+import { maxOf } from '../../hooks/useChartMathPresentation';
 import { useDashboardSummaryPanelModel } from '../../hooks/useDashboardSummaryPanelModel';
 
 const DONUT_SEGMENTS = [
@@ -14,7 +15,7 @@ const DONUT_SEGMENTS = [
 function SmallDonut({ counts, total }) {
   const r = 20, cx = 32, cy = 32, sw = 9;
   const circ = 2 * Math.PI * r;
-  const safeTotal = Math.max(total, 1);
+  const safeTotal = maxOf([total, 1]);
   const allOnTrack = total > 0 && (counts['On Track'] ?? 0) === total;
 
   let cumOffset = 0;

@@ -1,4 +1,5 @@
 import { calculateProgressDelta } from '../../engines/progressDeltaEngine.js';
+import { roundPct } from '../../engines/chartMath.js';
 
 function currentPhaseLabel(row) {
   const { cumulativeStatuses, latestReport } = row;
@@ -9,7 +10,7 @@ export function buildStatusMatrixRows(rows, snapshotData = {}, snapshotMode = fa
   return (rows ?? []).map((row) => {
     const { project, progress } = row;
     const snapRow = snapshotMode ? snapshotData[project.id] : null;
-    const displayProgress = snapRow != null ? Math.round(snapRow.overall_progress) : progress;
+    const displayProgress = snapRow != null ? roundPct(snapRow.overall_progress) : progress;
     const noSnapData = snapshotMode && snapRow == null;
     const delta = !snapshotMode
       ? calculateProgressDelta(progress, project.progressHistory)

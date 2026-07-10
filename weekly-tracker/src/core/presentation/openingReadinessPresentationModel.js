@@ -1,1 +1,1 @@
-export { daysOverdueCount } from '../../engines/openingReadinessEngine.js';
+export { daysOverdueCount, roundUpDays, shortfallDays } from '../../engines/openingReadinessEngine.js';

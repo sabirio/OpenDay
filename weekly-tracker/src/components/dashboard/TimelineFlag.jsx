@@ -1,4 +1,5 @@
 import { formatDate } from '../../utils/reportUtils';
+import { daysOverdueCount, roundUpDays, shortfallDays } from '../../hooks/useOpeningReadinessPresentation';
 
 const OPEN_STYLES = {
   Ready:     { color: 'var(--status-done)',  bg: 'var(--status-done-bg)'  },
@@ -38,7 +39,7 @@ export default function TimelineFlag({ opening }) {
         <>
           <div style={{ textAlign: 'center', marginBottom: 12 }}>
             <div style={{ fontSize: 46, fontWeight: 800, color: os.color, lineHeight: 1 }}>
-              {opening.daysToOpening < 0 ? `${Math.abs(opening.daysToOpening)}d` : opening.daysToOpening === 0 ? 'Today' : `${opening.daysToOpening}d`}
+              {opening.daysToOpening < 0 ? `${daysOverdueCount(opening.daysToOpening)}d` : opening.daysToOpening === 0 ? 'Today' : `${opening.daysToOpening}d`}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 3 }}>{opening.daysToOpening < 0 ? 'OVERDUE' : opening.daysToOpening === 0 ? 'Opens today' : 'to opening'}</div>
           </div>
@@ -65,11 +66,11 @@ export default function TimelineFlag({ opening }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: vs.color }}>{vs.label}</span>
                 <span style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: vs.bg, color: vs.color, border: '1px solid var(--border)' }}>
-                  {opening.slack >= 0 ? `+${opening.slack}d slack` : `short ${Math.ceil(-opening.slack)}d`}
+                  {opening.slack >= 0 ? `+${opening.slack}d slack` : `short ${shortfallDays(opening.slack)}d`}
                 </span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: opening.criticalChain?.length ? 10 : 0 }}>
-                Needs ~{Math.ceil(opening.requiredDays)}d to close remaining blockers · {opening.daysToOpening}d left
+                Needs ~{roundUpDays(opening.requiredDays)}d to close remaining blockers · {opening.daysToOpening}d left
               </div>
 
               {opening.criticalChain?.length > 0 && (
@@ -86,7 +87,7 @@ export default function TimelineFlag({ opening }) {
                           <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{ROLE_LABEL[b.responsibleRole] || b.responsibleRole}</span>
                         )}
                         <span style={{ color: b.level === 'critical' ? 'var(--status-alert)' : 'var(--status-warn)', fontWeight: 700, flexShrink: 0, minWidth: 32, textAlign: 'right' }}>
-                          {Math.ceil(b.remainingDays)}d
+                          {roundUpDays(b.remainingDays)}d
                         </span>
                       </div>
                     ))}

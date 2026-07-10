@@ -1,5 +1,6 @@
 import { formatDate } from '../../utils/reportUtils';
 import { getOpeningUrgencyColor } from '../../config/statusColors';
+import { daysOverdueCount } from '../../hooks/useOpeningReadinessPresentation';
 import { SchedBadge, RiskBadge } from './DashboardWidgets';
 
 export default function OverviewTab({ allRows, onSelect }) {
@@ -32,7 +33,7 @@ export default function OverviewTab({ allRows, onSelect }) {
                           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{project.shoppingMallName}</div>
                         </td>
                         <td style={{ fontSize: 13, color: dToC, fontWeight: 600 }}>{formatDate(project.targetOpeningDate)}</td>
-                        <td style={{ fontSize: 14, fontWeight: 800, color: dToC }}>{daysToOpening < 0 ? `${Math.abs(daysToOpening)}d OVR` : daysToOpening === 0 ? 'Today' : `${daysToOpening}d`}</td>
+                        <td style={{ fontSize: 14, fontWeight: 800, color: dToC }}>{daysToOpening < 0 ? `${daysOverdueCount(daysToOpening)}d OVR` : daysToOpening === 0 ? 'Today' : `${daysToOpening}d`}</td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                             <div style={{ width: 52, background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden' }}>

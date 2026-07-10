@@ -72,3 +72,20 @@ export function maxOf(values) {
 export function roundPct(value) {
   return Math.round(value);
 }
+
+/** max - min, floored at 1 so a flat/single-point domain never divides by 0. */
+export function spanOrOne(min, max) {
+  return Math.max(1, max - min);
+}
+
+/** Maps a value within [min, min+range] to a (non-inverted) x-axis pixel —
+ * the horizontal counterpart of valueToSparkY. */
+export function scaleToRange(value, min, range, sizePx) {
+  return ((value - min) / range) * sizePx;
+}
+
+/** How many items to skip between shown axis labels so at most `maxLabels`
+ * render across `count` points. */
+export function labelStep(count, maxLabels = 4) {
+  return Math.max(1, Math.floor(count / maxLabels));
+}
