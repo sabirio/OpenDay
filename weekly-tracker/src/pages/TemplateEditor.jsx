@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights, computeTemplateWeightSums, validateTemplate, isTemplateValid } from '../hooks/useTemplateEditorModel.js';
+import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights, computeTemplateWeightSums, validateTemplate, isTemplateValid, countErrors, isWithinEpsilon, WEIGHT_SUM_TARGET } from '../hooks/useTemplateEditorModel.js';
 import { fetchActiveTemplate, saveTemplate } from '../data/templatesApi.js';
 
 const EPS = 0.001;
@@ -78,8 +78,8 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
     return map;
   }, [draft.workPackages]);
 
-  const errorCount = issues.filter(i => i.severity === 'error').length;
-  const weightOk   = Math.abs(weightSum - 100) <= EPS;
+  const errorCount = countErrors(issues);
+  const weightOk   = isWithinEpsilon(weightSum, WEIGHT_SUM_TARGET, EPS);
   const canSave    = valid && !!templateId && saveStatus !== 'saving';
 
   async function handleSave() {
@@ -131,7 +131,7 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
           <strong style={{ color: weightOk ? 'var(--status-done)' : 'var(--status-alert)' }}>
             {weightSum}
           </strong>
-          {' '}/ 100
+          {' '}/ {WEIGHT_SUM_TARGET}
         </span>
         <button
           style={{ ...btnBase, marginLeft: 'auto' }}
@@ -147,7 +147,7 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
           const isFirst    = i === 0;
           const isLast     = i === sortedPhases.length - 1;
           const durSum     = durSums[phase.id] || 0;
-          const durOk      = Math.abs(durSum - 1) <= EPS;
+          const durOk      = isWithinEpsilon(durSum, 1, EPS);
           const phaseWPs   = wpsByPhase[phase.id] || [];
           const isExpanded = !!expanded[phase.id];
 

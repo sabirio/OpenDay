@@ -31,6 +31,12 @@ export function isWithinEpsilon(value, target, epsilon = 0.001) {
   return Math.abs(value - target) <= epsilon;
 }
 
+/** Whether `value` rounds to exactly `target` — ProjectScopeConfigurator's
+ * "Save Scope" gate (rounding tolerance, not epsilon tolerance). */
+export function sumsToTarget(value, target = WEIGHT_SUM_TARGET) {
+  return Math.round(value) === target;
+}
+
 /** value/total as an unrounded percent, zero-guarded against total <= 0. */
 export function pctOfTotal(value, total) {
   return total > 0 ? (value / total) * 100 : 0;

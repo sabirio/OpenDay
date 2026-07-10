@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { fetchActiveTemplate, fetchTemplateById } from '../data/templatesApi';
-import { buildWeightAuditModel, getScopeWPIds } from '../hooks/useWeightAuditModel';
+import { buildWeightAuditModel, getScopeWPIds, isWithinEpsilon } from '../hooks/useWeightAuditModel';
+import { clamp, fractionToPercent } from '../hooks/useChartMathPresentation';
 import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1';
 import { WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
 
@@ -18,7 +19,7 @@ const WP_LABELS = Object.fromEntries(
 function MiniBar({ pct, color = 'var(--accent)', width = 72, height = 4 }) {
   return (
     <div style={{ width, background: 'var(--border)', borderRadius: 3, height, overflow: 'hidden', flexShrink: 0 }}>
-      <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s ease' }} />
+      <div style={{ width: `${clamp(pct, 0, 100)}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s ease' }} />
     </div>
   );
 }
@@ -73,7 +74,7 @@ export default function WeightAudit({ projects }) {
   const errors         = auditModel?.validation.filter(i => i.severity === 'error')   ?? [];
   const warnings       = auditModel?.validation.filter(i => i.severity === 'warning') ?? [];
   const isValid        = errors.length === 0;
-  const sumOk          = auditModel ? Math.abs(auditModel.effectiveSum - 1) <= 0.001 : true;
+  const sumOk          = auditModel ? isWithinEpsilon(auditModel.effectiveSum, 1) : true;
 
   return (
     <div>
@@ -248,14 +249,14 @@ export default function WeightAudit({ projects }) {
                   }}>
                     <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{wp.label}</span>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                      {(wp.duration_pct * 100).toFixed(0)}%
+                      {fractionToPercent(wp.duration_pct).toFixed(0)}%
                       <span style={{ color: 'var(--border)', margin: '0 4px' }}>·</span>
-                      {(wp.durationPctInPhase * 100).toFixed(0)}% in phase
+                      {fractionToPercent(wp.durationPctInPhase).toFixed(0)}% in phase
                     </span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                      {(wp.effectiveWeight * 100).toFixed(2)}%
+                      {fractionToPercent(wp.effectiveWeight).toFixed(2)}%
                     </span>
-                    <MiniBar pct={wp.effectiveWeight * 100} color={wp.inScope ? 'var(--accent)' : 'var(--text-muted)'} />
+                    <MiniBar pct={fractionToPercent(wp.effectiveWeight)} color={wp.inScope ? 'var(--accent)' : 'var(--text-muted)'} />
                     <Badge
                       color={wp.inScope ? 'var(--status-done)' : 'var(--text-muted)'}
                       bg={wp.inScope ? 'var(--status-done-bg)' : 'var(--bg-elevated)'}

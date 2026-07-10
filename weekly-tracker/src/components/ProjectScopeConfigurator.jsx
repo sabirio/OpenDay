@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { WORK_PACKAGES, getPhasesInOrder, getWPsByPhase, getDefaultPhaseWeights } from '../config/masterTaskLibrary';
-import { normalizeWeightsTo100, sumWeights } from '../hooks/useProjectScopeModel';
+import { normalizeWeightsTo100, sumWeights, sumsToTarget, WEIGHT_SUM_TARGET } from '../hooks/useProjectScopeModel';
+import { fractionToPercent, roundPct } from '../hooks/useChartMathPresentation';
 
 const ALL_PHASE_IDS = getPhasesInOrder().map(p => p.id);
 const ALL_WP_IDS    = WORK_PACKAGES.map(wp => wp.id);
@@ -77,7 +78,7 @@ export default function ProjectScopeConfigurator({ initialScope, onSave, onClose
   const orderedActive = getPhasesInOrder().filter(p => activePhases.has(p.id));
   const activeIds      = orderedActive.map(p => p.id);
   const activeTotal   = sumWeights(activeIds, weights);
-  const totalOk       = Math.round(activeTotal) === 100;
+  const totalOk       = sumsToTarget(activeTotal, WEIGHT_SUM_TARGET);
 
   function normalizeWeights() {
     if (activeIds.length === 0) return;
@@ -209,7 +210,7 @@ export default function ProjectScopeConfigurator({ initialScope, onSave, onClose
                                 style={{ cursor: 'pointer', width: 14, height: 14 }}
                               />
                               <span style={{ fontSize: 12, color: wpActive ? 'var(--text-primary)' : 'var(--text-muted)' }}>{wp.label}</span>
-                              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{Math.round(wp.duration_pct * 100)}%</span>
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>{roundPct(fractionToPercent(wp.duration_pct))}%</span>
                             </label>
                           );
                         })}
@@ -231,7 +232,7 @@ export default function ProjectScopeConfigurator({ initialScope, onSave, onClose
                 background: totalOk ? 'var(--status-done-bg)' : 'var(--status-warn-bg)',
                 color:      totalOk ? 'var(--status-done)'    : 'var(--status-warn)',
               }}>
-                Σ {activeTotal} / 100
+                Σ {activeTotal} / {WEIGHT_SUM_TARGET}
               </span>
             </div>
 

@@ -15,6 +15,7 @@ import {
   sumPhaseProgressWeights,
   sumDurationPct,
   isWithinEpsilon,
+  sumsToTarget,
   pctOfTotal,
   WEIGHT_SUM_TARGET,
 } from './normalizeWeightsTo100.js';
@@ -102,6 +103,14 @@ console.log('\npctOfTotal');
   check('40/100 -> 40%', pctOfTotal(40, 100) === 40);
   check('1/3 -> 33.33...% (unrounded)', Math.abs(pctOfTotal(1, 3) - 33.333333333333336) < 1e-9);
   check('zero total -> 0 (guarded, no NaN/Infinity)', pctOfTotal(5, 0) === 0);
+}
+
+console.log('\nsumsToTarget');
+{
+  check('exact 100 -> true', sumsToTarget(100) === true);
+  check('rounds before comparing (99.6 -> 100 -> true)', sumsToTarget(99.6) === true);
+  check('rounds down away from target (99.4 -> 99 -> false)', sumsToTarget(99.4) === false);
+  check('custom target', sumsToTarget(1, 1) === true);
 }
 
 console.log('\nWEIGHT_SUM_TARGET');
