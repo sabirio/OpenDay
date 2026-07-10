@@ -1,7 +1,14 @@
 // discrepancyClassify.test.mjs — unit tests for AD-005 canonical functions
 // Run: node src/engines/__tests__/discrepancyClassify.test.mjs
 
-import { discrepancySeverity, classifyDiscrepancy, countDiscrepanciesByStatus } from '../../engines/discrepancyEngine.js';
+import {
+  discrepancySeverity,
+  classifyDiscrepancy,
+  countDiscrepanciesByStatus,
+  countDiscrepanciesBySignedDelta,
+  countConfirmed,
+  progressGapPp,
+} from '../../engines/discrepancyEngine.js';
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -119,6 +126,30 @@ console.log('\nF) countDiscrepanciesByStatus');
   check('critical count', counts.critical === 2);
   check('warning count', counts.warning === 1);
   check('empty list -> zeros', countDiscrepanciesByStatus([]).critical === 0 && countDiscrepanciesByStatus([]).warning === 0);
+}
+
+console.log('\nG) countDiscrepanciesBySignedDelta');
+{
+  const discs = [{ signedDelta: -12 }, { signedDelta: 8 }, { signedDelta: -3 }, { signedDelta: 0 }];
+  const { overstated, pmAhead } = countDiscrepanciesBySignedDelta(discs);
+  check('overstated counts negative signedDelta', overstated === 2);
+  check('pmAhead counts positive signedDelta', pmAhead === 1);
+  check('zero signedDelta counted in neither', overstated + pmAhead === 3);
+  check('empty list -> zeros', countDiscrepanciesBySignedDelta([]).overstated === 0 && countDiscrepanciesBySignedDelta([]).pmAhead === 0);
+}
+
+console.log('\nH) countConfirmed');
+{
+  check('total minus flagged', countConfirmed(10, 3) === 7);
+  check('flagged exceeds total -> floors at 0, never negative', countConfirmed(2, 5) === 0);
+  check('no flagged -> all confirmed', countConfirmed(4, 0) === 4);
+}
+
+console.log('\nI) progressGapPp');
+{
+  check('a > b -> positive gap', progressGapPp(80, 50) === 30);
+  check('a < b -> same magnitude regardless of order', progressGapPp(50, 80) === 30);
+  check('equal values -> 0', progressGapPp(40, 40) === 0);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

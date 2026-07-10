@@ -1,1 +1,7 @@
-export { computeWPObservationDiscrepancy, countDiscrepanciesByStatus } from '../core/presentation/discrepancyPresentationModel.js';
+export {
+  computeWPObservationDiscrepancy,
+  countDiscrepanciesByStatus,
+  countDiscrepanciesBySignedDelta,
+  countConfirmed,
+  progressGapPp,
+} from '../core/presentation/discrepancyPresentationModel.js';

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { daysUntil } from '../utils/reportUtils';
 import { getOpeningUrgencyColor } from '../config/statusColors';
+import { daysOverdueCount } from '../hooks/useOpeningReadinessPresentation';
 
 function ProjectRow({ project }) {
   const navigate = useNavigate();
@@ -9,7 +10,7 @@ function ProjectRow({ project }) {
 
   const openingLabel =
     daysToOpening === null  ? null
-    : daysToOpening < 0    ? `${Math.abs(daysToOpening)}d overdue`
+    : daysToOpening < 0    ? `${daysOverdueCount(daysToOpening)}d overdue`
     : daysToOpening === 0  ? 'Opening today'
     : `${daysToOpening}d · ${project.targetOpeningDate}`;
 

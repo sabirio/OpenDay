@@ -1,4 +1,4 @@
-import { computeWPObservationDiscrepancy } from '../../hooks/useDiscrepancyPresentation';
+import { computeWPObservationDiscrepancy, progressGapPp } from '../../hooks/useDiscrepancyPresentation';
 import { getDefaultProgressForGanttStatus } from '../../hooks/useProgressPresentation';
 
 const ACCENT = "var(--field-accent-sitevisit)";
@@ -99,7 +99,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
           fontSize: 11, fontWeight: 700,
           background: discStyle.bg, color: discStyle.color, border: `1px solid ${discStyle.border}`,
         }}>
-          {discStyle.icon} GC claimed {gcProgress}% ({gcStatus.replace('_', ' ')}) — {curProgress !== gcProgress ? `${Math.abs(curProgress - gcProgress)}pp gap` : 'status mismatch'}
+          {discStyle.icon} GC claimed {gcProgress}% ({gcStatus.replace('_', ' ')}) — {curProgress !== gcProgress ? `${progressGapPp(curProgress, gcProgress)}pp gap` : 'status mismatch'}
         </div>
       )}
     </div>

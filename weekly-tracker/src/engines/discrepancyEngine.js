@@ -21,6 +21,30 @@ export function countDiscrepanciesByStatus(discs) {
   return { critical, warning };
 }
 
+/** Split a flagged discrepancy list by the sign of signedDelta —
+ * GanttSuccessView.jsx's "Discrepancy" (contractor overstated, delta < 0)
+ * vs "PM Ahead" (contractor understated, delta > 0) summary counts. */
+export function countDiscrepanciesBySignedDelta(discs) {
+  let overstated = 0, pmAhead = 0;
+  for (const d of discs) {
+    if (d.signedDelta < 0) overstated++;
+    else if (d.signedDelta > 0) pmAhead++;
+  }
+  return { overstated, pmAhead };
+}
+
+/** How many of `totalCount` items are unflagged, floored at 0 — never
+ * negative even if flaggedCount somehow exceeds totalCount. */
+export function countConfirmed(totalCount, flaggedCount) {
+  return Math.max(0, totalCount - flaggedCount);
+}
+
+/** Absolute progress-point gap between two 0-100 progress readings —
+ * GanttPMTaskRow.jsx's PM-vs-GC "Xpp gap" display. */
+export function progressGapPp(a, b) {
+  return Math.abs(a - b);
+}
+
 /**
  * Classify a PM-vs-GC comparison into match / discrepancy / pm-higher.
  *

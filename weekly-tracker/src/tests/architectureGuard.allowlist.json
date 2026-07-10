@@ -2,11 +2,5 @@
   "mode": "soft",
   "generatedBy": "src/tests/architectureGuard.test.mjs --write-allowlist",
   "note": "Baseline of known architecture debt. Ratchet only: remove ids as code is fixed; do not add new ids except during an intentional baseline reset.",
-  "knownViolations": [
-    "components/sitevisit/GanttPMTaskRow.jsx:102:calculation:{discStyle.icon} GC claimed {gcProgress}% ({gcStatus.replace('_', ' ')}) — {curProgress !== gcProgress ? `${Math.abs(curProgress - gcProgress)}pp gap` : 'status mismatch'}",
-    "components/sitevisit/GanttSuccessView.jsx:20:calculation:const discrepancyCount = flagged.filter(d => d.signedDelta < 0).length;",
-    "components/sitevisit/GanttSuccessView.jsx:21:calculation:const pmAheadCount     = flagged.filter(d => d.signedDelta > 0).length;",
-    "components/sitevisit/GanttSuccessView.jsx:22:calculation:const confirmed        = Math.max(0, ganttTasks.length - flagged.length);",
-    "pages/SiteVisitSelect.jsx:12:calculation:: daysToOpening < 0    ? `${Math.abs(daysToOpening)}d overdue`"
-  ]
+  "knownViolations": []
 }

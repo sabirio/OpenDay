@@ -1,3 +1,5 @@
+import { countDiscrepanciesBySignedDelta, countConfirmed } from '../../hooks/useDiscrepancyPresentation';
+
 const ACCENT = "var(--field-accent-sitevisit)";
 
 // P2.2: reads savedVisit.discrepancies — the exact result
@@ -17,9 +19,8 @@ function GanttSuccessView({ project, form, ganttTasks, discrepancies = [], onNew
   // signedDelta < 0: PM found LESS progress than the contractor claimed
   // (overstatement). signedDelta > 0: PM found MORE (contractor understated).
   const flagged          = discrepancies.filter(d => d.status !== 'ok');
-  const discrepancyCount = flagged.filter(d => d.signedDelta < 0).length;
-  const pmAheadCount     = flagged.filter(d => d.signedDelta > 0).length;
-  const confirmed        = Math.max(0, ganttTasks.length - flagged.length);
+  const { overstated: discrepancyCount, pmAhead: pmAheadCount } = countDiscrepanciesBySignedDelta(flagged);
+  const confirmed        = countConfirmed(ganttTasks.length, flagged.length);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--field-bg-sitevisit)', padding: '36px 20px 80px' }}>
