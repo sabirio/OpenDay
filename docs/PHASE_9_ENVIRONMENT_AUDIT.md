@@ -34,3 +34,18 @@ Local Git, Node, npm, Supabase CLI, Docker, Playwright and production builds are
 - No payment, tariff change, MFA, CAPTCHA, account-owner approval or production action was attempted.
 
 The Vercel guard denies production project id `prj_Ux8tzBDilA7Fef9kdGNRsNdzIXs3`, project name `noryxapp`, and production domains. Both Supabase and Vercel guards require explicit staging allowlists before remote writes.
+
+## Update — 2026-07-11: staging Supabase project created, discovery repeated
+
+The blocker above (`”OpenDay Staging” is not visible in this account scope`) is now resolved — the project was created after this audit's original pass. Re-ran discovery via `npx supabase projects list` (read-only):
+
+| Project | Ref | Name | Created | Status |
+|---|---|---|---|---|
+| Production | `szgbkeqornkdngoegyso` | `construction-pm-portal` | 2026-05-25 | `ACTIVE_HEALTHY` — untouched |
+| **Staging** | `sdndsekarwhumdbcqxni` | **`OpenDay Staging`** | 2026-07-11 | `ACTIVE_HEALTHY` |
+
+Only these two projects exist in the org — no `noryx`/`noryx-app`-named Supabase project was found, so that specific ambiguity risk never materialized on the Supabase side.
+
+`scripts/staging/assertStagingTarget.mjs` run against this ref: **PASS** (`STAGING GUARD PASS: explicit staging target sdndsekarwhumdbcqxni`) — but only after finding and fixing a real data-entry error: `.env.staging`'s `STAGING_PROJECT_REF`, `STAGING_ALLOWED_PROJECT_REFS`, and `VITE_SUPABASE_URL` all had the same 2-character transposition typo (`sndd...` instead of `sdnd...`) relative to the CLI-verified ref. The guard's own self-consistency checks could not catch this (ref and host were internally consistent with each other, just both wrong) — caught only by diffing against the independently-fetched CLI output. Corrected via `sed`, values never printed to any transcript; host reachability re-confirmed (`/auth/v1/health` → HTTP 401, i.e. resolves and responds — not a DNS/connection failure).
+
+A new, dedicated Vercel project was also created for staging — see `PHASE_9_STAGING_CERTIFICATION.md`'s update for full detail (project identity, deployment, and the still-open SSO-protection verification gap).

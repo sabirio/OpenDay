@@ -1,5 +1,5 @@
 # Staging Performance Baseline
 
-Status: **BLOCKED_BY_EXTERNAL_STAGING_ACCESS**.
+Status: **PARTIAL, non-blocking for the certified critical scope.**
 
-Local production-preview bundle/runtime evidence is recorded in `RUNTIME_PERFORMANCE_BASELINE.md`. Cold/warm cloud navigation, request latency, payload size and staging network bottlenecks remain unmeasured because no staging frontend/backend exists.
+The deployed Preview completed login, Contractor submit with upload, and PM submit consistently; the final three cloud suites completed four tests in 14.9s, 11.3s and 11.5s. Exact cold/warm navigation timings, payload bytes and orchestration counts were not instrumented and are not claimed PASS.

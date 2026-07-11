@@ -16,6 +16,7 @@ dist-ssr
 test-results
 playwright-report
 scripts/storage/audit-log
+scripts/staging/staging-fixture-state.json
 .env
 .env.*
 !.env.example
@@ -38,3 +39,7 @@ scripts/storage/audit-log
 # External tooling (e.g. skill scripts) that can get materialized into the
 # project root by the dev environment — not part of this app's source
 .agents
+
+# Vercel CLI local project link metadata — project/org IDs, not secrets, but
+# machine-local and never meant to be committed (standard Vercel default).
+.vercel

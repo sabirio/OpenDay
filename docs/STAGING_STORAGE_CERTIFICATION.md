@@ -1,5 +1,5 @@
 # Staging Storage Certification
 
-Status: **BLOCKED_BY_EXTERNAL_STAGING_ACCESS**.
+Status: **PASS — 15/15 live staging checks, repeated three consecutive times after the final tooling fix.**
 
-No staging bucket or staging credentials exist. Upload/read/delete, MIME/size restrictions, project scoping and the 14-day orphan dry-run were therefore not executed in cloud. Local Storage certification remains 22/22 and is not presented as staging evidence.
+Verified using authenticated staging roles: upload/list, cross-tenant upload/read/delete denial, own-tenant delete lifecycle, anonymous delete denial and server-side MIME rejection. No production bucket or object was accessed.

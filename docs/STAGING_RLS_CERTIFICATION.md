@@ -1,5 +1,5 @@
 # Staging RLS Certification
 
-Status: **BLOCKED_BY_EXTERNAL_STAGING_ACCESS**.
+Status: **PASS — 19/19 live staging checks, repeated three consecutive times after the final tooling fix.**
 
-The local RLS suite passes 28/28. No staging endpoint or authenticated staging roles exist, so cross-tenant, anonymous, role and RPC restrictions were not run in cloud and are not marked PASS.
+Verified through real staging Admin, PM, Contractor, Viewer and anonymous sessions: own-company visibility, assigned-contractor scope, direct-write boundaries, cross-tenant isolation, atomic RPC denial and anonymous denial. No service-role client was used for assertions.

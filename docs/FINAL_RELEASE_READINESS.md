@@ -1,9 +1,9 @@
 # Final Release Readiness
 
-Classification: **LOCAL_CERTIFIED**.
+Classification: **STAGING_CERTIFIED; production BLOCKED_BY_BACKUP_READINESS**.
 
-OpenDay is cleanly reproducible and certified locally. Staging certification is blocked because no explicitly scoped staging environment or credentials are available. Production deployment has not been executed. Staging and production release runbooks are prepared.
+OpenDay is cleanly reproducible locally and certified in staging. The staging Supabase/Vercel identities are distinct from production. Live RLS 19/19, Storage 15/15 and cloud E2E 4/4 passed three consecutive clean cycles after the final certification-tooling fixes, with retries disabled and no skips.
 
-Blocking product-integrity gates pass locally: fresh migrations through 027, duplicate/out-of-scope Contractor rejection, idempotency/rollback, Auth roles, RLS, Storage and canonical architecture. The accepted limitations are staging access, full viewport/zoom breadth, and fine-grained runtime render/network telemetry beyond the production-preview evidence.
+Production identity was confirmed read-only, but Supabase reported PITR disabled and no available physical backups. The mandatory recovery gate therefore stopped Phase 10 before production migration dry-run, approval request or any write/deployment.
 
-Phase 9 re-audit on 2026-07-11 confirmed authenticated Supabase and Vercel sessions and pushed Git refs. Cloud certification remains blocked because “OpenDay Staging” is not visible in the authenticated Supabase organization and no Vercel project is explicitly staging-scoped. Production remains untouched.
+Production Supabase, Auth, Storage, database schema/data, Vercel deployment, aliases and domains remain unchanged by Phase 10.

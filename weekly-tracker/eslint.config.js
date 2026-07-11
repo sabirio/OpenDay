@@ -58,9 +58,11 @@ export default defineConfig([
     // __dirname, etc. Add Node globals so they aren't flagged as no-undef.
     files: [
       'tests/e2e/**/*.js',
+      'tests/staging-e2e/**/*.js',
       'src/tests/**/*.js',
       'src/migrations/**/*.js',
       'playwright.config.js',
+      'playwright.staging.config.js',
     ],
     languageOptions: {
       globals: { ...globals.node },
