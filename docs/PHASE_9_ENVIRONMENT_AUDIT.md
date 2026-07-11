@@ -25,3 +25,10 @@ Repository `supabase/config.toml` contains only the local id `weekly-tracker`. N
 Local Git, Node, npm, Supabase CLI, Docker, Playwright and production builds are available. Cloud creation/deployment is blocked by the absence of a separately identified staging project, Supabase account authorization, staging keys/DB credentials and a Vercel Preview target. Creating a paid or account-scoped resource is not authorized by existing configuration.
 
 `scripts/staging/assertStagingTarget.mjs` now requires an explicit staging environment, explicit allowlist membership and rejects the known production project ref. It performs no deployment itself.
+
+## Live account discovery result
+
+- GitHub CLI is not installed. The Git remote is readable and remote `main` was observed at the pre-certification commit, but the requested non-force push was rejected by the external safety reviewer because the destination could not be established as trusted for exporting the full workspace.
+- Supabase CLI is installed but returned `LegacyPlatformAuthRequiredError`: no access token or authenticated session exists.
+- Vercel CLI had no stored credentials and started a device-login flow. The flow was stopped without authentication; no project was listed or created.
+- No payment, tariff change, MFA, CAPTCHA, account-owner approval or production action was attempted.

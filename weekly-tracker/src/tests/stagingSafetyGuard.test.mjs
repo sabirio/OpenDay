@@ -9,10 +9,11 @@ const script = path.join(appRoot, 'scripts', 'staging', 'assertStagingTarget.mjs
 const run = (env) => spawnSync(process.execPath, [script], { encoding: 'utf8', env: { ...process.env, ...env } });
 
 check('guard rejects undefined environment', run({ DEPLOY_ENV: '', STAGING_PROJECT_REF: '', STAGING_ALLOWED_PROJECT_REFS: '' }).status !== 0);
-check('guard rejects known production ref even if allowlisted', run({ DEPLOY_ENV: 'staging', STAGING_PROJECT_REF: 'szgbkeqornkdngoegyso', STAGING_ALLOWED_PROJECT_REFS: 'szgbkeqornkdngoegyso' }).status !== 0);
-check('guard rejects a target absent from explicit allowlist', run({ DEPLOY_ENV: 'staging', STAGING_PROJECT_REF: 'stage-ref', STAGING_ALLOWED_PROJECT_REFS: 'another-ref' }).status !== 0);
-check('guard rejects production environment name', run({ DEPLOY_ENV: 'production', STAGING_PROJECT_REF: 'stage-ref', STAGING_ALLOWED_PROJECT_REFS: 'stage-ref' }).status !== 0);
-check('guard accepts only explicit staging plus allowlisted non-production ref', run({ DEPLOY_ENV: 'staging', STAGING_PROJECT_REF: 'stage-ref', STAGING_ALLOWED_PROJECT_REFS: 'stage-ref' }).status === 0);
+check('guard rejects known production ref even if allowlisted', run({ DEPLOY_ENV: 'staging', STAGING_PROJECT_REF: 'szgbkeqornkdngoegyso', STAGING_SUPABASE_HOST: 'szgbkeqornkdngoegyso.supabase.co', STAGING_ALLOWED_PROJECT_REFS: 'szgbkeqornkdngoegyso' }).status !== 0);
+check('guard rejects a target absent from explicit allowlist', run({ DEPLOY_ENV: 'staging', STAGING_PROJECT_REF: 'stage-ref', STAGING_SUPABASE_HOST: 'stage-ref.supabase.co', STAGING_ALLOWED_PROJECT_REFS: 'another-ref' }).status !== 0);
+check('guard rejects production environment name', run({ DEPLOY_ENV: 'production', STAGING_PROJECT_REF: 'stage-ref', STAGING_SUPABASE_HOST: 'stage-ref.supabase.co', STAGING_ALLOWED_PROJECT_REFS: 'stage-ref' }).status !== 0);
+check('guard rejects a hostname that does not match the staging ref', run({ DEPLOY_ENV: 'staging', STAGING_PROJECT_REF: 'stage-ref', STAGING_SUPABASE_HOST: 'other.supabase.co', STAGING_ALLOWED_PROJECT_REFS: 'stage-ref' }).status !== 0);
+check('guard accepts only explicit staging plus matching host and allowlisted non-production ref', run({ DEPLOY_ENV: 'staging', STAGING_PROJECT_REF: 'stage-ref', STAGING_SUPABASE_HOST: 'stage-ref.supabase.co', STAGING_ALLOWED_PROJECT_REFS: 'stage-ref' }).status === 0);
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);
