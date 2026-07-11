@@ -8,4 +8,4 @@ No schema push, cloud Storage operation, Edge Function deployment, frontend depl
 
 The deploy guard and complete external setup/deployment package are prepared. Missing resources are enumerated in `STAGING_EXTERNAL_SETUP_CHECKLIST.md`.
 
-Live discovery confirmed the blocker: Supabase requires login/access token and Vercel requires device authentication. Git push was not performed because the external safety reviewer rejected exporting the workspace to an unverified remote. No staging project could be safely created.
+Live re-audit confirmed both CLIs are authenticated and GitHub refs are pushed. The exact blocker is now narrower: the authenticated Supabase organization lists only the production project, not “OpenDay Staging”; the authenticated Vercel account has no explicitly staging-scoped project paired to a distinct Supabase ref. No staging project could therefore be linked or deployed safely.
