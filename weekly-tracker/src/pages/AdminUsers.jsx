@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { userSafeError } from '../utils/userError';
 
 const ROLES = ['Admin', 'PM', 'Contractor', 'Viewer'];
 
@@ -33,7 +34,8 @@ function AdminUsers({ projects = [] }) {
       .order('role');
 
     if (error) {
-      setError('Failed to load users: ' + error.message);
+      console.error('[AdminUsers] load failed:', error);
+      setError(userSafeError('load'));
     } else {
       setUsers(data.map(u => ({ ...u, assigned_projects: u.assigned_projects ?? [] })));
     }
@@ -70,7 +72,8 @@ function AdminUsers({ projects = [] }) {
 
     setSaving(null);
     if (error) {
-      setError('Save failed: ' + error.message);
+      console.error('[AdminUsers] save failed:', error);
+      setError(userSafeError('save'));
     } else {
       setSaved(user.id);
       setTimeout(() => setSaved(null), 2000);
@@ -96,7 +99,7 @@ function AdminUsers({ projects = [] }) {
       </div>
 
       {error && (
-        <div className="login-error" style={{ marginBottom: 20 }}>
+        <div className="login-error" role="alert" style={{ marginBottom: 20 }}>
           {error}
         </div>
       )}

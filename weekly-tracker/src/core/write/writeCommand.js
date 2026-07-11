@@ -25,7 +25,10 @@ export function validateUniqueWPItems(items, operation) {
 
 export function normalizeWriteError(error, operation, requestId) {
   const pgCode = error?.code;
-  const code = pgCode === '42501' ? 'AUTHORIZATION_ERROR'
+  const message = error?.message || '';
+  const code = /DUPLICATE_WORK_PACKAGE/.test(message) ? 'DUPLICATE_WORK_PACKAGE'
+    : /WORK_PACKAGE_OUT_OF_SCOPE/.test(message) ? 'WORK_PACKAGE_OUT_OF_SCOPE'
+    : pgCode === '42501' ? 'AUTHORIZATION_ERROR'
     : pgCode === '28000' ? 'AUTHENTICATION_ERROR'
     : pgCode === '23505' ? 'CONFLICT'
     : error?.code === 'VALIDATION_ERROR' ? 'VALIDATION_ERROR'
@@ -33,7 +36,11 @@ export function normalizeWriteError(error, operation, requestId) {
     : 'DATABASE_ERROR';
   return {
     code,
-    message: error?.message || 'Write command failed',
+    message: code === 'DUPLICATE_WORK_PACKAGE'
+      ? 'The report contains the same work package more than once. Refresh the project scope and try again.'
+      : code === 'WORK_PACKAGE_OUT_OF_SCOPE'
+        ? 'A work package is no longer in this project\'s active scope. Refresh the report before submitting.'
+        : message || 'Write command failed',
     operation,
     retryable: code === 'NETWORK_ERROR' || code === 'CONFLICT',
     fieldErrors: error?.field ? { [error.field]: error.message } : {},
@@ -41,4 +48,3 @@ export function normalizeWriteError(error, operation, requestId) {
     cause: error,
   };
 }
-

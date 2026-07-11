@@ -3,6 +3,7 @@
 
 import { supabase } from '../lib/supabase';
 import { PERMISSIONS } from './rolePermissions';
+import { userSafeError } from '../utils/userError';
 
 // Fetches the user's profile row from public.profiles
 async function fetchProfile(userId) {
@@ -37,7 +38,10 @@ function buildUser(supabaseUser, profile) {
 async function login(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error('[authService] login error:', error);
+    return { success: false, error: userSafeError('auth') };
+  }
 
   const profile = await fetchProfile(data.user.id);
   return { success: true, user: buildUser(data.user, profile) };
@@ -65,7 +69,10 @@ async function requestPasswordReset(email) {
 // the PASSWORD_RECOVERY session is established via the email link).
 async function updatePassword(password) {
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error('[authService] updatePassword error:', error);
+    return { success: false, error: userSafeError('password') };
+  }
   return { success: true };
 }
 

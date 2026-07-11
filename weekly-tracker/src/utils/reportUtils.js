@@ -14,6 +14,12 @@
  * assuming any function here should be avoided.
  */
 
+// Both legacy imports below are audited, intentional legacy-fallback
+// imports — tracked in src/tests/architectureGuard.test.mjs's
+// ALLOWED_LEGACY_IMPORTERS. Migrating would rewrite live legacy-report
+// compatibility behavior; out of scope here and hard-constraint-protected
+// (no business-semantics/weight-formula changes).
+// eslint-disable-next-line no-restricted-imports
 import {
   constructionWeights,
   testingWeights,
@@ -22,6 +28,7 @@ import {
   statusScores,
 } from "../config/reportWeights.js";
 
+// eslint-disable-next-line no-restricted-imports
 import {
   WP_STATUS_SCORES,
   WORK_PACKAGES,

@@ -111,3 +111,37 @@ Not yet covered by this stage (later stages of this report set): actual
 RPC execution with real payloads, real authenticated-context RLS behavior,
 Storage upload/read/delete behavior, failure injection/rollback proof,
 repeatability of a second clean reset.
+
+## Update — Sprint 4.5 continuation: migrations 026, 027 added to the fresh path
+
+Two further append-only migrations were added after the initial Stage 3
+pass and are now part of the certified fresh-install chain, bringing the
+total to **18 files**: `000, 010, 012-027` (still excluding `011` —
+DEFECT-02 stands unchanged).
+
+- **`026_grant_authenticated_table_privileges.sql`** — closes DEFECT-03
+  (base table grants missing for `authenticated`; see
+  `docs/RLS_RUNTIME_CERTIFICATION.md`). Applied and reproduced across every
+  subsequent clean reset without error.
+- **`027_contractor_report_wp_validation.sql`** — closes the CR-07/CR-08
+  WP-scope and duplicate-WP validation gaps documented in
+  `docs/RPC_CERTIFICATION_REPORT.md` (previously "findings, not fixed";
+  now genuinely enforced and re-certified as PASS). Applied and reproduced
+  across every subsequent clean reset without error.
+
+`resetAndDeploy.mjs` (the harness script that performs `supabase db reset`
++ replays the fresh-path chain) also gained a try/catch around its `main()`
+with an explicit, actionable failure message — every other script in the
+harness already failed this way; this one previously let an uncaught
+exception (e.g. Docker not running, or a genuine SQL error in a migration)
+print as a raw Node stack trace with no indication of which of the two
+steps failed. No change to the happy path: same commands, same order, same
+exit code (0) on success — verified via a deliberate, safely-reversed
+failure simulation (temporarily renamed `027`, confirmed a clear
+"CLEAN DEPLOY FAILED" message and exit code 1, then restored the file and
+confirmed via diff it was byte-identical to the original).
+
+Re-verified end-to-end: `npm run cert:reset` (the 18-migration chain) has
+now completed successfully across multiple independent clean resets in
+this and the preceding continuation, with no chain-order or grant
+regressions.

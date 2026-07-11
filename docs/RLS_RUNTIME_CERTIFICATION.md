@@ -67,10 +67,36 @@ All results below are from the re-run **after** this fix.
 
 ## Service-role secret scan
 
-`grep -rl "service_role" src/` (excluding `migrations/` and `tests/`, where
-the string legitimately appears in comments/docs about what *not* to do)
-returns **0 files**. No service-role key or reference reaches application
-source that ships to the browser. (`npm run check:architecture` also
+**Windows defect (found and fixed during a Sprint 4.5 continuation pass):**
+the original implementation shelled out to
+`grep -rl "service_role" src/ --include=*.js --include=*.jsx || true`.
+`grep` and the `|| true` shell fallback are Unix-only — `execSync`'s
+default shell on Windows (`cmd.exe`) has neither, so this check failed
+with a shell/command error on every Windows run of `npm run test:rls`,
+independent of whether the codebase actually had an offending file. This
+is a harness/tooling defect, not a security-policy defect: it never
+produced a false PASS, only a hard failure that blocked the rest of the
+suite from reporting.
+
+**Fix:** replaced the shell-out with a pure Node.js recursive scanner,
+`scripts/certification/scanSource.mjs` (`findFilesContaining(rootDir,
+pattern, options)`), which walks `src/` using `node:fs`/`node:path` only —
+no shell, no platform-specific command. It preserves the original security
+intent exactly: scans `.js`/`.jsx`/`.ts`/`.tsx` files, excludes
+`node_modules`, `.git`, `dist`, `build`, `dist-ssr`, `migrations/` (SQL
+comments legitimately discuss `service_role`), `tests/`/`__tests__/` (test
+fixtures legitimately reference the string), and `certification/` (this
+harness's own comments/docs reference it). Covered by 16 targeted unit
+tests in `scripts/certification/scanSource.test.mjs` (real offenders
+found per extension, each excluded directory verified absent, custom
+`extensions`/`excludeDirs` overrides honored, no crash on a nonexistent
+directory) — run via `node scripts/certification/scanSource.test.mjs`,
+16/16 passing.
+
+`certifyRls.mjs` now calls `findFilesContaining(srcRoot, /service_role/)`
+directly. Result: **0 files** — no service-role key or reference reaches
+application source that ships to the browser, confirmed identically on
+Windows and cross-platform. (`npm run check:architecture` also
 independently asserts this via its own static check — both agree.)
 
 ## Verdict

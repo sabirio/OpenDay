@@ -1,3 +1,9 @@
+// Audited, intentional legacy-fallback import — tracked in
+// src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS.
+// Migrating would rewrite live legacy-report compatibility behavior;
+// out of scope here and hard-constraint-protected (no business-semantics
+// changes).
+// eslint-disable-next-line no-restricted-imports
 import { WORK_PACKAGES, makeEmptyWPStatuses } from "../../config/workPackages";
 import { isBadScheduleStatus } from "../../utils/reportUtils";
 // calculateWeeksBetween/getConstructionWeekInfo moved to utils/scheduleUtils.js;

@@ -19,17 +19,21 @@ Scripts: `weekly-tracker/scripts/certification/certifyContractorReport.mjs`,
 | CR-04 foreign project (Company A contractor -> Project B) | authorization failure, 0 rows everywhere | rejected `42501`/company message, 0 report/history/ledger rows on Project B | matched | PASS |
 | CR-05 unassigned contractor | denied per current access model (assignment-scoped for contractors) | denied, 0 rows | matched | PASS |
 | CR-06 viewer | denied | denied, role-cannot-submit message, 0 rows | matched | PASS |
-| CR-07 WP outside active scope | *(task: expect rollback)* | **NOT enforced** — `submit_contractor_report()` has no scope check; the row is accepted and inserted | see Section "Findings" below | FINDING, not a defect fix in this sprint |
-| CR-08 duplicate WP item | *(task: expect rollback)* | **NOT enforced** — both duplicate rows inserted | see Findings | FINDING, not a defect fix in this sprint |
+| CR-07 WP outside active scope | rejected, full rollback | rejected `22023: WORK_PACKAGE_OUT_OF_SCOPE`, 0 report/child/history/ledger rows | matched | PASS |
+| CR-08 duplicate WP item | rejected, full rollback | rejected `22023: DUPLICATE_WORK_PACKAGE`, 0 report/child/history/ledger rows | matched | PASS |
 | CR-09 forced child failure (bad numeric cast) | full rollback, 0 rows everywhere | RPC errors `22P02`, 0 report/history/ledger rows | matched | PASS |
 | CR-10 timeout/retry simulation | no duplicates on resend | 3rd call with the same request id still 1 report row | matched | PASS |
 
-**40/40 individual checks passed.** 8/10 scenarios are clean PASS; 2 (CR-07,
-CR-08) are real, verified findings about `submit_contractor_report()`'s
-validation surface — not treated as pass/fail because fixing them would
-change business semantics (should a contractor ever be blocked from
-reporting an out-of-scope WP?) that Sprint 4.5's certification mandate
-cannot decide unilaterally.
+**50/50 individual checks passed. 10/10 scenarios PASS.** CR-07/CR-08 were
+initially findings (see "Resolved finding" below) and are now genuine,
+runtime-verified rejections after append-only migration
+`027_contractor_report_wp_validation.sql` moved WP-scope and duplicate-WP
+validation directly into `submit_contractor_report_atomic` (rather than
+the older, unvalidated `submit_contractor_report()`). Re-certification
+confirms both the rejection itself and that it leaves zero partial rows in
+every affected table (`contractor_report_wps`, `progress_history`,
+`write_command_requests`), matching the same all-or-nothing standard
+already proven for CR-09/SV-07/SV-08.
 
 ## PM Site Visit RPC (`submit_site_visit_atomic`) — SV-01..SV-12
 
@@ -52,15 +56,27 @@ cannot decide unilaterally.
 resolved as "confirmed current design, not a defect" rather than a strict
 pass/fail, per the task's own phrasing for that scenario.
 
-## Findings (not fixed — outside this sprint's business-semantics mandate)
+## Resolved finding — CR-07/CR-08 (previously open, now closed by migration 027)
 
-- **CR-07/CR-08**: `submit_contractor_report()` (018, superseded by 023) has
-  no WP-scope or duplicate-WP validation, unlike `submit_site_visit_atomic`
-  (025), which validates both (SV-07, SV-08). This asymmetry may be
-  intentional (contractor self-reports vs. PM verification having
-  different strictness) or an oversight — it predates Sprint 4/4.5 and is
-  not a regression introduced by the atomic wrapper. Recommend a product
-  decision before any fix; not changed here per "не менять существующую
-  business semantics" / "не расширять schema без доказанного runtime
-  defect" — this is a validation gap, not a data-integrity defect (nothing
-  is corrupted; a contractor can just report progress on an unexpected WP).
+`submit_contractor_report()` (018, superseded by 023) originally had no
+WP-scope or duplicate-WP validation, unlike `submit_site_visit_atomic`
+(025), which validates both (SV-07, SV-08). This asymmetry predated
+Sprint 4/4.5 and was not a regression introduced by the atomic wrapper; it
+was documented as a business-semantics gap rather than fixed unilaterally
+during the original Stage 5-6 pass.
+
+A follow-on Sprint 4.5 continuation closed the gap via an append-only
+migration, `src/migrations/027_contractor_report_wp_validation.sql`, which
+adds the same two checks `submit_site_visit_atomic` already enforced
+directly inside `submit_contractor_report_atomic`:
+- `WORK_PACKAGE_OUT_OF_SCOPE` (`22023`) — every `wpId` in the payload must
+  reference a non-archived `project_gantt_tasks` row belonging to the same
+  project.
+- `DUPLICATE_WORK_PACKAGE` (`22023`) — no `wpId` may appear more than once
+  in a single submission.
+
+No historical migration (000-026) was edited; 027 is purely additive
+(`CREATE OR REPLACE FUNCTION`). Re-run against the full fresh-path chain
+(now 18 files, `000, 010, 012-027`) and re-certified: CR-07/CR-08 are PASS
+above, with zero partial rows confirmed via direct `psql` counts on every
+affected table.

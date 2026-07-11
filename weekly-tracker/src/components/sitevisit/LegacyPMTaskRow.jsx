@@ -28,10 +28,12 @@ function LegacyPMTaskRow({ wpId, taskName, entry, gcEntry, onChange }) {
             return (
               <button key={opt.value} type="button"
                 data-testid={`pm-status-btn-${opt.value}`}
+                aria-pressed={isPM}
+                aria-label={`${taskName}: ${opt.label}`}
                 onClick={() => onChange({ ...e, observedStatus: opt.value })}
                 style={{
                   position: "relative",
-                  padding: "4px 9px", borderRadius: 6, fontSize: 11,
+                  padding: "8px 9px", minHeight: 44, borderRadius: 6, fontSize: 11,
                   border: isPM ? `1.5px solid ${opt.border}` : isGC ? `1px solid ${opt.gcBorder}` : "1px solid var(--field-border)",
                   background: isPM ? opt.bg : isGC ? opt.gcBg : "white",
                   color: isPM ? opt.color : isGC ? opt.gcColor : "var(--field-text-muted)",

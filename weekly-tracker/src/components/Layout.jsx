@@ -1,9 +1,32 @@
+import { useState } from "react";
 import Sidebar from "./Sidebar";
 
 function Layout({ children }) {
+  // Sidebar is a fixed 240px column on desktop but becomes an off-canvas
+  // drawer below 640px (see index.css) — the toggle/backdrop below only
+  // render visibly at that breakpoint (CSS-gated), so this state has no
+  // effect on desktop layout.
+  const [navOpen, setNavOpen] = useState(false);
+
   return (
     <div className="app-shell">
-      <Sidebar />
+      <button
+        type="button"
+        className="mobile-nav-toggle"
+        aria-label={navOpen ? 'Close navigation menu' : 'Open navigation menu'}
+        aria-expanded={navOpen}
+        onClick={() => setNavOpen((open) => !open)}
+      >
+        <span aria-hidden="true">{navOpen ? '✕' : '☰'}</span>
+      </button>
+      {navOpen && (
+        <div
+          className="mobile-nav-backdrop"
+          onClick={() => setNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <Sidebar mobileOpen={navOpen} onClose={() => setNavOpen(false)} />
       <main className="main-content">{children}</main>
     </div>
   );

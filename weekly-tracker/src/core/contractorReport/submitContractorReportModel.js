@@ -15,7 +15,7 @@ export async function submitContractorReportModel(input) {
   const clientRequestId = input.clientRequestId || createClientRequestId();
   if (wpProgressArray.length > 0) validateUniqueWPItems(wpProgressArray, 'contractor report');
   try {
-    await submitReport(input.project.id, wpProgressArray, {
+    const persisted = await submitReport(input.project.id, wpProgressArray, {
     reportDate: mainReportPayload.reportingDate,
     overallProgress: contractorRawAverageProgress,
     masterReportId: mainReportPayload.id,
@@ -26,9 +26,8 @@ export async function submitContractorReportModel(input) {
       calculatedAt: mainReportPayload.submittedAt,
       calculationVersion: 'openday-canonical-core/1',
     });
+    return { ...mainReportPayload, persistedReport: persisted.report, persistedReportId: persisted.report?.id || null, idempotentReplay: persisted.idempotentReplay === true };
   } catch (error) {
     throw normalizeWriteError(error, 'contractor_report.submit', clientRequestId);
   }
-
-  return mainReportPayload;
 }

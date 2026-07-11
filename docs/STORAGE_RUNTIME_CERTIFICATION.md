@@ -4,7 +4,7 @@ Real uploads/reads/deletes through real authenticated `supabase.storage`
 clients against the local `site-photos` bucket — not mocked, not read from
 policy SQL alone. Script:
 `weekly-tracker/scripts/certification/certifyStorage.mjs`. Run via
-`npm run test:storage`. **15/15 checks passed.**
+`npm run test:storage`. **22/22 checks passed.**
 
 | Scenario | Expected | Actual | Status |
 |---|---|---|---|
@@ -12,6 +12,7 @@ policy SQL alone. Script:
 | ST-02 foreign tenant path upload | denied | denied | PASS |
 | ST-03 foreign tenant read | denied | `list()` returns no matching object; direct `download()` denied | PASS |
 | ST-04 foreign tenant delete | denied | object still present after the attempt (confirmed via an authorized read from the owning tenant, not just the response shape) | PASS |
+| ST-04b own-tenant delete (positive case) | authorized own-tenant user uploads, confirms present, deletes, authorized lookup confirms absent; cross-tenant and anon delete attempts on the same still-live object remain denied throughout | full lifecycle matched exactly: setup upload succeeded; present-before-delete confirmed; cross-tenant delete attempt had no effect (still present); anonymous delete attempt had no effect (still present); own-tenant delete succeeded; authorized lookup confirmed absence; direct `download()` of the deleted object failed (genuinely gone, not just missing from `list()`) | PASS — 7 checks |
 | ST-05 invalid MIME type | rejected, server-side | rejected | PASS — enforced by `storage.buckets.allowed_mime_types` (017), confirmed present in Stage 3, confirmed enforced here at runtime |
 | ST-06 file > 5MB | rejected, server-side | rejected | PASS — enforced by `storage.buckets.file_size_limit=5242880` (017), confirmed present in Stage 3, confirmed enforced here at runtime |
 | ST-07 duplicate filename | no silent overwrite | second upload to the identical path rejected (`upsert:false` default); real app paths include a per-upload timestamp, making an accidental collision practically impossible | PASS |
@@ -44,5 +45,7 @@ reconciliation job is future work, not a Sprint 4.5 certification gap.
 ## Verdict
 
 **PASS**, with the ST-08/09 architectural gap explicitly documented rather
-than silently accepted. Upload, cross-tenant denial, MIME/size enforcement,
+than silently accepted. Upload, own-tenant delete (ST-04b, added in a
+Sprint 4.5 continuation pass — ST-04 previously only covered the
+cross-tenant negative case), cross-tenant denial, MIME/size enforcement,
 and orphan-query capability are all confirmed by real Storage API calls.

@@ -78,12 +78,15 @@ export function buildContractorReportSubmission({
   const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template).progress;
 
   const wpProgressArray = ganttTasks.length > 0
-    ? Object.entries(ganttWpProgress).map(([wpId, value]) => ({
-        wpId,
+    ? ganttTasks.map(task => {
+      const value = ganttWpProgress[task.id] || {};
+      return {
+        wpId: task.id,
         progress_pct: value.progress_pct ?? 0,
         status: value.status ?? "not_started",
         comment: value.comment ?? "",
-      }))
+      };
+    })
     : [];
 
   const contractorRawAverageProgress = calculateRawWPAverageProgress(wpProgressArray, cumulativeProgress);

@@ -1,35 +1,34 @@
+// Audited, intentional legacy-fallback import — tracked in
+// src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS.
+// Migrating would rewrite live legacy-report compatibility behavior;
+// out of scope here and hard-constraint-protected (no business-semantics
+// changes).
+// eslint-disable-next-line no-restricted-imports
 import { WORK_PACKAGES } from "../../config/workPackages";
 import FormSection, { ACCENT } from "./FormSection";
 import LegacyPMTaskRow from "./LegacyPMTaskRow";
-import GanttPMTaskRow from "./GanttPMTaskRow";
 import { getGCTaskEntry } from "./gcReferenceHelpers";
 import PhotoUpload from "../shared/PhotoUpload";
-import { isZonedTemplate, groupGanttTasksByZone } from "../../hooks/useWPGrouping";
+import SiteVisitDraftRecovery from "./SiteVisitDraftRecovery";
+import SiteVisitTaskNavigator from "./SiteVisitTaskNavigator";
 
 function SiteVisitFormView({
-  project, projectReports, form, set, errors,
+  project, projectReports, form, set, errors, submitError, submitting, canRetry,
   referenceReport, handleReferenceChange, updateWPTask,
   ganttLoading, ganttTasks, pmWpObservations, updatePMObservation,
   onSubmit,
   photoUrls, projectId, onPhotoUpload, onPhotoRemove, onPhotoError, photoError,
-  draftRestored, onDiscardDraft,
+  draftCandidate, onContinueDraft, onDiscardDraft,
+  filteredTasks, activeFilter, reviewCounts, navigation, onFilter, onNavigate,
+  onPhotoItemsChange, submitDisabled,
 }) {
   return (
     <div data-testid="pm-site-visit-form" className="field-form-page" style={{ minHeight: "100vh", background: "var(--field-bg-sitevisit)", padding: "36px 20px 80px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-        {draftRestored && (
-          <div data-testid="draft-restored-banner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "var(--field-info-bg)", border: "1px solid var(--field-info-border)", borderRadius: 12, padding: "10px 16px", marginBottom: 16, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: "var(--field-info-fg-dark)", fontWeight: 600 }}>Restored your unsaved draft for this site visit.</span>
-            <button
-              type="button"
-              onClick={onDiscardDraft}
-              style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--field-info-border)", background: "white", color: "var(--field-info-fg-dark)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-            >
-              Discard draft
-            </button>
-          </div>
-        )}
+        {submitError && <div role="alert" aria-live="assertive" className="field-form-error-summary"><strong>Site visit not confirmed.</strong> {submitError} {canRetry&&<button type="button" className="btn-ghost" onClick={onSubmit}>Retry with the same request</button>}</div>}
+
+        <SiteVisitDraftRecovery result={draftCandidate} project={project} onContinue={onContinueDraft} onDiscard={onDiscardDraft} />
 
         {/* Header card */}
         <div style={{ background: "white", borderRadius: 16, border: "1px solid var(--field-border)", padding: "24px 28px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
@@ -74,7 +73,7 @@ function SiteVisitFormView({
 
         {/* Validation errors */}
         {errors.length > 0 && (
-          <div style={{ background: "var(--field-danger-bg)", border: "1px solid var(--field-danger-border)", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
+          <div role="alert" aria-live="assertive" tabIndex={-1} autoFocus style={{ background: "var(--field-danger-bg)", border: "1px solid var(--field-danger-border)", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
             <div style={{ fontWeight: 700, color: "var(--field-danger-fg-dark)", marginBottom: 8, fontSize: 13 }}>Please fix the following required fields:</div>
             <ul style={{ margin: 0, paddingLeft: 18, color: "var(--field-danger-fg-dark)", fontSize: 13, lineHeight: 1.8 }}>
               {errors.map((e) => <li key={e}>{e}</li>)}
@@ -127,50 +126,8 @@ function SiteVisitFormView({
           <FormSection title="Work Package Observations" accentColor={ACCENT}>
             <div style={{ textAlign: 'center', padding: '20px', color: 'var(--field-text-muted)', fontSize: 13 }}>Loading schedule…</div>
           </FormSection>
-        ) : ganttTasks.length > 0 && isZonedTemplate(project.templateType) ? (
-          (() => {
-            const zones = groupGanttTasksByZone(ganttTasks, project.templateType);
-            return [...zones.entries()].map(([zoneId, zone]) => (
-              <div key={zoneId} style={{ marginBottom: 8 }}>
-                <h2 style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--field-text-secondary)', margin: '0 0 8px 4px' }}>
-                  {zone.zoneLabel}
-                </h2>
-                {[...zone.categories.entries()].map(([categoryId, { categoryLabel, tasks }]) => (
-                  <FormSection key={`${zoneId}.${categoryId}`} title={categoryLabel} accentColor={ACCENT}>
-                    {tasks.map(task => (
-                      <GanttPMTaskRow
-                        key={task.id}
-                        task={task}
-                        pmEntry={pmWpObservations[task.id]}
-                        onChange={updates => updatePMObservation(task.id, updates)}
-                      />
-                    ))}
-                  </FormSection>
-                ))}
-              </div>
-            ));
-          })()
         ) : ganttTasks.length > 0 ? (
-          (() => {
-            const byPhase = {};
-            for (const task of ganttTasks) {
-              const key = task.phaseLabel || task.phaseId || 'Other';
-              if (!byPhase[key]) byPhase[key] = [];
-              byPhase[key].push(task);
-            }
-            return Object.entries(byPhase).map(([phase, tasks]) => (
-              <FormSection key={phase} title={phase} accentColor={ACCENT}>
-                {tasks.map(task => (
-                  <GanttPMTaskRow
-                    key={task.id}
-                    task={task}
-                    pmEntry={pmWpObservations[task.id]}
-                    onChange={updates => updatePMObservation(task.id, updates)}
-                  />
-                ))}
-              </FormSection>
-            ));
-          })()
+          <SiteVisitTaskNavigator tasks={filteredTasks} allTasks={ganttTasks} navigation={navigation} filter={activeFilter} counts={reviewCounts} onFilter={onFilter} onNavigate={onNavigate} pmWpObservations={pmWpObservations} updatePMObservation={updatePMObservation} />
         ) : (
           WORK_PACKAGES.map((wp) => (
             <FormSection key={wp.id} title={wp.name} accentColor="var(--field-accent-orange-fg)">
@@ -229,12 +186,12 @@ function SiteVisitFormView({
 
         {/* 4. Photos */}
         <FormSection title="Site Photos" accentColor="var(--field-text-secondary)">
-          <PhotoUpload projectId={projectId} onUpload={onPhotoUpload} onRemove={onPhotoRemove} onError={onPhotoError} />
+          <PhotoUpload projectId={projectId} existingPaths={photoUrls} onUpload={onPhotoUpload} onRemove={onPhotoRemove} onError={onPhotoError} onItemsChange={onPhotoItemsChange} />
           {photoUrls.length > 0 && (
             <p style={{ fontSize: 12, color: "var(--field-text-muted)", marginTop: 8 }}>{photoUrls.length} photo{photoUrls.length > 1 ? "s" : ""} attached</p>
           )}
           {photoError && (
-            <div style={{ marginTop: 10, background: "var(--field-danger-bg)", border: "1px solid var(--field-danger-border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--field-danger-fg-dark)" }}>
+            <div role="alert" aria-live="assertive" style={{ marginTop: 10, background: "var(--field-danger-bg)", border: "1px solid var(--field-danger-border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--field-danger-fg-dark)" }}>
               {photoError}
             </div>
           )}
@@ -242,10 +199,15 @@ function SiteVisitFormView({
 
         {/* 5. Declaration */}
         <FormSection title="Declaration" accentColor="var(--field-accent-slate)">
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer" }}>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", minHeight: 44 }}>
             <div
               data-testid="pm-declaration-checkbox"
+              role="checkbox"
+              tabIndex={0}
+              aria-checked={form.declarationConfirmed}
+              aria-required="true"
               onClick={() => set("declarationConfirmed", !form.declarationConfirmed)}
+              onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); set("declarationConfirmed", !form.declarationConfirmed); } }}
               style={{
                 width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
                 border: `2px solid ${form.declarationConfirmed ? ACCENT : "var(--field-border-strong)"}`,
@@ -261,12 +223,14 @@ function SiteVisitFormView({
           </label>
         </FormSection>
 
+        {ganttTasks.length > 0 && <section className="site-visit-review" aria-labelledby="site-visit-review-title"><h2 id="site-visit-review-title">Review visit</h2><p>{reviewCounts.completedCount} of {reviewCounts.totalCount} checked. {reviewCounts.incompleteCount} incomplete. {reviewCounts.discrepancyCount} discrepant.</p><div><button type="button" onClick={()=>onFilter('incomplete')}>Review incomplete</button><button type="button" onClick={()=>onFilter('discrepant')}>Review discrepancies</button></div></section>}
+
         {/* Submit */}
         <div className="field-form-sticky-submit-spacer" />
         <div className="field-form-sticky-submit">
-          <button type="button" data-testid="save-site-visit-report" onClick={onSubmit}
-            style={{ width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, var(--field-accent-sitevisit-2) 100%)`, color: "white", fontSize: 16, fontWeight: 700, cursor: "pointer", letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(8,145,178,0.35)" }}>
-            Submit Site Visit Report
+          <button type="button" data-testid="save-site-visit-report" onClick={onSubmit} disabled={submitting || submitDisabled} aria-busy={submitting}
+            style={{ width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, var(--field-accent-sitevisit-2) 100%)`, color: "white", fontSize: 16, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.65 : 1, letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(8,145,178,0.35)" }}>
+            {submitting ? "Submitting site visit…" : "Submit Site Visit Report"}
           </button>
         </div>
 

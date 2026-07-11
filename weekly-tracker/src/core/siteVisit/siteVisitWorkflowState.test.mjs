@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict'; import { createSiteVisitWorkflowState, siteVisitWorkflowReducer } from './siteVisitWorkflowState.js';
+let passed=0; const check=(n,f)=>{f();passed++;console.log(`  PASS ${n}`)}; const idle=createSiteVisitWorkflowState('r1');
+check('idle to restoring',()=>assert.equal(siteVisitWorkflowReducer(idle,{type:'DRAFT_FOUND'}).status,'restoring-draft'));
+check('restore keeps request and position',()=>{const s=siteVisitWorkflowReducer(idle,{type:'DRAFT_RESTORED',requestId:'old',currentItemId:'b',activeFilter:'incomplete'});assert.equal(s.requestId,'old');assert.equal(s.currentItemId,'b')});
+check('validation is distinct',()=>assert.equal(siteVisitWorkflowReducer(idle,{type:'VALIDATION_FAILED',errors:['x']}).status,'validation-error'));
+check('review state exists',()=>assert.equal(siteVisitWorkflowReducer(idle,{type:'REVIEW'}).status,'reviewing'));
+const submitting=siteVisitWorkflowReducer(idle,{type:'SUBMIT'}); check('duplicate submit ignored',()=>assert.strictEqual(siteVisitWorkflowReducer(submitting,{type:'SUBMIT'}),submitting));
+check('retryable and fatal differ',()=>{assert.equal(siteVisitWorkflowReducer(submitting,{type:'SUBMIT_FAILED',retryable:true}).status,'retryable-error');assert.equal(siteVisitWorkflowReducer(submitting,{type:'SUBMIT_FAILED',retryable:false}).status,'fatal-error')});
+check('replay is success',()=>assert.equal(siteVisitWorkflowReducer(submitting,{type:'SUBMIT_SUCCEEDED',idempotentReplay:true}).idempotentReplay,true));
+console.log(`\n-- RESULT: ${passed} passed, 0 failed --`);

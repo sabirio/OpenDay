@@ -138,6 +138,8 @@ async function main() {
   r.section('CR-07: payload references a WP outside project active scope');
   const cr07Req = randomUUID();
   const reportsBeforeCr07 = countRows('contractor_reports', `project_id = ${PROJECT_A}`);
+  const childrenBeforeCr07 = countRows('contractor_report_wps', `project_id = ${PROJECT_A}`);
+  const historyBeforeCr07 = countRows('progress_history', `project_id = ${PROJECT_A}`);
   const { data: cr07, error: cr07Err } = await callAtomic(contractorA, {
     projectId: PROJECT_A, reportDate: '2026-08-07',
     wpProgress: [{ wpId: 'does.not.exist.in.scope', progress_pct: 50, status: 'in_progress' }],
@@ -153,8 +155,16 @@ async function main() {
   }
 
   // ── CR-08: duplicate WP item in one payload ─────────────────────────────
+  r.check('CR-07 returns WORK_PACKAGE_OUT_OF_SCOPE', cr07Err?.code === '22023' && /WORK_PACKAGE_OUT_OF_SCOPE/.test(cr07Err?.message ?? ''), cr07Err?.message);
+  r.check('CR-07 leaves 0 child rows', countRows('contractor_report_wps', `project_id = ${PROJECT_A}`) === childrenBeforeCr07);
+  r.check('CR-07 leaves 0 progress history rows', countRows('progress_history', `project_id = ${PROJECT_A}`) === historyBeforeCr07);
+  r.check('CR-07 leaves 0 committed request ledger rows', countRows('write_command_requests', `client_request_id = '${cr07Req}'`) === 0);
+
   r.section('CR-08: duplicate WP observation within one payload');
   const cr08Req = randomUUID();
+  const reportsBeforeCr08 = countRows('contractor_reports', `project_id = ${PROJECT_A}`);
+  const childrenBeforeCr08 = countRows('contractor_report_wps', `project_id = ${PROJECT_A}`);
+  const historyBeforeCr08 = countRows('progress_history', `project_id = ${PROJECT_A}`);
   const { data: cr08, error: cr08Err } = await callAtomic(contractorA, {
     projectId: PROJECT_A, reportDate: '2026-08-08',
     wpProgress: [
@@ -171,6 +181,12 @@ async function main() {
   }
 
   // ── CR-09: forced child-insert failure (bad cast, mid-transaction) ─────
+  r.check('CR-08 returns DUPLICATE_WORK_PACKAGE', cr08Err?.code === '22023' && /DUPLICATE_WORK_PACKAGE/.test(cr08Err?.message ?? ''), cr08Err?.message);
+  r.check('CR-08 leaves 0 report headers', countRows('contractor_reports', `project_id = ${PROJECT_A}`) === reportsBeforeCr08);
+  r.check('CR-08 leaves 0 child rows', countRows('contractor_report_wps', `project_id = ${PROJECT_A}`) === childrenBeforeCr08);
+  r.check('CR-08 leaves 0 progress history rows', countRows('progress_history', `project_id = ${PROJECT_A}`) === historyBeforeCr08);
+  r.check('CR-08 leaves 0 committed request ledger rows', countRows('write_command_requests', `client_request_id = '${cr08Req}'`) === 0);
+
   r.section('CR-09: forced child failure (progress_pct that cannot cast to numeric)');
   const cr09Req = randomUUID();
   const reportsBeforeCr09 = countRows('contractor_reports', `project_id = ${PROJECT_A}`);

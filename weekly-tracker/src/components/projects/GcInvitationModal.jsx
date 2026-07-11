@@ -1,3 +1,5 @@
+import Modal from "../shared/Modal";
+
 export default function GcInvitationModal({
   project,
   email,
@@ -7,21 +9,28 @@ export default function GcInvitationModal({
   onStatusReset,
   onInvite,
   onClose,
+  initialEmail = "",
 }) {
   if (!project) return null;
 
   const emailValid = email && email.includes("@");
+  const isDirty = email !== initialEmail;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460, width: "95vw", padding: 0, overflow: "hidden" }}>
+    <Modal
+      onClose={onClose}
+      titleId="gc-invitation-title"
+      isDirty={isDirty}
+      dirtyMessage="Discard this invitation email change?"
+      style={{ maxWidth: 460, width: "95vw", padding: 0, overflow: "hidden" }}
+    >
         <div style={{ padding: "24px 28px 20px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
             <div>
               <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                 GC Portal Invitation
               </p>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>
+              <h2 id="gc-invitation-title" style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>
                 {project.shoppingMallName || project.storeCode}
               </h2>
               <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
@@ -104,7 +113,6 @@ export default function GcInvitationModal({
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -103,12 +103,14 @@ async function main() {
   // every certification scenario below re-verifies access through real
   // authenticated, non-service-role clients).
   psql(`
-    INSERT INTO public.projects (id, store_code, shopping_mall_name, company_id, project_status, target_opening_date)
+    INSERT INTO public.projects (id, store_code, shopping_mall_name, company_id, project_status, target_opening_date, contractor_email)
     VALUES
-      (${PROJECT_A}, 'CERT-A1', 'Certification Mall A1', 'company-a', 'Active', CURRENT_DATE + INTERVAL '120 days'),
-      (${PROJECT_A2}, 'CERT-A2', 'Certification Mall A2', 'company-a', 'Active', CURRENT_DATE + INTERVAL '150 days'),
-      (${PROJECT_B}, 'CERT-B1', 'Certification Mall B1', 'company-b', 'Active', CURRENT_DATE + INTERVAL '120 days')
-    ON CONFLICT (id) DO UPDATE SET store_code = EXCLUDED.store_code;
+      (${PROJECT_A}, 'CERT-A1', 'Certification Mall A1', 'company-a', 'Active', CURRENT_DATE + INTERVAL '120 days', 'contractor-a-assigned@cert.local'),
+      (${PROJECT_A2}, 'CERT-A2', 'Certification Mall A2', 'company-a', 'Active', CURRENT_DATE + INTERVAL '150 days', NULL),
+      (${PROJECT_B}, 'CERT-B1', 'Certification Mall B1', 'company-b', 'Active', CURRENT_DATE + INTERVAL '120 days', 'contractor-b@cert.local')
+    ON CONFLICT (id) DO UPDATE SET
+      store_code = EXCLUDED.store_code,
+      contractor_email = EXCLUDED.contractor_email;
     SELECT setval('public.projects_id_seq', 900100, false);
   `);
   console.log(`  projects: A=${PROJECT_A} A2=${PROJECT_A2} (company-a), B=${PROJECT_B} (company-b)`);
@@ -172,7 +174,7 @@ async function main() {
   console.log(`\nFixture state written to ${STATE_PATH}`);
 }
 
-main().catch(err => {
+main().then(() => process.exit(0)).catch(err => {
   console.error('FIXTURE SETUP FAILED:', err);
   process.exit(1);
 });

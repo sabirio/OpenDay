@@ -7,7 +7,7 @@
 // insert/delete (not read).
 // Run: node certifyStorage.mjs
 
-import { loadFixtureState, signInAs, makeReporter, requireCertificationEnvironment } from './lib.mjs';
+import { loadFixtureState, signInAs, anonClient, makeReporter, requireCertificationEnvironment } from './lib.mjs';
 
 await requireCertificationEnvironment();
 
@@ -68,6 +68,43 @@ async function main() {
   // Supabase Storage remove() on a denied object returns success with an empty data array (RLS silently filters, not an explicit error) — verify via re-list from an authorized party instead of trusting the response shape alone.
   const { data: st03StillThere } = await adminB.storage.from(BUCKET).list(`${PROJECT_B}/2026-08`);
   r.check('the Company B object still exists after the cross-tenant delete attempt (ground truth via an authorized Company B read)', (st03StillThere ?? []).some(f => st03Path.endsWith(f.name)), JSON.stringify({ st04Err, st04Data, remaining: st03StillThere?.map(f => f.name) }));
+
+  // ── ST-04b: own-tenant delete (the positive case ST-04 didn't cover) ───
+  // Full lifecycle: authorized own-tenant upload -> confirmed present ->
+  // delete -> confirmed absent via an authorized lookup (not just trusting
+  // the delete call's own response shape — same ground-truth discipline as
+  // ST-04's cross-tenant negative case). Also re-confirms, alongside the
+  // positive case, that cross-tenant and anonymous delete both remain
+  // denied against this same object while it exists.
+  r.section('ST-04b: authorized own-tenant user uploads then deletes their own object');
+  {
+    const st04bPath = pathFor(PROJECT_A, pmAUser.id, '-owndelete');
+    const { error: upErr } = await pmA.storage.from(BUCKET).upload(st04bPath, PNG_1PX, { contentType: 'image/png' });
+    r.check('setup: upload succeeds', !upErr, upErr?.message);
+    const { data: beforeDelete } = await pmA.storage.from(BUCKET).list(`${PROJECT_A}/2026-08`);
+    r.check('authorized lookup confirms the object exists before delete', (beforeDelete ?? []).some(f => st04bPath.endsWith(f.name)));
+
+    // Cross-tenant delete attempt against this same, still-live object.
+    const { error: crossDelErr } = await adminB.storage.from(BUCKET).remove([st04bPath]);
+    const { data: afterCrossAttempt } = await pmA.storage.from(BUCKET).list(`${PROJECT_A}/2026-08`);
+    r.check('cross-tenant delete attempt on this object has no effect (still present, ground truth)', (afterCrossAttempt ?? []).some(f => st04bPath.endsWith(f.name)), JSON.stringify({ crossDelErr, remaining: afterCrossAttempt?.map(f => f.name) }));
+
+    // Anonymous (no session) delete attempt against this same object.
+    const anon = anonClient();
+    const { error: anonDelErr } = await anon.storage.from(BUCKET).remove([st04bPath]);
+    const { data: afterAnonAttempt } = await pmA.storage.from(BUCKET).list(`${PROJECT_A}/2026-08`);
+    r.check('anonymous delete attempt on this object has no effect (still present, ground truth)', (afterAnonAttempt ?? []).some(f => st04bPath.endsWith(f.name)), JSON.stringify({ anonDelErr, remaining: afterAnonAttempt?.map(f => f.name) }));
+
+    // Now the actual positive case: the owning, authorized user deletes it.
+    const { error: delErr } = await pmA.storage.from(BUCKET).remove([st04bPath]);
+    r.check('own-tenant delete succeeds (no error)', !delErr, delErr?.message);
+
+    const { data: afterDelete } = await pmA.storage.from(BUCKET).list(`${PROJECT_A}/2026-08`);
+    r.check('authorized lookup confirms the object no longer exists after delete', !(afterDelete ?? []).some(f => st04bPath.endsWith(f.name)), JSON.stringify(afterDelete?.map(f => f.name)));
+
+    const { error: downloadAfterDeleteErr } = await pmA.storage.from(BUCKET).download(st04bPath);
+    r.check('direct download of the deleted object fails (genuinely gone, not just missing from list)', !!downloadAfterDeleteErr, JSON.stringify(downloadAfterDeleteErr));
+  }
 
   // ── ST-05: invalid MIME type ────────────────────────────────────────────
   r.section('ST-05: upload a disallowed MIME type');

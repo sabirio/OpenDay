@@ -10,7 +10,7 @@ const ACCENT = "var(--field-accent-sitevisit)";
 // threshold (10/20), so this screen could show a different discrepancy
 // count than what was actually written to the DB. Canonical source:
 // siteVisitService.submitSiteVisit() — see src/engines/COMPARISON_MODEL.md.
-function GanttSuccessView({ project, form, ganttTasks, discrepancies = [], onNewVisit }) {
+function GanttSuccessView({ project, form, ganttTasks, discrepancies = [], observedCount = ganttTasks.length, idempotentReplay = false, onNewVisit }) {
   // discrepancies[] includes every task with ANY nonzero delta, even ones the
   // service itself classifies 'ok' (< 10pp — its own tolerance band). Only
   // 'warning'/'critical' entries count as a real discrepancy/pmAhead here;
@@ -20,14 +20,15 @@ function GanttSuccessView({ project, form, ganttTasks, discrepancies = [], onNew
   // (overstatement). signedDelta > 0: PM found MORE (contractor understated).
   const flagged          = discrepancies.filter(d => d.status !== 'ok');
   const { overstated: discrepancyCount, pmAhead: pmAheadCount } = countDiscrepanciesBySignedDelta(flagged);
-  const confirmed        = countConfirmed(ganttTasks.length, flagged.length);
+  const confirmed        = countConfirmed(observedCount, flagged.length);
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--field-bg-sitevisit)', padding: '36px 20px 80px' }}>
       <div style={{ maxWidth: 600, margin: '0 auto' }}>
         <div style={{ background: 'white', borderRadius: 16, border: '1px solid var(--field-border)', padding: '32px 28px', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
           <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--field-info-bg)', border: '2px solid var(--field-info-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 28 }}>✓</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--field-info-fg-dark)', marginBottom: 8 }}>Site Visit Recorded</div>
+          <h1 tabIndex={-1} autoFocus style={{ fontSize: 22, fontWeight: 800, color: 'var(--field-info-fg-dark)', margin: '0 0 8px' }}>{idempotentReplay ? 'Site Visit Already Confirmed' : 'Site Visit Recorded'}</h1>
+          {idempotentReplay && <p style={{ color: 'var(--field-text-secondary)' }}>The earlier visit was found and confirmed; no duplicate was created.</p>}
           <div style={{ fontSize: 13, color: 'var(--field-text-secondary)', marginBottom: 24 }}>
             {project.storeCode} · {project.shoppingMallName} · {form.visitDate}
           </div>

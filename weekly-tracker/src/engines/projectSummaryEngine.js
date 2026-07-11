@@ -1,3 +1,10 @@
+// Audited, intentional legacy-fallback import (used alongside the
+// canonical masterTaskLibrary import below for pre-Gantt legacy reports) —
+// tracked in src/tests/architectureGuard.test.mjs's
+// ALLOWED_LEGACY_IMPORTERS. Migrating would rewrite live legacy-report
+// compatibility behavior; out of scope here and hard-constraint-protected
+// (no business-semantics changes).
+// eslint-disable-next-line no-restricted-imports
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
 import { getPhasesInOrder, WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
 import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';

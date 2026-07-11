@@ -1,10 +1,9 @@
 import { formatDate } from "../../utils/reportUtils";
+import Modal from "../shared/Modal";
 
 export default function MissingReportsModal({ missingRows, onClose }) {
   return (
-    <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000 }} />
-      <div role="dialog" aria-modal="true" aria-labelledby="missing-reports-title" className="weekly-missing-modal">
+    <Modal onClose={onClose} titleId="missing-reports-title" className="weekly-missing-modal">
         <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div id="missing-reports-title" style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)" }}>Missing Reports</div>
@@ -29,7 +28,6 @@ export default function MissingReportsModal({ missingRows, onClose }) {
             </tbody>
           </table>
         </div>
-      </div>
-    </>
+    </Modal>
   );
 }

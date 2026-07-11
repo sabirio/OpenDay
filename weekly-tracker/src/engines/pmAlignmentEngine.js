@@ -1,6 +1,13 @@
 // @ts-check
 import { getStatusScore, DAY_MS } from "../utils/reportUtils";
+// Both legacy imports below are audited, intentional legacy-fallback
+// imports — tracked in src/tests/architectureGuard.test.mjs's
+// ALLOWED_LEGACY_IMPORTERS. Migrating would rewrite live legacy-report
+// compatibility behavior; out of scope here and hard-constraint-protected
+// (no business-semantics/weight-formula changes).
+// eslint-disable-next-line no-restricted-imports
 import { WORK_PACKAGES, WP_STATUS_SCORES } from "../config/workPackages";
+// eslint-disable-next-line no-restricted-imports
 import { constructionWeights, testingWeights, handoverWeights } from "../config/reportWeights";
 import { CONFIDENCE_WEIGHTS, CONFIDENCE_LEVEL_THRESHOLDS, CONFIDENCE_LEVELS } from "../config/confidenceConfig";
 

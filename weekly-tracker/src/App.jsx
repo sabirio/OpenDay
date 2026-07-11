@@ -74,8 +74,8 @@ class ErrorBoundary extends Component {
 // ── Global screens ────────────────────────────────────────────────────────────
 function GlobalLoadingScreen() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-base)', color: 'var(--text-muted)', fontFamily: 'sans-serif', gap: 12 }}>
-      <div style={{ width: 20, height: 20, border: '3px solid var(--border)', borderTopColor: 'var(--status-warn)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    <div role="status" aria-live="polite" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-base)', color: 'var(--text-muted)', fontFamily: 'sans-serif', gap: 12 }}>
+      <div aria-hidden="true" style={{ width: 20, height: 20, border: '3px solid var(--border)', borderTopColor: 'var(--status-warn)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <span style={{ fontSize: 15 }}>Loading project data…</span>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
@@ -84,19 +84,24 @@ function GlobalLoadingScreen() {
 
 function RouteLoadingScreen() {
   return (
-    <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)", fontFamily: "sans-serif" }}>
+    <div role="status" aria-live="polite" style={{ padding: 32, textAlign: "center", color: "var(--text-muted)", fontFamily: "sans-serif" }}>
       Loading...
     </div>
   );
 }
 
-function GlobalErrorScreen({ error, onRetry }) {
+// Never renders the raw Supabase/Postgres/network error message directly to
+// the user — only a fixed, friendly message. The raw error is still
+// available to developers via the console.error() call at the
+// loadProjects()/loadPortfolioData() catch sites that set the state this
+// screen is rendered for.
+function GlobalErrorScreen({ onRetry }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <div style={{ fontSize: 40 }}>🔌</div>
+    <div role="alert" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+      <div aria-hidden="true" style={{ fontSize: 40 }}>🔌</div>
       <div style={{ fontSize: 20, fontWeight: 600 }}>Failed to load data</div>
       <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 480, textAlign: 'center' }}>
-        {error || 'Could not connect to the database. Check your network and try again.'}
+        Could not connect to the database. Check your network and try again.
       </div>
       <button
         onClick={onRetry}
@@ -113,7 +118,7 @@ function GlobalErrorScreen({ error, onRetry }) {
 // (already-loaded) projects list, so it renders immediately without
 // waiting. /contractor-report/* is exempt too — it has its own fallback
 // fetch for external links and must keep working even if this load fails.
-function PortfolioDataGate({ isAuthenticated, portfolioState, portfolioError, onLoadPortfolioData, children }) {
+function PortfolioDataGate({ isAuthenticated, portfolioState, onLoadPortfolioData, children }) {
   const location = useLocation();
   const skipGate = location.pathname === '/projects' || location.pathname.startsWith('/contractor-report/');
 
@@ -124,7 +129,7 @@ function PortfolioDataGate({ isAuthenticated, portfolioState, portfolioError, on
 
   if (!isAuthenticated || skipGate) return children;
   if (portfolioState === 'loading' || portfolioState === 'idle') return <GlobalLoadingScreen />;
-  if (portfolioState === 'error') return <GlobalErrorScreen error={portfolioError} onRetry={onLoadPortfolioData} />;
+  if (portfolioState === 'error') return <GlobalErrorScreen onRetry={onLoadPortfolioData} />;
   return children;
 }
 
@@ -145,11 +150,16 @@ function App() {
   const [siteVisits, setSiteVisits] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [projectsState, setProjectsState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'error'
-  const [projectsError, setProjectsError] = useState(null);
+  // Value intentionally not read — GlobalErrorScreen shows a fixed, friendly
+  // message rather than the raw backend error (see its own comment); the
+  // setter is still used so console.error() callers can distinguish
+  // "no error recorded yet" from "an error just happened" if ever needed.
+  const [, setProjectsError] = useState(null);
   // Portfolio data (reports/siteVisits/templates) is heavier — loaded lazily,
   // only once a route that needs it is actually visited. See PortfolioDataGate.
   const [portfolioState, setPortfolioState] = useState('idle'); // 'idle' | 'loading' | 'ready' | 'error'
-  const [portfolioError, setPortfolioError] = useState(null);
+  // Value intentionally not read — see the matching comment on projectsError above.
+  const [, setPortfolioError] = useState(null);
 
   const templatesById = useMemo(
     () => Object.fromEntries(templates.map(t => [t.id, t])),
@@ -195,9 +205,17 @@ function App() {
     });
   }
 
-  // Load the (fast) projects list whenever the user logs in. Reports/siteVisits/
-  // templates load lazily — see PortfolioDataGate.
-  useEffect(() => {
+  // Clearing session-scoped state on logout is pure synchronous local
+  // state manipulation — no network I/O, no subscription, nothing an
+  // effect is actually needed for. Per React's "adjusting state when a
+  // prop changes" pattern, this runs directly during render (guarded by
+  // comparing against the previous isAuthenticated value so it fires
+  // exactly once per transition, not every render) instead of through a
+  // useEffect, which both avoids an unnecessary extra commit and sidesteps
+  // synchronously calling multiple setState functions inside an effect body.
+  const [prevIsAuthenticated, setPrevIsAuthenticated] = useState(isAuthenticated);
+  if (isAuthenticated !== prevIsAuthenticated) {
+    setPrevIsAuthenticated(isAuthenticated);
     if (!isAuthenticated) {
       setProjects([]);
       setReports([]);
@@ -207,9 +225,28 @@ function App() {
       setProjectsError(null);
       setPortfolioState('idle');
       setPortfolioError(null);
-      return;
     }
-    loadProjects();
+  }
+
+  // Load the (fast) projects list whenever the user logs in. Reports/siteVisits/
+  // templates load lazily — see PortfolioDataGate.
+  //
+  // react-hooks/set-state-in-effect false positive: loadProjects() is a
+  // genuine async data fetch (real network I/O via projectService.getAll(),
+  // setProjectsState('loading') only as the first step of that fetch, with
+  // 'ready'/'error' resolved from the promise) — the textbook legitimate
+  // effect use the rule's own docs describe ("subscribe for updates from
+  // some external system"), not a synchronous local-state computation that
+  // could be moved to render. Confirmed the rule's flagging here is
+  // shape-sensitive, not semantic: wrapping the exact same call in an
+  // if/else with another branch (as it was before an adjacent unrelated
+  // fix) silenced it with no change to loadProjects() itself, and
+  // renaming an unrelated fully-synchronous local function elsewhere in
+  // this file also changed whether it was flagged — i.e. the rule is
+  // reacting to incidental code shape here, not to a real anti-pattern.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isAuthenticated) loadProjects();
   }, [isAuthenticated]);
 
   async function handleSaveProject(project) {
@@ -236,7 +273,7 @@ function App() {
   }
 
   if (isAuthenticated && projectsState === 'loading' && !isContractorReportRoute) return <GlobalLoadingScreen />;
-  if (isAuthenticated && projectsState === 'error' && !isContractorReportRoute) return <GlobalErrorScreen error={projectsError} onRetry={loadProjects} />;
+  if (isAuthenticated && projectsState === 'error' && !isContractorReportRoute) return <GlobalErrorScreen onRetry={loadProjects} />;
 
   return (
     <ErrorBoundary>
@@ -250,7 +287,6 @@ function App() {
       <PortfolioDataGate
         isAuthenticated={isAuthenticated}
         portfolioState={portfolioState}
-        portfolioError={portfolioError}
         onLoadPortfolioData={loadPortfolioData}
       >
       <Routes>

@@ -39,31 +39,38 @@ function Badge({ children, color = 'var(--text-muted)', bg = 'var(--bg-elevated)
 export default function WeightAudit({ projects }) {
   const [mode,              setMode]              = useState('project');
   const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [template,          setTemplate]          = useState(null);
-  const [loading,           setLoading]           = useState(false);
 
   const selectedProject = projects.find(p => String(p.id) === selectedProjectId) ?? null;
+
+  // Project mode with no templateId needs no fetch at all — template is
+  // definitionally null, computed directly during render (no effect, no
+  // state, no loading flicker). Only the two fetch-requiring cases (active
+  // template in 'template' mode, or a project's specific templateId) go
+  // through the effect below, which derives `loading`/`template` from
+  // whether `templateResult.key` matches the current `templateKey` rather
+  // than resetting via a synchronous setState at the top of the effect.
+  const resolvedProjectTemplateId = selectedProject?.templateId ?? null;
+  const needsTemplateFetch = mode === 'template' || !!resolvedProjectTemplateId;
+  const templateKey = mode === 'template' ? 'active' : resolvedProjectTemplateId ? `id:${resolvedProjectTemplateId}` : null;
+
+  const [templateResult, setTemplateResult] = useState({ key: null, template: null });
+
+  useEffect(() => {
+    if (!needsTemplateFetch) return;
+    const key = templateKey;
+    let alive = true;
+    const fetcher = mode === 'template' ? fetchActiveTemplate() : fetchTemplateById(resolvedProjectTemplateId);
+    fetcher.then(t => { if (alive) setTemplateResult({ key, template: t }); });
+    return () => { alive = false; };
+  }, [needsTemplateFetch, mode, templateKey, resolvedProjectTemplateId]);
+
+  const loading = needsTemplateFetch && templateResult.key !== templateKey;
+  const template = needsTemplateFetch && templateResult.key === templateKey ? templateResult.template : null;
 
   const scopeWPIds = useMemo(() => {
     if (mode !== 'project' || !selectedProject) return null;
     return getScopeWPIds(selectedProject.scope, GANTT_WPS);
   }, [mode, selectedProject]);
-
-  useEffect(() => {
-    let alive = true;
-    setTemplate(null);
-    if (mode === 'template') {
-      setLoading(true);
-      fetchActiveTemplate().then(t => { if (alive) { setTemplate(t); setLoading(false); } });
-    } else if (selectedProject?.templateId) {
-      setLoading(true);
-      fetchTemplateById(selectedProject.templateId)
-        .then(t => { if (alive) { setTemplate(t); setLoading(false); } });
-    } else {
-      setLoading(false);
-    }
-    return () => { alive = false; };
-  }, [mode, selectedProject?.id, selectedProject?.templateId]);
 
   const auditModel = useMemo(
     () => buildWeightAuditModel(template, scopeWPIds, PHASE_LABELS, WP_LABELS),

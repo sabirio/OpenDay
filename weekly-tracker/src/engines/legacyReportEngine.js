@@ -1,6 +1,11 @@
 // Adapters for legacy (pre-WorkPackage) report format.
 // Pure; no component state. Extracted from WeeklyReports.jsx per one-source rule.
 
+// Audited, intentional legacy-fallback import — tracked in
+// src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS. This
+// entire file is the legacy (pre-WorkPackage) format adapter (see header
+// above) — migrating its own import would be a contradiction in terms.
+// eslint-disable-next-line no-restricted-imports
 import { WP_STATUS_SCORES } from '../config/workPackages';
 
 export const OLD_TO_WP_WEEKLY = {

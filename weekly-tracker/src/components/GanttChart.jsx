@@ -444,13 +444,27 @@ export default function GanttChart({
   }, [layoutProp, tasks, zoom, containerW, keyDates, discrepancies, collapseState,
       project?.constructionStartDate, project?.constructionEndDate, project?.templateType]);
 
-  // Scroll to today on mount / zoom change
+  // Scroll to today on mount / zoom change.
+  //
+  // Deliberately narrow dependency array — trigger is "zoom changed" or
+  // "the chart's total rendered width changed" (both invalidate whatever
+  // scroll position meant before); work is an imperative one-shot DOM
+  // scroll to re-center "today"; no cleanup (not a subscription). `layout`
+  // and `containerW` are read for their *current* values inside the
+  // effect but must NOT be full dependencies: `layout` is recomputed on
+  // every task/progress edit (see the useMemo above), and including it (or
+  // containerW, which layout is itself derived from) here would yank the
+  // user's current scroll position back to "today" on every unrelated data
+  // change — the exact opposite of the intended UX. `layout?.chartWidth`
+  // already captures the one aspect of a layout recompute that should
+  // still recenter (an actual timeline-scale change).
   useEffect(() => {
     if (!layout || !rightRef.current) return;
     const today = layout.keyDateLines.find(l => l.type === 'today');
     if (today) {
       rightRef.current.scrollLeft = clamp(today.x - containerW / 3, 0, Infinity);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout?.chartWidth, zoom]);
 
   const scrollToToday = useCallback(() => {

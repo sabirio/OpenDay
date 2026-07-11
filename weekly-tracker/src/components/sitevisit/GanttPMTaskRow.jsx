@@ -54,10 +54,12 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
             return (
               <button key={opt.value} type="button"
                 data-testid={`pm-status-btn-${opt.value}`}
+                aria-pressed={isPM}
+                aria-label={`${task.label}: ${opt.label}`}
                 onClick={() => handleStatusClick(opt.value)}
                 style={{
                   position: 'relative',
-                  padding: '4px 9px', borderRadius: 6, fontSize: 11,
+                  padding: '8px 9px', minHeight: 44, borderRadius: 6, fontSize: 11,
                   border: isPM ? `1.5px solid ${opt.border}` : isGC ? `1px solid ${opt.border}` : '1px solid var(--field-border)',
                   background: isPM ? opt.bg : isGC ? opt.bg + '80' : 'white',
                   color: isPM ? opt.color : isGC ? opt.color : 'var(--field-text-muted)',
@@ -83,6 +85,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, paddingLeft: 4 }}>
           <input
             type="range" min="0" max="100" step="10"
+            aria-label={`Observed progress for ${task.label}`}
             value={curProgress}
             onChange={e => onChange({ ...(pmEntry || {}), observed_progress: Number(e.target.value), observed_status: pmStatus })}
             style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}

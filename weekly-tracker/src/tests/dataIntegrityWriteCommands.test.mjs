@@ -7,6 +7,7 @@ const { validateUniqueWPItems, normalizeWriteError } = await import('../core/wri
 const { buildEvidencePath } = await import('../core/write/evidencePath.js');
 const migration = readFileSync(new URL('../migrations/025_atomic_write_commands.sql', import.meta.url), 'utf8');
 const contractorService = readFileSync(new URL('../services/contractorReportService.js', import.meta.url), 'utf8');
+const contractorBuilder = readFileSync(new URL('../core/contractorReport/buildContractorReportSubmission.js', import.meta.url), 'utf8');
 const siteVisitModel = readFileSync(new URL('../core/siteVisit/submitSiteVisitModel.js', import.meta.url), 'utf8');
 
 let pass=0, fail=0;
@@ -24,6 +25,7 @@ check('site visit RPC rejects duplicate WPs', /Duplicate WP observations/.test(m
 check('site visit RPC persists sign convention/version', /'pm-minus-contractor'[\s\S]*discrepancy_version/.test(migration));
 check('RPC execute is authenticated-only', /REVOKE ALL ON FUNCTION public\.submit_site_visit_atomic[\s\S]*GRANT EXECUTE[\s\S]*TO authenticated/.test(migration));
 check('contractor service has no direct inserts', !contractorService.includes('.insert('));
+check('contractor persisted WP rows are narrowed to current scoped Gantt tasks', /ganttTasks\.map\(task[\s\S]*wpId:\s*task\.id/.test(contractorBuilder) && !/Object\.entries\(ganttWpProgress\)/.test(contractorBuilder));
 check('site visit model has one atomic service call', /submitSiteVisitAtomic/.test(siteVisitModel) && !/insertSiteVisitHeader|updateGanttDiscrepancy/.test(siteVisitModel));
 
 check('valid WP collection passes boundary validation', validateUniqueWPItems([{wpId:'a',progress_pct:50}], 'test').length === 1);
@@ -34,6 +36,10 @@ check('progress outside 0-100 fails before RPC', rangeRejected);
 const authError=normalizeWriteError({code:'42501',message:'denied'},'test','req');
 check('authorization error is normalized and non-retryable', authError.code==='AUTHORIZATION_ERROR' && !authError.retryable && authError.requestId==='req');
 const networkError=normalizeWriteError(new Error('network timeout'),'test','req');
+const duplicateServerError=normalizeWriteError({code:'22023',message:'DUPLICATE_WORK_PACKAGE: duplicate'},'test','req');
+check('server duplicate WP error is actionable and non-retryable', duplicateServerError.code === 'DUPLICATE_WORK_PACKAGE' && duplicateServerError.retryable === false && /same work package/i.test(duplicateServerError.message));
+const scopeServerError=normalizeWriteError({code:'22023',message:'WORK_PACKAGE_OUT_OF_SCOPE: stale'},'test','req');
+check('server scope error asks the user to refresh', scopeServerError.code === 'WORK_PACKAGE_OUT_OF_SCOPE' && scopeServerError.retryable === false && /refresh/i.test(scopeServerError.message));
 check('network error is retryable with same request id', networkError.code==='NETWORK_ERROR' && networkError.retryable);
 const evidencePath=buildEvidencePath(71,'00000000-0000-4000-8000-000000000001',new Date('2026-07-10T00:00:00Z'),'00000000-0000-4000-8000-000000000002');
 check('evidence path is project/period/actor scoped',evidencePath==='71/2026-07/00000000-0000-4000-8000-000000000001_00000000-0000-4000-8000-000000000002.jpg');

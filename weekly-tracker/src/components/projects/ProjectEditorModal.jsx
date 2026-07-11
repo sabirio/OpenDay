@@ -3,6 +3,7 @@ import ConflictWarning from "../ConflictWarning";
 import { TEMPLATES } from "../../config/projectTemplates";
 import { V2_TEMPLATE_TYPE } from "../../domains/construction/templates/retailFitoutV2";
 import { clamp } from "../../hooks/useChartMathPresentation";
+import Modal from "../shared/Modal";
 
 export default function ProjectEditorModal({
   project,
@@ -17,20 +18,33 @@ export default function ProjectEditorModal({
   conflict,
   onDiscardConflict,
   onOverwriteConflict,
+  isDirty = false,
 }) {
   if (!project) return null;
 
+  // Cancel/x are explicit close actions, same as Escape/backdrop — should
+  // carry the same dirty-state protection rather than bypassing it.
+  function requestClose() {
+    if (isDirty && !window.confirm("Discard unsaved project changes?")) return;
+    onClose();
+  }
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 820, width: "95vw" }}>
+    <Modal
+      onClose={onClose}
+      titleId="project-editor-title"
+      isDirty={isDirty}
+      dirtyMessage="Discard unsaved project changes?"
+      style={{ maxWidth: 820, width: "95vw" }}
+    >
         <div className="modal-header">
           <div>
-            <h2 style={{ margin: 0 }}>{editingProjectId ? "Edit Project" : "New Project"}</h2>
+            <h2 id="project-editor-title" style={{ margin: 0 }}>{editingProjectId ? "Edit Project" : "New Project"}</h2>
             {project.storeCode && (
               <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>{project.storeCode}</div>
             )}
           </div>
-          <button className="close-button" onClick={onClose}>x</button>
+          <button className="close-button" onClick={requestClose}>x</button>
         </div>
 
         <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 72px)", padding: "20px 24px" }}>
@@ -272,14 +286,13 @@ export default function ProjectEditorModal({
               )}
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="secondary-button" onClick={onClose}>Cancel</button>
+              <button className="secondary-button" onClick={requestClose}>Cancel</button>
               <button className="primary-button" onClick={onSave}>
                 {editingProjectId ? "Save Changes" : "Create Project"}
               </button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

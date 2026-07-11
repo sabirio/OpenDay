@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useRef, useState } from "react";
 import { generateAndSaveGantt, regenerateGantt } from "../hooks/useGanttOrchestration";
 import {
   getProjectById,
@@ -62,11 +62,16 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const [gcModal, setGcModal]                 = useState(null); // project being invited
   const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
   const [gcEmail, setGcEmail]             = useState('');
+  const [initialGcEmail, setInitialGcEmail] = useState(''); // snapshot at open time, for GcInvitationModal's dirty-state check
   const [gcInviteStatus, setGcInviteStatus] = useState('idle'); // idle|sending|sent|error
   const [conflict, setConflict] = useState(null); // { serverUpdatedAt } — set when saveProject() detects a stale edit
+  // Snapshot of newProject at the moment the editor opened — compared against
+  // the live value to drive ProjectEditorModal's dirty-state close protection.
+  const originalProjectRef = useRef(emptyProject);
 
   function openGcModal(project) {
     setGcEmail(project.contractorEmail || '');
+    setInitialGcEmail(project.contractorEmail || '');
     setGcInviteStatus('idle');
     setGcModal(project);
   }
@@ -95,13 +100,15 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   }
 
   function handleEditProject(project) {
-    setNewProject({
+    const snapshot = {
       ...emptyProject,
       ...project,
       templateType: project.templateType || 'standard_with_demo',
       storeSizeSqm: project.storeSizeSqm || '',
       phases: project.phases || [],
-    });
+    };
+    setNewProject(snapshot);
+    originalProjectRef.current = snapshot;
     setEditingProjectId(project.id);
     setViewingProject(null);
     setConflict(null);
@@ -166,6 +173,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       }
 
       setNewProject(emptyProject);
+      originalProjectRef.current = emptyProject;
       setEditingProjectId(null);
       setConflict(null);
       setShowForm(false);
@@ -180,13 +188,15 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   async function discardConflict() {
     try {
       const fresh = await getProjectById(editingProjectId);
-      setNewProject({
+      const snapshot = {
         ...emptyProject,
         ...fresh,
         templateType: fresh.templateType || 'standard_with_demo',
         storeSizeSqm: fresh.storeSizeSqm || '',
         phases: fresh.phases || [],
-      });
+      };
+      setNewProject(snapshot);
+      originalProjectRef.current = snapshot;
     } catch (err) {
       console.error("Failed to reload project:", err);
       alert("Failed to reload the latest data. Please close and reopen the editor.");
@@ -250,7 +260,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         </div>
         <button
           className="primary-button"
-          onClick={() => { setNewProject(emptyProject); setEditingProjectId(null); setShowForm(true); }}
+          onClick={() => { setNewProject(emptyProject); originalProjectRef.current = emptyProject; setEditingProjectId(null); setShowForm(true); }}
         >
           Add New Project
         </button>
@@ -299,6 +309,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       <GcInvitationModal
         project={gcModal}
         email={gcEmail}
+        initialEmail={initialGcEmail}
         status={gcInviteStatus}
         inputStyle={inputStyle}
         onEmailChange={setGcEmail}
@@ -321,6 +332,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           conflict={conflict}
           onDiscardConflict={discardConflict}
           onOverwriteConflict={overwriteConflict}
+          isDirty={JSON.stringify(newProject) !== JSON.stringify(originalProjectRef.current)}
         />
       )}
 

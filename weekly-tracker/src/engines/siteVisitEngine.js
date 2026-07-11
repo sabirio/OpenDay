@@ -1,6 +1,12 @@
 // Pure site-visit aggregations: PM observation vs GC report comparisons.
 // Each function is stateless: in → out, nothing stored.
 
+// Audited, intentional legacy-fallback import — tracked in
+// src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS.
+// Migrating would rewrite live legacy-report compatibility behavior;
+// out of scope here and hard-constraint-protected (no business-semantics
+// changes).
+// eslint-disable-next-line no-restricted-imports
 import { WORK_PACKAGES } from '../config/workPackages';
 import { svCompare, getGCStatusForTask, CONSTRUCTION_ITEMS, TESTING_ITEMS, HANDOVER_ITEMS } from '../config/dashboardConstants';
 import { getWPById, getPhaseById } from '../config/masterTaskLibrary';

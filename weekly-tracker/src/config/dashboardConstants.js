@@ -1,5 +1,12 @@
+// Both legacy imports below are audited, intentional legacy-fallback
+// imports — tracked in src/tests/architectureGuard.test.mjs's
+// ALLOWED_LEGACY_IMPORTERS. Migrating would rewrite live legacy-report
+// compatibility behavior; out of scope here and hard-constraint-protected
+// (no business-semantics/weight-formula changes).
+// eslint-disable-next-line no-restricted-imports
 import { WP_STATUS_SCORES } from '../config/workPackages';
 import { getStatusScore } from '../utils/reportUtils';
+// eslint-disable-next-line no-restricted-imports
 import { constructionWeights, testingWeights, handoverWeights } from '../config/reportWeights';
 import { getPhasesInOrder } from '../config/masterTaskLibrary';
 import { calculatePhaseProgress } from '../engines/progressEngine';

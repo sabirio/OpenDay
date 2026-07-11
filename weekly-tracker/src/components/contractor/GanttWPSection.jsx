@@ -108,7 +108,12 @@ export function PhaseSection({ phaseKey, tasks, ganttWpProgress, onUpdateProgres
     <div style={{ background: 'white', border: '1px solid var(--field-border)', borderRadius: 14, marginBottom: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
       {/* Header */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        data-testid="gantt-phase-header"
         onClick={() => toggle()}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}
         style={{
           padding: '12px 22px',
           borderLeft: '4px solid var(--field-accent-contractor)',

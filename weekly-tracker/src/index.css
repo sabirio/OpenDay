@@ -2006,6 +2006,100 @@ button.weekly-phase-row {
   }
 }
 
+/* ── Sidebar: off-canvas drawer below 640px ─────────────────
+   Above 640px the sidebar stays a permanent column (just narrower, per the
+   900px rule above). Below 640px it would otherwise eat ~200px of a
+   ~390px viewport, leaving too little room for content (confirmed via
+   live authenticated verification — see docs/MOBILE_FIELD_USABILITY.md) —
+   so it becomes a toggleable off-canvas panel instead. */
+.mobile-nav-toggle,
+.mobile-nav-backdrop {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobile-nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 60;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 50;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 55;
+    width: 260px;
+    max-width: 82vw;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    box-shadow: var(--shadow);
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    padding: 64px 16px 24px;
+  }
+}
+
+/* ── Site Visit project selector (pages/SiteVisitSelect.jsx) ────────────
+   Base: same 4-column grid the component used to set inline. Kept in CSS
+   so the 480px override below can actually take effect — inline styles
+   cannot be overridden by a media query. */
+.site-visit-select-row,
+.site-visit-select-header {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr auto;
+  gap: 16px;
+}
+.site-visit-select-row {
+  align-items: center;
+  padding: 12px 18px;
+  background: transparent;
+}
+
+@media (max-width: 480px) {
+  .site-visit-select-header {
+    display: none;
+  }
+  .site-visit-select-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 14px 16px;
+  }
+  .site-visit-select-cta {
+    width: 100%;
+    padding: 10px 18px !important;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 /* ============================================================
    FIELD FORMS — MOBILE (SiteVisitReport / ContractorReport)
    ============================================================ */
@@ -2099,3 +2193,53 @@ button.weekly-phase-row {
 @keyframes field-form-spin {
   to { transform: rotate(360deg); }
 }
+/* Persistent field-workflow errors survive transient network failures and are announced. */
+.field-form-error-summary {
+  margin-bottom: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--field-danger-border);
+  border-radius: 12px;
+  background: var(--field-danger-bg);
+  color: var(--field-danger-fg-dark);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.field-form-recovery {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--field-info-border);
+  border-radius: 12px;
+  background: var(--field-info-bg);
+  color: var(--field-text-body);
+}
+.field-form-recovery h2 { margin: 0 0 8px; color: var(--field-text-heading); font-size: 1rem; }
+.field-form-recovery p { margin: 0; }
+.field-form-recovery dl { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0; }
+.field-form-recovery dl div { display: flex; gap: 6px; }
+.field-form-recovery dt { color: var(--field-text-label); font-weight: 700; }
+.field-form-recovery dd { margin: 0; }
+.field-form-recovery-actions { display: flex; flex-direction: column; flex-shrink: 0; gap: 8px; justify-content: center; }
+@media (max-width: 560px) {
+  .field-form-recovery { flex-direction: column; }
+  .field-form-recovery-actions { flex-direction: column; }
+  .field-form-recovery-actions button { min-height: 44px; width: 100%; }
+}
+
+.site-visit-navigator, .site-visit-review { margin-bottom: 16px; padding: 18px; border: 1px solid var(--field-border); border-radius: 12px; background: white; }
+.site-visit-nav-heading { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.site-visit-nav-heading h2, .site-visit-review h2 { margin: 0; color: var(--field-text-heading); font-size: 1rem; }
+.site-visit-nav-heading p, .site-visit-review p { margin: 5px 0 0; color: var(--field-text-secondary); font-size: .8125rem; }
+.site-visit-filters { display: flex; gap: 6px; overflow-x: auto; padding: 14px 0 10px; }
+.site-visit-filters button, .site-visit-nav-actions button, .site-visit-review button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--field-border-strong); border-radius: 8px; background: white; color: var(--field-text-body); text-transform: capitalize; }
+.site-visit-filters button[aria-pressed="true"] { border-color: var(--field-accent-sitevisit); background: var(--field-info-bg); color: var(--field-info-fg-dark); font-weight: 700; }
+.site-visit-current-item { min-width: 0; padding: 12px 0; }
+.site-visit-group-label { margin-bottom: 5px; color: var(--field-text-label); font-size: .75rem; font-weight: 700; overflow-wrap: anywhere; }
+.site-visit-nav-actions, .site-visit-review div { display: flex; justify-content: space-between; gap: 10px; }
+.site-visit-nav-actions button { min-width: 110px; }
+.site-visit-nav-actions button:disabled { opacity: .45; }
+@media (max-width: 560px) { .site-visit-navigator, .site-visit-review { padding: 14px; } .site-visit-review div { flex-direction: column; } .site-visit-review button { width: 100%; } }
+@supports (padding: max(0px)) { .field-form-sticky-submit { padding-bottom: max(10px, env(safe-area-inset-bottom)); } }

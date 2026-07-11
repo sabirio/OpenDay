@@ -43,9 +43,14 @@ const FRESH_PATH = [
   '024_drop_dead_weight_overrides_column.sql',
   '025_atomic_write_commands.sql',
   '026_grant_authenticated_table_privileges.sql',
+  '027_contractor_report_wp_validation.sql',
 ];
 
 function psqlFile(file) {
+  // stdio:'pipe' captures stdout/stderr on the thrown error object rather
+  // than printing live — deliberately re-surfaced in main()'s catch below
+  // so a failing migration shows its actual psql error, not just "Command
+  // failed" with the output silently swallowed.
   execFileSync(
     'psql',
     [DB_URL, '-v', 'ON_ERROR_STOP=1', '-f', file],
@@ -57,7 +62,7 @@ function main() {
   console.log('1/2 supabase db reset (truncates public schema back to empty)...');
   execSync('npx --yes supabase db reset', { cwd: weeklyTrackerDir, stdio: 'inherit' });
 
-  console.log('\n2/2 applying fresh-path migration chain (000, 010, 012-026)...');
+  console.log(`\n2/2 applying fresh-path migration chain (000, 010, 012-${FRESH_PATH[FRESH_PATH.length - 1].slice(0, 3)})...`);
   const present = new Set(readdirSync(migrationsDir));
   for (const file of FRESH_PATH) {
     if (!present.has(file)) throw new Error(`Expected migration file missing: ${file}`);
@@ -68,4 +73,24 @@ function main() {
   console.log(`\nClean deploy complete: empty DB -> ${FRESH_PATH.length} fresh-path migrations applied.`);
 }
 
-main();
+// Every other script in this harness (fixtures.mjs, the certify*.mjs
+// scripts via lib.mjs's requireCertificationEnvironment) fails with a
+// clear, actionable message and an explicit exit code. This script
+// previously had neither — an uncaught exception from `supabase db reset`
+// (e.g. Docker not running) or a failing psqlFile() call (e.g. a real SQL
+// error in a migration) would print Node's raw uncaught-exception dump
+// instead of saying which of the two steps failed or why, which is easy to
+// miss or misread as "the script silently did nothing" when scrolled past
+// in a long terminal session — exactly the ambiguity that made an
+// `npm run test:certification` failure look like the orchestration itself
+// was broken rather than a genuine upstream failure. No change to the
+// happy path: same commands, same order, same exit code (0) on success.
+try {
+  main();
+} catch (err) {
+  console.error('\nCLEAN DEPLOY FAILED — one of the two steps above did not complete:');
+  console.error(`  1. supabase db reset (Docker/Supabase CLI must be running — npx supabase start)`);
+  console.error(`  2. applying the fresh-path migration chain (a real SQL error in one of the files)`);
+  console.error(`\n${err.stdout ? err.stdout.toString() : ''}${err.stderr ? err.stderr.toString() : err.message}\n`);
+  process.exit(1);
+}

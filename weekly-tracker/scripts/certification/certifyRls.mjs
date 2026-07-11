@@ -7,6 +7,9 @@
 // Run: node certifyRls.mjs
 
 import { loadFixtureState, countRows, signInAs, anonClient, makeReporter, requireCertificationEnvironment } from './lib.mjs';
+import { findFilesContaining } from './scanSource.mjs';
+import { fileURLToPath } from 'node:url';
+import * as path from 'node:path';
 
 await requireCertificationEnvironment();
 
@@ -138,12 +141,16 @@ async function main() {
     r.check('anon cannot read write_command_requests (RLS + REVOKE)', (Array.isArray(waRead) && waRead.length === 0) || !!waErr, JSON.stringify({ waRead, waErr }));
   }
 
-  // ── Service-role secret scan (build output + source) ────────────────────
+  // ── Service-role secret exposure scan (build output + source) ────────────
+  // Cross-platform: a pure Node.js recursive scan (scanSource.mjs), not
+  // `grep`/`|| true` — those are Unix shell constructs that execSync's
+  // default shell (cmd.exe on Windows) does not support, which made this
+  // check fail on Windows regardless of whether the codebase actually had
+  // an offending file.
   r.section('Service-role secret exposure scan');
   {
-    const { execSync } = await import('node:child_process');
-    const grepSrc = execSync('grep -rl "service_role" src/ --include=*.js --include=*.jsx || true').toString().trim();
-    const offenders = grepSrc.split('\n').filter(Boolean).filter(f => !f.includes('migrations/') && !f.includes('/tests/'));
+    const srcRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src');
+    const offenders = findFilesContaining(srcRoot, /service_role/);
     r.check('no src/ application file (outside migrations/ and tests/) references service_role', offenders.length === 0, offenders.join(', '));
   }
 

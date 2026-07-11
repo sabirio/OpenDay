@@ -9,6 +9,11 @@ import ExportButton from "../components/print/ExportButton";
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
 // report model, gated on Gantt-vs-legacy report shape. Audited
 // Wave 4 Step 4.6; not swapped, replacement is non-trivial. See TEMPLATE_MODEL.md.
+// Already tracked and audited in src/tests/architectureGuard.test.mjs's
+// ALLOWED_LEGACY_IMPORTERS — migrating would mean rewriting live
+// legacy-report display behavior, out of scope for a lint cleanup and
+// hard-constraint-protected (no business-semantics changes).
+// eslint-disable-next-line no-restricted-imports
 import { WORK_PACKAGES } from "../config/workPackages";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
 import ProjectHeader      from "../components/weekly/ProjectHeader";
@@ -59,7 +64,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   const [showMissingModal,  setShowMissingModal]  = useState(false);
   const [showGantt,         setShowGantt]         = useState(false);
   const [expandedVisitId,   setExpandedVisitId]   = useState(null);
-  const [activeTemplate,    setActiveTemplate]    = useState(null);
   const [activeReviewTab,   setActiveReviewTab]   = useState("overview");
 
   const effectiveProjectId = useMemo(() => {
@@ -89,21 +93,39 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   const selectedProject = selectedRow?.canonical?.snapshot?.project
     ?? projects.find(p => String(p.id) === effectiveProjectId);
 
+  // `templateResult.key` tracks which (projectId, templateId) pair the
+  // loaded template actually belongs to — `activeTemplate` is derived below
+  // instead of being reset via a synchronous setState at the top of the
+  // effect. The effect reads only the two primitives below (not the
+  // `selectedProject` object itself, which can be a fresh reference each
+  // render — one branch above is a `.find()` over `projects`, the other a
+  // snapshot-derived object) so the dependency array is both exhaustive and
+  // doesn't re-run on irrelevant object-identity churn.
+  const [templateResult, setTemplateResult] = useState({ key: null, template: null });
+  const resolvedProjectId = selectedProject?.id ?? null;
+  const resolvedProjectTemplateId = selectedProject?.templateId ?? null;
+  const selectedProjectTemplateKey = resolvedProjectId != null ? `${resolvedProjectId}:${resolvedProjectTemplateId ?? ''}` : null;
+
   useEffect(() => {
-    if (!selectedProject) { setActiveTemplate(null); return; }
+    if (resolvedProjectId == null) return;
+    const key = selectedProjectTemplateKey;
     let alive = true;
     (async () => {
       let tpl;
-      if (selectedProject.templateId) {
-        tpl = await fetchTemplateById(selectedProject.templateId);
+      if (resolvedProjectTemplateId) {
+        tpl = await fetchTemplateById(resolvedProjectTemplateId);
         if (!tpl) tpl = await fetchActiveTemplate();
       } else {
         tpl = await fetchActiveTemplate();
       }
-      if (alive) setActiveTemplate(tpl);
+      if (alive) setTemplateResult({ key, template: tpl });
     })();
     return () => { alive = false; };
-  }, [selectedProject?.id, selectedProject?.templateId]);
+  }, [resolvedProjectId, resolvedProjectTemplateId, selectedProjectTemplateKey]);
+
+  const activeTemplate = selectedProjectTemplateKey && templateResult.key === selectedProjectTemplateKey
+    ? templateResult.template
+    : null;
 
   const prevReport = useMemo(() => {
     if (!selectedReport) return null;

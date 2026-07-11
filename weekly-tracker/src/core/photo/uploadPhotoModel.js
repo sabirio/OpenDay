@@ -1,13 +1,13 @@
-import { compressImage } from '../../utils/compressImage';
-import { getCurrentUserId, uploadPhotoToBucket, removePhotoPaths, getSignedPhotoUrls } from '../../services/photoService';
+import { compressImage } from '../../utils/compressImage.js';
+import { getCurrentUserId, uploadPhotoToBucket, removePhotoPaths, getSignedPhotoUrls } from '../../services/photoService.js';
 import { buildEvidencePath } from '../write/evidencePath.js';
+import { validatePhotoFile } from './photoValidation.js';
 
 export { getCurrentUserId, removePhotoPaths, getSignedPhotoUrls };
 
 const UPLOAD_TIMEOUT_MS = 20_000;
 const RETRY_BACKOFF_MS = 1_500;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-
 // Neither compressImage() nor supabase-js's storage.upload() enforce their own
 // timeout — a stalled network request (bad mobile connection, or a backend
 // hiccup) leaves its promise pending forever. Without this, `uploading: true`
@@ -44,6 +44,7 @@ async function attemptUpload(projectId, userId, file) {
  * all appear stuck when only one of them is.
  */
 export async function uploadPhotoWithRetry(projectId, userId, file, _seq) {
+  validatePhotoFile(file);
   try {
     return await attemptUpload(projectId, userId, file);
   } catch {

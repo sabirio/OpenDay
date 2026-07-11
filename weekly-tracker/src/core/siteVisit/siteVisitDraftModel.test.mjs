@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict'; import { buildSiteVisitDraft, buildSiteVisitDraftKey, findSiteVisitDraft, inspectSiteVisitDraft, saveSiteVisitDraft } from './siteVisitDraftModel.js';
+let passed=0; const check=(n,f)=>{f();passed++;console.log(`  PASS ${n}`)}; const id={userId:'pm1',projectId:'7'}; const draft=buildSiteVisitDraft({...id,visitDate:'2026-07-10',contractorReportId:'12',clientRequestId:'r1',formData:{visitDate:'2026-07-10'},observations:{a:{observed_status:'completed',observed_progress:100}},currentItemId:'a',activeFilter:'incomplete'},new Date('2026-07-10T10:00:00Z'));
+check('key isolates visit context',()=>assert.equal(buildSiteVisitDraftKey(draft),'openday:site-visit:v1:pm1:7:2026-07-10%3A12'));
+check('compatible restores position and ID',()=>{const r=inspectSiteVisitDraft(JSON.stringify(draft),id,new Date('2026-07-11'));assert.equal(r.draft.currentItemId,'a');assert.equal(r.draft.clientRequestId,'r1')});
+check('other user rejected',()=>assert.equal(inspectSiteVisitDraft(draft,{...id,userId:'pm2'}).status,'foreign'));
+check('corrupt safe',()=>assert.equal(inspectSiteVisitDraft('{',id).status,'corrupt'));
+check('stale offered',()=>assert.equal(inspectSiteVisitDraft(draft,id,new Date('2026-08-10')).status,'stale'));
+check('legacy never silently restored',()=>{const map=new Map([['sitevisit_draft_7','{}']]);const s={get length(){return map.size},key:i=>[...map.keys()][i],getItem:k=>map.get(k)||null};assert.equal(findSiteVisitDraft(s,id).status,'incompatible')});
+check('save and discover',()=>{const map=new Map();const s={get length(){return map.size},key:i=>[...map.keys()][i],getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)};saveSiteVisitDraft(s,draft);assert.equal(findSiteVisitDraft(s,id).draft.contractorReportId,'12')});
+console.log(`\n-- RESULT: ${passed} passed, 0 failed --`);

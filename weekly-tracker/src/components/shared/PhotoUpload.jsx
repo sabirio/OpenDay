@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { getCurrentUserId, removePhotoPaths, uploadPhotoWithRetry } from '../../hooks/usePhotoUpload';
+import { useState, useRef, useEffect, useEffectEvent } from 'react';
+import { getCurrentUserId, removePhotoPaths, uploadPhotoWithRetry, validatePhotoFile } from '../../hooks/usePhotoUpload';
 import Icon from './Icon';
 
 const MAX_PHOTOS = 15;
@@ -26,19 +26,33 @@ const MAX_PHOTOS = 15;
  *     shown" and "upload finished" sees an empty photo list and rejects a report
  *     that visibly has a photo attached. Callers should disable Submit while true.
  */
-export default function PhotoUpload({ projectId, onUpload, onRemove, onError, onUploadingChange }) {
-  // { id: string, path: string|null, preview: string, uploading: boolean }
+export default function PhotoUpload({ projectId, existingPaths = [], onUpload, onRemove, onError, onUploadingChange, onItemsChange }) {
+  // { id, file?, path?, preview?, status: queued|uploading|uploaded|failed, error? }
   const [photos, setPhotos] = useState([]);
   const [limitNotice, setLimitNotice] = useState(null);
   const inputRef = useRef(null);
 
   const canAddMore = photos.length < MAX_PHOTOS;
-  const anyUploading = photos.some(p => p.uploading);
+  const previewUrlsRef = useRef(new Set());
+  const anyUploading = photos.some(p => p.status === 'queued' || p.status === 'uploading');
+  const notifyState = useEffectEvent(() => {
+    onUploadingChange?.(anyUploading);
+    onItemsChange?.(photos.map(({ id, path, status, error }) => ({ id, path, status, error })));
+  });
 
   useEffect(() => {
-    onUploadingChange?.(anyUploading);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anyUploading]);
+    setPhotos(prev => {
+      const localPaths = new Set(prev.map(item => item.path).filter(Boolean));
+      const retained = prev.filter(item => !item.path || existingPaths.includes(item.path));
+      return [...retained, ...existingPaths.filter(path => !localPaths.has(path)).map(path => ({ id: `saved:${path}`, path, preview: null, status: 'uploaded' }))];
+    });
+  }, [existingPaths]);
+
+  useEffect(() => () => { for (const url of previewUrlsRef.current) URL.revokeObjectURL(url); }, []);
+
+  useEffect(() => {
+    notifyState();
+  }, [anyUploading, photos]);
 
   async function handleFiles(e) {
     const files = Array.from(e.target.files || []);
@@ -46,7 +60,11 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
     if (!files.length) return;
 
     const slots = MAX_PHOTOS - photos.length;
-    const toUpload = files.slice(0, slots);
+    const accepted = [];
+    for (const file of files.slice(0, slots)) {
+      try { accepted.push(validatePhotoFile(file)); } catch (error) { onError?.(error.message); }
+    }
+    const toUpload = accepted;
     setLimitNotice(files.length > slots ? `Max ${MAX_PHOTOS} photos — added the first ${slots}.` : null);
     if (toUpload.length === 0) return;
 
@@ -59,10 +77,11 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
       file,
       preview: URL.createObjectURL(file),
     }));
+    entries.forEach(entry => previewUrlsRef.current.add(entry.preview));
 
     setPhotos(prev => [
       ...prev,
-      ...entries.map(({ id, preview }) => ({ id, path: null, preview, uploading: true })),
+      ...entries.map(({ id, file, preview }) => ({ id, file, path: null, preview, status: 'queued' })),
     ]);
 
     const userId = await getCurrentUserId();
@@ -85,11 +104,11 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
     async function uploadEntry({ id, file }, seq) {
       try {
         const path = await uploadPhotoWithRetry(projectId, userId, file, seq);
-        setPhotos(prev => prev.map(p => p.id === id ? { ...p, path, uploading: false } : p));
+        setPhotos(prev => prev.map(p => p.id === id ? { ...p, path, status: 'uploaded', error: null } : p));
         return path;
       } catch (err) {
         onError?.(err?.message || 'Photo upload failed');
-        setPhotos(prev => prev.filter(p => p.id !== id));
+        setPhotos(prev => prev.map(p => p.id === id ? { ...p, status: 'failed', error: err?.message || 'Photo upload failed' } : p));
         return null;
       }
     }
@@ -99,13 +118,30 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
     if (uploadedPaths.length > 0) onUpload?.(uploadedPaths);
   }
 
+  async function retryPhoto(photo) {
+    if (!photo?.file || photo.status !== 'failed') return;
+    setPhotos(prev => prev.map(item => item.id === photo.id ? { ...item, status: 'uploading', error: null } : item));
+    const userId = await getCurrentUserId();
+    if (!userId) { setPhotos(prev => prev.map(item => item.id === photo.id ? { ...item, status: 'failed', error: 'Sign in again to retry.' } : item)); return; }
+    try {
+      const path = await uploadPhotoWithRetry(projectId, userId, photo.file, 0);
+      setPhotos(prev => prev.map(item => item.id === photo.id ? { ...item, path, status: 'uploaded' } : item));
+      onUpload?.([path]);
+    } catch (error) {
+      console.error('[PhotoUpload] retry failed:', error);
+      setPhotos(prev => prev.map(item => item.id === photo.id ? { ...item, status: 'failed', error: 'Upload failed. Check your connection and try again.' } : item));
+    }
+  }
+
   async function removePhoto(photo) {
-    if (!photo || photo.uploading) return;
+    if (!photo || photo.status === 'uploading' || photo.status === 'queued') return;
     setPhotos(prev => prev.filter(p => p.id !== photo.id));
+    if (photo.preview) { URL.revokeObjectURL(photo.preview); previewUrlsRef.current.delete(photo.preview); }
     if (photo.path) {
       const { error } = await removePhotoPaths([photo.path]);
       if (error) {
-        onError?.(`Photo removed from the list, but the file may still be in storage: ${error.message}`);
+        console.error('[PhotoUpload] storage delete failed:', error);
+        onError?.('Photo removed from the list, but the file may still be in storage. It will be cleaned up separately.');
       }
       onRemove?.(photo.path);
     }
@@ -122,10 +158,15 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
           {photos.map((photo, i) => (
             <div key={photo.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: 'var(--bg-elevated)' }}>
-              <img src={photo.preview} alt={`Site photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              {photo.uploading ? (
+              {photo.preview ? <img src={photo.preview} alt={`Site photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <div role="img" aria-label={`Previously uploaded site photo ${i + 1}`} style={{ height: '100%', display: 'grid', placeItems: 'center', padding: 8, textAlign: 'center', fontSize: 12 }}>Uploaded photo {i + 1}</div>}
+              {(photo.status === 'uploading' || photo.status === 'queued') ? (
                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name="spinner" size={18} style={{ color: 'white', animation: 'field-form-spin 0.8s linear infinite' }} />
+                </div>
+              ) : photo.status === 'failed' ? (
+                <div style={{ position: 'absolute', inset: 0, background: 'rgba(80,0,0,0.78)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center', padding: 4 }}>
+                  <span style={{ color: 'white', fontSize: 11 }}>Upload failed</span>
+                  <button type="button" onClick={() => retryPhoto(photo)} style={{ minHeight: 32 }}>Retry</button>
                 </div>
               ) : (
                 <button
@@ -134,7 +175,7 @@ export default function PhotoUpload({ projectId, onUpload, onRemove, onError, on
                   aria-label="Remove photo"
                   style={{
                     position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)',
-                    border: 'none', borderRadius: '50%', width: 22, height: 22,
+                    border: 'none', borderRadius: '50%', width: 44, height: 44,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0,
                   }}
                 >

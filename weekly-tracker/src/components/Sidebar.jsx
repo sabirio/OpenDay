@@ -16,7 +16,7 @@ function ThemeToggle({ theme, onToggle }) {
   );
 }
 
-function Sidebar() {
+function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -29,6 +29,17 @@ function Sidebar() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  // Only relevant on the mobile off-canvas breakpoint (CSS-gated) — Escape
+  // closes the drawer, same convention as ProjectDetailDrawer.jsx.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mobileOpen, onClose]);
+
   const visibleNav = getAllowedNavItemsForRole(role, NAV_ITEMS);
   const badgeStyle = ROLE_BADGE_STYLES[role] ?? {};
 
@@ -38,7 +49,7 @@ function Sidebar() {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}>
       <div style={{ padding: '12px 0 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
         {/* Inline SVG mark — theme-adaptive via CSS vars, matches the login screen.
             (Replaces the old /logo-dark.png|/logo-light.png files that were deleted.) */}
@@ -63,7 +74,7 @@ function Sidebar() {
 
       <nav>
         {visibleNav.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/'}>
+          <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={onClose}>
             {item.label}
           </NavLink>
         ))}

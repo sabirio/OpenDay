@@ -43,28 +43,39 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
   const [filterReport, setFilterReport] = useState("");
   const [useSCurve, setUseSCurve] = useState(false);
 
-  // Gantt SPI tab state (loaded lazily)
+  // Gantt SPI tab state (loaded lazily). `spiResult.idsKey` tracks which set
+  // of project ids the loaded trend/discrepancy/reliability data actually
+  // belongs to — "loading" is derived (idsKey !== the current project id
+  // set) rather than a separate boolean set synchronously at the top of the
+  // effect, and a stale response for a since-changed project set can no
+  // longer overwrite fresher state (the old version had no such guard at
+  // all — `alive` here is a genuine correctness fix, not just a lint fix).
   const ganttMetricsMap = useGanttMetrics(projects, activeView === 'gantt-spi');
-  const [projectTrends,   setProjectTrends]   = useState({});    // projectId → trend[]
-  const [discHistory,     setDiscHistory]     = useState({});    // projectId → disc[]
-  const [reliabilityMap,  setReliabilityMap]  = useState(new Map());
-  const [ganttSpiLoading, setGanttSpiLoading] = useState(false);
+  const [spiResult, setSpiResult] = useState({ idsKey: null, projectTrends: {}, discHistory: {}, reliabilityMap: new Map() });
 
   useEffect(() => {
     if (activeView !== 'gantt-spi' || !projects || projects.length === 0) return;
-    setGanttSpiLoading(true);
     const ids = projects.map(p => p.id);
+    let alive = true;
     Promise.all([
       loadContractorReliability(ids),
       Promise.all(ids.map(id => loadProjectTrend(id, 8).then(t => [id, t]))),
       Promise.all(ids.map(id => loadDiscrepancyHistory(id, 10).then(d => [id, d]))),
     ]).then(([reliability, trends, discs]) => {
-      setReliabilityMap(reliability);
-      setProjectTrends(Object.fromEntries(trends));
-      setDiscHistory(Object.fromEntries(discs));
-    }).catch(err => console.error('[risk] gantt-spi load error:', err))
-      .finally(() => setGanttSpiLoading(false));
+      if (!alive) return;
+      setSpiResult({
+        idsKey: ids.join(','),
+        reliabilityMap: reliability,
+        projectTrends: Object.fromEntries(trends),
+        discHistory: Object.fromEntries(discs),
+      });
+    }).catch(err => console.error('[risk] gantt-spi load error:', err));
+    return () => { alive = false; };
   }, [activeView, projects]);
+
+  const ganttSpiIdsKey = (projects || []).map(p => p.id).join(',');
+  const ganttSpiLoading = activeView === 'gantt-spi' && !!projects && projects.length > 0 && spiResult.idsKey !== ganttSpiIdsKey;
+  const { projectTrends, discHistory, reliabilityMap } = spiResult;
 
   const allRows = useRiskRows(projects, reports, siteVisits, useSCurve);
 

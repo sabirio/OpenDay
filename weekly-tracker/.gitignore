@@ -15,6 +15,7 @@ dist-ssr
 # Test / report output artifacts — never track
 test-results
 playwright-report
+scripts/storage/audit-log
 .env
 .env.*
 !.env.example

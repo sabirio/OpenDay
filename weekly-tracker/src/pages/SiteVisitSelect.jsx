@@ -20,14 +20,12 @@ function ProjectRow({ project }) {
 
   return (
     <div
+      className="site-visit-select-row"
+      role="button"
+      tabIndex={0}
       onClick={() => navigate(`/site-visit/${project.id}`)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/site-visit/${project.id}`); } }}
       style={{
-        display: 'grid',
-        gridTemplateColumns: '2fr 1.5fr 1fr auto',
-        alignItems: 'center',
-        gap: 16,
-        padding: '12px 18px',
-        background: 'transparent',
         borderBottom: '1px solid var(--border)',
         cursor: 'pointer',
         transition: 'background 0.12s',
@@ -69,8 +67,11 @@ function ProjectRow({ project }) {
         </span>
       </div>
 
-      {/* CTA */}
-      <button
+      {/* CTA — visual only; the row itself (role="button" above) is the single
+          interactive control, so this isn't a real nested <button>. */}
+      <span
+        aria-hidden="true"
+        className="site-visit-select-cta"
         style={{
           padding: '7px 18px',
           borderRadius: 8,
@@ -78,13 +79,12 @@ function ProjectRow({ project }) {
           color: 'var(--text-inverse)',
           fontSize: 12,
           fontWeight: 700,
-          border: 'none',
-          cursor: 'pointer',
           whiteSpace: 'nowrap',
+          textAlign: 'center',
         }}
       >
         Start Visit →
-      </button>
+      </span>
     </div>
   );
 }
@@ -97,11 +97,9 @@ function ProjectGroup({ title, rows }) {
         {title} — {rows.length}
       </div>
       <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--shadow)' }}>
-        {/* Table header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1.5fr 1fr auto',
-          gap: 16,
+        {/* Table header — hidden below 640px, where rows stack as cards
+            (a 4-column header doesn't map onto a stacked layout). */}
+        <div className="site-visit-select-header" style={{
           padding: '8px 18px',
           background: 'var(--accent-subtle)',
           borderBottom: '1px solid var(--border)',

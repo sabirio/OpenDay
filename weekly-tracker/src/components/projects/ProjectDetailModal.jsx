@@ -4,6 +4,7 @@ import { getOpeningColor } from "../../config/thresholds";
 import { formatDate, daysUntil } from "../../utils/reportUtils";
 import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
 import { DetailField, FieldRow, FormSection } from "./ProjectFormParts";
+import Modal from "../shared/Modal";
 
 const PHASE_MAP = Object.fromEntries(
   PHASES.map(p => [p.id, { ...p, bg: "var(--bg-elevated)", border: "var(--border)" }])
@@ -25,12 +26,11 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
   ].filter((s) => s.value);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720, width: "95vw" }}>
+    <Modal onClose={onClose} titleId="project-detail-title" style={{ maxWidth: 720, width: "95vw" }}>
         <div className="modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{project.storeCode || "-"}</div>
+              <div id="project-detail-title" style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{project.storeCode || "-"}</div>
               <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 3 }}>{project.shoppingMallName}{project.city ? ` · ${project.city}` : ""}</div>
             </div>
             <span style={{
@@ -131,7 +131,6 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
             }}>Copy</button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

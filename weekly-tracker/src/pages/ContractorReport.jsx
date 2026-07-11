@@ -1,5 +1,6 @@
 ﻿import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useAuth } from "../auth/AuthContext";
 import {
   loadContractorReportFallbackContext,
   submitContractorReportModel,
@@ -22,6 +23,8 @@ import SupportWorksSection from "../components/contractor/SupportWorksSection";
 import ValidationErrors from "../components/contractor/ValidationErrors";
 import WorkPackageProgressSection from "../components/contractor/WorkPackageProgressSection";
 import LookAheadDeclarationSection from "../components/contractor/LookAheadDeclarationSection";
+import DraftRecoveryBanner from "../components/contractor/DraftRecoveryBanner";
+import { buildContractorDraftEnvelope, findContractorDraft, removeContractorDraft, saveContractorDraft, useContractorReportWorkflow } from "../hooks/useContractorReportWorkflow";
 import {
   deriveOldPhasesFromPackages,
   makeInitialForm,
@@ -31,9 +34,10 @@ import {
 
 function ContractorReport({ projects, reports }) {
   const { projectId } = useParams();
+  const { user } = useAuth();
   const [fallbackProject, setFallbackProject] = useState(null);
   const [fallbackReports, setFallbackReports] = useState([]);
-  const [contextLoading, setContextLoading] = useState(false);
+  const [contextLoading, setContextLoading] = useState(() => !projects.some((p) => String(p.id) === projectId) || reports.length === 0);
   const [contextError, setContextError] = useState(null);
   const project = projects.find((p) => String(p.id) === projectId) || fallbackProject;
   const reportSource = reports.length > 0 ? reports : fallbackReports;
@@ -42,9 +46,6 @@ function ContractorReport({ projects, reports }) {
     if (projects.some((p) => String(p.id) === projectId) && reports.length > 0) return;
 
     let isMounted = true;
-    setContextLoading(true);
-    setContextError(null);
-
     loadContractorReportFallbackContext(projectId, {
       hasProject: projects.some((p) => String(p.id) === projectId),
       hasReports: reports.length > 0,
@@ -81,33 +82,42 @@ function ContractorReport({ projects, reports }) {
     [projectReportsForPrefill]
   );
 
-  // P2.1: draft-save/recovery. A contractor filling this out on a phone on
-  // site can lose the whole form to a dropped connection, the phone locking,
-  // or switching apps mid-fill — there was no recovery path at all before
-  // this. One JSON blob per project in localStorage; cleared on successful
-  // submit or explicit discard. Restored silently (no banner) — the form
-  // just comes back the way the contractor left it.
-  const draftKey = `contractor_draft_${projectId}`;
-
-  function readDraft() {
-    try {
-      const raw = localStorage.getItem(draftKey);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  }
+  const draftIdentity = useMemo(() => ({ userId: user.id, projectId }), [user.id, projectId]);
+  const [draftCandidate, setDraftCandidate] = useState(() => findContractorDraft(localStorage, { userId: user.id, projectId }));
+  const [recoveryResolved, setRecoveryResolved] = useState(() => draftCandidate.status === 'missing');
+  const [initialRequestId] = useState(createClientRequestId);
+  const clientRequestIdRef = useRef(initialRequestId);
+  const activeDraftKeyRef = useRef(null);
+  const [form, setForm] = useState(() => makeInitialForm(null, null));
+  const prefillDone = useRef(false);
+  const workflow = useContractorReportWorkflow(initialRequestId);
 
   function clearDraft() {
-    try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    try { removeContractorDraft(localStorage, activeDraftKeyRef.current || draftCandidate.key); } catch { /* storage unavailable */ }
+    activeDraftKeyRef.current = null;
   }
 
-  const [form, setForm] = useState(() => {
-    const draft = readDraft();
-    return draft?.form ? draft.form : makeInitialForm(null, null);
-  });
-  const prefillDone = useRef(Boolean(readDraft()?.form));
-  const clientRequestIdRef = useRef(readDraft()?.clientRequestId || createClientRequestId());
+  function restoreDraft() {
+    const draft = draftCandidate.draft;
+    if (!draft) return;
+    setForm(draft.formData);
+    setGanttWpProgress(draft.workPackageRows || {});
+    setPhotoUrls((draft.evidenceItems || []).filter(item => item.status === 'uploaded').map(item => item.path));
+    clientRequestIdRef.current = draft.clientRequestId;
+    activeDraftKeyRef.current = draftCandidate.key;
+    prefillDone.current = true;
+    setRecoveryResolved(true);
+    workflow.dispatch({ type: 'DRAFT_RESTORED', requestId: draft.clientRequestId, updatedAt: draft.updatedAt });
+  }
+
+  function discardDraft() {
+    clearDraft();
+    const nextId = createClientRequestId();
+    clientRequestIdRef.current = nextId;
+    setDraftCandidate({ status: 'missing', draft: null, key: null });
+    setRecoveryResolved(true);
+    workflow.dispatch({ type: 'RESET', requestId: nextId });
+  }
 
   useEffect(() => {
     // Wait for reports to load before prefilling (prevReport is null until Supabase responds)
@@ -119,7 +129,7 @@ function ContractorReport({ projects, reports }) {
 
   const [ganttTasks, setGanttTasks] = useState([]);
   const [ganttLoading, setGanttLoading] = useState(false);
-  const [ganttWpProgress, setGanttWpProgress] = useState(() => readDraft()?.ganttWpProgress || {});
+  const [ganttWpProgress, setGanttWpProgress] = useState({});
 
   useEffect(() => {
   if (!project?.id) return;
@@ -140,7 +150,7 @@ function ContractorReport({ projects, reports }) {
         // draft's per-task edits win over the server default for that task —
         // this only ever narrows (server defaults fill in tasks the draft
         // doesn't have an opinion on), never discards draft input.
-        const draftProgress = readDraft()?.ganttWpProgress || {};
+        const draftProgress = recoveryResolved && draftCandidate.draft ? draftCandidate.draft.workPackageRows || {} : {};
         const initial = {};
         for (const t of tasks) {
           initial[t.id] = draftProgress[t.id] ?? {
@@ -169,33 +179,55 @@ function ContractorReport({ projects, reports }) {
   return () => {
     isMounted = false;
   };
-}, [project?.id]);
+}, [project?.id, project?.scope?.workPackages, recoveryResolved, draftCandidate.draft]);
 
   function updateWPProgress(wpId, updates) {
+    workflow.dispatch({ type: 'EDIT' });
     setGanttWpProgress(prev => ({ ...prev, [wpId]: { ...(prev[wpId] || {}), ...updates } }));
   }
 
   const [validationErrors, setValidationErrors] = useState([]);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [photoUrls, setPhotoUrls] = useState(() => readDraft()?.photoUrls || []);
+  const validationSummaryRef = useRef(null);
+  const [photoUrls, setPhotoUrls] = useState([]);
   const [photoError, setPhotoError] = useState(null);
   const [photosUploading, setPhotosUploading] = useState(false);
 
-  // Persist the draft on every edit. Small, plain-JSON state — cheap to
-  // stringify on each change; guarded against private-browsing/quota errors.
   useEffect(() => {
-    try {
-      localStorage.setItem(draftKey, JSON.stringify({ form, ganttWpProgress, photoUrls, clientRequestId: clientRequestIdRef.current, savedAt: new Date().toISOString() }));
-    } catch { /* private browsing / quota exceeded — draft save is best-effort */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, ganttWpProgress, photoUrls]);
+    if (!recoveryResolved || !workflow.state.dirty) return undefined;
+    const timer = window.setTimeout(() => {
+      try {
+        const draft = buildContractorDraftEnvelope({
+          ...draftIdentity, reportDate: form.reportingDate, reportPeriod: form.reportingDate,
+          clientRequestId: clientRequestIdRef.current, formData: form,
+          workPackageRows: ganttWpProgress, evidenceItems: photoUrls,
+          createdAt: draftCandidate.draft?.createdAt,
+        });
+        const nextKey = saveContractorDraft(localStorage, draft);
+        if (activeDraftKeyRef.current && activeDraftKeyRef.current !== nextKey) removeContractorDraft(localStorage, activeDraftKeyRef.current);
+        activeDraftKeyRef.current = nextKey;
+      } catch { /* private browsing / quota exceeded — form remains in memory */ }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [draftCandidate.draft?.createdAt, draftIdentity, form, ganttWpProgress, photoUrls, recoveryResolved, workflow.state.dirty]);
+
+  useEffect(() => {
+    if (!workflow.state.dirty || workflow.isSubmitted) return undefined;
+    const warn = (event) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [workflow.isSubmitted, workflow.state.dirty]);
+
+  useEffect(() => {
+    if (validationErrors.length > 0) validationSummaryRef.current?.focus();
+  }, [validationErrors]);
 
   function updateField(name, value) {
+    workflow.dispatch({ type: 'EDIT' });
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function togglePackage(wpId) {
+    workflow.dispatch({ type: 'EDIT' });
     setForm((prev) => {
       const cur = prev.currentPackages || [];
       const next = cur.includes(wpId) ? cur.filter((id) => id !== wpId) : [...cur, wpId];
@@ -204,6 +236,7 @@ function ContractorReport({ projects, reports }) {
   }
 
   function updateWPStatuses(wpId, pkgStatuses) {
+    workflow.dispatch({ type: 'EDIT' });
     setForm((prev) => ({
       ...prev,
       workPackageStatuses: { ...prev.workPackageStatuses, [wpId]: pkgStatuses },
@@ -211,6 +244,7 @@ function ContractorReport({ projects, reports }) {
   }
 
   function toggleCheckbox(fieldName, value) {
+    workflow.dispatch({ type: 'EDIT' });
     setForm((prev) => {
       const cur = prev[fieldName];
       return { ...prev, [fieldName]: cur.includes(value) ? cur.filter((i) => i !== value) : [...cur, value] };
@@ -219,13 +253,15 @@ function ContractorReport({ projects, reports }) {
 
   async function saveReport() {
     if (!project) return;
-    if (submitting) return;
+    if (workflow.isSubmitting || workflow.isSubmitted) return;
+    workflow.dispatch({ type: 'VALIDATE' });
     // Defense in depth: the Submit button is disabled while photosUploading, but
     // guard here too — a photo's compress+upload is async and validateContractorReport
     // only sees photoUrls once it resolves, so submitting mid-upload would otherwise
     // reject a report that visibly has a photo attached.
     if (photosUploading) {
       setValidationErrors(["Please wait for the photo to finish uploading before submitting."]);
+      workflow.dispatch({ type: 'VALIDATION_FAILED', errors: ["Please wait for the photo to finish uploading before submitting."] });
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -233,11 +269,12 @@ function ContractorReport({ projects, reports }) {
     const errors = validateContractorReport(form, photoUrls);
     if (errors.length) {
       setValidationErrors(errors);
+      workflow.dispatch({ type: 'VALIDATION_FAILED', errors });
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setValidationErrors([]);
-    setSubmitting(true);
+    workflow.dispatch({ type: 'SUBMIT' });
 
     try {
       const currentPhases = deriveOldPhasesFromPackages(form.currentPackages);
@@ -245,19 +282,17 @@ function ContractorReport({ projects, reports }) {
       // Synthesis (Gantt slider inputs -> workPackageStatuses), normalization,
       // and cumulative-progress math all live in submitContractorReportModel
       // (core/contractorReport) — this page only supplies the raw form state.
-      await submitContractorReportModel({
+      const result = await submitContractorReportModel({
         project, form, photoUrls, prevReport, ganttTasks, ganttWpProgress, reports, currentPhases,
         clientRequestId: clientRequestIdRef.current,
       });
 
       clearDraft();
-      clientRequestIdRef.current = createClientRequestId();
-      setSubmitted(true);
+      workflow.dispatch({ type: 'SUBMIT_SUCCEEDED', reportId: result.persistedReportId, idempotentReplay: result.idempotentReplay });
     } catch (err) {
       console.error("Failed to submit report:", err);
-      alert("Failed to submit report. Please try again.");
-    } finally {
-      setSubmitting(false);
+      workflow.dispatch({ type: 'SUBMIT_FAILED', retryable: err?.retryable === true, error: err?.message || "The report could not be confirmed. Your draft is still saved; retry when the connection is available." });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
@@ -269,16 +304,18 @@ function ContractorReport({ projects, reports }) {
     return <ProjectNotFoundState message={contextError} />;
   }
 
-  if (submitted) {
+  if (workflow.isSubmitted) {
     return (
       <SubmittedReportState
         project={project}
+        idempotentReplay={workflow.state.idempotentReplay}
         onSubmitAnother={() => {
           prefillDone.current = false;
           setForm(makeInitialForm(prevReport, cumulativeWPStatuses));
           setPhotoUrls([]);
-          clientRequestIdRef.current = createClientRequestId();
-          setSubmitted(false);
+          const nextId = createClientRequestId();
+          clientRequestIdRef.current = nextId;
+          workflow.dispatch({ type: 'RESET', requestId: nextId });
         }}
         onClose={() => window.history.back()}
       />
@@ -307,7 +344,10 @@ function ContractorReport({ projects, reports }) {
           projectReportsCount={projectReportsForPrefill.length}
         />
 
-        <ValidationErrors errors={validationErrors} />
+        <DraftRecoveryBanner result={recoveryResolved ? null : draftCandidate} project={project} onContinue={restoreDraft} onDiscard={discardDraft} />
+
+        <ValidationErrors errors={validationErrors} summaryRef={validationSummaryRef} />
+        {workflow.state.formError && <div role="alert" aria-live="assertive" className="field-form-error-summary"><strong>Report not confirmed.</strong> {workflow.state.formError} {workflow.canRetry && <button type="button" className="btn-ghost" onClick={saveReport}>Retry with the same request</button>}</div>}
 
         <ReportingWorkPackagesSection
           reportingDate={form.reportingDate}
@@ -342,18 +382,19 @@ function ContractorReport({ projects, reports }) {
           updateField={updateField}
           photoUrls={photoUrls}
           projectId={project.id}
-          onPhotoUpload={(paths) => setPhotoUrls((prev) => [...prev, ...paths])}
-          onPhotoRemove={(path) => setPhotoUrls((prev) => prev.filter((p) => p !== path))}
+          onPhotoUpload={(paths) => { workflow.dispatch({ type: 'EDIT' }); setPhotoUrls((prev) => [...prev, ...paths]); }}
+          onPhotoRemove={(path) => { workflow.dispatch({ type: 'EDIT' }); setPhotoUrls((prev) => prev.filter((p) => p !== path)); }}
           onPhotoError={(msg) => setPhotoError(msg)}
-          onPhotoUploadingChange={setPhotosUploading}
+          onPhotoUploadingChange={(uploading) => { setPhotosUploading(uploading); workflow.dispatch({ type: 'UPLOADS_CHANGED', items: uploading ? [{ id: 'active-batch', status: 'uploading' }] : photoUrls.map(path => ({ path, status: 'uploaded' })) }); }}
+          onPhotoItemsChange={(items) => workflow.dispatch({ type: 'UPLOADS_CHANGED', items })}
         />
         <PhotoErrorAlert message={photoError} />
 
         {/* в”Ђв”Ђ Submit в”Ђв”Ђ */}
         <StickySubmitBar
           onSubmit={saveReport}
-          disabled={submitting || photosUploading}
-          label={submitting ? "Submitting..." : photosUploading ? "Uploading photo…" : "Submit Weekly Report"}
+          disabled={!recoveryResolved || workflow.submitBlocked || photosUploading}
+          label={workflow.isSubmitting ? "Submitting…" : photosUploading ? "Uploading photo…" : "Submit Weekly Report"}
         />
 
       </div>

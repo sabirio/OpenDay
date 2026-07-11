@@ -69,7 +69,6 @@ for (const file of allFiles) {
 // reportWeights.js header comments for the full audit.
 const ALLOWED_LEGACY_IMPORTERS = new Set([
   'pages/WeeklyReports.jsx',           // legacy-report display branch (isWPReport() gate)
-  'pages/SiteVisitReport.jsx',         // no-Gantt submit fallback (makeEmptyPMWPStatuses)
   'components/contractor/formHelpers.js',
   'components/contractor/LegacyWPSection.jsx',
   'components/contractor/ReportingWorkPackagesSection.jsx',

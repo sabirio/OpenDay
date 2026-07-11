@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useProjectDetailDrawerModel } from '../../hooks/useProjectDetailDrawerModel';
 import { formatDate } from '../../utils/reportUtils';
 import { RISK_LEVEL_COLORS, getReportAgeColor } from '../../config/statusColors';
@@ -9,6 +9,7 @@ import { SchedBadge } from './DashboardWidgets';
 import PhaseProgress from './PhaseProgress';
 import TimelineFlag from './TimelineFlag';
 import InfoTip from '../common/InfoTip';
+import Modal from '../shared/Modal';
 
 const RL = RISK_LEVEL_COLORS;
 
@@ -38,12 +39,6 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
     }
   }
 
-  useEffect(() => {
-    const h = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
-
   const { project, color, confidence } = row || {};
 
   const summary = useProjectDetailDrawerModel(row, projSiteVisits);
@@ -56,15 +51,19 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
   const matchRateColor = pmVisit.matchRate >= 80 ? 'var(--status-done)' : pmVisit.matchRate >= 50 ? 'var(--status-warn)' : 'var(--status-alert)';
 
   return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1000 }} />
-      <div data-testid="project-detail-drawer" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 920, maxWidth: '97vw', maxHeight: '90vh', background: 'var(--bg-surface)', zIndex: 1001, overflowY: 'auto', boxShadow: 'var(--shadow-lg)', borderRadius: 16, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)' }}>
+    <Modal
+      onClose={onClose}
+      titleId="project-detail-drawer-title"
+      className=""
+      testId="project-detail-drawer"
+      style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 920, maxWidth: '97vw', maxHeight: '90vh', background: 'var(--bg-surface)', zIndex: 1001, overflowY: 'auto', boxShadow: 'var(--shadow-lg)', borderRadius: 16, display: 'flex', flexDirection: 'column', border: '1px solid var(--border)' }}
+    >
 
         {/* Header */}
         <div style={{ padding: '16px 22px 12px', borderBottom: '1px solid var(--border)', borderTop: `4px solid ${color}`, flexShrink: 0, background: 'rgba(0,0,0,0.15)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{project.storeCode}</div>
+              <div id="project-detail-drawer-title" style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{project.storeCode}</div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>{project.shoppingMallName}</div>
               {(project.city || project.country) && (
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
@@ -241,7 +240,6 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
           {/* WP Phase progress bars */}
           <PhaseProgress bars={contractor.phaseProgress} color={color} />
         </div>
-      </div>
-    </>
+    </Modal>
   );
 }
