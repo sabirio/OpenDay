@@ -167,7 +167,7 @@ console.log('\nB) Result structure invariants (real randomness)');
 // so sum of n/N*100 = 100; independent rounding shifts each by ≤0.5 → sum ∈ [98,102].
 console.log('\nC) Probability invariants — hold for any seed');
 {
-  const r = computeMonteCarloForecast(PROJECT, REPORTS_INC);
+  const r = computeMonteCarloForecast(PROJECT, REPORTS_INC, null, { random: globalThis.Math.random });
   const psum = r.pOnTime + r.pDelay2Weeks + r.pDelayMonth + r.pDelayCritical;
   check('C1: pct-sum in [98,102]',               psum >= 98 && psum <= 102);
   check('C2: all four pcts in [0,100]',
@@ -222,7 +222,7 @@ console.log('\nD) Deterministic via Math.random stub');
   //   delta = -30 + 30*(-4.29) ≈ -159  →  max(0, delta) = 0  →  p stays at 20
   globalThis.Math.random = () => (c++ % 2 === 0 ? 0.9999 : 0.5);
 
-  const r = computeMonteCarloForecast(PROJECT, REPORTS_DEC);
+  const r = computeMonteCarloForecast(PROJECT, REPORTS_DEC, null, { random: globalThis.Math.random });
 
   globalThis.Math.random = origRandom;
 

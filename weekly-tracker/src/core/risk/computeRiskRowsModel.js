@@ -45,7 +45,8 @@ export function computeRiskRows(baseRows, projects, reports, siteVisits, useSCur
       driftCache.set(contractorName, driftProfile);
     }
 
-    const monteCarlo = computeMonteCarloForecast(project, sorted, null, { useSCurve });
+    const forecastOptions = { useSCurve, asOf: base.calculatedAt };
+    const monteCarlo = computeMonteCarloForecast(project, sorted, null, forecastOptions);
 
     // A2: bias risk factor is additive and forwarded as its own field - it
     // never mutates riskScore.score/level, so Dashboard (useAllRows) and
@@ -63,7 +64,7 @@ export function computeRiskRows(baseRows, projects, reports, siteVisits, useSCur
       const overrideProgressPoints = sorted.map((_, i) =>
         computeAdjustedProgress(progressAtIndex(sorted, i), driftProfile.biasEwma, driftProfile.sampleCount)
       );
-      adjustedMonteCarlo = computeMonteCarloForecast(project, sorted, null, { useSCurve, overrideProgressPoints });
+      adjustedMonteCarlo = computeMonteCarloForecast(project, sorted, null, { ...forecastOptions, overrideProgressPoints });
     }
     if (adjustedMonteCarlo) monteCarlo.adjusted = adjustedMonteCarlo;
 

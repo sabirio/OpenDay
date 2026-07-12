@@ -76,9 +76,9 @@ console.log('\nLinear vs S-curve (deterministic, zero-stub)');
   let c = 0;
   globalThis.Math.random = () => (c++ % 2 === 0 ? 0.5 : 0.25); // randomNormal ≈ 0
 
-  const linear = computeMonteCarloForecast(PROJECT, REPORTS_HIGH, null, { useSCurve: false });
+  const linear = computeMonteCarloForecast(PROJECT, REPORTS_HIGH, null, { useSCurve: false, random: globalThis.Math.random });
   c = 0;
-  const scurve = computeMonteCarloForecast(PROJECT, REPORTS_HIGH, null, { useSCurve: true });
+  const scurve = computeMonteCarloForecast(PROJECT, REPORTS_HIGH, null, { useSCurve: true, random: globalThis.Math.random });
 
   globalThis.Math.random = origRandom;
 

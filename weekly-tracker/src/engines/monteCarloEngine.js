@@ -5,10 +5,30 @@ import { progressAtIndex } from './progressEngine';
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
 
-function randomNormal() {
-  const u = 1 - Math.random();
-  const v = Math.random();
+function randomNormal(random) {
+  const u = 1 - random();
+  const v = random();
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+function hashSeed(value) {
+  let hash = 2166136261;
+  for (const char of String(value)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededRandom(seed) {
+  let state = seed || 0x9e3779b9;
+  return () => {
+    state += 0x6d2b79f5;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 function addDays(date, days) {
@@ -73,7 +93,7 @@ export function kDeceleration(p) {
  * @returns Monte Carlo result or { insufficient_data: true }
  */
 export function computeMonteCarloForecast(project, sortedReports, _ganttTasks, options = {}) {
-  const { useSCurve = false, overrideProgressPoints = null } = options;
+  const { useSCurve = false, overrideProgressPoints = null, asOf = null, random = null } = options;
   if (!sortedReports || sortedReports.length < 3 || !project?.targetOpeningDate) {
     return { insufficient_data: true };
   }
@@ -100,7 +120,16 @@ export function computeMonteCarloForecast(project, sortedReports, _ganttTasks, o
 
   // Current state
   const currentProgress = progressPoints[progressPoints.length - 1];
-  const today           = new Date();
+  const evidenceKey = JSON.stringify({
+    projectId: project.id ?? null,
+    targetOpeningDate: project.targetOpeningDate,
+    reports: sortedReports.map(report => [report.id ?? null, report.reportingDate ?? report.submittedAt ?? null]),
+    progressPoints,
+    useSCurve,
+  });
+  const rng = typeof random === 'function' ? random : seededRandom(hashSeed(evidenceKey));
+  const today = asOf == null ? new Date() : new Date(asOf);
+  if (!Number.isFinite(today.getTime())) return { insufficient_data: true, diagnostic: 'INVALID_AS_OF' };
 
   // ── Step 3: 10 000 simulations
   const N            = 10000;
@@ -112,7 +141,7 @@ export function computeMonteCarloForecast(project, sortedReports, _ganttTasks, o
     const MAX_WEEKS = 520; // safety cap — ~10 years
 
     while (p < 100 && weeks < MAX_WEEKS) {
-      const rawDelta = mu + effectiveSigma * randomNormal();
+      const rawDelta = mu + effectiveSigma * randomNormal(rng);
       const delta    = useSCurve ? rawDelta * kDeceleration(p) : rawDelta;
       p    += Math.max(0, delta); // progress can't go backwards in aggregate
       weeks++;

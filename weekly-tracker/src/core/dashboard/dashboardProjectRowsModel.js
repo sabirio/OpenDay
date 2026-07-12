@@ -19,9 +19,9 @@ export function buildCanonicalProjectRows({ projects = [], reports = [], siteVis
       ...result.compatibility.legacyState,
       progress: result.progress.overallProgress,
       canonical: result,
+      calculatedAt: result.calculatedAt,
       orchestrationOptions: { templatesById, activeTemplateFallback },
       color: PROJECT_COLORS[idx % PROJECT_COLORS.length],
     };
   });
 }
-

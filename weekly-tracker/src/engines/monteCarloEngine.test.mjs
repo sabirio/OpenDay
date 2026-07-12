@@ -92,7 +92,7 @@ check('A8: 3 identical-progress reports → NOT insufficient_data (sigma floor p
 console.log('\nB) Result shape invariants');
 
 {
-  const r = computeMonteCarloForecast(PROJECT, REPS_INC);
+  const r = computeMonteCarloForecast(PROJECT, REPS_INC, null, { random: globalThis.Math.random });
   check('B1:  insufficient_data === false',        r.insufficient_data === false);
   check('B2:  simulations === 10000',              r.simulations       === 10000);
   check('B3:  currentProgress is number',          typeof r.currentProgress   === 'number');
@@ -207,6 +207,7 @@ console.log('\nG) overrideProgressPoints (A2 contractor-bias-adjusted series)');
   // only the progress *values* come from the override, not sortedReports itself.
   const r = computeMonteCarloForecast(PROJECT, REPS_INC, null, {
     overrideProgressPoints: [10, 20, 30],
+    random: globalThis.Math.random,
   });
 
   globalThis.Math.random = orig;
@@ -227,12 +228,12 @@ console.log('\nG) overrideProgressPoints (A2 contractor-bias-adjusted series)');
   const orig = Math.random;
   let c = 0;
   globalThis.Math.random = () => (c++ % 2 === 0 ? 0.5 : 0.25);
-  const withOptionObjectButNoOverride = computeMonteCarloForecast(PROJECT, REPS_INC, null, {});
+  const withOptionObjectButNoOverride = computeMonteCarloForecast(PROJECT, REPS_INC, null, { random: globalThis.Math.random });
   globalThis.Math.random = orig;
 
   c = 0;
   globalThis.Math.random = () => (c++ % 2 === 0 ? 0.5 : 0.25);
-  const plain = computeMonteCarloForecast(PROJECT, REPS_INC);
+  const plain = computeMonteCarloForecast(PROJECT, REPS_INC, null, { random: globalThis.Math.random });
   globalThis.Math.random = orig;
 
   check('G4: options={} (no override) → currentProgress unchanged from plain call',
