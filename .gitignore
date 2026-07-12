@@ -5,6 +5,9 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+backups/
+work/
+weekly-tracker/skills-lock.json
 .claude/settings.local.json
 *.log
 .DS_Store
