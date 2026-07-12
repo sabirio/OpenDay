@@ -220,6 +220,51 @@ function Set-ServiceRolePlatformPrivilegeDefaults {
     return ,$outArray
 }
 
+function Set-InsertRoleSequenceUsageDefaults {
+    # A role needs USAGE on a bigserial-backed table's sequence for
+    # nextval()-via-column-DEFAULT to succeed on INSERT (Postgres checks
+    # sequence USAGE on the effective inserting role, not just table
+    # INSERT) - migration 019_primary_key_defaults.sql exists precisely
+    # because the app inserts into projects/reports/site_visits/
+    # progress_history without supplying an id. No migration in this
+    # repository ever GRANTs sequence USAGE explicitly (verified: zero
+    # GRANT ... ON SEQUENCE statements), so migration-derived-execution
+    # modeled every role's sequence privileges as allowed=false - a
+    # second false-positive class discovered by a real composite run,
+    # same shape as the service_role gap: the omission is a genuine
+    # migration-history gap (like migration 026 itself documents for
+    # table privileges), not evidence of a real defect. This function
+    # derives the correct expectation *structurally*, from the naming
+    # convention (<table>_id_seq) and the already-computed expected
+    # INSERT=true table-privilege rows - it never reads production's
+    # actual sequence grants.
+    param(
+        [Parameter(Mandatory)][object[]]$TablePrivilegeRows,
+        [Parameter(Mandatory)][object[]]$SequencePrivilegeRows
+    )
+
+    $insertableTables = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($row in $TablePrivilegeRows) {
+        if ($row.privilege -eq 'INSERT' -and [bool]$row.allowed) {
+            [void]$insertableTables.Add("$($row.role)|$($row.table)_id_seq")
+        }
+    }
+
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($row in $SequencePrivilegeRows) {
+        if ($row.privilege -eq 'USAGE' -and $insertableTables.Contains("$($row.role)|$($row.sequence)")) {
+            $copy = [ordered]@{}
+            foreach ($key in $row.Keys) { $copy[$key] = $row[$key] }
+            $copy['allowed'] = $true
+            $out.Add($copy)
+        } else {
+            $out.Add($row)
+        }
+    }
+    [object[]]$outArray = $out
+    return ,$outArray
+}
+
 function Get-SupabasePlatformRoleStubScript {
     # Same gap as the auth schema stub, one layer down: 010_rls_by_roles.sql
     # (and every migration after it) issues `CREATE POLICY ... TO

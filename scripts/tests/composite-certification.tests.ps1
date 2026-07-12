@@ -80,7 +80,7 @@ Assert-True 'accepted-exceptions starts empty' (@($exceptionsDoc.exceptions).Cou
 # 3. Migration contract extractor
 # ===========================================================================
 $migrationFiles = Get-CanonicalMigrationFileList -ContractPath $contractPath -MigrationsRoot $migrationsRoot
-Assert-True 'Get-CanonicalMigrationFileList resolves 18 files' ($migrationFiles.Count -eq 18)
+Assert-True 'Get-CanonicalMigrationFileList resolves 19 files (18 original + 028 production security reconciliation)' ($migrationFiles.Count -eq 19)
 Assert-True 'Get-CanonicalMigrationFileList every resolved file actually exists on disk' (@($migrationFiles | Where-Object { -not (Test-Path -LiteralPath $_.FullPath) }).Count -eq 0)
 Assert-Throws 'Get-CanonicalMigrationFileList fails closed on unknown contract schema version' {
     $tmp = Join-Path ([IO.Path]::GetTempPath()) "bad-contract-$([guid]::NewGuid().ToString('N')).json"
@@ -406,6 +406,16 @@ Assert-True 'entrypoint scope-drift checks never chain -join directly into -ne/-
 Assert-True 'entrypoint scopeRules.tables drift check assigns to an intermediate variable before comparing' ($entryText -match '\$scopeTablesSorted -ne \$localTablesSorted')
 Assert-True 'entrypoint scopeRules.roles drift check assigns to an intermediate variable before comparing' ($entryText -match '\$scopeRolesSorted -ne \$localRolesSorted')
 
+# -AdditionalVerifiedStructuralTables: added for the remediation rehearsal
+# (a real end-to-end run found structuralSchema always independently
+# re-derives "actual" from a fresh restore of the *original* backup, so a
+# rehearsal's post-migration table can never be seen by it otherwise).
+# Backward-compatible: defaults to empty, so every existing real-production
+# call site (which never passes it) is byte-for-byte unaffected.
+Assert-True 'entrypoint AdditionalVerifiedStructuralTables defaults to an empty array (real production certification calls are unaffected)' ($entryText -match '\[string\[\]\]\$AdditionalVerifiedStructuralTables = @\(\)')
+Assert-True 'entrypoint only accepts an additional table if it is already within contract scope (cannot inject an arbitrary/out-of-scope table)' ($entryText -match '\$scopeTables -contains \$extraTable')
+Assert-True 'entrypoint never adds a duplicate entry for a table restore-verify.ps1 already found' ($entryText -match '\$cloneStructuralTableNames -notcontains \$extraTable')
+
 # Regression: real composite run found `@($resolvedByCategory[$catName])`
 # (wrapping an already-instantiated System.Collections.Generic.List[object]
 # indexer result directly with @(...)) throws "Argument types do not match"
@@ -449,6 +459,30 @@ Assert-True 'entrypoint applies the service_role privilege fix to tablePrivilege
     $entryText -match "Set-ServiceRolePlatformPrivilegeDefaults -Rows \`$migrationDerived\.categories\.functionPrivileges -ValueField 'execute'"
 )
 Assert-True 'Supabase platform schema stub includes auth.role() alongside auth.uid() (production has it; a real run found it missing caused spurious unexpected-function noise)' ((Get-SupabasePlatformSchemaStubScript) -match '(?i)FUNCTION auth\.role\(\) RETURNS text')
+
+# Regression: a real composite run found migration-derived sequencePrivileges
+# modeled every role's USAGE as false, but migration 019_primary_key_defaults.sql
+# exists precisely because the app inserts into bigserial-backed tables
+# without supplying an id - Postgres requires sequence USAGE for the
+# implicit nextval()-via-DEFAULT to succeed. authenticated legitimately
+# needs USAGE on every sequence backing a table it can INSERT into.
+$tpRows = @(
+    [ordered]@{ schema = 'public'; table = 'projects'; role = 'authenticated'; privilege = 'INSERT'; allowed = $true },
+    [ordered]@{ schema = 'public'; table = 'audit_log'; role = 'authenticated'; privilege = 'INSERT'; allowed = $false }
+)
+$seqRows = @(
+    [ordered]@{ schema = 'public'; sequence = 'projects_id_seq'; role = 'authenticated'; privilege = 'USAGE'; allowed = $false },
+    [ordered]@{ schema = 'public'; sequence = 'projects_id_seq'; role = 'authenticated'; privilege = 'SELECT'; allowed = $false },
+    [ordered]@{ schema = 'public'; sequence = 'audit_log_id_seq'; role = 'authenticated'; privilege = 'USAGE'; allowed = $false },
+    [ordered]@{ schema = 'public'; sequence = 'projects_id_seq'; role = 'anon'; privilege = 'USAGE'; allowed = $false }
+)
+$seqFixed = Set-InsertRoleSequenceUsageDefaults -TablePrivilegeRows $tpRows -SequencePrivilegeRows $seqRows
+Assert-True 'Set-InsertRoleSequenceUsageDefaults sets USAGE=true for authenticated on a sequence backing a table it can INSERT into' ((($seqFixed | Where-Object { $_.sequence -eq 'projects_id_seq' -and $_.role -eq 'authenticated' -and $_.privilege -eq 'USAGE' }).allowed) -eq $true)
+Assert-True 'Set-InsertRoleSequenceUsageDefaults leaves SELECT untouched (only USAGE is runtime-required for nextval() via DEFAULT)' ((($seqFixed | Where-Object { $_.sequence -eq 'projects_id_seq' -and $_.role -eq 'authenticated' -and $_.privilege -eq 'SELECT' }).allowed) -eq $false)
+Assert-True 'Set-InsertRoleSequenceUsageDefaults leaves audit_log_id_seq USAGE=false for authenticated (no INSERT privilege on audit_log at all)' ((($seqFixed | Where-Object { $_.sequence -eq 'audit_log_id_seq' -and $_.role -eq 'authenticated' }).allowed) -eq $false)
+Assert-True 'Set-InsertRoleSequenceUsageDefaults leaves anon USAGE=false (anon cannot INSERT into projects)' ((($seqFixed | Where-Object { $_.sequence -eq 'projects_id_seq' -and $_.role -eq 'anon' }).allowed) -eq $false)
+Assert-True 'Set-InsertRoleSequenceUsageDefaults preserves row count' ($seqFixed.Count -eq $seqRows.Count)
+Assert-True 'entrypoint applies the sequence-usage fix after service_role correction' ($entryText -match 'Set-InsertRoleSequenceUsageDefaults -TablePrivilegeRows \$migrationDerived\.categories\.tablePrivileges -SequencePrivilegeRows \$migrationDerived\.categories\.sequencePrivileges')
 
 Write-Host ''
 Write-Host "TOTAL: $($script:passCount) passed, $($script:failCount) failed"

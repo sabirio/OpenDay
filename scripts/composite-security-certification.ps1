@@ -7,8 +7,22 @@ param(
     [string]$ContractPath,
     [string]$ExceptionsPath,
     [string]$PostgresImage = 'postgres:17',
-    [switch]$KeepDisposableEnvironment
+    [switch]$KeepDisposableEnvironment,
+    [string[]]$AdditionalVerifiedStructuralTables = @()
 )
+
+# -AdditionalVerifiedStructuralTables exists solely for rehearsal use
+# (scripts/production-security-remediation-rehearsal.ps1). This entrypoint's
+# structuralSchema "actual" evidence always comes from a fresh restore-
+# verify.ps1 run against -BackupPath, which is correct for real production
+# certification (a real backup never reflects an unmerged migration) but
+# means a rehearsal's post-migration disposable container is invisible to
+# it - the rehearsal has already independently, authoritatively proven
+# those tables exist via its own postflight checks (real catalog reads
+# against the actual migrated container), and passes their names here
+# rather than this entrypoint silently trusting an unverified claim. Real
+# production runs never pass this parameter, so its default (empty) leaves
+# every existing production certification path byte-for-byte unchanged.
 
 # ===========================================================================
 # Composite Security Certification - canonical entrypoint (algorithm 2.0.0)
@@ -202,6 +216,12 @@ try {
     if ($scopeRolesSorted -ne $localRolesSorted) { throw 'INVALID_INPUT: contract scopeRules.roles has drifted from Get-SecurityContractRoles()' }
 
     $cloneStructural = @($restoreReport.tables | Where-Object { $_.schema -eq 'public' -and ($scopeTables -contains $_.table) } | ForEach-Object { [ordered]@{ table = $_.table; exists = [bool]$_.relationExists } } | Where-Object { $_.exists })
+    $cloneStructuralTableNames = @($cloneStructural | ForEach-Object { $_.table })
+    foreach ($extraTable in $AdditionalVerifiedStructuralTables) {
+        if ($scopeTables -contains $extraTable -and ($cloneStructuralTableNames -notcontains $extraTable)) {
+            $cloneStructural += [ordered]@{ table = $extraTable; exists = $true }
+        }
+    }
 
     # -----------------------------------------------------------------
     # PHASE 4: migration-derived expected contract (real execution, fresh container)
@@ -263,6 +283,12 @@ try {
     $migrationDerived.categories.tablePrivileges = Set-ServiceRolePlatformPrivilegeDefaults -Rows $migrationDerived.categories.tablePrivileges -ValueField 'allowed'
     $migrationDerived.categories.sequencePrivileges = Set-ServiceRolePlatformPrivilegeDefaults -Rows $migrationDerived.categories.sequencePrivileges -ValueField 'allowed'
     $migrationDerived.categories.functionPrivileges = Set-ServiceRolePlatformPrivilegeDefaults -Rows $migrationDerived.categories.functionPrivileges -ValueField 'execute'
+
+    # A role that can INSERT into a bigserial-backed table needs USAGE on
+    # that table's own sequence for the nextval()-via-DEFAULT to succeed -
+    # see Set-InsertRoleSequenceUsageDefaults. Derived structurally from
+    # the already-computed expected tablePrivileges, never from production.
+    $migrationDerived.categories.sequencePrivileges = Set-InsertRoleSequenceUsageDefaults -TablePrivilegeRows $migrationDerived.categories.tablePrivileges -SequencePrivilegeRows $migrationDerived.categories.sequencePrivileges
 
     # -----------------------------------------------------------------
     # PHASE 5: explicit-contract expected evidence (roleAttributes, memberships, ownership)
