@@ -16,6 +16,8 @@ $script:passCount = 0
 $script:failCount = 0
 $script:failures = @()
 
+$scriptText = Get-Content -LiteralPath $scriptPath -Raw
+
 function Assert-True {
     param([string]$Name, [bool]$Condition, [string]$Detail = '')
     if ($Condition) {
@@ -41,6 +43,9 @@ function Assert-Throws {
         }
     }
 }
+
+Assert-True 'PS5 compatibility: BackupRoot default is not evaluated inside param() using PSScriptRoot' ($scriptText -notmatch '\[string\]\$BackupRoot\s*=\s*\(Join-Path\s+\$PSScriptRoot')
+Assert-True 'PS5 compatibility: BackupRoot default is resolved in the script body' ($scriptText -match 'if \(-not \$BackupRoot\)[\s\S]*?\$BackupRoot\s*=\s*Join-Path\s+\$PSScriptRoot')
 
 # ===========================================================================
 # 1. PowerShell AST parse

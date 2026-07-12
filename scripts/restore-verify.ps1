@@ -2,12 +2,19 @@
 param(
     [string]$BackupPath,
     [switch]$Latest,
-    [string]$BackupRoot = (Join-Path $PSScriptRoot '..\backups\production'),
+    [string]$BackupRoot,
     [string]$PostgresImage = 'postgres:17'
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+# Windows PowerShell 5.1 can evaluate parameter default expressions before
+# $PSScriptRoot is populated for a -File invocation. Resolve this default in
+# the script body so an explicit -BackupPath remains usable on PS 5.1.
+if (-not $BackupRoot) {
+    $BackupRoot = Join-Path $PSScriptRoot '..\backups\production'
+}
 
 $ScriptVersion = '1.0'
 $ExpectedManifestStatus = 'DUMP_CREATED_STATIC_VALIDATION_PASS'
