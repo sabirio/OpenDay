@@ -1,5 +1,22 @@
 # Production Security Remediation Runbook
 
+## Reusable operational discipline
+
+For every production migration: audit and freeze the repository commit and SQL checksum; create and verify a production backup; run the migration-specific read-only preflight; obtain explicit human approval; execute exactly one checksummed SQL file; run expanded postflight, a new production inventory, and composite certification; freeze the baseline only after PASS; preserve redacted evidence and hashes. A committed-state defect is corrected by a new forward-only migration.
+
+Never use ad hoc corrective SQL, alter default privileges without separately reviewed scope, treat exit code 0 as final certification, freeze after composite FAIL, commit credentials/dumps/evidence packages, or begin the next stabilization phase before formal closure.
+
+### Migration 029 historical record
+
+- Commit: `2c5aa2e512981262f6bfc5cd0854fbc8062b95a4`
+- Migration: `weekly-tracker/src/migrations/029_production_acl_followup.sql`
+- SHA-256: `f6d1a69f7821eb206645fa235c48efc568eeafde8d39b9db92c9cee738553464`
+- Backup/baseline: `backups/production/20260712T160441Z/`
+- Completed: 2026-07-12; final status PASS; zero security differences.
+- No `ALTER DEFAULT PRIVILEGES` change was made.
+
+The retained `production-migration029-*` scripts are historical, migration-specific safety tools, not arbitrary migration runners. They require explicit backup, preflight, repository, checksum, and approval evidence and must never be used to reapply migration 029.
+
 Reviewed, human-executed runbook for applying `weekly-tracker/src/migrations/028_production_security_reconciliation.sql` to real production. **No command in this document has been run against production by any automated process.** Everything below was rehearsed against a disposable, local-only clone — see `work/security-remediation-rehearsal/security-remediation-rehearsal.json` for the full rehearsal record and `docs/PRODUCTION_SECURITY_REMEDIATION_PLAN.md` (embedded in `work/security-remediation-rehearsal/security-remediation-plan.json`) for the forensic basis.
 
 ## 1. Required approvals
