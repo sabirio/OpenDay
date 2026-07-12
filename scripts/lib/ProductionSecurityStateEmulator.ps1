@@ -87,6 +87,71 @@ function Test-ProductionSecurityStateHydrationDeterministic {
     return ($a -eq $b)
 }
 
+function Get-SupabaseDefaultAclFixtureScript {
+    # Disposable-rehearsal-only fixture reproducing a real, platform-level
+    # Postgres mechanism that a vanilla postgres:17 container does not have
+    # by default: an ALTER DEFAULT PRIVILEGES rule, owned by role postgres,
+    # scoped to schema public, that auto-grants broad privileges to
+    # anon/authenticated/service_role on every NEW table/sequence/function
+    # created in that schema from then on.
+    #
+    # This is not a guess - it is the literal, direct catalog fact captured
+    # by a read-only production query against pg_default_acl on
+    # 2026-07-12 (work/production-029-approval-evidence/
+    # pg-default-acl-investigation.json): three defaclobjtype rows ('r'
+    # table, 'S' sequence, 'f' function), all owned by postgres, all
+    # scoped to namespace public, all granting to postgres/anon/
+    # authenticated/service_role. It is independently proven non-
+    # retroactive (work/production-029-approval-evidence/acl-analysis.json
+    # "appliesRetroactively": false, evidenced by projects_id_seq - a
+    # pre-existing sequence with zero anon ACL entries despite the rule
+    # existing today) - i.e. it affects only objects created after the
+    # rule was configured, which is exactly the failure mode this fixture
+    # exists to reproduce for OBJECTS THE CANONICAL MIGRATION CHAIN ITSELF
+    # CREATES.
+    #
+    # This is the fix for the rehearsal fidelity gap that let migration
+    # 028's 8 ACL differences (write_command_requests_id_seq,
+    # submit_contractor_report_atomic, submit_site_visit_atomic) escape
+    # detection during that migration's pre-apply rehearsal: the migration
+    # 028 rehearsal (production-security-remediation-rehearsal.ps1)
+    # restored a real backup taken with pg_dump --no-privileges (so it
+    # never carried this rule) and hydrated ACL only from a PRE-028
+    # production inventory snapshot (Get-ProductionActualGrantStatements),
+    # which by construction has no rows at all for objects that did not
+    # exist yet. When 028 then created the sequence and both functions
+    # inside that disposable container, vanilla Postgres - with no default-
+    # ACL rule active - granted them nothing extra, so the rehearsal's
+    # post-migration inventory looked clean even though real production
+    # (which DOES have this rule, independent of anything any backup or
+    # migration in this repository ever configured) did not.
+    #
+    # Isolation: this function only RETURNS a SQL string. It is wired into
+    # scripts/production-acl-fixture-rehearsal.ps1's fresh, disposable,
+    # locally-created Docker container only - never into any script that
+    # holds a production connection, and never into
+    # composite-security-certification.ps1's PHASE 4 "expected" (migration-
+    # derived-execution) container, which must stay vanilla so it keeps
+    # representing "what the migrations alone create" (the correct,
+    # narrow, desired end state) rather than drifting to match whatever
+    # the platform's default happens to be today.
+    #
+    # GRANT ALL ON TABLES covers arwdDxtm (matches production's observed
+    # table defaclacl); GRANT ALL ON SEQUENCES covers rwU / SELECT+UPDATE+
+    # USAGE (matches production's observed sequence defaclacl rwU); GRANT
+    # EXECUTE ON FUNCTIONS covers X (matches production's observed function
+    # defaclacl X). All three ALTER DEFAULT PRIVILEGES statements are
+    # scoped to `FOR ROLE postgres IN SCHEMA public`, exactly matching the
+    # real defaclrole/defaclnamespace values found in production - this
+    # fixture does not invent a broader rule than what was actually
+    # observed.
+    return @'
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+'@
+}
+
 function Get-RehearsalNormalizedElements {
     # A disposable container's own postgres:17 initdb bootstrap superuser
     # can never have SUPERUSER stripped from it - this is a hard Postgres

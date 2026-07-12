@@ -380,8 +380,20 @@ try {
     $artifactTempPath = "$artifactPath.tmp"
     $checksumTempPath = "$checksumPath.tmp"
 
+    # productionInventoryPath is excluded from the canonical hash for the
+    # same reason generatedAt already was: it is a run-environment fact
+    # (an absolute local file path, different every time this script is
+    # invoked from a different working/output directory), not part of the
+    # certification's security evidence or decision. Its exclusion was
+    # found necessary by a real two-run determinism proof (scripts/
+    # production-acl-fixture-rehearsal.ps1's positive-control run 1 vs
+    # run 2): identical migrations, identical fixture, identical fresh
+    # container, identical differences (0/0) and identical status (PASS)
+    # in both runs, yet the un-excluded field alone produced two different
+    # hashes - a false non-determinism signal, not a real evidence change.
+    $excludedFromHash = @('generatedAt', 'productionInventoryPath')
     $hashPayload = [ordered]@{}
-    foreach ($k in $diag.Keys) { if ($k -ne 'generatedAt') { $hashPayload[$k] = $diag[$k] } }
+    foreach ($k in $diag.Keys) { if ($excludedFromHash -notcontains $k) { $hashPayload[$k] = $diag[$k] } }
     $hashJson = $hashPayload | ConvertTo-Json -Depth 20 -Compress
     $sha = [Security.Cryptography.SHA256]::Create()
     try { $canonicalHash = ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($hashJson)))).Replace('-', '').ToLowerInvariant() }

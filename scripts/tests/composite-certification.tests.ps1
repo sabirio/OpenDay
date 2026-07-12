@@ -80,7 +80,7 @@ Assert-True 'accepted-exceptions starts empty' (@($exceptionsDoc.exceptions).Cou
 # 3. Migration contract extractor
 # ===========================================================================
 $migrationFiles = Get-CanonicalMigrationFileList -ContractPath $contractPath -MigrationsRoot $migrationsRoot
-Assert-True 'Get-CanonicalMigrationFileList resolves 19 files (18 original + 028 production security reconciliation)' ($migrationFiles.Count -eq 19)
+Assert-True 'Get-CanonicalMigrationFileList resolves 20 files (18 original + 028 production security reconciliation + 029 production ACL followup)' ($migrationFiles.Count -eq 20)
 Assert-True 'Get-CanonicalMigrationFileList every resolved file actually exists on disk' (@($migrationFiles | Where-Object { -not (Test-Path -LiteralPath $_.FullPath) }).Count -eq 0)
 Assert-Throws 'Get-CanonicalMigrationFileList fails closed on unknown contract schema version' {
     $tmp = Join-Path ([IO.Path]::GetTempPath()) "bad-contract-$([guid]::NewGuid().ToString('N')).json"
@@ -483,6 +483,17 @@ Assert-True 'Set-InsertRoleSequenceUsageDefaults leaves audit_log_id_seq USAGE=f
 Assert-True 'Set-InsertRoleSequenceUsageDefaults leaves anon USAGE=false (anon cannot INSERT into projects)' ((($seqFixed | Where-Object { $_.sequence -eq 'projects_id_seq' -and $_.role -eq 'anon' }).allowed) -eq $false)
 Assert-True 'Set-InsertRoleSequenceUsageDefaults preserves row count' ($seqFixed.Count -eq $seqRows.Count)
 Assert-True 'entrypoint applies the sequence-usage fix after service_role correction' ($entryText -match 'Set-InsertRoleSequenceUsageDefaults -TablePrivilegeRows \$migrationDerived\.categories\.tablePrivileges -SequencePrivilegeRows \$migrationDerived\.categories\.sequencePrivileges')
+
+# Regression: a real two-run determinism proof (scripts/production-acl-
+# fixture-rehearsal.ps1, migration 029 positive control run 1 vs run 2)
+# found that two rehearsals with byte-identical differences (0/0) and
+# identical status (PASS) still produced two DIFFERENT canonicalPayloadHash
+# values, because the hash payload included productionInventoryPath - an
+# absolute local file path that differs any time this script is invoked
+# from a different working/output directory, not part of the certification's
+# actual security evidence or decision.
+Assert-True 'entrypoint excludes productionInventoryPath from the canonical hash payload (same treatment as generatedAt - a run-environment fact, not evidence)' ($entryText -match "\`$excludedFromHash = @\('generatedAt', 'productionInventoryPath'\)")
+Assert-True 'entrypoint still writes the real productionInventoryPath into the artifact itself (only excluded from the HASH, not from the artifact)' ($entryText -match '\$diag\.productionInventoryPath\s*=\s*\$ProductionInventoryPath' -or $entryText -match "productionInventoryPath = \`$ProductionInventoryPath")
 
 Write-Host ''
 Write-Host "TOTAL: $($script:passCount) passed, $($script:failCount) failed"

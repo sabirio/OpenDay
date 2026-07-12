@@ -33,7 +33,10 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $scriptsRoot = Join-Path $repoRoot 'scripts'
 $migrationsRoot = Join-Path $repoRoot 'weekly-tracker\src\migrations'
 $migrationPath = Join-Path $migrationsRoot '028_production_security_reconciliation.sql'
+$migration029Path = Join-Path $migrationsRoot '029_production_acl_followup.sql'
 $rehearsalPath = Join-Path $scriptsRoot 'production-security-remediation-rehearsal.ps1'
+$fixtureRehearsalPath = Join-Path $scriptsRoot 'production-acl-fixture-rehearsal.ps1'
+$compositeCertPath = Join-Path $scriptsRoot 'composite-security-certification.ps1'
 $preflightCliPath = Join-Path $scriptsRoot 'production-remediation-preflight.ps1'
 $postflightCliPath = Join-Path $scriptsRoot 'production-remediation-postflight.ps1'
 
@@ -46,7 +49,7 @@ $postflightCliPath = Join-Path $scriptsRoot 'production-remediation-postflight.p
 # ===========================================================================
 # 1. AST parse / PS 5.1 compatibility
 # ===========================================================================
-foreach ($f in @('lib\ProductionSecurityStateEmulator.ps1', 'lib\RemediationPreflightPostflight.ps1', 'production-remediation-preflight.ps1', 'production-remediation-postflight.ps1', 'production-security-remediation-rehearsal.ps1')) {
+foreach ($f in @('lib\ProductionSecurityStateEmulator.ps1', 'lib\RemediationPreflightPostflight.ps1', 'production-remediation-preflight.ps1', 'production-remediation-postflight.ps1', 'production-security-remediation-rehearsal.ps1', 'production-acl-fixture-rehearsal.ps1', 'composite-security-certification.ps1')) {
     $full = Join-Path $scriptsRoot $f
     $tokens = $null; $errors = $null
     [System.Management.Automation.Language.Parser]::ParseFile($full, [ref]$tokens, [ref]$errors) | Out-Null
@@ -63,13 +66,18 @@ foreach ($f in @('lib\ProductionSecurityStateEmulator.ps1', 'lib\RemediationPref
 # ===========================================================================
 Assert-True '028_production_security_reconciliation.sql exists' (Test-Path -LiteralPath $migrationPath -PathType Leaf)
 $existingMigrationNumbers = Get-ChildItem -LiteralPath $migrationsRoot -Filter '*.sql' -File | ForEach-Object { if ($_.Name -match '^(\d{3})_') { [int]$Matches[1] } } | Where-Object { $_ -ne $null }
-Assert-True '028 is the next free canonical migration number (no 029+ file exists that should have come first)' (($existingMigrationNumbers | Sort-Object -Descending | Select-Object -First 1) -eq 28)
+Assert-True '029 is the next free canonical migration number (no 030+ file exists that should have come first)' (($existingMigrationNumbers | Sort-Object -Descending | Select-Object -First 1) -eq 29)
 
 $contractPath = Join-Path $scriptsRoot 'contracts\canonical-security-contract.json'
 $contract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
 Assert-True 'canonical contract includes 028 in the migration path' (@($contract.canonicalMigrationPath.included) -contains '028_production_security_reconciliation.sql')
+Assert-True 'canonical contract includes 029 in the migration path' (@($contract.canonicalMigrationPath.included) -contains '029_production_acl_followup.sql')
+$includedMigrations = @($contract.canonicalMigrationPath.included)
+$idx028 = [array]::IndexOf($includedMigrations, '028_production_security_reconciliation.sql')
+$idx029 = [array]::IndexOf($includedMigrations, '029_production_acl_followup.sql')
+Assert-True 'canonical contract lists 029 immediately after 028 (append-only ordering)' (($idx028 -ge 0) -and ($idx029 -eq $idx028 + 1))
 $migrationFiles = Get-CanonicalMigrationFileList -ContractPath $contractPath -MigrationsRoot $migrationsRoot
-Assert-True 'Get-CanonicalMigrationFileList resolves 19 files including 028' ($migrationFiles.Count -eq 19)
+Assert-True 'Get-CanonicalMigrationFileList resolves 20 files including 028 and 029' ($migrationFiles.Count -eq 20)
 
 $migrationText = Get-Content -LiteralPath $migrationPath -Raw
 Assert-True '028 does not modify migrations 000-027 (append-only; no ALTER on their own definitions is implied by them not being edited)' (
@@ -239,6 +247,35 @@ $postflightPassResponses = @{
     "has_function_privilege('anon','public.submit_contractor_report(bigint,date,jsonb,jsonb)','EXECUTE')" = 'f'
     "has_function_privilege('authenticated','public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)','EXECUTE')" = 't'
     "has_function_privilege('anon','public.fn_audit_log()','EXECUTE')" = 'f'
+    # migration 029 coverage: fully-remediated (post-029) desired state -
+    # anon/authenticated have nothing on the sequence, anon has nothing on
+    # either atomic RPC, postgres/service_role/authenticated retain what
+    # they need.
+    "has_sequence_privilege('anon','public.write_command_requests_id_seq','SELECT')" = 'f'
+    "has_sequence_privilege('anon','public.write_command_requests_id_seq','UPDATE')" = 'f'
+    "has_sequence_privilege('anon','public.write_command_requests_id_seq','USAGE')" = 'f'
+    "has_sequence_privilege('authenticated','public.write_command_requests_id_seq','SELECT')" = 'f'
+    "has_sequence_privilege('authenticated','public.write_command_requests_id_seq','UPDATE')" = 'f'
+    "has_sequence_privilege('authenticated','public.write_command_requests_id_seq','USAGE')" = 'f'
+    "has_sequence_privilege('postgres','public.write_command_requests_id_seq','USAGE')" = 't'
+    "has_sequence_privilege('service_role','public.write_command_requests_id_seq','USAGE')" = 't'
+    "has_function_privilege('anon','public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)','EXECUTE')" = 'f'
+    "has_function_privilege('anon','public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)','EXECUTE')" = 'f'
+    "has_function_privilege('authenticated','public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)','EXECUTE')" = 't'
+    "has_function_privilege('service_role','public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)','EXECUTE')" = 't'
+    "has_function_privilege('service_role','public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)','EXECUTE')" = 't'
+    "grantee::regrole::text = 'anon' AND a.privilege_type = 'SELECT')" = 'f'
+    "grantee::regrole::text = 'anon' AND a.privilege_type = 'UPDATE')" = 'f'
+    "grantee::regrole::text = 'anon' AND a.privilege_type = 'USAGE')" = 'f'
+    "grantee::regrole::text = 'authenticated' AND a.privilege_type = 'SELECT')" = 'f'
+    "grantee::regrole::text = 'authenticated' AND a.privilege_type = 'UPDATE')" = 'f'
+    "grantee::regrole::text = 'authenticated' AND a.privilege_type = 'USAGE')" = 'f'
+    "grantee::regrole::text = 'postgres' AND a.privilege_type = 'USAGE')" = 't'
+    "grantee::regrole::text = 'service_role' AND a.privilege_type = 'USAGE')" = 't'
+    "proname = 'submit_contractor_report_atomic' AND a.grantee::regrole::text = 'anon' AND a.privilege_type = 'EXECUTE')" = 'f'
+    "proname = 'submit_site_visit_atomic' AND a.grantee::regrole::text = 'anon' AND a.privilege_type = 'EXECUTE')" = 'f'
+    "proname = 'submit_contractor_report_atomic' AND a.grantee::regrole::text = 'authenticated' AND a.privilege_type = 'EXECUTE')" = 't'
+    "proname = 'submit_site_visit_atomic' AND a.grantee::regrole::text = 'authenticated' AND a.privilege_type = 'EXECUTE')" = 't'
 }
 $postflightPassQuery = New-MockQuery $postflightPassResponses
 $postflightPassResult = Invoke-RemediationPostflight -Query $postflightPassQuery
@@ -384,6 +421,127 @@ Assert-True 'Get-RehearsalNormalizedElements preserves every other field on a ha
 Assert-True 'Write-JsonArtifactWithChecksum returns the actual checksum path it wrote (callers never re-derive the naming convention)' ($rehearsalText -match 'return \$checksumPath')
 Assert-True 'rehearsal script uses the returned checksum path for the pre-remediation composite call, not a reconstructed guess' ($rehearsalText -match "'-ProductionInventoryChecksumPath', \`$preInventoryChecksumPath")
 Assert-True 'rehearsal script uses the returned checksum path for the post-remediation composite call, not a reconstructed guess' ($rehearsalText -match "'-ProductionInventoryChecksumPath', \`$postInventoryChecksumPath")
+
+# ===========================================================================
+# 8. Migration 029 structure (production ACL follow-up)
+# ===========================================================================
+Assert-True '029_production_acl_followup.sql exists' (Test-Path -LiteralPath $migration029Path -PathType Leaf)
+$migration029Text = Get-Content -LiteralPath $migration029Path -Raw
+Assert-True '029 is wrapped in a single transaction (BEGIN...COMMIT)' ($migration029Text -match '(?m)^BEGIN;' -and $migration029Text -match '(?m)^COMMIT;')
+Assert-True '029 never disables RLS' ($migration029Text -notmatch '(?i)DISABLE ROW LEVEL SECURITY')
+Assert-True '029 never contains a destructive DROP/TRUNCATE ... CASCADE' ($migration029Text -notmatch '(?i)\b(DROP|TRUNCATE)\b[^;]*\bCASCADE\b')
+Assert-True '029 never contains a hardcoded credential-shaped string' ($migration029Text -notmatch '(?i)password\s*[:=]\s*[''"][^'']')
+$migration029CodeOnly = ($migration029Text -replace '(?m)^--[^\r\n]*', '')
+Assert-True '029 does not create or alter any role (CREATE ROLE / ALTER ROLE / OWNER TO) - checked against executable SQL only, comments may discuss the reasoning' ($migration029CodeOnly -notmatch '(?i)\b(CREATE|ALTER|DROP)\s+ROLE\b' -and $migration029CodeOnly -notmatch '(?i)\bOWNER\s+TO\b')
+Assert-True '029 does not modify ALTER DEFAULT PRIVILEGES (targeted per-object fix only, not a platform-wide default change) - checked against executable SQL only, comments may discuss the reasoning' ($migration029CodeOnly -notmatch '(?i)ALTER\s+DEFAULT\s+PRIVILEGES')
+foreach ($earlier in (Get-ChildItem -LiteralPath $migrationsRoot -Filter '0[0-2][0-9]_*.sql' -File)) {
+    if ($earlier.Name -eq '029_production_acl_followup.sql') { continue }
+    Assert-True "029 does not edit $($earlier.Name) (forward-only)" ((Get-Content -LiteralPath $earlier.FullName -Raw) -notmatch '\bTHIS FILE WAS MODIFIED BY 029\b')
+}
+Assert-True 'contract lists 029 as the last included migration (append-only)' ((@($contract.canonicalMigrationPath.included) | Select-Object -Last 1) -eq '029_production_acl_followup.sql')
+
+# ===========================================================================
+# 9. Regression guards for the 8 anti-patterns that let 028's real
+# production ACL differences escape its own pre-apply rehearsal undetected.
+# Each numbered block proves the OLD/naive check would have missed the
+# real defect, and the NEW code catches it.
+# ===========================================================================
+$fixtureRehearsalText = Get-Content -LiteralPath $fixtureRehearsalPath -Raw
+$compositeCertText = Get-Content -LiteralPath $compositeCertPath -Raw
+$emulatorText = Get-Content -LiteralPath (Join-Path $scriptsRoot 'lib\ProductionSecurityStateEmulator.ps1') -Raw
+$postflightLibText = Get-Content -LiteralPath (Join-Path $scriptsRoot 'lib\RemediationPreflightPostflight.ps1') -Raw
+
+# (1) Treating a table's ACL as if it also covers its own sequence - a
+# sequence is a separate catalog object with an independent ACL.
+Assert-True 'anti-pattern 1: 029 issues an explicit REVOKE ON SEQUENCE for write_command_requests_id_seq (never assumes the table REVOKE in 028 also covered it)' ($migration029Text -match '(?i)REVOKE\s+ALL\s+ON\s+SEQUENCE\s+public\.write_command_requests_id_seq')
+Assert-True 'anti-pattern 1: expanded postflight has a dedicated sequence-privilege check independent of the table check' ($postflightLibText -match "has_sequence_privilege\('anon','public\.write_command_requests_id_seq'")
+
+# (2) Assuming REVOKE ... FROM PUBLIC also removes an already-existing
+# DIRECT grant to a named role (it does not - they are independent ACL
+# entries, the same lesson 028 itself already learned for fn_audit_log()).
+Assert-True 'anti-pattern 2: 029 revokes EXECUTE directly FROM anon (not only FROM PUBLIC) on both atomic RPCs' (
+    $migration029Text -match '(?i)REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.submit_contractor_report_atomic\([^)]*\)\s+FROM\s+anon' -and
+    $migration029Text -match '(?i)REVOKE\s+EXECUTE\s+ON\s+FUNCTION\s+public\.submit_site_visit_atomic\([^)]*\)\s+FROM\s+anon'
+)
+
+# (3) Rehearsing against vanilla Postgres defaults while real production
+# has a broader, platform-configured ALTER DEFAULT PRIVILEGES rule -
+# proven undetectable by the OLD rehearsal (production-security-
+# remediation-rehearsal.ps1, which never installs any such fixture), and
+# now covered by the NEW fixture-based rehearsal.
+Assert-True 'anti-pattern 3: Get-SupabaseDefaultAclFixtureScript exists and emits ALTER DEFAULT PRIVILEGES statements (reproduces the real platform default, not vanilla Postgres)' ($emulatorText -match 'function Get-SupabaseDefaultAclFixtureScript' -and $emulatorText -match '(?i)ALTER\s+DEFAULT\s+PRIVILEGES\s+FOR\s+ROLE\s+postgres\s+IN\s+SCHEMA\s+public\s+GRANT\s+ALL\s+ON\s+SEQUENCES')
+Assert-True 'anti-pattern 3: the OLD rehearsal script never installs any default-ACL fixture (confirms the gap this anti-pattern describes actually existed)' ($rehearsalText -notmatch 'Get-SupabaseDefaultAclFixtureScript')
+$fixtureFixtureIdx = $fixtureRehearsalText.IndexOf('Get-SupabaseDefaultAclFixtureScript')
+$fixtureChainIdx = $fixtureRehearsalText.IndexOf('Invoke-CanonicalMigrationChain')
+Assert-True 'anti-pattern 3: the fixture-aware rehearsal installs the fixture BEFORE the canonical migration chain runs (new objects must inherit it, like real production)' (($fixtureFixtureIdx -ge 0) -and ($fixtureChainIdx -ge 0) -and ($fixtureFixtureIdx -lt $fixtureChainIdx))
+Assert-True 'anti-pattern 3: composite-security-certification.ps1''s own PHASE 4 "expected" container never installs the fixture (must stay vanilla, or the comparator could no longer detect this class of defect at all)' ($compositeCertText -notmatch 'Get-SupabaseDefaultAclFixtureScript')
+
+# (4) Checking only EFFECTIVE access (has_*_privilege, which follows role
+# membership/inheritance) and never the raw, DIRECT grant - a direct grant
+# to anon is a defect in itself even if some other control also happens to
+# block the request at runtime.
+Assert-True 'anti-pattern 4: expanded postflight checks DIRECT grants via aclexplode, not only effective access via has_*_privilege' ($postflightLibText -match 'directAclSpotChecks' -and $postflightLibText -match 'aclexplode\(c\.relacl\)' -and $postflightLibText -match 'aclexplode\(p\.proacl\)')
+
+# (5) Omitting a migration's own newly-created sequence from the security
+# contract/postflight entirely (only checking the table and the functions).
+Assert-True 'anti-pattern 5: postflight explicitly checks BOTH anon and authenticated on write_command_requests_id_seq (not omitted)' (
+    $postflightLibText -match "has_sequence_privilege\('anon','public\.write_command_requests_id_seq','SELECT'\)" -and
+    $postflightLibText -match "has_sequence_privilege\('authenticated','public\.write_command_requests_id_seq','SELECT'\)"
+)
+
+# (6) Omitting the exact overloaded function signature (bare/wrong-arity
+# identity resolves to nothing, or the wrong overload, and REVOKE/GRANT
+# silently no-ops against a function that does not exist).
+Assert-True 'anti-pattern 6: 029 uses the exact 5-argument signature for submit_contractor_report_atomic' ($migration029Text -match '(?i)submit_contractor_report_atomic\(bigint,\s*date,\s*jsonb,\s*jsonb,\s*uuid\)')
+Assert-True 'anti-pattern 6: 029 uses the exact 6-argument signature for submit_site_visit_atomic' ($migration029Text -match '(?i)submit_site_visit_atomic\(bigint,\s*bigint,\s*date,\s*jsonb,\s*jsonb,\s*uuid\)')
+Assert-True 'anti-pattern 6: postflight checks use the exact same signatures as the migration (no drift between migration and postflight)' (
+    $postflightLibText -match "submit_contractor_report_atomic\(bigint,date,jsonb,jsonb,uuid\)" -and
+    $postflightLibText -match "submit_site_visit_atomic\(bigint,bigint,date,jsonb,jsonb,uuid\)"
+)
+
+# (7) Postflight silently reporting PASS while a full composite
+# certification against the same state would still report FAIL - proven
+# with a mocked queryFn using the OLD (pre-029) production-observed ACL
+# state fed through the NEW, expanded postflight: it must now report FAIL,
+# not PASS, closing exactly the gap that let migration 028 pass postflight
+# in production despite 8 real differences.
+$preMigration029Responses = $postflightPassResponses.Clone()
+$preMigration029Responses["has_sequence_privilege('anon','public.write_command_requests_id_seq','SELECT')"] = 't'
+$preMigration029Responses["has_sequence_privilege('anon','public.write_command_requests_id_seq','UPDATE')"] = 't'
+$preMigration029Responses["has_sequence_privilege('anon','public.write_command_requests_id_seq','USAGE')"] = 't'
+$preMigration029Responses["has_sequence_privilege('authenticated','public.write_command_requests_id_seq','SELECT')"] = 't'
+$preMigration029Responses["has_sequence_privilege('authenticated','public.write_command_requests_id_seq','UPDATE')"] = 't'
+$preMigration029Responses["has_sequence_privilege('authenticated','public.write_command_requests_id_seq','USAGE')"] = 't'
+$preMigration029Responses["has_sequence_privilege('postgres','public.write_command_requests_id_seq','USAGE')"] = 't'
+$preMigration029Responses["has_sequence_privilege('service_role','public.write_command_requests_id_seq','USAGE')"] = 't'
+$preMigration029Responses["has_function_privilege('anon','public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)','EXECUTE')"] = 't'
+$preMigration029Responses["has_function_privilege('anon','public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)','EXECUTE')"] = 't'
+$preMigration029Responses["has_function_privilege('authenticated','public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)','EXECUTE')"] = 't'
+$preMigration029Responses["has_function_privilege('service_role','public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)','EXECUTE')"] = 't'
+$preMigration029Responses["has_function_privilege('service_role','public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)','EXECUTE')"] = 't'
+# Precise, privilege_type-scoped keys (matching RemediationPreflightPostflight.ps1's
+# exact generated SQL) - deliberately NOT broad role-only substrings, which
+# would collide with the narrower per-privilege-type keys inherited from
+# $postflightPassResponses via .Clone() (same underlying hashtable-key
+# ambiguity risk New-MockQuery's -like matching is exposed to).
+foreach ($role in @('anon', 'authenticated')) {
+    foreach ($priv in @('SELECT', 'UPDATE', 'USAGE')) {
+        $preMigration029Responses["grantee::regrole::text = '$role' AND a.privilege_type = '$priv')"] = 't'
+    }
+}
+$preMigration029Responses["proname = 'submit_contractor_report_atomic' AND a.grantee::regrole::text = 'anon' AND a.privilege_type = 'EXECUTE')"] = 't'
+$preMigration029Responses["proname = 'submit_site_visit_atomic' AND a.grantee::regrole::text = 'anon' AND a.privilege_type = 'EXECUTE')"] = 't'
+$preMigration029Query = New-MockQuery $preMigration029Responses
+$preMigration029Result = Invoke-RemediationPostflight -Query $preMigration029Query
+Assert-True 'anti-pattern 7: expanded postflight now reports FAIL for the pre-029, post-028-only production ACL state (the OLD postflight incorrectly reported PASS for this exact real state)' ($preMigration029Result.status -eq 'FAIL')
+Assert-True 'anti-pattern 7: the FAIL exposes at least the 8 known sequence/function differences' (@($preMigration029Result.failures | Where-Object { $_ -match 'write_command_requests_id_seq' -or $_ -match 'submit_contractor_report_atomic|submit_site_visit_atomic' }).Count -ge 8)
+
+# (8) Freezing the production security baseline while the composite
+# certification is not PASS - the runbook must gate baseline freeze
+# strictly behind a passing composite rerun, never behind postflight PASS
+# alone (exactly what anti-pattern 7 shows can diverge).
+$runbookText = Get-Content -LiteralPath (Join-Path $repoRoot 'docs\PRODUCTION_SECURITY_REMEDIATION_RUNBOOK.md') -Raw
+Assert-True 'anti-pattern 8: runbook gates baseline freeze behind composite certification PASS, not postflight PASS alone' ($runbookText -match '(?i)Only after step 7 returns .?PASS.?, promote')
 
 Write-Host ''
 Write-Host "TOTAL: $($script:passCount) passed, $($script:failCount) failed"
