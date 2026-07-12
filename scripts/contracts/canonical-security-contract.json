@@ -1,0 +1,91 @@
+{
+  "contractSchemaVersion": "1.0.0",
+  "contractVersion": "2.0.0",
+  "description": "Canonical, versioned security contract for OpenDay's composite security certification engine. Two kinds of expected evidence are combined by the contract builder: (1) categories fully derivable by executing the repository's canonical fresh-install migration chain against a disposable PostgreSQL 17 container (rls, policies, functions, tablePrivileges, sequencePrivileges, functionPrivileges - source='migration-derived-execution' below), and (2) categories that no migration in this repository creates or alters at all (roleAttributes, memberships, ownership) because they are Supabase platform-provisioned roles/ownership, not application objects - these are captured here explicitly, with rationale, and are NOT copied from any production inventory snapshot.",
+  "canonicalMigrationPath": {
+    "note": "Verified against weekly-tracker/README.md's fresh-install table, weekly-tracker/src/migrations/000_baseline.sql's header, and weekly-tracker/src/tests/migrationStrategy.test.mjs (commit 3616466 'fix(p0): document canonical migration path', which supersedes 010_rls_by_roles.sql's own stale 'HISTORICAL' header written by an earlier same-day commit d384589). 000_baseline.sql enables RLS on 14 tables but defines zero CREATE POLICY statements - 010 is required for the database to be usable at all (RLS-enabled-with-no-policy is default-deny).",
+    "included": [
+      "000_baseline.sql",
+      "010_rls_by_roles.sql",
+      "012_invite_contractor.sql",
+      "013_auth_user_role.sql",
+      "014_site_photos_storage.sql",
+      "015_audit_log.sql",
+      "016_updated_at.sql",
+      "017_site_photos_bucket_v2.sql",
+      "018_submit_contractor_report_rpc.sql",
+      "019_primary_key_defaults.sql",
+      "020_rls_company_role_hardening.sql",
+      "021_multi_tenant_hardening.sql",
+      "022_fix_projects_select_self_reference.sql",
+      "023_contractor_report_lookahead_fields.sql",
+      "024_drop_dead_weight_overrides_column.sql",
+      "025_atomic_write_commands.sql",
+      "026_grant_authenticated_table_privileges.sql",
+      "027_contractor_report_wp_validation.sql"
+    ],
+    "excludedHistorical": {
+      "files": ["001_initial_schema.sql", "001_gantt_system.sql", "002_gantt_system.sql", "003_task_groups.sql", "004_site_visit_pm_assessment.sql", "005_site_visit_gc_status.sql", "006_project_scope.sql", "007_progress_history.sql", "008_progress_history_rls.sql", "009_gantt_engine_version.sql"],
+      "reason": "README: 'Do not run historical migrations 001-009 on a fresh database; they were written for an older UUID project schema and are kept only as migration history.' Superseded by 000_baseline.sql."
+    },
+    "excludedSkipOnFresh": {
+      "files": ["011_ownership_uuid.sql"],
+      "reason": "README (Sprint 4.5 certification, 2026-07-10, empirically confirmed by running the fresh-install chain): 011's text->uuid CASE/regex migration has no operator for a column that 000_baseline.sql already declares as uuid on a fresh install; it errors outright. 011 remains correct only when upgrading an existing pre-011 production database with legacy text-typed owner columns."
+    }
+  },
+  "applicationRoles": ["anon", "authenticated", "authenticator", "postgres", "service_role"],
+  "roleAttributes": {
+    "source": "explicit-platform-contract",
+    "rationale": "None of these 5 roles are created, altered, or dropped by any migration in this repository (verified: zero matches for CREATE ROLE / ALTER ROLE / DROP ROLE across weekly-tracker/src/migrations/*.sql). They are Supabase project-provisioning defaults. Values below encode Supabase's documented standard role model, not a copy of any single environment's observed state.",
+    "rules": [
+      { "role": "anon", "canLogin": false, "superuser": false, "inherit": true, "createRole": false, "createDb": false, "replication": false, "bypassRls": false, "rationale": "PostgREST switches into anon per-request via SET ROLE from authenticator; anon must never be a directly loginable role." },
+      { "role": "authenticated", "canLogin": false, "superuser": false, "inherit": true, "createRole": false, "createDb": false, "replication": false, "bypassRls": false, "rationale": "Same switched-role model as anon; RLS policies in 010/020/021/022 are the authorization boundary for this role, so it must never bypass RLS." },
+      { "role": "authenticator", "canLogin": true, "superuser": false, "inherit": false, "createRole": false, "createDb": false, "replication": false, "bypassRls": false, "rationale": "The only role PostgREST/Supabase's pooler actually authenticates as. inherit=false is deliberate (Supabase/PostgREST security model): it must not automatically inherit anon/authenticated/service_role privileges outside of an explicit per-request SET ROLE, or every request would silently run with the union of all switchable roles' privileges." },
+      { "role": "service_role", "canLogin": false, "superuser": false, "inherit": true, "createRole": false, "createDb": false, "replication": false, "bypassRls": true, "rationale": "The service-role key intentionally bypasses RLS by Supabase/PostgREST design; used only server-side (backfillProgressHistory.js, etc.), never exposed to a browser client." },
+      { "role": "postgres", "canLogin": true, "superuser": false, "inherit": true, "createRole": true, "createDb": true, "replication": true, "bypassRls": true, "rationale": "Supabase's managed Postgres deliberately does NOT grant real superuser to the connecting 'postgres' role (unlike self-hosted Postgres) - createRole/createDb/replication/bypassRls remain true as the platform's migration/admin role, but superuser=false is the Supabase-specific hardening this contract asserts and any deviation (superuser=true) is a CRITICAL role-escalation defect, not a benign platform difference." }
+    ]
+  },
+  "memberships": {
+    "source": "explicit-platform-contract",
+    "rationale": "No migration in this repository issues GRANT <role> TO <role> for cluster-level role membership (only table/sequence/function-level GRANTs, which are a different privilege type entirely). These 7 memberships are Supabase's standard PostgREST role-switching bootstrap: authenticator (the only login role) is granted anon/authenticated/service_role so it can SET ROLE into each per-request based on the caller's JWT, and postgres (the admin/migration role) is granted membership in all four so it can administer them.",
+    "rules": [
+      { "grantedRole": "anon", "memberRole": "authenticator", "adminOption": false, "rationale": "Lets authenticator SET ROLE anon for unauthenticated requests." },
+      { "grantedRole": "anon", "memberRole": "postgres", "adminOption": true, "rationale": "Admin bootstrap membership." },
+      { "grantedRole": "authenticated", "memberRole": "authenticator", "adminOption": false, "rationale": "Lets authenticator SET ROLE authenticated for JWT-bearing requests." },
+      { "grantedRole": "authenticated", "memberRole": "postgres", "adminOption": true, "rationale": "Admin bootstrap membership." },
+      { "grantedRole": "service_role", "memberRole": "authenticator", "adminOption": false, "rationale": "Lets authenticator SET ROLE service_role for the service key." },
+      { "grantedRole": "service_role", "memberRole": "postgres", "adminOption": true, "rationale": "Admin bootstrap membership." },
+      { "grantedRole": "authenticator", "memberRole": "postgres", "adminOption": true, "rationale": "Admin bootstrap membership; lets postgres administer the authenticator role itself." }
+    ],
+    "prohibitedEscalationPaths": [
+      "Any membership granting createrole/createdb/superuser-capable roles to anon or authenticated.",
+      "Any membership not in the 7 rules above (additional membership = unexpected privilege escalation path, DEFECT)."
+    ]
+  },
+  "ownershipRules": {
+    "source": "explicit-platform-contract",
+    "rationale": "No migration issues ALTER ... OWNER TO (verified: zero matches for 'OWNER TO' across weekly-tracker/src/migrations/*.sql). All application tables/sequences/functions are therefore created and owned by whichever role executes the migrations (Supabase's project-level 'postgres' admin role), except objects Supabase's own Auth platform manages via its own migration system under supabase_auth_admin.",
+    "allowedOwners": ["postgres", "supabase_auth_admin"],
+    "perObjectExceptions": [],
+    "unexpectedOwnerSeverity": "HIGH"
+  },
+  "scopeRules": {
+    "tables": ["audit_log", "contractor_report_wps", "contractor_reports", "pending_invites", "profiles", "progress_history", "project_gantt_tasks", "projects", "reports", "site_visit_discrepancies", "site_visit_wps", "site_visits", "task_group_members", "task_groups", "templates", "write_command_requests"],
+    "roles": ["anon", "authenticated", "authenticator", "service_role", "postgres"],
+    "note": "Must stay identical to Get-SecurityContractTables()/Get-SecurityContractRoles() in scripts/lib/SecurityContractInventory.ps1 - the contract validator fails closed if they diverge."
+  },
+  "platformManagedExceptions": [
+    {
+      "id": "PME-001",
+      "category": "ownership",
+      "description": "Any application object (of the 16 in-scope tables' sequences/tables, or the security-relevant functions) legitimately owned by supabase_auth_admin instead of postgres.",
+      "justification": "Supabase's Auth service manages its own schema and can own trigger/helper objects that interact with public-schema application tables (e.g. profile-sync triggers). Classified BACKUP_TRANSPORT_LIMITATION only applies to clone evidence; production evidence showing supabase_auth_admin ownership is PLATFORM_MANAGED_DIFFERENCE, not a defect, only for objects also present in allowedOwners."
+    }
+  ],
+  "rlsRules": { "source": "migration-derived-execution", "note": "Expected RLS enabled/forced state is derived by executing canonicalMigrationPath.included against a disposable PostgreSQL 17 container and reading back pg_class.relrowsecurity/relforcerowsecurity via the same Get-SecurityContractInventory algorithm used for production evidence (evidenceSource=local)." },
+  "policyRules": { "source": "migration-derived-execution", "note": "Expected policy set (schema/table/policyName/command/permissive/roles/qual/withCheck) is derived the same way as rlsRules - this correctly resolves the DROP+CREATE/CREATE-OR-REPLACE supersession chain across 010 -> 020 -> 021 -> 022 without needing a hand-written SQL-diff parser, because Postgres itself applies the final state." },
+  "functionRules": { "source": "migration-derived-execution", "note": "Expected function identities/signatures/language/security mode/definition are derived the same way." },
+  "tablePrivilegeRules": { "source": "migration-derived-execution", "primaryMigration": "026_grant_authenticated_table_privileges.sql", "note": "Expected table-privilege matrix (role x table x privilege -> allowed) is derived by executing the canonical migration chain and reading has_table_privilege() results, not by hand-transcribing GRANT statements - this also correctly captures the negative space (privileges NOT granted, which is most of the matrix: 525 production rows are almost entirely allowed=false). service_role is the one exception: its rows are overridden to allowed=true post-execution (Set-ServiceRolePlatformPrivilegeDefaults) because service_role's ACL is Supabase platform-managed, not migration-derived - see roleAttributes.rules[service_role].rationale for the same principle applied to its bypassRls attribute." },
+  "sequencePrivilegeRules": { "source": "migration-derived-execution", "note": "No migration explicitly GRANTs sequence privileges; expected values come from whatever the bigserial-created sequences' default ACL is after 019/026 run, captured via execution. service_role rows overridden to allowed=true for the same platform-managed reason as tablePrivilegeRules." },
+  "functionPrivilegeRules": { "source": "migration-derived-execution", "note": "Expected EXECUTE grants derived via execution; independently cross-checked for one migration-documented case: 025_atomic_write_commands.sql's explicit REVOKE ALL ON public.write_command_requests FROM anon, authenticated. service_role rows overridden to execute=true for the same platform-managed reason as tablePrivilegeRules." }
+}

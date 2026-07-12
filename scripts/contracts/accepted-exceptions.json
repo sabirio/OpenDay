@@ -1,0 +1,6 @@
+{
+  "exceptionsSchemaVersion": "1.0.0",
+  "exceptionsVersion": "1.0.0",
+  "description": "Accepted-exception ledger for the composite security certification engine. Every entry requires exact object identity, a documented reason/owner, and either expiresAt or permanentJustification. No wildcards, no category-wide exceptions, no exceptions derived automatically from current production state. Expired exceptions block certification PASS. The preferred, expected state of this file is an empty exceptions array.",
+  "exceptions": []
+}
