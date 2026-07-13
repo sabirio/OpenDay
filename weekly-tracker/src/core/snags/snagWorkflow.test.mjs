@@ -1,0 +1,50 @@
+import { DEFAULT_SNAG_CONFIG, InMemorySnagRepository, SNAG_STATUSES, SnagDomainError, deriveDueState, executeSnagCommand, filterSnags } from './index.js';
+
+let pass=0, fail=0;
+const check=(label,value)=>{if(value){pass++;console.log(`  OK ${label}`)}else{fail++;console.error(`  FAIL ${label}`)}};
+const expectCode=(label,fn,code)=>{try{fn();check(label,false)}catch(error){check(label,error instanceof SnagDomainError&&error.code===code)}};
+const actor=(id,role)=>({id,role});
+const repo=new InMemorySnagRepository();
+const create={type:'createSnag',actor:actor('pm-1','PM'),projectId:'10',clientRequestId:'req-create',payload:{title:'Damaged finish',description:'Scratch',categoryCode:'FINISH',disciplineCode:'ARCH',priority:'HIGH',assigneeId:'gc-1',dueDate:'2026-07-20',location:{zoneId:'sales',room:'101',text:'North wall'}}};
+const created=executeSnagCommand(repo,create,{now:'2026-07-13T10:00:00Z',snagId:'snag-1'});
+check('PM creates assigned snag',created.snag.status==='ASSIGNED'&&created.snag.version===1&&created.snag.snagNumber===1);
+check('creation appends immutable event shape',repo.events.length===1&&repo.events[0].eventType==='SNAG_CREATED'&&repo.events[0].sourceCommandId==='req-create');
+const replay=executeSnagCommand(repo,structuredClone(create),{now:'2026-07-14T00:00:00Z'});
+check('identical create replay returns original result',replay.idempotentReplay&&repo.snags.size===1&&repo.events.length===1);
+expectCode('conflicting create replay fails explicitly',()=>executeSnagCommand(repo,{...create,payload:{...create.payload,title:'Different'}},{now:'2026-07-14T00:00:00Z'}),'IDEMPOTENCY_CONFLICT');
+
+let version=created.snag.version;
+const run=(type,role,id,payload={})=>{const result=executeSnagCommand(repo,{type,actor:actor(id,role),projectId:'10',snagId:'snag-1',clientRequestId:`req-${type}-${version}`,expectedVersion:version,payload},{now:`2026-07-${13+version}T10:00:00Z`});version=result.snag.version;return result;};
+expectCode('viewer cannot start work',()=>run('startSnagWork','VIEWER','viewer-1'),'FORBIDDEN');
+expectCode('other contractor cannot start assigned snag',()=>run('startSnagWork','CONTRACTOR','gc-2'),'FORBIDDEN');
+check('assigned contractor starts work',run('startSnagWork','CONTRACTOR','gc-1').snag.status==='IN_PROGRESS');
+const evidence=run('addSnagEvidence','CONTRACTOR','gc-1',{evidenceType:'CORRECTION_PHOTO',storagePath:'10/snags/snag-1/photo.jpg',note:'Fixed'});
+check('assigned contractor adds evidence metadata',evidence.evidence.storagePath.endsWith('photo.jpg')&&repo.evidence.length===1);
+check('contractor marks ready for review',run('markSnagReadyForReview','CONTRACTOR','gc-1').snag.status==='READY_FOR_REVIEW');
+expectCode('contractor cannot approve closure',()=>run('approveAndCloseSnag','CONTRACTOR','gc-1'),'FORBIDDEN');
+expectCode('reject requires reason',()=>run('rejectSnag','PM','pm-1'),'VALIDATION_ERROR');
+check('PM rejects to in progress',run('rejectSnag','PM','pm-1',{reason:'Correction incomplete'}).snag.status==='IN_PROGRESS');
+check('contractor returns to review',run('markSnagReadyForReview','CONTRACTOR','gc-1').snag.status==='READY_FOR_REVIEW');
+const closed=run('approveAndCloseSnag','ADMIN','admin-1');
+check('Admin closes and timestamp matches status',closed.snag.status==='CLOSED'&&closed.snag.closedAt===closed.snag.updatedAt);
+expectCode('closed snag cannot be silently edited',()=>run('updateSnagDetails','PM','pm-1',{title:'silent edit'}),'TERMINAL_STATE');
+expectCode('reopen requires reason',()=>run('reopenSnag','PM','pm-1'),'VALIDATION_ERROR');
+check('PM reopens closed snag into work',run('reopenSnag','PM','pm-1',{reason:'Defect returned'}).snag.status==='IN_PROGRESS');
+const cancelled=run('cancelSnag','PM','pm-1',{reason:'Scope removed'});
+check('cancel timestamp matches cancelled status',cancelled.snag.status==='CANCELLED'&&cancelled.snag.cancelledAt===cancelled.snag.updatedAt&&cancelled.snag.closedAt===null);
+expectCode('cancelled snag cannot transition',()=>run('startSnagWork','CONTRACTOR','gc-1'),'INVALID_TRANSITION');
+
+expectCode('cross-project command fails closed',()=>executeSnagCommand(repo,{type:'updateSnagDetails',actor:actor('pm-1','PM'),projectId:'11',snagId:'snag-1',clientRequestId:'cross',expectedVersion:version,payload:{title:'x'}},{now:'2026-08-01T00:00:00Z'}),'PROJECT_BOUNDARY');
+expectCode('stale expected version conflicts',()=>executeSnagCommand(repo,{type:'updateSnagLocation',actor:actor('pm-1','PM'),projectId:'10',snagId:'snag-1',clientRequestId:'stale',expectedVersion:1,payload:{location:{text:'Other'}}},{now:'2026-08-01T00:00:00Z'}),'VERSION_CONFLICT');
+for(const coordinate of [NaN,Infinity,-0.1,1.1,'bad']) expectCode(`invalid coordinate ${String(coordinate)} rejected`,()=>executeSnagCommand(new InMemorySnagRepository(),{...create,clientRequestId:`coord-${String(coordinate)}`,payload:{...create.payload,location:{text:'Pinned',planVersionId:'plan-1',x:coordinate,y:0.5}}},{snagId:'x'}),'VALIDATION_ERROR');
+expectCode('coordinates without plan fail',()=>executeSnagCommand(new InMemorySnagRepository(),{...create,clientRequestId:'no-plan',payload:{...create.payload,location:{text:'Pinned',x:0.5,y:0.5}}},{snagId:'x'}),'VALIDATION_ERROR');
+expectCode('invalid due date fails',()=>executeSnagCommand(new InMemorySnagRepository(),{...create,clientRequestId:'bad-date',payload:{...create.payload,dueDate:'not-date'}},{snagId:'x'}),'VALIDATION_ERROR');
+expectCode('unknown command fails deterministically',()=>executeSnagCommand(repo,{type:'teleport',actor:actor('pm-1','PM'),projectId:'10',snagId:'snag-1',clientRequestId:'unknown',expectedVersion:version,payload:{}},{now:'2026-08-01T00:00:00Z'}),'UNKNOWN_COMMAND');
+check('all persisted statuses belong to workflow',Array.from(repo.snags.values()).every(s=>SNAG_STATUSES.includes(s.status)));
+check('project identity never changes',repo.get('snag-1').projectId==='10');
+check('history ordering is deterministic',repo.events.every((event,index)=>event.id===`event-${index+1}`));
+check('due state is timezone-stable',deriveDueState({...created.snag,status:'ASSIGNED'},'2026-07-13T23:59:59-11:00',DEFAULT_SNAG_CONFIG.dueSoonDays)==='DUE_SOON');
+check('terminal due state is completed',deriveDueState(cancelled.snag,'2026-07-13T00:00:00Z')==='COMPLETED');
+check('selectors filter by project/status/zone',filterSnags([created.snag,cancelled.snag],{projectId:'10',status:'CANCELLED',zoneId:'sales'}).length===1);
+
+console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);process.exit(fail?1:0);
