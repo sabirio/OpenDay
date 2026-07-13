@@ -4,9 +4,8 @@
  * Run once from the project root:
  *   npx vite-node src/migrations/backfillProgressHistory.js
  *
- * Requires SUPABASE_SERVICE_ROLE_KEY in .env.local (no VITE_ prefix).
- * The service-role key bypasses RLS so the script can read all rows.
- * It is loaded here via loadEnv and never reaches the browser bundle.
+ * Requires process-scoped local Supabase values and explicit local-fixture mode.
+ * The local service key never reaches the browser bundle.
  *
  * Idempotent: deletes ALL existing progress_history rows first, then reinserts.
  * Safe to re-run if something goes wrong mid-way.
@@ -16,26 +15,22 @@
  * No new progress math — replaying history chronologically per project.
  */
 
-import { loadEnv } from 'vite';
 import { createClient } from '@supabase/supabase-js';
+import { assertLocalTarget } from '../../scripts/certification/localTargetGuard.mjs';
 import { computeWPCumulativeStatuses, computeCumulativeStatuses } from '../utils/reportUtils.js';
 import { calculateProjectProgressResult } from '../engines/progressEngine.js';
 
-// ── Load ALL vars from .env.local ('' prefix = no filter) ─────────────────────
-const env = loadEnv('', process.cwd(), '');
-
-const supabaseUrl      = env.VITE_SUPABASE_URL;
-const serviceRoleKey   = env.SUPABASE_SERVICE_ROLE_KEY;
+// ── Validate process-scoped local target before constructing a client ─────────
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Confirmation logs — verify correct project before touching any data
-console.log('URL:      ', supabaseUrl);
-console.log('Key prefix:', serviceRoleKey ? serviceRoleKey.slice(0, 12) + '…' : '(missing!)');
-console.log();
-
 if (!supabaseUrl || !serviceRoleKey) {
-  console.error('Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');
+  console.error('REFUSING BACKFILL: process-scoped local Supabase values are required.');
   process.exit(1);
 }
+const target = assertLocalTarget({ apiUrl: supabaseUrl, dbUrl: process.env.CERT_DB_URL, enabled: process.env.LOCAL_FIXTURE_MODE, projectId: process.env.LOCAL_SUPABASE_PROJECT_ID });
+console.log(`Local backfill target verified: ${new URL(target.apiUrl).host}`);
 
 // Service-role client — bypasses RLS. Used only in this local script.
 const supabase = createClient(supabaseUrl, serviceRoleKey, {

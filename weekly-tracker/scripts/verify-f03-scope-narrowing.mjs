@@ -2,7 +2,7 @@
  * verify-f03-scope-narrowing.mjs — live regression proof for F-03.
  *
  * Run manually (not part of `npm run test` — needs a running dev server on
- * :5173, SUPABASE_SERVICE_ROLE_KEY in .env.local, and the E2E admin account
+ * :5173, process-scoped local Supabase values, and the E2E admin account
  * seeded via scripts/seed-test-users.mjs):
  *
  *   npm run dev &            (or use an already-running instance)
@@ -25,22 +25,14 @@
  */
 import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
-import { readFileSync } from 'fs';
+import { assertLocalTarget } from './certification/localTargetGuard.mjs';
 
-function loadDotEnv(path) {
-  try {
-    return Object.fromEntries(
-      readFileSync(path, 'utf-8').split('\n')
-        .filter(l => l.includes('=') && !l.trimStart().startsWith('#'))
-        .map(l => { const eq = l.indexOf('='); return [l.slice(0, eq).trim(), l.slice(eq + 1).trim()]; })
-    );
-  } catch { return {}; }
-}
-const env = loadDotEnv(new URL('../.env.local', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
-const admin = createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+const target = assertLocalTarget({ apiUrl: process.env.VITE_SUPABASE_URL, dbUrl: process.env.CERT_DB_URL, enabled: process.env.LOCAL_FIXTURE_MODE, projectId: process.env.LOCAL_SUPABASE_PROJECT_ID });
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('REFUSING F-03 VERIFY: process-scoped local service key required.');
+const admin = createClient(target.apiUrl, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
 const BASE = 'http://localhost:5173';
-const ADMIN_CREDS = { email: 'admin@openday.fit', password: 'Admin' };
+const ADMIN_CREDS = { email: 'admin@openday.fit', password: 'Admin123!' };
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {

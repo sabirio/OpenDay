@@ -193,7 +193,7 @@ console.log('\nD) Deterministic via Math.random stub');
   //   randomNormal = sqrt(-2*log(0.5)) * cos(2π*0.25) = sqrt(1.386) * 0 ≈ 7e-17 ≈ 0
   globalThis.Math.random = () => (c++ % 2 === 0 ? 0.5 : 0.25);
 
-  const r = computeMonteCarloForecast(PROJECT, REPORTS_INC);
+  const r = computeMonteCarloForecast(PROJECT, REPORTS_INC, null, { random: globalThis.Math.random, asOf: now });
 
   globalThis.Math.random = origRandom;
 
@@ -203,8 +203,7 @@ console.log('\nD) Deterministic via Math.random stub');
   // p50 should be today + ceil((100-60)/20)*7 = today + 14 days, ±1 day tolerance
   // (engine uses its own `new Date()` internally, so 'now' may differ by <1s)
   const expected = new Date(now + 2 * 7 * DAY);
-  check('D3: zero stub → p50 ≈ today+14d (±1d)',
-    Math.abs(r.p50.getTime() - expected.getTime()) <= DAY);
+  check('D3: zero stub → p50 exactly asOf+14d', r.p50.getTime() === expected.getTime());
 
   check('D4: zero stub → cone.median === p50',  r.cone.median === r.p50);
 }
@@ -222,7 +221,7 @@ console.log('\nD) Deterministic via Math.random stub');
   //   delta = -30 + 30*(-4.29) ≈ -159  →  max(0, delta) = 0  →  p stays at 20
   globalThis.Math.random = () => (c++ % 2 === 0 ? 0.9999 : 0.5);
 
-  const r = computeMonteCarloForecast(PROJECT, REPORTS_DEC, null, { random: globalThis.Math.random });
+  const r = computeMonteCarloForecast(PROJECT, REPORTS_DEC, null, { random: globalThis.Math.random, asOf: now });
 
   globalThis.Math.random = origRandom;
 
@@ -231,8 +230,7 @@ console.log('\nD) Deterministic via Math.random stub');
 
   check('D5: negative stub (all sims hit MAX_WEEKS) → p50 is Date', r.p50 instanceof Date);
   // p50 must be the cap date (today + 3640 days), with ±1 day for the engine's internal new Date()
-  check('D6: negative stub → p50 ≈ today+3640d (MAX_WEEKS cap)',
-    r.p50.getTime() >= capDate - DAY && r.p50.getTime() <= capDate + DAY);
+  check('D6: negative stub → p50 exactly asOf+3640d', r.p50.getTime() === capDate);
   check('D7: negative stub → p10 === p50 (all sims identical)',    r.p10.getTime() === r.p50.getTime());
 }
 

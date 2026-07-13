@@ -12,17 +12,17 @@
 export const CREDENTIALS = {
   admin: {
     email:    process.env.E2E_ADMIN_EMAIL    ?? 'admin@openday.fit',
-    password: process.env.E2E_ADMIN_PASSWORD ?? 'Admin',
+    password: process.env.E2E_ADMIN_PASSWORD ?? 'Admin123!',
     role: 'Admin',
   },
   pm: {
     email:    process.env.E2E_PM_EMAIL    ?? 'pm@openday.fit',
-    password: process.env.E2E_PM_PASSWORD ?? 'Pm',
+    password: process.env.E2E_PM_PASSWORD ?? 'Pm123!',
     role: 'PM',
   },
   contractor: {
     email:    process.env.E2E_CONTRACTOR_EMAIL    ?? 'gc@openday.fit',
-    password: process.env.E2E_CONTRACTOR_PASSWORD ?? 'Gc',
+    password: process.env.E2E_CONTRACTOR_PASSWORD ?? 'Gc123!',
     role: 'Contractor',
   },
   viewer: {

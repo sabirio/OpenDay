@@ -6,7 +6,7 @@
  *
  * Requirements:
  *   - Node.js 18+  (ESM + native fetch)
- *   - .env.local must exist next to this file  (VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)
+ *   - process-scoped local target variables and explicit local-fixture opt-in
  *
  * What it does:
  *   Step 1 — deletes all rows from child→parent tables (respects FK order)
@@ -18,7 +18,7 @@
  */
 
 import { createClient }   from '@supabase/supabase-js';
-import { readFileSync }   from 'fs';
+import { assertLocalTarget } from './scripts/certification/localTargetGuard.mjs';
 import {
   buildProjectWPs,
   calculateGantt,
@@ -26,32 +26,16 @@ import {
 } from './src/engines/ganttEngine.js';
 import { DEPENDENCY_RULES } from './src/config/dependencyRules.js';
 
-// ── 0. Load .env.local ────────────────────────────────────────────────────────
+// ── 0. Validate explicit local target ─────────────────────────────────────────
 
-function loadDotEnv(path = '.env.local') {
-  try {
-    return Object.fromEntries(
-      readFileSync(path, 'utf-8')
-        .split('\n')
-        .filter(l => l.includes('=') && !l.trimStart().startsWith('#'))
-        .map(l => {
-          const eq = l.indexOf('=');
-          return [l.slice(0, eq).trim(), l.slice(eq + 1).trim()];
-        })
-    );
-  } catch {
-    return {};
-  }
-}
-
-const env                  = loadDotEnv();
-const SUPABASE_URL         = process.env.VITE_SUPABASE_URL          || env.VITE_SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY  || env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error('❌  Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');
+  console.error('REFUSING LOCAL SEED: process-scoped VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.');
   process.exit(1);
 }
+assertLocalTarget({ apiUrl: SUPABASE_URL, dbUrl: process.env.CERT_DB_URL, enabled: process.env.LOCAL_FIXTURE_MODE, projectId: process.env.LOCAL_SUPABASE_PROJECT_ID });
 
 // Uses the service-role key to bypass RLS during cleanup + seed.
 // Never use the anon key here — RLS would block DELETE on all tables.
