@@ -11,6 +11,7 @@ import * as siteVisitService from "./services/siteVisitService";
 import { fetchAllTemplates } from "./data/templatesApi";
 import { constructionRetailV1 } from "./domains/construction/templates/constructionRetailV1";
 import "./styles/snags.css";
+import "./styles/plans.css";
 
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Home             = lazy(() => import("./pages/Home"));
@@ -31,6 +32,8 @@ const SnagListPage     = lazy(() => import("./pages/snags/SnagListPage"));
 const SnagCreatePage   = lazy(() => import("./pages/snags/SnagCreatePage"));
 const SnagDetailPage   = lazy(() => import("./pages/snags/SnagDetailPage"));
 const SnagProjectSelectPage = lazy(() => import("./pages/snags/SnagProjectSelectPage"));
+const PlanManagementPage = lazy(() => import("./pages/plans/PlanManagementPage"));
+const PlanViewerPage = lazy(() => import("./pages/plans/PlanViewerPage"));
 
 const CONSTRUCTION_TEMPLATE = {
   phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
@@ -125,7 +128,7 @@ function GlobalErrorScreen({ onRetry }) {
 // fetch for external links and must keep working even if this load fails.
 function PortfolioDataGate({ isAuthenticated, portfolioState, onLoadPortfolioData, children }) {
   const location = useLocation();
-  const skipGate = location.pathname === '/projects' || location.pathname.startsWith('/contractor-report/') || location.pathname === '/snags' || location.pathname.includes('/snags');
+  const skipGate = location.pathname === '/projects' || location.pathname.startsWith('/contractor-report/') || location.pathname === '/snags' || location.pathname.includes('/snags') || location.pathname.includes('/plans');
 
   useEffect(() => {
     if (!isAuthenticated || skipGate) return;
@@ -384,6 +387,8 @@ function App() {
                   <Route path="/projects/:projectId/snags" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/new" element={<ProtectedRoute resource="snags"><SnagCreatePage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagDetailPage/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/plans" element={<ProtectedRoute resource="snags"><PlanManagementPage/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/plans/:planId" element={<ProtectedRoute resource="snags"><PlanViewerPage/></ProtectedRoute>} />
                   <Route
                     path="/weekly-reports"
                     element={

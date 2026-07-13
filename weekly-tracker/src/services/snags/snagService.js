@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase.js';
 const fromDb = row => ({
   id:String(row.id), projectId:String(row.project_id), snagNumber:row.snag_number, title:row.title, description:row.description,
   categoryCode:row.category_code, disciplineCode:row.discipline_code, priority:row.priority, status:row.status,
-  assigneeId:row.assignee_id, dueDate:row.due_date, location:{zoneId:row.location_zone_id,level:row.location_level,room:row.location_room,text:row.location_text,planVersionId:row.plan_version_id,x:row.plan_x,y:row.plan_y,schemaVersion:row.location_schema_version},
+  assigneeId:row.assignee_id, dueDate:row.due_date, location:{zoneId:row.location_zone_id,level:row.location_level,room:row.location_room,text:row.location_text,planVersionId:row.plan_version_id,pageNumber:row.plan_page_number,x:row.plan_x,y:row.plan_y,schemaVersion:row.location_schema_version},
   createdBy:row.created_by, createdAt:row.created_at, updatedAt:row.updated_at, closedAt:row.closed_at, cancelledAt:row.cancelled_at,
   version:row.version, schemaVersion:row.schema_version, workflowVersion:row.workflow_version,
 });

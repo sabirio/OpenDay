@@ -1,0 +1,7 @@
+export const PLAN_ZOOM={min:.5,max:3,step:.25,renderScale:1.4};
+export function normalizePlanPoint(clientX,clientY,rect){if(!rect||!Number.isFinite(rect.left)||!Number.isFinite(rect.top)||!Number.isFinite(rect.width)||!Number.isFinite(rect.height)||rect.width<=0||rect.height<=0)throw new Error('INVALID_PLAN_BOUNDS');const x=(clientX-rect.left)/rect.width;const y=(clientY-rect.top)/rect.height;if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>1||y<0||y>1)throw new Error('INVALID_PLAN_POINT');return {x:Number(x.toFixed(6)),y:Number(y.toFixed(6))}}
+export function renderPlanPoint(point,rect){if(!point||!Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>1||point.y<0||point.y>1)throw new Error('INVALID_PLAN_POINT');return {left:rect.width*point.x,top:rect.height*point.y}}
+export function validatePlanPage(page,pageCount){const value=Number(page);if(!Number.isInteger(value)||value<1||value>Number(pageCount))throw new Error('INVALID_PLAN_PAGE');return value}
+export function changePlanZoom(value,direction){return Math.min(PLAN_ZOOM.max,Math.max(PLAN_ZOOM.min,value+PLAN_ZOOM.step*direction))}
+export function getCanvasMetrics(viewport,devicePixelRatio=1){const ratio=Number.isFinite(devicePixelRatio)&&devicePixelRatio>0?devicePixelRatio:1;return {ratio,width:Math.floor(viewport.width*ratio),height:Math.floor(viewport.height*ratio),cssWidth:viewport.width,cssHeight:viewport.height}}
+export const planZoomLabel=value=>`${Math.round(value*100)}%`;

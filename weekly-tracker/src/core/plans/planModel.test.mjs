@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';import {normalizePlanPoint,renderPlanPoint,safePlanFilename,selectActivePlan,validatePlanFile,validatePlanPage,buildPlanUploadState} from './planModel.js';
+let passed=0;const test=(name,fn)=>{fn();passed++;console.log(`  OK ${name}`)};
+test('coordinates normalize independent of pixels and zoom',()=>assert.deepEqual(normalizePlanPoint(250,150,{left:50,top:50,width:400,height:200}),{x:.5,y:.5}));
+test('coordinate round trip stays exact within display precision',()=>assert.deepEqual(renderPlanPoint({x:.25,y:.75},{width:800,height:400}),{left:200,top:300}));
+test('edges are accepted',()=>assert.deepEqual(normalizePlanPoint(100,300,{left:100,top:100,width:500,height:200}),{x:0,y:1}));
+for(const bad of [null,{left:0,top:0,width:0,height:1},{left:0,top:0,width:NaN,height:1}])test('invalid bounds reject',()=>assert.throws(()=>normalizePlanPoint(0,0,bad)));
+test('out of bounds rejects',()=>assert.throws(()=>normalizePlanPoint(-1,0,{left:0,top:0,width:10,height:10})));
+test('page range validates',()=>assert.equal(validatePlanPage(2,3),2));test('invalid page rejects',()=>assert.throws(()=>validatePlanPage(0,3)));
+test('safe filename strips path and executable punctuation',()=>assert.equal(safePlanFilename('../My Plan<script>.PDF'),'My-Plan-script-.PDF'));
+test('PDF file validates',()=>assert.equal(validatePlanFile({name:'a.pdf',type:'application/pdf',size:20}).size,20));
+test('wrong MIME rejects',()=>assert.throws(()=>validatePlanFile({name:'a.pdf',type:'text/html',size:20})));
+test('active plan selection excludes archived',()=>assert.equal(selectActivePlan([{id:1,isActive:true,archivedAt:'x'},{id:2,isActive:true}]).id,2));
+test('upload reducer is deterministic',()=>assert.equal(buildPlanUploadState(buildPlanUploadState({status:'idle'}, {type:'START'}),{type:'AUTHORIZED'}).status,'uploading'));
+console.log(`\n-- RESULT: ${passed} passed, 0 failed --\n`);
