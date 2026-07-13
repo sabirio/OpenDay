@@ -1,0 +1,11 @@
+import {supabase} from '../../lib/supabase.js';
+const BUCKET='snag-evidence';
+function safeError(error){const raw=String(error?.message||'');const code=/IDEMPOTENCY_CONFLICT|23505/.test(raw)||error?.code==='23505'?'EVIDENCE_REPLAY_CONFLICT':/VERSION_CONFLICT|40001/.test(raw)?'VERSION_CONFLICT':/ASSIGNMENT_CHANGED/.test(raw)?'EVIDENCE_ASSIGNMENT_CHANGED':/TERMINAL_STATE/.test(raw)?'EVIDENCE_STATE_CHANGED':/ACCESS_DENIED|42501/.test(raw)||error?.code==='42501'?'EVIDENCE_ACCESS_DENIED':/UPLOAD_MISSING/.test(raw)?'EVIDENCE_UPLOAD_MISSING':/FILE_MISMATCH|INVALID_EVIDENCE_FILE/.test(raw)?'INVALID_EVIDENCE_FILE':/network|fetch|timeout/i.test(raw)?'NETWORK_ERROR':'EVIDENCE_OPERATION_FAILED';return Object.assign(new Error(code),{code,diagnosticCode:error?.code||code})}
+export async function getPolicy(projectId){const{data,error}=await supabase.rpc('get_snag_evidence_policy',{p_project_id:Number(projectId)});if(error)throw safeError(error);return data}
+export async function authorizeUpload(input){const{data,error}=await supabase.rpc('authorize_snag_evidence_upload',{p_project_id:Number(input.projectId),p_snag_id:input.snagId,p_request_id:input.requestId,p_evidence_id:input.evidenceId,p_expected_version:input.expectedVersion,p_metadata:input.metadata});if(error)throw safeError(error);return data}
+export async function uploadEvidence(path,file){const{error}=await supabase.storage.from(BUCKET).upload(path,file,{contentType:file.type,upsert:false});if(error&&!/already exists|Duplicate/i.test(error.message||''))throw safeError(error);return path}
+export async function registerEvidence(requestId){const{data,error}=await supabase.rpc('register_snag_evidence',{p_request_id:requestId});if(error)throw safeError(error);return data}
+export async function removeAbandoned(path){const{error}=await supabase.storage.from(BUCKET).remove([path]);if(error)throw safeError(error)}
+export async function downloadEvidence(item){const{data,error}=await supabase.storage.from(BUCKET).download(item.storage_path);if(error)throw safeError(error);return data}
+export async function getCloseout(projectId,snagId){const{data,error}=await supabase.rpc('get_snag_closeout',{p_project_id:Number(projectId),p_snag_id:snagId});if(error)throw safeError(error);return data}
+export {safeError as mapEvidenceError};

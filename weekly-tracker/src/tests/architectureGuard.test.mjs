@@ -178,6 +178,17 @@ const browserSource = sourceFiles.filter(({ rel }) => !rel.startsWith('migration
 const serviceRoleLeaks = browserSource.filter(({ text }) => /SUPABASE_SERVICE_ROLE_KEY|service_role/.test(text)).map(({ rel }) => rel);
 check(`browser runtime contains no service-role credential references (found: ${serviceRoleLeaks.join(', ') || 'none'})`, serviceRoleLeaks.length === 0);
 
+const evidenceUi = sourceFiles.filter(({ rel }) => /^(pages|components|hooks)\//.test(rel) && /evidence/i.test(rel + ' ' + readFileSync(path.join(srcRoot, rel), 'utf8')));
+const evidenceDirectWrites = evidenceUi.filter(({ text }) => /from\(['"]snag_evidence['"]\)\.(insert|update|delete)|storage_path\s*:/.test(text)).map(({ rel }) => rel);
+check(`evidence UI contains no direct table writes or arbitrary registered paths (found: ${evidenceDirectWrites.join(', ') || 'none'})`, evidenceDirectWrites.length === 0);
+const permanentEvidenceUrls = evidenceUi.filter(({ text }) => /getPublicUrl|createSignedUrl|signedUrl|access_token/.test(text)).map(({ rel }) => rel);
+check(`evidence UI stores no public/signed URLs or access tokens (found: ${permanentEvidenceUrls.join(', ') || 'none'})`, permanentEvidenceUrls.length === 0);
+const evidencePageText = readFileSync(path.join(srcRoot, 'pages/snags/SnagDetailPage.jsx'), 'utf8');
+check('Snag detail delegates evidence and closeout behavior outside React', /<EvidenceSection/.test(evidencePageText) && !/get_snag_closeout|authorize_snag_evidence|register_snag_evidence/.test(evidencePageText));
+const evidenceServiceText = readFileSync(path.join(srcRoot, 'services/evidence/evidenceService.js'), 'utf8');
+check('registered evidence identity cannot be silently replaced', /upsert:false/.test(evidenceServiceText) && !/\.update\(|upsert:true/.test(evidenceServiceText));
+check('Phase 4 does not implement PDF or analytics integrations', !sourceFiles.some(({ rel, text }) => /evidence/i.test(rel) && /pdf export|Risk Engine|Opening Readiness|Contractor Performance|OpenDay FM/i.test(text)));
+
 const siteVisitSubmitText = readFileSync(path.join(srcRoot, 'core/siteVisit/submitSiteVisitModel.js'), 'utf8');
 check('site visit application command uses one atomic service and no legacy multi-write imports',
   /submitSiteVisitAtomic/.test(siteVisitSubmitText) && !/insertSiteVisitHeader|insertSiteVisitWPObservations|insertSiteVisitDiscrepancies|updateGanttDiscrepancy/.test(siteVisitSubmitText));

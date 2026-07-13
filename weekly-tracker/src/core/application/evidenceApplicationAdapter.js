@@ -1,0 +1,2 @@
+import * as service from '../../services/evidence/evidenceService.js';
+export const getPolicy=service.getPolicy;export const authorizeUpload=service.authorizeUpload;export const uploadEvidence=service.uploadEvidence;export const registerEvidence=service.registerEvidence;export const removeAbandoned=service.removeAbandoned;export const downloadEvidence=service.downloadEvidence;export const getCloseout=service.getCloseout;
