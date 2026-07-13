@@ -71,13 +71,32 @@ function normalizeAndSort(records, path, dateKeys, warnings) {
   return normalized;
 }
 
+function normalizeWorkPackages(records, warnings) {
+  const seen = new Set();
+  const normalized = [];
+  for (const [index, record] of (Array.isArray(records) ? records : []).entries()) {
+    const next = normalizeRecord(record, `workPackages[${index}]`, warnings);
+    const identity = next.id == null ? null : String(next.id);
+    if (identity && seen.has(identity)) {
+      warnings.push(warning('DUPLICATE_WORK_PACKAGE_DROPPED', `workPackages[${index}].id`, next.id, null));
+      continue;
+    }
+    if (identity) {
+      seen.add(identity);
+      next.id = identity;
+    }
+    normalized.push(next);
+  }
+  return normalized;
+}
+
 /** Pure raw-data boundary. Input objects are never mutated. */
 export function buildCanonicalProjectSnapshot(raw = {}, options = {}) {
   const warnings = [];
   const calculatedAt = options.calculatedAt || new Date().toISOString();
   const project = normalizeRecord(raw.project || {}, 'project', warnings);
   const isV2 = project.templateType === V2_TEMPLATE_TYPE;
-  const workPackages = (raw.workPackages || (isV2 ? ALL_WORK_PACKAGES_V2 : V1_WORK_PACKAGES)).map((wp, i) => normalizeRecord(wp, `workPackages[${i}]`, warnings));
+  const workPackages = normalizeWorkPackages(raw.workPackages || (isV2 ? ALL_WORK_PACKAGES_V2 : V1_WORK_PACKAGES), warnings);
   const contractorReports = normalizeAndSort(raw.contractorReports || raw.reports, 'contractorReports', ['reportingDate', 'report_date', 'submittedAt', 'submitted_at'], warnings);
   const siteVisits = normalizeAndSort(raw.siteVisits, 'siteVisits', ['visitDate', 'visit_date', 'submittedAt', 'submitted_at'], warnings);
   const progressHistory = normalizeAndSort(raw.progressHistory || project.progressHistory, 'progressHistory', ['recordedAt', 'recorded_at', 'reportingDate'], warnings);
@@ -86,8 +105,9 @@ export function buildCanonicalProjectSnapshot(raw = {}, options = {}) {
     id: String(id),
     area: finiteNumber(area, `zones.${id}.area`, warnings, { min: 0, fallback: 0 }),
   }));
-  const scopeWPIds = getScopeWPIds(project.scope, workPackages);
-  const activeSet = new Set(scopeWPIds || workPackages.map(wp => wp.id));
+  const resolvedScopeWPIds = getScopeWPIds(project.scope, workPackages);
+  const scopeWPIds = (resolvedScopeWPIds || workPackages.map(wp => wp.id)).map(String);
+  const activeSet = new Set(scopeWPIds);
   const canonicalWPs = workPackages.map(wp => ({ ...wp, active: activeSet.has(wp.id), notApplicable: !activeSet.has(wp.id) }));
   const latestContractorReport = contractorReports.at(-1) || null;
   const latestSiteVisit = siteVisits.at(-1) || null;

@@ -24,11 +24,15 @@ export function computeZoneWeights(template, areas = {}, activeZoneIds = null) {
 
   const remaining = Math.max(0, 100 - fixedTotal);
   const areaIds   = areaZones.map(z => z.id);
-  const hasUsableArea = areaIds.some(id => Number(areas[id]) > 0);
+  const normalizedAreas = Object.fromEntries(areaIds.map(id => {
+    const value = Number(areas[id]);
+    return [id, Number.isFinite(value) && value > 0 ? value : 0];
+  }));
+  const hasUsableArea = areaIds.some(id => normalizedAreas[id] > 0);
 
   const rawWeights = {};
   for (const z of areaZones) {
-    rawWeights[z.id] = hasUsableArea ? Math.max(0, Number(areas[z.id]) || 0) : (z.defaultWeight ?? 0);
+    rawWeights[z.id] = hasUsableArea ? normalizedAreas[z.id] : (z.defaultWeight ?? 0);
   }
 
   const splitTo100 = normalizeWeightsTo100(areaIds, rawWeights);

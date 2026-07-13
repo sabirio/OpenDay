@@ -1,5 +1,13 @@
 # Production Security Remediation Runbook
 
+## Supabase Secret-Key Migration status
+
+**`DEFERRED — SAFE BLOCKED STATE`**
+
+The secret-key migration is not complete. Production remains on the unchanged legacy service-role state; no replacement key was created, rotated, disabled, deleted or moved during Core Stabilization. Completion is blocked on authenticated Supabase Dashboard management, GitHub Actions/environment inventory, external automation owner confirmation, named operational ownership and an approved production secret store.
+
+This external management blocker does not block repository Core Stabilization. Resume the key migration before disabling legacy service-role, enabling production external automation, expanding production privileged API consumers, or transferring production operations to another owner.
+
 ## Reusable operational discipline
 
 For every production migration: audit and freeze the repository commit and SQL checksum; create and verify a production backup; run the migration-specific read-only preflight; obtain explicit human approval; execute exactly one checksummed SQL file; run expanded postflight, a new production inventory, and composite certification; freeze the baseline only after PASS; preserve redacted evidence and hashes. A committed-state defect is corrected by a new forward-only migration.
