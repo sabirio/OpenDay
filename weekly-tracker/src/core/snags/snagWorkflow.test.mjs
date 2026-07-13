@@ -18,9 +18,14 @@ const run=(type,role,id,payload={})=>{const result=executeSnagCommand(repo,{type
 expectCode('viewer cannot start work',()=>run('startSnagWork','VIEWER','viewer-1'),'FORBIDDEN');
 expectCode('other contractor cannot start assigned snag',()=>run('startSnagWork','CONTRACTOR','gc-2'),'FORBIDDEN');
 check('assigned contractor starts work',run('startSnagWork','CONTRACTOR','gc-1').snag.status==='IN_PROGRESS');
+const reassigned=run('assignSnag','PM','pm-1',{assigneeId:'gc-2'});
+check('active reassignment preserves in-progress status',reassigned.snag.status==='IN_PROGRESS'&&reassigned.snag.assigneeId==='gc-2');
+const reassignedBack=run('assignSnag','PM','pm-1',{assigneeId:'gc-1'});
+check('second active reassignment remains explicit without reset',reassignedBack.snag.status==='IN_PROGRESS'&&reassignedBack.snag.assigneeId==='gc-1');
 const evidence=run('addSnagEvidence','CONTRACTOR','gc-1',{evidenceType:'CORRECTION_PHOTO',storagePath:'10/snags/snag-1/photo.jpg',note:'Fixed'});
 check('assigned contractor adds evidence metadata',evidence.evidence.storagePath.endsWith('photo.jpg')&&repo.evidence.length===1);
 check('contractor marks ready for review',run('markSnagReadyForReview','CONTRACTOR','gc-1').snag.status==='READY_FOR_REVIEW');
+expectCode('ready-for-review cannot be silently reassigned',()=>run('assignSnag','PM','pm-1',{assigneeId:'gc-2'}),'INVALID_TRANSITION');
 expectCode('contractor cannot approve closure',()=>run('approveAndCloseSnag','CONTRACTOR','gc-1'),'FORBIDDEN');
 expectCode('reject requires reason',()=>run('rejectSnag','PM','pm-1'),'VALIDATION_ERROR');
 check('PM rejects to in progress',run('rejectSnag','PM','pm-1',{reason:'Correction incomplete'}).snag.status==='IN_PROGRESS');

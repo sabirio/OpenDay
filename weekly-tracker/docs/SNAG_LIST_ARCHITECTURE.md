@@ -5,7 +5,9 @@
 Snag List is a standalone bounded context that can run as an OpenDay module without depending on React, Progress, Risk, Opening Readiness, contractor-report reducers, site-visit reducers or customer-specific terminology.
 
 ```text
-UI (future)
+React route/page
+  -> controller hook and presentation model
+  -> Snag application adapter/service
   -> Snag application commands and selectors
   -> canonical Snag workflow/domain engine
   -> repository/RPC adapter
@@ -55,4 +57,16 @@ Future adapters may publish read-only signals for overdue critical snags, reopen
 
 Domain tests cover valid/invalid transitions, role boundaries, reasons, terminal protection, project/version conflicts, input validation, idempotent replay, conflicting replay, evidence duplication prevention, deterministic history, coordinates and due-state selectors. Migration contract tests cover schema, constraints, indexes, RLS, grants, immutable events, authenticated project access, payload conflict checks and atomic state/history writes. Local database certification must prove actual application, rollback behavior and access isolation before Phase 1 can be declared complete.
 
-Phase 2/3 remains responsible for PDF upload/viewer/pins, mobile field UI, photo capture UX, notifications, PDF export, analytics, AI and configurable workflows.
+## Phase 2 mobile application
+
+The routes `/snags`, `/projects/:projectId/snags`, `/projects/:projectId/snags/new` and `/projects/:projectId/snags/:snagId` expose project selection, bounded list, create and detail workflows. Pages consume controller hooks and the presentation model; only the service adapter performs reads and calls `execute_snag_command`. Snag routes skip unrelated portfolio loading.
+
+List reads are project-scoped, ordered by update time and capped at 200 rows. Detail performs three parallel bounded reads for aggregate, evidence metadata and append-only history. Contractor assignment choices use the narrow `list_snag_project_contractors` security-definer RPC because profiles RLS intentionally does not expose peer profiles to PM users. The RPC verifies authentication, PM/Admin role, company and canonical project access.
+
+PM/Admin can create, assign/reassign, unassign, update details/location, reject, close, reopen and cancel when the canonical workflow exposes those actions. An assigned contractor can start, record a correction note and submit for review. Viewer is read-only. React does not contain a transition table; action availability comes from the public workflow API and every mutation remains server-authorized.
+
+Create drafts use versioned `sessionStorage` keys scoped by user, project and form type. Writes retain a stable client request ID while pending/retrying, prevent double taps, refresh authoritative state after success and preserve unsent reason/note text on version conflict. Stable database errors are reduced to safe user-facing categories without SQL internals.
+
+The UI is card-first below 760px, uses labelled native controls, visible status text, focus-visible styles, approximately 44px actions and a sticky create action area. Tested field widths are 320, 375 and 412px; desktop uses the same presentation model and denser layout. History uses one event presentation adapter and unknown future events remain visible.
+
+Note evidence is supported through the existing atomic command and metadata contract. File/image upload is deferred: the current private storage policies do not provide a snag-scoped upload/download boundary, so Phase 2 does not weaken the shared bucket or create public URLs. PDF upload/rendering, plan pins, annotations, advanced gallery, notifications, export, analytics, AI and configurable workflows remain deferred.

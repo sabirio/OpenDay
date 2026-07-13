@@ -1,0 +1,38 @@
+import { supabase } from '../../lib/supabase.js';
+
+const fromDb = row => ({
+  id:String(row.id), projectId:String(row.project_id), snagNumber:row.snag_number, title:row.title, description:row.description,
+  categoryCode:row.category_code, disciplineCode:row.discipline_code, priority:row.priority, status:row.status,
+  assigneeId:row.assignee_id, dueDate:row.due_date, location:{zoneId:row.location_zone_id,level:row.location_level,room:row.location_room,text:row.location_text,planVersionId:row.plan_version_id,x:row.plan_x,y:row.plan_y,schemaVersion:row.location_schema_version},
+  createdBy:row.created_by, createdAt:row.created_at, updatedAt:row.updated_at, closedAt:row.closed_at, cancelledAt:row.cancelled_at,
+  version:row.version, schemaVersion:row.schema_version, workflowVersion:row.workflow_version,
+});
+
+function safeError(error) {
+  const message=error?.message||'';
+  const code=/VERSION_CONFLICT/.test(message)||error?.code==='40001'?'VERSION_CONFLICT':/IDEMPOTENCY_CONFLICT/.test(message)||error?.code==='23505'?'IDEMPOTENCY_CONFLICT':/PROJECT_ACCESS_DENIED/.test(message)?'PROJECT_ACCESS_DENIED':/COMMAND_FORBIDDEN/.test(message)||error?.code==='42501'?'FORBIDDEN':/INVALID_SNAG_TRANSITION|READY_SNAG_REASSIGNMENT/.test(message)?'INVALID_TRANSITION':/SNAG_NOT_FOUND/.test(message)?'NOT_FOUND':/network|fetch|timeout/i.test(message)?'NETWORK_ERROR':'INVALID_PAYLOAD';
+  return Object.assign(new Error(code),{code,diagnosticCode:error?.code||code,retryable:code==='NETWORK_ERROR'||code==='VERSION_CONFLICT'});
+}
+
+export async function listProjectSnags(projectId,{limit=200}={}) {
+  const {data,error}=await supabase.from('snags').select('*').eq('project_id',projectId).order('updated_at',{ascending:false}).limit(limit);
+  if(error)throw safeError(error);return (data||[]).map(fromDb);
+}
+export async function getSnagDetail(projectId,snagId) {
+  const [{data:snag,error},{data:events,error:eventError},{data:evidence,error:evidenceError}]=await Promise.all([
+    supabase.from('snags').select('*').eq('project_id',projectId).eq('id',snagId).single(),
+    supabase.from('snag_events').select('*').eq('project_id',projectId).eq('snag_id',snagId).order('occurred_at',{ascending:true}).order('id',{ascending:true}),
+    supabase.from('snag_evidence').select('*').eq('snag_id',snagId).order('created_at',{ascending:true}),
+  ]);
+  if(error)throw safeError(error);if(eventError)throw safeError(eventError);if(evidenceError)throw safeError(evidenceError);
+  return {snag:fromDb(snag),events:events||[],evidence:evidence||[]};
+}
+export async function listProjectContractors(projectId) {
+  const {data,error}=await supabase.rpc('list_snag_project_contractors',{p_project_id:Number(projectId)});
+  if(error)throw safeError(error);return data||[];
+}
+export async function executeCommand(command) {
+  const {data,error}=await supabase.rpc('execute_snag_command',{p_command:{type:command.type,projectId:Number(command.projectId),snagId:command.snagId,payload:command.payload||{}},p_client_request_id:command.clientRequestId,p_expected_version:command.expectedVersion??null});
+  if(error)throw safeError(error);return {...data,snag:fromDb(data.snag)};
+}
+export {safeError as mapSnagServiceError};

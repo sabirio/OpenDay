@@ -11,9 +11,9 @@ export const ROLES = {
 // Resource keys must match the `resource` prop passed to <ProtectedRoute>.
 export const PERMISSIONS = {
   Admin: ['all'],  // 'all' is a wildcard — see permissionEngine.canAccess()
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit'],
-  Contractor: ['contractor_report'],
-  Viewer: ['dashboard'],
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags'],
+  Contractor: ['contractor_report', 'snags'],
+  Viewer: ['dashboard', 'snags'],
 };
 
 // Resources only Admin can access (via 'all' wildcard, but useful as documentation)
@@ -36,6 +36,7 @@ export const NAV_ITEMS = [
   { to: '/site-visit-select',  label: 'Site Visit',       resource: 'site_visit'     },
   { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine'    },
   { to: '/weight-audit',       label: 'Weight Audit',     resource: 'weight_audit'   },
+  { to: '/snags',                label: 'Snag List',      resource: 'snags'          },
   { to: '/admin/users',        label: 'Users',            resource: 'admin_users'    },
   // Template Editor (/admin/template-editor) route still exists but is hidden from
   // the nav until its save path (onSave -> templatesApi) is wired. See PROJECT_MEMORY.md.
