@@ -50,7 +50,21 @@ database access.
 
 ## 2. Fresh backup and disposable restore
 
-The owner creates one fresh production backup and records its manifest SHA-256. Restore and verify that exact backup in a disposable environment. Retain restore evidence, row counts, constraints, migration history, RLS, ACL/ownership inventory, and cleanup result. Never proceed with an old or partially verified backup.
+After renewed approval for the current tooling HEAD, the owner calculates the
+approved release-manifest and canonical backup-script hashes, then passes all
+four release-binding parameters to `production-backup.ps1`: `SourceCommit`,
+`ReleaseManifestPath`, `ExpectedReleaseManifestSha256`, and
+`ExpectedBackupScriptSha256`. The resulting manifest must have qualifying
+status and matching `sourceCommit`, `releaseManifestSha256`, compatibility
+`manifestSha256`, and `scriptSha256`. Hash the completed backup manifest as a
+separate sidecar value; `manifestSha256` inside it means the release manifest,
+not a recursive self-hash.
+
+Restore that exact fresh backup with the same three expected binding values.
+Retain restore evidence, row counts, constraints, migration history, RLS,
+ACL/ownership inventory, and cleanup result. Never proceed with an old,
+unbound, edited, or partially verified backup. In particular,
+`20260714T122356Z` cannot authorize this release.
 
 ## 3. Live preflight — owner terminal only
 
@@ -61,6 +75,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-mig
   -ManifestPath .\scripts\manifests\snag-list-030-035.psd1 `
   -VerifiedBackupPath <fresh-backup-directory> `
   -ExpectedBackupManifestSha256 <sha256> `
+  -ExpectedBackupScriptSha256 <canonical-backup-script-sha256> `
   -OutputPath <preflight-evidence.json>
 ```
 
@@ -85,6 +100,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-mig
   -ManifestPath .\scripts\manifests\snag-list-030-035.psd1 `
   -VerifiedBackupPath <fresh-backup-directory> `
   -ExpectedBackupManifestSha256 <sha256> `
+  -ExpectedBackupScriptSha256 <canonical-backup-script-sha256> `
   -ApprovedPreflightPath <preflight-evidence.json> `
   -ExpectedPreflightSha256 <sha256> `
   -Approval "<exact generated phrase only>" `

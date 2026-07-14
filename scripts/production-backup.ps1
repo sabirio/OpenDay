@@ -1,5 +1,10 @@
 [CmdletBinding()]
 param(
+    [Parameter(Mandatory)][string]$SourceCommit,
+    [Parameter(Mandatory)][string]$ReleaseManifestPath,
+    [Parameter(Mandatory)][string]$ExpectedReleaseManifestSha256,
+    [Parameter(Mandatory)][string]$ExpectedBackupScriptSha256,
+    [string]$ApprovedReleaseTag,
     [string]$EnvFile,
     [string]$BackupRoot,
     [string]$PostgresImage = 'postgres:17',
@@ -22,11 +27,10 @@ $scriptDirectory = Split-Path -Parent ([IO.Path]::GetFullPath($entryPointPath))
 $pathHelper = Join-Path $scriptDirectory 'lib\ProductionBackupPaths.ps1'
 if (-not (Test-Path -LiteralPath $pathHelper -PathType Leaf)) { throw "BACKUP STOPPED: path helper is missing: $pathHelper" }
 . $pathHelper
+. (Join-Path $scriptDirectory 'lib\BackupReleaseBinding.ps1')
 
 $expectedRef = 'szgbkeqornkdngoegyso'
 $expectedUser = "postgres.$expectedRef"
-$certifiedCommit = 'b14b4761940e88051aa71715105eecf9505fa489'
-$certifiedTag = 'staging-certified-2026-07-11'
 $startedAt = [DateTime]::UtcNow
 $timestamp = $startedAt.ToString('yyyyMMddTHHmmssZ')
 $paths = Resolve-ProductionBackupPaths -ScriptPath $entryPointPath -EnvFile $EnvFile -BackupRoot $BackupRoot -Timestamp $timestamp
@@ -34,6 +38,13 @@ $repoRoot = $paths.RepoRoot
 $EnvFile = $paths.EnvFile
 $BackupRoot = $paths.BackupRoot
 $outputDirectory = $paths.OutputDirectory
+
+# Release identity is validated before credentials, Docker execution, network,
+# database access, or output-directory creation.
+$releaseBinding = Resolve-BackupReleaseBinding -RepoRoot $repoRoot -CanonicalScriptPath $entryPointPath `
+    -SourceCommit $SourceCommit -ReleaseManifestPath $ReleaseManifestPath `
+    -ExpectedReleaseManifestSha256 $ExpectedReleaseManifestSha256 `
+    -ExpectedBackupScriptSha256 $ExpectedBackupScriptSha256 -ApprovedReleaseTag $ApprovedReleaseTag
 
 $dockerCommand = Get-Command docker -CommandType Application -ErrorAction SilentlyContinue
 if (-not $dockerCommand) { throw 'BACKUP STOPPED: required tool is unavailable: docker' }
@@ -210,14 +221,19 @@ $imageId = (& docker image inspect $PostgresImage --format '{{.Id}}').Trim()
 $toolVersion = (& docker run --rm $PostgresImage pg_dump --version).Trim()
 $completedAt = [DateTime]::UtcNow
 $manifest = [ordered]@{
-    status = 'DUMP_CREATED_STATIC_VALIDATION_PASS'
+    status = 'DUMP_CREATED_STATIC_VALIDATION_PASS_RELEASE_BOUND'
+    sourceCommit = $releaseBinding.sourceCommit
+    releaseManifestPath = $releaseBinding.releaseManifestPath
+    releaseManifestSha256 = $releaseBinding.releaseManifestSha256
+    manifestSha256 = $releaseBinding.manifestSha256
+    scriptSha256 = $releaseBinding.scriptSha256
+    backupScriptPath = $releaseBinding.backupScriptPath
+    approvedReleaseTag = $releaseBinding.approvedReleaseTag
     started_at_utc = $startedAt.ToString('o')
     completed_at_utc = $completedAt.ToString('o')
     duration_seconds = [math]::Round(($completedAt - $startedAt).TotalSeconds, 3)
     production_project_ref = $expectedRef
     production_hostname = $dbHost
-    certified_commit = $certifiedCommit
-    certified_tag = $certifiedTag
     postgres_image = $PostgresImage
     postgres_image_id = $imageId
     backup_tool_version = $toolVersion

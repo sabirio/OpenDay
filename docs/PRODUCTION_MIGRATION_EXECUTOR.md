@@ -23,6 +23,13 @@ script-relative defaults only after parameter binding and provides
 credential-free `-ValidateOnly` and `-ShowResolvedPaths` modes that work from
 arbitrary working directories on Windows PowerShell 5.1.
 
+Preflight and apply require `-ExpectedBackupScriptSha256`. They reject a
+backup unless its qualifying manifest binds `sourceCommit` to current HEAD,
+both release-manifest hash fields to the approved manifest, and
+`scriptSha256` to the canonical backup entry point. The separate
+`-ExpectedBackupManifestSha256` is the completed JSON file's sidecar hash and
+is intentionally not embedded recursively inside that JSON file.
+
 ## Components
 
 | File | Purpose |

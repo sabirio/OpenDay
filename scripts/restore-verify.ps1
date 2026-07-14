@@ -3,7 +3,10 @@ param(
     [string]$BackupPath,
     [switch]$Latest,
     [string]$BackupRoot,
-    [string]$PostgresImage = 'postgres:17'
+    [string]$PostgresImage = 'postgres:17',
+    [string]$ExpectedSourceCommit,
+    [string]$ExpectedReleaseManifestSha256,
+    [string]$ExpectedBackupScriptSha256
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,7 +20,7 @@ if (-not $BackupRoot) {
 }
 
 $ScriptVersion = '1.0'
-$ExpectedManifestStatus = 'DUMP_CREATED_STATIC_VALIDATION_PASS'
+$ExpectedManifestStatus = 'DUMP_CREATED_STATIC_VALIDATION_PASS_RELEASE_BOUND'
 $RequiredFiles = @('roles.sql', 'schema.sql', 'data.sql', 'migration_history_schema.sql', 'migration_history_data.sql', 'checksums.sha256', 'backup-manifest.json')
 $MinimumBytes = @{
     'roles.sql' = 32
@@ -54,6 +57,9 @@ if ($BackupPath -and $Latest) {
 if (-not $BackupPath -and -not $Latest) {
     throw "USAGE ERROR: pass either -BackupPath <dir> or -Latest."
 }
+if (-not $ExpectedSourceCommit -or -not $ExpectedReleaseManifestSha256 -or -not $ExpectedBackupScriptSha256) {
+    throw 'USAGE ERROR: release-qualified restore requires ExpectedSourceCommit, ExpectedReleaseManifestSha256 and ExpectedBackupScriptSha256'
+}
 
 # ---------------------------------------------------------------------------
 # Shared helpers (pure functions, no side effects beyond explicit params) -
@@ -61,6 +67,7 @@ if (-not $BackupPath -and -not $Latest) {
 # logic without executing this script's Docker orchestration below.
 # ---------------------------------------------------------------------------
 . (Join-Path $PSScriptRoot 'lib\RestoreVerifyHelpers.ps1')
+. (Join-Path $PSScriptRoot 'lib\BackupReleaseBinding.ps1')
 
 # ---------------------------------------------------------------------------
 # -Latest resolution
@@ -104,6 +111,7 @@ $diag = [ordered]@{
     postgresImage = $PostgresImage
     checksumStatus = 'UNKNOWN'
     manifestStatus = 'UNKNOWN'
+    releaseBindingStatus = 'UNKNOWN'
     migrationHistory = [ordered]@{ schema = $null; status = 'UNKNOWN'; action = 'UNKNOWN' }
     roleMemberships = [ordered]@{ status = 'UNKNOWN'; expectedEdges = @(); restoredEdges = @(); match = $false; grantorFidelity = 'normalized' }
     restoreSteps = @()
@@ -210,6 +218,11 @@ try {
         throw $diag.failureReason
     }
     Add-Step 'manifest_status_complete' 'PASS' $diag.manifestStatus
+    Assert-BackupManifestReleaseBinding -Manifest $manifest -ExpectedSourceCommit $ExpectedSourceCommit `
+        -ExpectedReleaseManifestSha256 $ExpectedReleaseManifestSha256 `
+        -ExpectedBackupScriptSha256 $ExpectedBackupScriptSha256 | Out-Null
+    $diag.releaseBindingStatus = 'PASS'
+    Add-Step 'manifest_release_binding' 'PASS' 'source commit, release manifest and canonical script hashes match'
 
     $mhStatus = [string]$manifest.migrationHistory.status
     if ($mhStatus -ne 'present' -and $mhStatus -ne 'not_present') {

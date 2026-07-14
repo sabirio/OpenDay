@@ -18,7 +18,13 @@ never touches production in any way — it doesn't even read
 ## Creating a backup (owner-executed)
 
 ```powershell
-.\scripts\production-backup.ps1
+$head = (git rev-parse HEAD).Trim().ToLowerInvariant()
+$releaseManifest = '.\scripts\manifests\<approved-release>.psd1'
+$releaseManifestSha256 = (Get-FileHash $releaseManifest -Algorithm SHA256).Hash.ToLowerInvariant()
+$backupScriptSha256 = (Get-FileHash '.\scripts\production-backup.ps1' -Algorithm SHA256).Hash.ToLowerInvariant()
+.\scripts\production-backup.ps1 -SourceCommit $head -ReleaseManifestPath $releaseManifest `
+  -ExpectedReleaseManifestSha256 $releaseManifestSha256 `
+  -ExpectedBackupScriptSha256 $backupScriptSha256
 ```
 
 The entry point is Windows PowerShell 5.1 compatible. Its `param()` block
@@ -43,8 +49,8 @@ Safe offline validation performs no credential loading, Docker invocation,
 network/database access, or backup-directory creation:
 
 ```powershell
-.\scripts\production-backup.ps1 -ValidateOnly
-.\scripts\production-backup.ps1 -ShowResolvedPaths
+.\scripts\production-backup.ps1 <release-binding-parameters> -ValidateOnly
+.\scripts\production-backup.ps1 <release-binding-parameters> -ShowResolvedPaths
 ```
 
 The latter prints paths only, never environment-file contents. A path or
@@ -66,7 +72,8 @@ no host network access beyond the outbound connection to production:
   `migrationHistory.status: "not_present"` in the manifest
 - `checksums.sha256` — SHA-256 of every dump file
 - `backup-manifest.json` — status, timestamps, migration-history status,
-  per-file checksums; `status: "DUMP_CREATED_STATIC_VALIDATION_PASS"` is the
+  per-file checksums and release bindings; `status:
+  "DUMP_CREATED_STATIC_VALIDATION_PASS_RELEASE_BOUND"` is the
   only value that marks a backup as complete (anything else, or a missing
   manifest, means partial/failed — `restore-verify.ps1` refuses those)
 
@@ -76,14 +83,38 @@ files, checksums, and manifests are never committed.
 ## Running restore verification
 
 ```powershell
-.\scripts\restore-verify.ps1 -BackupPath ".\backups\production\20260711T084934Z"
+.\scripts\restore-verify.ps1 -BackupPath <fresh-backup> `
+  -ExpectedSourceCommit <40-char-head> `
+  -ExpectedReleaseManifestSha256 <64-char-release-manifest-sha256> `
+  -ExpectedBackupScriptSha256 <64-char-canonical-script-sha256>
 # or
-.\scripts\restore-verify.ps1 -Latest
+.\scripts\restore-verify.ps1 -Latest <same-release-binding-parameters>
 ```
 
 `-Latest` picks the most recent directory under `backups/production/` whose
 manifest reports the complete status above — it never falls back to a
 partial/failed attempt, and it cannot be combined with `-BackupPath`.
+
+### Release-binding semantics
+
+Every qualifying backup is bound before credentials or Docker are used. The
+script requires current `HEAD` as `sourceCommit`, independently hashes the
+approved release manifest, and independently hashes the canonical repository
+entry point. `releaseManifestSha256` and compatibility field `manifestSha256`
+both mean the SHA-256 of the approved release manifest; neither is the hash of
+`backup-manifest.json`. A manifest cannot contain its own final hash without a
+recursive definition, so callers hash the completed JSON file separately and
+pass that sidecar value to preflight/apply as
+`ExpectedBackupManifestSha256`. `scriptSha256` identifies the exact canonical
+backup entry point. An optional approved tag is recorded only when explicitly
+supplied.
+
+Malformed or non-HEAD commits, missing/escaping manifests, hash mismatches,
+and destination collisions fail before production connectivity. Old unbound
+backups—including `20260714T122356Z`—remain valid historical artifacts but
+cannot be selected by `-Latest`, restored as release-qualified, or authorize
+preflight/apply. Never edit an old manifest to add bindings. Any canonical
+tooling change creates a new HEAD and requires a renewed approval contract.
 
 ### Why no production credentials are involved
 

@@ -4,6 +4,7 @@ param(
     [string]$PostgresImage = 'postgres:17',
     [Parameter(Mandatory)][string]$VerifiedBackupPath,
     [Parameter(Mandatory)][string]$ExpectedBackupManifestSha256,
+    [Parameter(Mandatory)][string]$ExpectedBackupScriptSha256,
     [Parameter(Mandatory)][string]$OutputPath,
     [string]$EnvFile
 )
@@ -28,6 +29,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\SecurityContractInventory.ps1')
 . (Join-Path $PSScriptRoot 'lib\SnagListMigrationContract.ps1')
 . (Join-Path $PSScriptRoot 'lib\PreflightEvidenceContract.ps1')
+. (Join-Path $PSScriptRoot 'lib\BackupReleaseBinding.ps1')
 
 $manifest = Import-MigrationManifest -Path $ManifestPath
 Test-ManifestMigrationOrder -Manifest $manifest | Out-Null
@@ -41,6 +43,12 @@ $backup = (Resolve-Path -LiteralPath $VerifiedBackupPath).Path
 $backupManifestPath = Join-Path $backup 'backup-manifest.json'
 if (-not (Test-Path -LiteralPath $backupManifestPath)) { throw 'verified backup manifest is missing' }
 if ((Get-FileChecksum -Path $backupManifestPath).ToLowerInvariant() -ne $ExpectedBackupManifestSha256.ToLowerInvariant()) { throw 'verified backup manifest checksum mismatch' }
+$backupManifest = Get-Content -LiteralPath $backupManifestPath -Raw | ConvertFrom-Json
+$releaseManifestHash = (Get-FileHash -LiteralPath (Resolve-Path $ManifestPath).Path -Algorithm SHA256).Hash.ToLowerInvariant()
+$actualHead = (& git -C $repoRoot rev-parse HEAD).Trim().ToLowerInvariant()
+if ((Get-FileHash -LiteralPath (Join-Path $repoRoot 'scripts\production-backup.ps1') -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedBackupScriptSha256) { throw 'verified canonical backup script checksum mismatch' }
+Assert-BackupManifestReleaseBinding -Manifest $backupManifest -ExpectedSourceCommit $actualHead -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $ExpectedBackupScriptSha256 | Out-Null
+Write-Host 'Backup release binding: PASS'
 
 $queryTempDirectory = Join-Path ([IO.Path]::GetTempPath()) "migration-preflight-live-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 $productionFingerprintVerified = $false

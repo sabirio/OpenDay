@@ -10,6 +10,10 @@ $certRoot = Join-Path $repoRoot "backups\production\certification-$id"
 $fixtureMarker = Join-Path $certRoot 'fixture-path-marker.txt'
 $password = 'disposable-only-password'
 $backupPath = $null
+$sourceCommit = (& git -C $repoRoot rev-parse HEAD).Trim().ToLowerInvariant()
+$releaseManifestPath = Join-Path $repoRoot 'scripts\manifests\snag-list-030-035.psd1'
+$releaseManifestHash = (Get-FileHash $releaseManifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$backupScriptHash = (Get-FileHash $backupScript -Algorithm SHA256).Hash.ToLowerInvariant()
 
 try {
     New-Item -ItemType Directory -Path $certRoot | Out-Null
@@ -53,11 +57,14 @@ INSERT INTO public.certification_child(id,marker_id,value) VALUES (1,1,4);
     $port=[int](($portLine -split ':')[-1])
     $provider={ [pscustomobject]@{Host='host.docker.internal';Port=$port;Database='fixture_db';User='fixture_owner';Password=$password;RawUri=$null;EnvironmentText=$null} }.GetNewClosure()
     $env:OPENDAY_DISPOSABLE_BACKUP_CERTIFICATION='I UNDERSTAND THIS MUST BE LOOPBACK ONLY'
-    & $backupScript -EnvFile $fixtureMarker -BackupRoot $certRoot -CertificationMode -ConnectionProvider $provider
+    & $backupScript -SourceCommit $sourceCommit -ReleaseManifestPath $releaseManifestPath `
+        -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $backupScriptHash `
+        -EnvFile $fixtureMarker -BackupRoot $certRoot -CertificationMode -ConnectionProvider $provider
     if($LASTEXITCODE -and $LASTEXITCODE -ne 0){throw "canonical backup script failed: $LASTEXITCODE"}
     $backupPath=(Get-ChildItem $certRoot -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
     if(-not $backupPath){throw 'canonical backup produced no timestamped directory'}
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $restoreScript -BackupPath $backupPath -PostgresImage postgres:17
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $restoreScript -BackupPath $backupPath -PostgresImage postgres:17 `
+        -ExpectedSourceCommit $sourceCommit -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $backupScriptHash
     if($LASTEXITCODE -ne 0){throw "restore verification failed: $LASTEXITCODE"}
     $report=Get-Content (Join-Path $backupPath 'restore-verification.json') -Raw | ConvertFrom-Json
     if($report.overallStatus -ne 'PASS'){throw "restore report is not PASS: $($report.overallStatus)"}

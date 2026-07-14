@@ -10,6 +10,11 @@ Set-StrictMode -Version Latest
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $scriptPath = Join-Path $repoRoot 'scripts\restore-verify.ps1'
+$bindingHelperPath = Join-Path $repoRoot 'scripts\lib\BackupReleaseBinding.ps1'
+$expectedCommit = (& git -C $repoRoot rev-parse HEAD).Trim().ToLowerInvariant()
+$expectedManifestHash = (Get-FileHash (Join-Path $repoRoot 'scripts\manifests\snag-list-030-035.psd1') -Algorithm SHA256).Hash.ToLowerInvariant()
+$expectedScriptHash = (Get-FileHash (Join-Path $repoRoot 'scripts\production-backup.ps1') -Algorithm SHA256).Hash.ToLowerInvariant()
+$releaseArgs = @{ExpectedSourceCommit=$expectedCommit;ExpectedReleaseManifestSha256=$expectedManifestHash;ExpectedBackupScriptSha256=$expectedScriptHash}
 $libPath = Join-Path $repoRoot 'scripts\lib\RestoreVerifyHelpers.ps1'
 
 $script:passCount = 0
@@ -70,6 +75,7 @@ Assert-True 'no reliance on $PSNativeCommandUseErrorActionPreference' ($scriptTe
 # Load the pure helper functions for direct unit testing. This file has no
 # top-level executable side effects (Docker, network, param validation).
 . $libPath
+. $bindingHelperPath
 
 # ===========================================================================
 # 3. UTF-8 no-BOM helper
@@ -247,6 +253,11 @@ try {
     Remove-Item -LiteralPath $srcData, $destData -ErrorAction SilentlyContinue
 }
 
+$validBoundManifest = [pscustomobject]@{status='DUMP_CREATED_STATIC_VALIDATION_PASS_RELEASE_BOUND';sourceCommit=$expectedCommit;releaseManifestSha256=$expectedManifestHash;manifestSha256=$expectedManifestHash;scriptSha256=$expectedScriptHash;backupScriptPath='scripts/production-backup.ps1'}
+Assert-True 'release metadata: exact bound manifest passes' (Assert-BackupManifestReleaseBinding -Manifest $validBoundManifest -ExpectedSourceCommit $expectedCommit -ExpectedReleaseManifestSha256 $expectedManifestHash -ExpectedBackupScriptSha256 $expectedScriptHash)
+Assert-Throws 'release metadata: legacy unbound manifest cannot qualify' { Assert-BackupManifestReleaseBinding -Manifest ([pscustomobject]@{status='DUMP_CREATED_STATIC_VALIDATION_PASS'}) -ExpectedSourceCommit $expectedCommit -ExpectedReleaseManifestSha256 $expectedManifestHash -ExpectedBackupScriptSha256 $expectedScriptHash } 'not release-qualified'
+Assert-Throws 'release metadata: compatibility hashes must agree' { $bad=$validBoundManifest.PSObject.Copy();$bad.manifestSha256='0'*64;Assert-BackupManifestReleaseBinding -Manifest $bad -ExpectedSourceCommit $expectedCommit -ExpectedReleaseManifestSha256 $expectedManifestHash -ExpectedBackupScriptSha256 $expectedScriptHash } 'manifestSha256 mismatch'
+
 # ===========================================================================
 # 5. Parameter validation
 # ===========================================================================
@@ -256,7 +267,7 @@ Assert-Throws 'param validation: -BackupPath + -Latest together' { & $scriptPath
 $missingFilesDir = Join-Path ([System.IO.Path]::GetTempPath()) "restore-verify-missingfiles-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $missingFilesDir | Out-Null
 try {
-    & $scriptPath -BackupPath $missingFilesDir *> $null
+    & $scriptPath -BackupPath $missingFilesDir @releaseArgs *> $null
     $exitCode = $LASTEXITCODE
     Assert-True 'param validation: missing required files -> non-zero exit' ($exitCode -ne 0)
     # Write-Host output bypasses stream redirection entirely in Windows
@@ -291,14 +302,14 @@ try {
     Write-Utf8NoBom -Path (Join-Path $fakeBackupDir 'data.sql') -Value $data
     Write-Utf8NoBom -Path (Join-Path $fakeBackupDir 'migration_history_schema.sql') -Value $mhs
     Write-Utf8NoBom -Path (Join-Path $fakeBackupDir 'migration_history_data.sql') -Value $mhd
-    $manifest = @{ status = 'DUMP_CREATED_STATIC_VALIDATION_PASS'; migrationHistory = @{ schema = 'supabase_migrations'; status = 'not_present' } } | ConvertTo-Json
+    $manifest = @{ status = 'DUMP_CREATED_STATIC_VALIDATION_PASS_RELEASE_BOUND'; sourceCommit=$expectedCommit; releaseManifestSha256=$expectedManifestHash; manifestSha256=$expectedManifestHash; scriptSha256=$expectedScriptHash; backupScriptPath='scripts/production-backup.ps1'; migrationHistory = @{ schema = 'supabase_migrations'; status = 'not_present' } } | ConvertTo-Json
     Write-Utf8NoBom -Path (Join-Path $fakeBackupDir 'backup-manifest.json') -Value $manifest
     # Deliberately wrong checksum for roles.sql.
     $badChecksum = ('0' * 64) + '  roles.sql'
     $realSchemaHash = (Get-FileHash -LiteralPath (Join-Path $fakeBackupDir 'schema.sql') -Algorithm SHA256).Hash.ToLowerInvariant()
     Write-Utf8NoBom -Path (Join-Path $fakeBackupDir 'checksums.sha256') -Value ($badChecksum + "`n" + "$realSchemaHash  schema.sql`n")
 
-    & $scriptPath -BackupPath $fakeBackupDir *> $null
+    & $scriptPath -BackupPath $fakeBackupDir @releaseArgs *> $null
     $exitCode = $LASTEXITCODE
     Assert-True 'checksum mismatch: non-zero exit' ($exitCode -ne 0)
 
@@ -320,7 +331,7 @@ try {
 # 7. Report schema contains required fields (structural check on source)
 # ===========================================================================
 $requiredReportFields = @('verificationVersion', 'timestampUtc', 'backupPath', 'backupTimestamp', 'postgresImage',
-    'checksumStatus', 'manifestStatus', 'migrationHistory', 'roleMemberships', 'restoreSteps', 'schemas', 'tableCount', 'tables',
+    'checksumStatus', 'manifestStatus', 'releaseBindingStatus', 'migrationHistory', 'roleMemberships', 'restoreSteps', 'schemas', 'tableCount', 'tables',
     'constraints', 'unexpectedInvalidConstraints', 'triggers', 'sessionReplicationRole', 'cleanup', 'overallStatus', 'failureReason')
 foreach ($f in $requiredReportFields) {
     Assert-True "report schema: `$diag defines '$f'" ($scriptText -match [regex]::Escape("$f =") -or $scriptText -match [regex]::Escape("`$diag.$f "))

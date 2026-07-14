@@ -21,6 +21,9 @@ param(
     [string]$ExpectedBackupManifestSha256,
 
     [Parameter(Mandatory, ParameterSetName = 'Apply')]
+    [string]$ExpectedBackupScriptSha256,
+
+    [Parameter(Mandatory, ParameterSetName = 'Apply')]
     [string]$ApprovedPreflightPath,
 
     [Parameter(Mandatory, ParameterSetName = 'Apply')]
@@ -72,6 +75,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\ProductionConnection.ps1')
 . (Join-Path $PSScriptRoot 'lib\PreflightEvidenceContract.ps1')
 . (Join-Path $PSScriptRoot 'lib\ReleaseApprovalContract.ps1')
+. (Join-Path $PSScriptRoot 'lib\BackupReleaseBinding.ps1')
 
 Write-Host "Loading manifest: $ManifestPath"
 $manifest = Import-MigrationManifest -Path $ManifestPath
@@ -133,6 +137,11 @@ $backup = (Resolve-Path -LiteralPath $VerifiedBackupPath).Path
 $backupManifestPath = Join-Path $backup 'backup-manifest.json'
 if (-not (Test-Path -LiteralPath $backupManifestPath)) { throw 'ABORT: verified backup manifest is missing' }
 if ((Get-FileChecksum -Path $backupManifestPath).ToLowerInvariant() -ne $ExpectedBackupManifestSha256.ToLowerInvariant()) { throw 'ABORT: verified backup manifest checksum mismatch' }
+$backupManifest = Get-Content -LiteralPath $backupManifestPath -Raw | ConvertFrom-Json
+$releaseManifestHash = (Get-FileHash -LiteralPath (Resolve-Path $ManifestPath).Path -Algorithm SHA256).Hash.ToLowerInvariant()
+$canonicalBackupScript = Join-Path $repoRoot 'scripts\production-backup.ps1'
+if ((Get-FileHash -LiteralPath $canonicalBackupScript -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedBackupScriptSha256) { throw 'ABORT: canonical backup script checksum mismatch' }
+Assert-BackupManifestReleaseBinding -Manifest $backupManifest -ExpectedSourceCommit $actualHead -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $ExpectedBackupScriptSha256 | Out-Null
 Write-Host 'Backup manifest checksum: PASS'
 
 $preflightPath = (Resolve-Path -LiteralPath $ApprovedPreflightPath).Path

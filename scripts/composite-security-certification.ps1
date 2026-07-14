@@ -4,6 +4,9 @@ param(
     [Parameter(Mandatory)][string]$ProductionInventoryPath,
     [Parameter(Mandatory)][string]$ProductionInventoryChecksumPath,
     [Parameter(Mandatory)][string]$OutputPath,
+    [Parameter(Mandatory)][string]$ExpectedSourceCommit,
+    [Parameter(Mandatory)][string]$ExpectedReleaseManifestSha256,
+    [Parameter(Mandatory)][string]$ExpectedBackupScriptSha256,
     [string]$ContractPath,
     [string]$ExceptionsPath,
     [string]$PostgresImage = 'postgres:17',
@@ -192,7 +195,8 @@ try {
 
     if (-not (Test-Path -LiteralPath $tempDir)) { New-Item -ItemType Directory -Path $tempDir | Out-Null }
     $restoreVerifyScript = Join-Path $PSScriptRoot 'restore-verify.ps1'
-    $restoreArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $restoreVerifyScript, '-BackupPath', $resolvedBackupPath, '-PostgresImage', $PostgresImage)
+    $restoreArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $restoreVerifyScript, '-BackupPath', $resolvedBackupPath, '-PostgresImage', $PostgresImage,
+        '-ExpectedSourceCommit', $ExpectedSourceCommit, '-ExpectedReleaseManifestSha256', $ExpectedReleaseManifestSha256, '-ExpectedBackupScriptSha256', $ExpectedBackupScriptSha256)
     $restoreStdoutPath = Join-Path $tempDir 'restore-verify-stdout.txt'
     $restoreProc = Start-Process -FilePath 'powershell.exe' -ArgumentList $restoreArgs -NoNewWindow -PassThru -Wait -RedirectStandardOutput $restoreStdoutPath
     $restoreExitCode = $restoreProc.ExitCode

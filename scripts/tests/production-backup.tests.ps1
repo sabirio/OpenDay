@@ -4,7 +4,15 @@ Set-StrictMode -Version Latest
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $scriptPath = Join-Path $repoRoot 'scripts\production-backup.ps1'
 $helperPath = Join-Path $repoRoot 'scripts\lib\ProductionBackupPaths.ps1'
+$bindingHelperPath = Join-Path $repoRoot 'scripts\lib\BackupReleaseBinding.ps1'
 . $helperPath
+. $bindingHelperPath
+$sourceCommit = (& git -C $repoRoot rev-parse HEAD).Trim().ToLowerInvariant()
+$releaseManifestPath = Join-Path $repoRoot 'scripts\manifests\snag-list-030-035.psd1'
+$releaseManifestHash = (Get-FileHash $releaseManifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$backupScriptHash = (Get-FileHash $scriptPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$bindingArgs = @('-SourceCommit',$sourceCommit,'-ReleaseManifestPath',$releaseManifestPath,
+    '-ExpectedReleaseManifestSha256',$releaseManifestHash,'-ExpectedBackupScriptSha256',$backupScriptHash)
 
 $script:passed = 0
 $script:failed = 0
@@ -23,6 +31,9 @@ Assert-True 'A/P: production-backup.ps1 parses on Windows PowerShell 5.1' ($erro
 $tokens=$null; $errors=$null
 [void][Management.Automation.Language.Parser]::ParseFile($helperPath,[ref]$tokens,[ref]$errors)
 Assert-True 'P: path helper parses on Windows PowerShell 5.1' ($errors.Count -eq 0)
+$tokens=$null; $errors=$null
+[void][Management.Automation.Language.Parser]::ParseFile($bindingHelperPath,[ref]$tokens,[ref]$errors)
+Assert-True 'P: release-binding helper parses on Windows PowerShell 5.1' ($errors.Count -eq 0)
 $source=Get-Content $scriptPath -Raw
 Assert-True 'regression: param defaults do not evaluate PSScriptRoot' ($source -notmatch '\[string\]\$EnvFile\s*=|\[string\]\$BackupRoot\s*=')
 Assert-True 'R: strict mode remains enabled' ($source -match 'Set-StrictMode -Version Latest')
@@ -44,8 +55,8 @@ Assert-True 'D: relative explicit paths are repository-relative' ((Resolve-Produ
 function Invoke-SafeEntryPoint([string]$WorkingDirectory, [bool]$ViaCallOperator) {
     $stdout=Join-Path ([IO.Path]::GetTempPath()) ('backup-safe-'+[guid]::NewGuid().ToString('N')+'.txt')
     try {
-        if($ViaCallOperator){$arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-Command',"& '$scriptPath' -ValidateOnly")}
-        else {$arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$scriptPath,'-ValidateOnly')}
+        if($ViaCallOperator){$arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-Command',"& '$scriptPath' -ValidateOnly -SourceCommit '$sourceCommit' -ReleaseManifestPath '$releaseManifestPath' -ExpectedReleaseManifestSha256 '$releaseManifestHash' -ExpectedBackupScriptSha256 '$backupScriptHash'")}
+        else {$arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$scriptPath,'-ValidateOnly') + $bindingArgs}
         $p=Start-Process powershell.exe -ArgumentList $arguments -WorkingDirectory $WorkingDirectory -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdout
         [pscustomobject]@{ExitCode=$p.ExitCode;Output=[IO.File]::ReadAllText($stdout)}
     } finally {Remove-Item $stdout -Force -ErrorAction SilentlyContinue}
@@ -81,6 +92,21 @@ Assert-True 'U: every dump command checks its native exit code' ($source -match 
 Assert-True 'W: password and RawUri are never written to backup metadata' ($source -notmatch 'Write-Host[^\r\n]*(dbPassword|RawUri)' -and $source -notmatch '(?m)^\s*(password|rawUri)\s*=')
 Assert-True 'certification injection is loopback-only and explicitly confirmed' ($source -match 'disposable certification connection must be loopback-only' -and $source -match 'OPENDAY_DISPOSABLE_BACKUP_CERTIFICATION')
 Assert-True 'production SSL remains required' ($source.Contains("if (`$CertificationMode) { 'disable' } else { 'require' }"))
+
+$binding = Resolve-BackupReleaseBinding -RepoRoot $repoRoot -CanonicalScriptPath $scriptPath -SourceCommit $sourceCommit `
+    -ReleaseManifestPath $releaseManifestPath -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $backupScriptHash
+Assert-True 'release binding: correct offline contract passes' ($binding.sourceCommit -eq $sourceCommit)
+Assert-True 'release binding: compatibility manifest hashes agree' ($binding.manifestSha256 -eq $releaseManifestHash -and $binding.releaseManifestSha256 -eq $releaseManifestHash)
+Assert-True 'release binding: canonical script hash recorded' ($binding.scriptSha256 -eq $backupScriptHash)
+Assert-Throws 'release binding: malformed commit fails' { Resolve-BackupReleaseBinding -RepoRoot $repoRoot -CanonicalScriptPath $scriptPath -SourceCommit 'abc' -ReleaseManifestPath $releaseManifestPath -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $backupScriptHash } '40-character'
+Assert-Throws 'release binding: nonexistent commit fails' { Resolve-BackupReleaseBinding -RepoRoot $repoRoot -CanonicalScriptPath $scriptPath -SourceCommit ('a' * 40) -ReleaseManifestPath $releaseManifestPath -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $backupScriptHash } 'does not exist'
+Assert-Throws 'release binding: non-HEAD commit fails' { Resolve-BackupReleaseBinding -RepoRoot $repoRoot -CanonicalScriptPath $scriptPath -SourceCommit ((& git -C $repoRoot rev-parse HEAD~1).Trim()) -ReleaseManifestPath $releaseManifestPath -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $backupScriptHash } 'must equal current'
+Assert-Throws 'release binding: missing manifest fails' { Resolve-BackupReleaseBinding -RepoRoot $repoRoot -CanonicalScriptPath $scriptPath -SourceCommit $sourceCommit -ReleaseManifestPath 'missing.psd1' -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $backupScriptHash } 'manifest is missing'
+Assert-Throws 'release binding: wrong manifest hash fails' { Resolve-BackupReleaseBinding -RepoRoot $repoRoot -CanonicalScriptPath $scriptPath -SourceCommit $sourceCommit -ReleaseManifestPath $releaseManifestPath -ExpectedReleaseManifestSha256 ('0' * 64) -ExpectedBackupScriptSha256 $backupScriptHash } 'manifest SHA-256 mismatch'
+Assert-Throws 'release binding: wrong script hash fails' { Resolve-BackupReleaseBinding -RepoRoot $repoRoot -CanonicalScriptPath $scriptPath -SourceCommit $sourceCommit -ReleaseManifestPath $releaseManifestPath -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 ('0' * 64) } 'script SHA-256 mismatch'
+Assert-True 'release binding: obsolete release commit removed' ($source -notmatch 'b14b4761940e88051aa71715105eecf9505fa489')
+Assert-True 'release binding: validation precedes production connection' ($source.IndexOf('Resolve-BackupReleaseBinding') -lt $source.IndexOf('Get-ProductionConnectionFingerprint'))
+Assert-True 'release binding: qualifying manifest status is explicit' ($source -match 'DUMP_CREATED_STATIC_VALIDATION_PASS_RELEASE_BOUND')
 
 Write-Host "TOTAL: $script:passed passed, $script:failed failed"
 if($script:failed -gt 0){exit 1}
