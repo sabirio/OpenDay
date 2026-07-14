@@ -10,6 +10,7 @@ export function deriveDueState(snag, asOf, dueSoonDays = 7) {
 
 export function filterSnags(snags, filters = {}, asOf = new Date()) {
   return [...snags].filter(snag => (!filters.projectId || String(snag.projectId) === String(filters.projectId))
+    && (!filters.publicationState || snag.publicationState === filters.publicationState)
     && (!filters.status || snag.status === filters.status) && (!filters.assigneeId || String(snag.assigneeId) === String(filters.assigneeId))
     && (!filters.activeOnly || !['CLOSED','CANCELLED'].includes(snag.status))
     && (!filters.categoryCode || snag.categoryCode === filters.categoryCode) && (!filters.disciplineCode || snag.disciplineCode === filters.disciplineCode) && (!filters.priority || snag.priority === filters.priority)

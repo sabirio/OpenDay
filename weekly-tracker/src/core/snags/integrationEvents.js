@@ -13,6 +13,12 @@ export const SNAG_INTEGRATION_EVENT_TYPES = Object.freeze([
   'SNAG_DETAILS_CHANGED',
   'SNAG_LOCATION_CHANGED',
   'SNAG_EVIDENCE_ADDED',
+  'SNAG_CAPTURED',
+  'SNAG_CAPTURE_COMPLETED',
+  'SNAG_PUBLISHED',
+  'SNAG_ARCHIVED',
+  'SNAG_DUPLICATED',
+  'SNAG_COMMENT_ADDED',
 ]);
 
 const FORBIDDEN_PAYLOAD_KEY = /(?:url|uri|token|secret|authorization|storage_?path|storagePath|access_?key)/i;

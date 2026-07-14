@@ -158,3 +158,34 @@ The append-only `snag_events` table is forensic history and the transactional ev
 - ADR-5.5: preserve migrations 030-034 byte-for-byte; Phase 5 requires no schema change.
 
 Next MVP work may add a standalone application shell and explicit system-action audit identity. Later platform work may add a transactional outbox, analytics projections and module commerce. A general event platform, speculative engine APIs, marketplace implementation, configurable workflow designer and large UI redesign are explicitly rejected from Phase 5 scope.
+
+## Phase 5 canonical field capture workflow
+
+The user-facing entity is **Observation**; `snag` remains the stable technical aggregate/table/RPC name. Field capture starts from an immutable private drawing revision. PM/Admin enables capture, presses and holds for 450 ms, confirms a normalized crosshair, and the server immediately persists a numbered `CAPTURED` Observation. Keyboard users may place at the drawing center with Enter. Drawing revision, page and normalized coordinates are stored on the aggregate and never migrate implicitly when another revision becomes active.
+
+Publication and contractor workflow are independent axes:
+
+- `publication_state`: `CAPTURED`, `PUBLISHED`, `ARCHIVED`;
+- `status`: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `READY_FOR_REVIEW`, `CLOSED`, `CANCELLED`.
+
+`Done — keep Captured` saves the card but never publishes. Publication requires a configured trade, responsible stakeholder and either description or evidence. Individual and batch publication are explicit and idempotent. Batch publication publishes valid selections and returns incomplete selections as `needsDetails`. Contractors can read only `PUBLISHED` Observations assigned to their own account; captured and unrelated project/company data remain hidden by RLS.
+
+### Project preparation and responsibility
+
+`project_snag_trades` is a project-scoped configurable catalog with stable code, display name, accessible pin color and active state. `project_stakeholders` represents a responsible company/contact independently of `auth.users`; `user_id` is optional. A many-to-many `snag_trade_stakeholders` matrix supports multiple suggestions and one preferred stakeholder. Selection remains explicit in the Observation card; the matrix never silently assigns responsibility. The current preparation surface supports trade creation, stakeholder creation and preferred mapping. Search, recent/repeat shortcuts and inactive-item administration are deferred UX optimizations.
+
+### Numbering, Activity and lifecycle safety
+
+`project_snag_sequences` reserves monotonically increasing project-local numbers under one atomic upsert. Numbers are not derived from current rows and are never reused after archive or interruption. Capture, card completion, publication, comments, workflow transitions, evidence, duplicate and archive append immutable Activity events. Comments have their own immutable command identity and chronological timestamp.
+
+Duplicate creates a new `CAPTURED` aggregate and number, copies descriptive/responsibility/location fields, and copies neither evidence, prior history, publication nor workflow state. The user then explicitly relocates its pin. Archive requires a reason and preserves the row/history. Published Observations are never hard-deleted by this workflow.
+
+### Mobile and operational states
+
+The capture surface uses existing OpenDay operational controls, private PDF rendering and explicit Saving/error states. Crosshair confirmation, card completion and batch selection are keyboard accessible and tested without horizontal overflow at 320, 360, 375, 390 and 412 px. Color reinforces trade/publication identity but text labels remain authoritative. The complete automated PM capture-to-publish scenario ran in 7.2 seconds in the local test environment; this is an end-to-end test duration, not a guaranteed network SLA or a separate photo-return latency measurement.
+
+### Implemented versus deferred
+
+Implemented: drawing capture, precise confirmation, immediate persistence, non-reusable numbering, trade/stakeholder configuration and suggestion, account-independent stakeholder, captured card, explicit individual/batch publication, contractor visibility boundary, comments/Activity, duplicate, show on drawing, archive, immutable revision linkage and local security certification.
+
+Deferred: recent/repeat trade shortcuts, inline creation inside the capture card, automatic camera launch, notification delivery, offline synchronization, BIM/OCR/AI, automated pin transfer, advanced analytics and PDF export redesign. Existing private evidence capture remains available from the Observation detail after immediate persistence.

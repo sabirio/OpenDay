@@ -1,0 +1,17 @@
+import {readFileSync} from 'node:fs';
+const sql=readFileSync(new URL('../migrations/035_snag_canonical_field_capture.sql',import.meta.url),'utf8');let pass=0,fail=0;const check=(label,value)=>value?(pass++,console.log(`  OK ${label}`)):(fail++,console.error(`  FAIL ${label}`));
+check('publication state is independent from workflow status',/publication_state text NOT NULL DEFAULT 'PUBLISHED'.*CAPTURED.*PUBLISHED.*ARCHIVED/s.test(sql));
+check('project sequence never derives a new number from deleted rows',/project_snag_sequences/.test(sql)&&/ON CONFLICT\(project_id\) DO UPDATE SET last_number=project_snag_sequences\.last_number\+1/.test(sql));
+check('capture is idempotent and immediately persistent',/capture_snag_observation/.test(sql)&&/snag_command_requests/.test(sql)&&/'SNAG_CAPTURED'/.test(sql));
+check('trade catalog is project scoped and configurable',/CREATE TABLE public\.project_snag_trades/.test(sql)&&/configure_snag_catalog/.test(sql));
+check('stakeholder account is optional',/user_id uuid REFERENCES auth\.users\(id\) ON DELETE SET NULL/.test(sql));
+check('trade responsibility supports preferred and multiple stakeholders',/PRIMARY KEY\(trade_id,stakeholder_id\)/.test(sql)&&/snag_trade_one_preferred/.test(sql));
+check('publish validates responsibility and field evidence',/OBSERVATION_NEEDS_DETAILS/.test(sql)&&/snag_evidence/.test(sql));
+check('batch publish retains invalid captured observations',/needsDetails/.test(sql)&&/v_invalid/.test(sql));
+check('contractor reads only published assigned observations',/publication_state='PUBLISHED' AND assignee_id=auth\.uid\(\)/.test(sql));
+check('duplicate starts captured without evidence/history copy',/duplicateObservation/.test(sql)&&/'CAPTURED'/.test(sql)&&/SNAG_DUPLICATED/.test(sql));
+check('archive requires reason and preserves row',/ARCHIVE_REASON_REQUIRED/.test(sql)&&/SNAG_ARCHIVED/.test(sql));
+check('comments and activity are append-only identities',/CREATE TABLE public\.snag_comments/.test(sql)&&/SNAG_COMMENT_ADDED/.test(sql));
+check('security definer functions use fixed safe search paths',![...sql.matchAll(/SECURITY DEFINER(?! SET search_path=public(?:,pg_temp|,storage,pg_temp)?)/g)].length);
+check('new RPCs revoke PUBLIC and anon',/REVOKE ALL ON FUNCTION[\s\S]*FROM PUBLIC,anon/.test(sql));
+console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);process.exit(fail?1:0);
