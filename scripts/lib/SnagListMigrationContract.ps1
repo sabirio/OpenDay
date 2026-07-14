@@ -1,4 +1,4 @@
-# Batch-specific (Snag List 030-034) read-only assertions, kept separate
+# Batch-specific (Snag List 030-035) read-only assertions, kept separate
 # from the generic manifest/connection layers so they can be unit-tested
 # against a disposable clone and reused, unmodified, by both the live
 # production preflight and postflight scripts - same convention as
@@ -7,7 +7,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$script:SnagListTables = @('snags', 'snag_events', 'snag_evidence', 'snag_plan_versions', 'snag_command_requests', 'snag_evidence_upload_intents')
+$script:SnagListTables = @('snags', 'snag_events', 'snag_evidence', 'snag_plan_versions', 'snag_command_requests', 'snag_evidence_upload_intents', 'project_snag_sequences', 'project_snag_trades', 'project_stakeholders', 'snag_trade_stakeholders', 'snag_comments')
 $script:SnagListFunctions = @(
     @{ name = 'execute_snag_command'; args = 'jsonb,uuid,integer' },
     @{ name = 'execute_snag_plan_command'; args = 'jsonb,uuid,integer' },
@@ -18,7 +18,12 @@ $script:SnagListFunctions = @(
     @{ name = 'list_snag_project_contractors'; args = 'bigint' },
     @{ name = 'create_snag_plan_upload_intent'; args = 'bigint,uuid' },
     @{ name = 'register_snag_plan_version'; args = 'bigint,uuid,text,text,text,integer' },
-    @{ name = 'set_snag_plan_lifecycle'; args = 'uuid,text' }
+    @{ name = 'set_snag_plan_lifecycle'; args = 'uuid,text' },
+    @{ name = 'capture_snag_observation'; args = 'bigint,uuid,integer,numeric,numeric,uuid' },
+    @{ name = 'execute_snag_product_command'; args = 'jsonb,uuid,integer' },
+    @{ name = 'publish_snag_observations'; args = 'bigint,uuid[],uuid' },
+    @{ name = 'add_snag_comment'; args = 'bigint,uuid,text,uuid' },
+    @{ name = 'configure_snag_catalog'; args = 'bigint,text,jsonb' }
 )
 $script:SnagListBuckets = @('snag-plans', 'snag-evidence')
 
@@ -47,7 +52,7 @@ function Get-SnagListObjectInventory {
 
 # ---------------------------------------------------------------------------
 # Confirms the predecessor state this batch needs: the platform tables/
-# functions migrations 030-034 depend on (projects, profiles, auth.users,
+# functions migrations 030-035 depend on (projects, profiles, auth.users,
 # can_access_project, can_write_project) already exist.
 # ---------------------------------------------------------------------------
 function Test-SnagListPredecessorState {
@@ -82,6 +87,7 @@ function Test-SnagListPreflightAssertions {
         predecessorState = $null
         blockingLocks = [ordered]@{ conflictingLockCount = -1; safe = $false }
         reasons = @()
+        classification = 'UNKNOWN'
         status = 'NOT_READY'
     }
 
@@ -91,14 +97,17 @@ function Test-SnagListPreflightAssertions {
     $allPresent = -not (($inventory.tables.Values + $inventory.functions.Values + $inventory.buckets.Values) -contains $false)
     if ($anyPresent -and -not $allPresent) {
         $result.reasons += 'partial Snag List object presence detected - some objects exist, some do not; this is drift or a partial prior apply, not a clean starting point'
+        $result.classification = 'PARTIAL_STATE'
     } elseif ($allPresent) {
         $result.reasons += 'every Snag List object already exists - batch appears already applied'
+        $result.classification = 'ALREADY_APPLIED'
     }
 
     $predecessor = Test-SnagListPredecessorState -Query $Query
     $result.predecessorState = $predecessor
     if ($predecessor.Values -contains $false) {
-        $result.reasons += 'one or more predecessor objects (projects/profiles/auth.users/can_access_project/can_write_project) is missing - migrations 030-034 cannot apply cleanly'
+        $result.reasons += 'one or more predecessor objects (projects/profiles/auth.users/can_access_project/can_write_project) is missing - migrations 030-035 cannot apply cleanly'
+        if ($anyPresent) { $result.classification = 'PARTIAL_DRIFT' }
     }
 
     $lockSql = @"
@@ -115,6 +124,7 @@ WHERE n.nspname = 'public'
     if ($blockingLockCount -ne 0) { $result.reasons += "found $blockingLockCount conflicting lock(s) on predecessor tables" }
 
     if ($result.reasons.Count -eq 0 -and -not $anyPresent) {
+        $result.classification = 'READY'
         $result.status = "READY_FOR_$BatchId"
     } else {
         $result.status = 'NOT_READY'

@@ -129,6 +129,9 @@ $applyReport = [ordered]@{
 }
 
 $conn = Get-ProductionConnectionFingerprint -EnvFile $EnvFile -RepoRoot $repoRoot -ExpectedProjectRef $manifest.approvedProjectRef
+if ($manifest.Contains('requiredDatabaseUser') -and $conn.User -notmatch "^$([regex]::Escape($manifest.requiredDatabaseUser))(\.|$)") {
+    throw "ABORT: database user does not satisfy manifest requiredDatabaseUser=$($manifest.requiredDatabaseUser)"
+}
 Write-Host 'Production fingerprint: PASS'
 $pgConnection = [pscustomobject]@{ Host = $conn.Host; Port = $conn.Port; Database = $conn.Database; User = $conn.User; Password = $conn.Password; SslMode = 'require' }
 $conn = $null

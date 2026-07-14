@@ -43,13 +43,15 @@ $newScripts = @(
 foreach ($p in $newScripts) { $e = $null; [Management.Automation.Language.Parser]::ParseFile($p, [ref]$null, [ref]$e) | Out-Null; A "AST: $p" ($e.Count -eq 0) }
 
 # --- Real manifest loads and validates cleanly ---
-$realManifestPath = Join-Path $root 'scripts\manifests\snag-list-030-034.psd1'
+$realManifestPath = Join-Path $root 'scripts\manifests\snag-list-030-035.psd1'
 $realManifest = Import-MigrationManifest -Path $realManifestPath
-A 'real manifest: batchId is SNAG-LIST-030-034' ($realManifest.batchId -eq 'SNAG-LIST-030-034')
-A 'real manifest: 5 migrations declared' ($realManifest.migrations.Count -eq 5)
+A 'real manifest: batchId is SNAG-LIST-030-035' ($realManifest.batchId -eq 'SNAG-LIST-030-035')
+A 'real manifest: 6 migrations declared' ($realManifest.migrations.Count -eq 6)
+A 'real manifest: migration 035 is the final ordered entry' ($realManifest.migrations[-1].file -eq '035_snag_canonical_field_capture.sql')
+A 'real manifest: postgres owner and stop-on-first-failure are explicit' ($realManifest.requiredDatabaseUser -eq 'postgres' -and $realManifest.stopOnFirstFailure)
 A 'real manifest: order valid' (Test-ManifestMigrationOrder -Manifest $realManifest)
 $realChecksums = Test-ManifestMigrationChecksums -Manifest $realManifest -RepoRoot $root
-A 'real manifest: all 5 checksums byte-identical' (($realChecksums | Where-Object { $_.byteIdentical }).Count -eq 5)
+A 'real manifest: all 6 checksums byte-identical' (($realChecksums | Where-Object { $_.byteIdentical }).Count -eq 6)
 $realManifestHead = Test-RepositoryIdentity -RepoRoot $root -ExpectedCommit $realManifest.authoritativeCommit
 A 'real manifest: authoritative commit is HEAD or an ancestor of HEAD' ($realManifestHead -match '^[0-9a-f]{40}$')
 $isExactOrAncestor = ($realManifestHead -eq $realManifest.authoritativeCommit)
@@ -69,7 +71,7 @@ if ($LASTEXITCODE -eq 0 -and $ancestorCommit) {
     try { $ancestorResult = Test-RepositoryIdentity -RepoRoot $root -ExpectedCommit $ancestorCommit } catch {}
     A 'ancestor semantics: HEAD~1 (a real ancestor, not equal to HEAD) is accepted' ($ancestorResult -eq (& git -C $root rev-parse HEAD).Trim())
 }
-A 'real manifest: approval phrase is deterministic and includes batch+target' ((Get-ManifestApprovalPhrase -Manifest $realManifest) -eq 'APPLY SNAG-LIST-030-034 TO szgbkeqornkdngoegyso')
+A 'real manifest: exact owner approval phrase is deterministic' ((Get-ManifestApprovalPhrase -Manifest $realManifest) -eq 'APPROVE PRODUCTION APPLY SNAG LIST 030-035')
 
 # --- Scenario 14: missing manifest ---
 AThrows 'scenario 14: missing manifest file' { Import-MigrationManifest -Path (Join-Path $root 'scripts\manifests\does-not-exist.psd1') } 'manifest not found'
@@ -88,7 +90,7 @@ try {
 
     # --- Scenario 4: wrong order (031 before 030) ---
     $wrongOrderManifest = $realManifest.Clone()
-    $wrongOrderManifest.migrations = @($realManifest.migrations[1], $realManifest.migrations[0]) + $realManifest.migrations[2..4]
+    $wrongOrderManifest.migrations = @($realManifest.migrations[1], $realManifest.migrations[0]) + $realManifest.migrations[2..5]
     AThrows 'scenario 4: wrong order (031 before 030)' { Test-ManifestMigrationOrder -Manifest $wrongOrderManifest } 'ascending order'
 
     # --- Scenario 5: duplicate migration number ---
@@ -106,7 +108,7 @@ try {
     $badChecksumManifest = $realManifest.Clone()
     $tamperedEntry = $realManifest.migrations[0].Clone()
     $tamperedEntry.sha256 = ('0' * 64)
-    $badChecksumManifest.migrations = @($tamperedEntry) + $realManifest.migrations[1..4]
+    $badChecksumManifest.migrations = @($tamperedEntry) + $realManifest.migrations[1..5]
     AThrows 'scenario 1/2: wrong checksum in manifest' { Test-ManifestMigrationChecksums -Manifest $badChecksumManifest -RepoRoot $root } 'MIGRATION HASH MISMATCH'
 
     # --- Scenario 3: missing migration file ---
@@ -206,10 +208,10 @@ foreach ($src in @(@{n='apply';t=$applySource},@{n='preflight';t=$preflightSourc
 # --- Confirmation phrase is compared, not blindly trusted ---
 A 'apply CLI compares Approval against manifest-derived phrase (case-sensitive)' ($applySource -match '\$Approval -cne \$expectedApproval')
 
-# --- SnagListMigrationContract: object lists match migration 030-034 exactly ---
+# --- SnagListMigrationContract: object lists include migration 030-035 objects ---
 $contractSource = Get-Content -Raw (Join-Path $root 'scripts\lib\SnagListMigrationContract.ps1')
-$expectedTables = @('snags', 'snag_events', 'snag_evidence', 'snag_plan_versions', 'snag_command_requests', 'snag_evidence_upload_intents')
-A 'SnagListTables source declares all 6 expected tables' (@($expectedTables | Where-Object { $contractSource -notmatch [regex]::Escape("'$_'") }).Count -eq 0)
+$expectedTables = @('snags', 'snag_events', 'snag_evidence', 'snag_plan_versions', 'snag_command_requests', 'snag_evidence_upload_intents', 'project_snag_sequences', 'project_snag_trades', 'project_stakeholders', 'snag_trade_stakeholders', 'snag_comments')
+A 'SnagListTables source declares all 11 expected tables' (@($expectedTables | Where-Object { $contractSource -notmatch [regex]::Escape("'$_'") }).Count -eq 0)
 
 # ---------------------------------------------------------------------------
 # Idempotency and partial-apply policy (section 7.3/7.4): mocked $Query
@@ -226,8 +228,9 @@ $allPresentQuery = {
     if ($Sql -match "pg_locks") { return '0' }
     return 't'
 }
-$repeatRunResult = Test-SnagListPreflightAssertions -Query $allPresentQuery -BatchId 'SNAG-LIST-030-034'
+$repeatRunResult = Test-SnagListPreflightAssertions -Query $allPresentQuery -BatchId 'SNAG-LIST-030-035'
 A 'idempotency: repeat run after success is classified NOT_READY (blocked, not silently re-applied)' ($repeatRunResult.status -eq 'NOT_READY')
+A 'idempotency: repeat run classification is ALREADY_APPLIED' ($repeatRunResult.classification -eq 'ALREADY_APPLIED')
 A 'idempotency: repeat-run reason names "already exists"' (@($repeatRunResult.reasons | Where-Object { $_ -match 'already exists' }).Count -gt 0)
 
 # Scenario: partial apply - predecessor present, only SOME Snag List objects
@@ -239,10 +242,33 @@ $partialQuery = {
     if ($Sql -match "to_regclass\('public\.projects'\)|to_regclass\('public\.profiles'\)|to_regclass\('auth\.users'\)|to_regprocedure\('public\.can_") { return 't' }
     return 'f'
 }
-$partialResult = Test-SnagListPreflightAssertions -Query $partialQuery -BatchId 'SNAG-LIST-030-034'
+$partialResult = Test-SnagListPreflightAssertions -Query $partialQuery -BatchId 'SNAG-LIST-030-035'
 A 'partial-apply: mixed presence is classified NOT_READY (blocked pending forensic review)' ($partialResult.status -eq 'NOT_READY')
+A 'partial-apply: explicit PARTIAL_STATE classification is emitted' ($partialResult.classification -eq 'PARTIAL_STATE')
 A 'partial-apply: reason names drift/partial state, not a resumable state' (@($partialResult.reasons | Where-Object { $_ -match 'partial|drift' }).Count -gt 0)
 A 'partial-apply: safe default is BLOCK, never an automatic resume-from-next-migration' ($applySource -notmatch '(?i)resume|continue.?from.?next')
+
+$only035Names = 'project_snag_sequences|project_snag_trades|project_stakeholders|snag_trade_stakeholders|snag_comments|capture_snag_observation|execute_snag_product_command|publish_snag_observations|add_snag_comment|configure_snag_catalog'
+$legacyOnlyQuery = {
+    param([string]$Sql)
+    if ($Sql -match 'pg_locks') { return '0' }
+    if ($Sql -match $only035Names) { return 'f' }
+    return 't'
+}
+$missing035 = Test-SnagListPreflightAssertions -Query $legacyOnlyQuery -BatchId 'SNAG-LIST-030-035'
+A 'partial state: 030-034 present with 035 missing is NOT_READY' ($missing035.status -eq 'NOT_READY')
+A 'partial state: 030-034 present with 035 missing is classified PARTIAL_STATE' ($missing035.classification -eq 'PARTIAL_STATE')
+
+$driftQuery = {
+    param([string]$Sql)
+    if ($Sql -match 'pg_locks') { return '0' }
+    if ($Sql -match "to_regclass\('public\.projects'\)|to_regclass\('public\.profiles'\)|to_regclass\('auth\.users'\)|to_regprocedure\('public\.can_") { return 'f' }
+    if ($Sql -match 'project_snag_trades') { return 't' }
+    return 'f'
+}
+$driftResult = Test-SnagListPreflightAssertions -Query $driftQuery -BatchId 'SNAG-LIST-030-035'
+A 'unexpected 035 object without predecessor is NOT_READY' ($driftResult.status -eq 'NOT_READY')
+A 'unexpected 035 object without predecessor is PARTIAL_DRIFT' ($driftResult.classification -eq 'PARTIAL_DRIFT')
 
 # ---------------------------------------------------------------------------
 # H-02: valid-but-wrong target project ref. Get-ProductionConnectionFingerprint
@@ -275,6 +301,7 @@ try {
 $applyIndexTargetCheck = $applySource.IndexOf('$conn = Get-ProductionConnectionFingerprint')
 $applyIndexMigrationExec = $applySource.IndexOf('Invoke-ManifestMigrationSequence -Manifest')
 A 'H-02: target fingerprint check happens before any migration is executed in the apply CLI' ($applyIndexTargetCheck -gt 0 -and $applyIndexTargetCheck -lt $applyIndexMigrationExec)
+A 'required database user is checked before migration execution' ($applySource.IndexOf('requiredDatabaseUser') -gt $applyIndexTargetCheck -and $applySource.IndexOf('requiredDatabaseUser') -lt $applyIndexMigrationExec)
 
 # ---------------------------------------------------------------------------
 # H-07/H-08/H-09: dirty tracked migration, independent of checksum.
@@ -319,15 +346,11 @@ try {
         Test-ManifestMigrationsTrackedAndClean -Manifest $updatedManifest -RepoRoot $root
     } 'TRACKED MIGRATION FILE IS DIRTY'
 } finally {
-    Invoke-NativeTool -Command 'git' -ArgumentList @('-C', $root, 'checkout', '--', $dirtyFixtureRelative) | Out-Null
+    [IO.File]::WriteAllText($dirtyFixtureAbsolute, $originalFixtureContent, [Text.UTF8Encoding]::new($false))
     $restoredHash = (Get-FileHash -LiteralPath $dirtyFixtureAbsolute -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($restoredHash -ne $originalFixtureHash) {
-        # Last-resort direct restore if `git checkout` could not run for any reason.
-        Set-Content -LiteralPath $dirtyFixtureAbsolute -Value $originalFixtureContent -NoNewline -Encoding utf8
-    }
 }
-$finalFixtureHash = (Get-FileHash -LiteralPath $dirtyFixtureAbsolute -Algorithm SHA256).Hash.ToLowerInvariant()
-A 'dirty-gate fixture: restored to original committed content after the test (cleanup proven, not assumed)' ($finalFixtureHash -eq $originalFixtureHash)
+$finalFixtureContent = [IO.File]::ReadAllText($dirtyFixtureAbsolute)
+A 'dirty-gate fixture: restored to original content after the test (cleanup proven, not assumed)' ($finalFixtureContent -eq $originalFixtureContent)
 
 # H-09: clean tracked file, matching checksum - both gates pass. Uses the
 # real, already-committed Snag List manifest/migrations rather than the

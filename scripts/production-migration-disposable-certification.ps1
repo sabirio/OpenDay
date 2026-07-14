@@ -15,20 +15,21 @@ param(
 # THREE throwaway disposable Postgres containers in turn:
 #
 #   1. Happy path: preflight assertions (expect READY), apply the REAL
-#      snag-list-030-034 manifest via Invoke-ManifestMigrationSequence
+#      snag-list-030-035 manifest via Invoke-ManifestMigrationSequence
 #      (the exact same function scripts/production-migration-apply.ps1
 #      calls), postflight assertions (expect PASS), row-count preservation
 #      on pre-existing tables, then a REPEAT preflight against the same
 #      now-fully-applied database (expect NOT_READY / already applied, no
 #      new container needed).
 #   2. Failure injection: a fresh restore of the SAME baseline, then a
-#      TEST-ONLY 4-file manifest (valid, valid, deliberately broken SQL,
-#      valid) applied via the same function - proves the third migration's
-#      failure stops the sequence with the third step FAIL, the fourth step
-#      reported NOT_ATTEMPTED, AND the fourth migration's own database
-#      object genuinely absent (not just missing from the log).
+#      TEST-ONLY 6-file manifest (three valid, deliberately broken SQL,
+#      two valid) applied via the same function - proves the fourth
+#      migration's failure stops the sequence with the fourth step FAIL,
+#      the fifth and sixth steps reported NOT_ATTEMPTED, AND both later
+#      migrations' database objects genuinely absent (not just missing
+#      from the log).
 #   3. Partial state: a third fresh restore, only 030+031 applied (a
-#      truncated 2-entry manifest), then preflight against the full 5-entry
+#      truncated 2-entry manifest), then preflight against the full 6-entry
 #      manifest - proves partial presence is classified NOT_READY with a
 #      drift/partial reason, never treated as resumable.
 #
@@ -46,7 +47,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\SnagListMigrationContract.ps1')
 
 $BackupPath = (Resolve-Path -LiteralPath $BackupPath).Path
-$manifestPath = Join-Path $repoRoot 'scripts\manifests\snag-list-030-034.psd1'
+$manifestPath = Join-Path $repoRoot 'scripts\manifests\snag-list-030-035.psd1'
 
 # Resolve the Postgres image the same way the prior review's rehearsal did:
 # the currently-running local Supabase database container's own image,
@@ -253,7 +254,7 @@ function Invoke-DockerCatalogQuery {
 # =====================================================================
 # 1. HAPPY PATH
 # =====================================================================
-Write-Host '=== HAPPY PATH: restore -> preflight(READY) -> apply 030-034 -> postflight(PASS) ==='
+Write-Host '=== HAPPY PATH: restore -> preflight(READY) -> apply 030-035 -> postflight(PASS) ==='
 $happy = [ordered]@{ status = 'FAIL'; preflight = $null; execution = $null; postflight = $null; rowPreservation = $null; repeatState = $null; cleanup = $null }
 $disposable1 = $null
 try {
@@ -264,10 +265,10 @@ try {
     foreach ($line in ($preRowsRaw -split "`r?`n")) { if ($line -and $line.Contains('|')) { $parts = $line.Split('|', 2); $preRows[$parts[0]] = $parts[1] } }
 
     $queryFn = { param([string]$Sql) return Invoke-DockerCatalogQuery $disposable1 $Sql }
-    $preflight = Test-SnagListPreflightAssertions -Query $queryFn -BatchId 'SNAG-LIST-030-034'
+    $preflight = Test-SnagListPreflightAssertions -Query $queryFn -BatchId 'SNAG-LIST-030-035'
     $happy.preflight = $preflight
-    if ($preflight.status -ne 'READY_FOR_SNAG-LIST-030-034') { throw "preflight did not report READY: $($preflight | ConvertTo-Json -Depth 5)" }
-    Write-Host 'Preflight: READY_FOR_SNAG-LIST-030-034 (PASS)'
+    if ($preflight.status -ne 'READY_FOR_SNAG-LIST-030-035') { throw "preflight did not report READY: $($preflight | ConvertTo-Json -Depth 5)" }
+    Write-Host 'Preflight: READY_FOR_SNAG-LIST-030-035 (PASS)'
 
     $manifest = Import-MigrationManifest -Path $manifestPath
     $checksums = Test-ManifestMigrationChecksums -Manifest $manifest -RepoRoot $repoRoot
@@ -294,7 +295,7 @@ try {
     # disposable database (no new container - proves the live query path,
     # not just the mocked unit test). Expected: NOT_READY, "already exists",
     # no re-execution attempted.
-    $repeatPreflight = Test-SnagListPreflightAssertions -Query $queryFn -BatchId 'SNAG-LIST-030-034'
+    $repeatPreflight = Test-SnagListPreflightAssertions -Query $queryFn -BatchId 'SNAG-LIST-030-035'
     $happy.repeatState = $repeatPreflight
     $repeatOk = ($repeatPreflight.status -eq 'NOT_READY') -and (@($repeatPreflight.reasons | Where-Object { $_ -match 'already exists' }).Count -gt 0)
     if (-not $repeatOk) { throw "repeat-state preflight did not report the expected blocked/already-applied state: $($repeatPreflight | ConvertTo-Json -Depth 5)" }
@@ -314,17 +315,20 @@ $report.happyPath = $happy
 # 2. FAILURE INJECTION: broken SQL mid-sequence, stop-on-first-failure
 # =====================================================================
 Write-Host ''
-Write-Host '=== FAILURE INJECTION: 4-file test-only manifest, 3rd file deliberately broken, 4th file MUST_NOT_RUN ==='
+Write-Host '=== FAILURE INJECTION: 6-file test-only manifest, 4th file deliberately broken, 5th and 6th files MUST_NOT_RUN ==='
 $injection = [ordered]@{ status = 'FAIL'; execution = $null; dbSideEffects = $null; cleanup = $null }
 $disposable2 = $null
 $testMigrationsDir = Join-Path ([IO.Path]::GetTempPath()) "migexec-failtest-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 try {
     New-Item -ItemType Directory -Path $testMigrationsDir | Out-Null
-    $file1 = '900_hardening_step_001.sql'; $file2 = '901_hardening_step_002.sql'; $file3 = '902_hardening_step_003_broken.sql'; $file4 = '903_hardening_step_004.sql'
+    $file1 = '900_hardening_step_001.sql'; $file2 = '901_hardening_step_002.sql'; $file3 = '902_hardening_step_003.sql'
+    $file4 = '903_hardening_step_004_broken.sql'; $file5 = '904_hardening_step_005.sql'; $file6 = '905_hardening_step_006.sql'
     Set-Content -LiteralPath (Join-Path $testMigrationsDir $file1) -Value "CREATE TABLE public.hardening_step_001(id int);" -Encoding utf8 -NoNewline
     Set-Content -LiteralPath (Join-Path $testMigrationsDir $file2) -Value "CREATE TABLE public.hardening_step_002(id int);" -Encoding utf8 -NoNewline
-    Set-Content -LiteralPath (Join-Path $testMigrationsDir $file3) -Value "SELECT this is not valid sql;" -Encoding utf8 -NoNewline
-    Set-Content -LiteralPath (Join-Path $testMigrationsDir $file4) -Value "CREATE TABLE public.hardening_step_004(id int);" -Encoding utf8 -NoNewline
+    Set-Content -LiteralPath (Join-Path $testMigrationsDir $file3) -Value "CREATE TABLE public.hardening_step_003(id int);" -Encoding utf8 -NoNewline
+    Set-Content -LiteralPath (Join-Path $testMigrationsDir $file4) -Value "SELECT this is not valid sql;" -Encoding utf8 -NoNewline
+    Set-Content -LiteralPath (Join-Path $testMigrationsDir $file5) -Value "CREATE TABLE public.hardening_step_005(id int);" -Encoding utf8 -NoNewline
+    Set-Content -LiteralPath (Join-Path $testMigrationsDir $file6) -Value "CREATE TABLE public.hardening_step_006(id int);" -Encoding utf8 -NoNewline
 
     $testManifest = @{
         schemaVersion = 1; batchId = 'TEST-FAILURE-INJECTION'; approvedProjectRef = 'szgbkeqornkdngoegyso'
@@ -334,7 +338,9 @@ try {
             @{ number = 900; file = $file1; sha256 = (Get-FileHash -LiteralPath (Join-Path $testMigrationsDir $file1) -Algorithm SHA256).Hash.ToLowerInvariant() },
             @{ number = 901; file = $file2; sha256 = (Get-FileHash -LiteralPath (Join-Path $testMigrationsDir $file2) -Algorithm SHA256).Hash.ToLowerInvariant() },
             @{ number = 902; file = $file3; sha256 = (Get-FileHash -LiteralPath (Join-Path $testMigrationsDir $file3) -Algorithm SHA256).Hash.ToLowerInvariant() },
-            @{ number = 903; file = $file4; sha256 = (Get-FileHash -LiteralPath (Join-Path $testMigrationsDir $file4) -Algorithm SHA256).Hash.ToLowerInvariant() }
+            @{ number = 903; file = $file4; sha256 = (Get-FileHash -LiteralPath (Join-Path $testMigrationsDir $file4) -Algorithm SHA256).Hash.ToLowerInvariant() },
+            @{ number = 904; file = $file5; sha256 = (Get-FileHash -LiteralPath (Join-Path $testMigrationsDir $file5) -Algorithm SHA256).Hash.ToLowerInvariant() },
+            @{ number = 905; file = $file6; sha256 = (Get-FileHash -LiteralPath (Join-Path $testMigrationsDir $file6) -Algorithm SHA256).Hash.ToLowerInvariant() }
         )
     }
     Test-ManifestMigrationOrder -Manifest $testManifest | Out-Null
@@ -345,24 +351,27 @@ try {
     $injection.execution = $execution
     foreach ($step in $execution.steps) { Write-Host "  $($step.file): $($step.status)" }
 
-    $step1 = $execution.steps[0]; $step2 = $execution.steps[1]; $step3 = $execution.steps[2]; $step4 = $execution.steps[3]
-    $ok = ($execution.overallStatus -eq 'FAIL') -and ($step1.status -eq 'PASS') -and ($step2.status -eq 'PASS') -and ($step3.status -eq 'FAIL') -and ($step4.status -eq 'NOT_ATTEMPTED') -and ($execution.failedAt -eq $file3)
+    $step1 = $execution.steps[0]; $step2 = $execution.steps[1]; $step3 = $execution.steps[2]
+    $step4 = $execution.steps[3]; $step5 = $execution.steps[4]; $step6 = $execution.steps[5]
+    $ok = ($execution.overallStatus -eq 'FAIL') -and ($step1.status -eq 'PASS') -and ($step2.status -eq 'PASS') -and ($step3.status -eq 'PASS') -and ($step4.status -eq 'FAIL') -and ($step5.status -eq 'NOT_ATTEMPTED') -and ($step6.status -eq 'NOT_ATTEMPTED') -and ($execution.failedAt -eq $file4)
     if (-not $ok) { throw "stop-on-first-failure not proven (H-03): $($execution | ConvertTo-Json -Depth 5)" }
-    Write-Host 'H-03 (evidence): PASS - 001 PASS, 002 PASS, 003 FAIL, 004 NOT_ATTEMPTED'
+    Write-Host 'H-03 (evidence): PASS - 001 PASS, 002 PASS, 003 PASS, 004 FAIL, 005 NOT_ATTEMPTED, 006 NOT_ATTEMPTED'
 
     $marker1 = (Invoke-DockerCatalogQuery $disposable2 "SELECT to_regclass('public.hardening_step_001') IS NOT NULL;").Trim()
     $marker2 = (Invoke-DockerCatalogQuery $disposable2 "SELECT to_regclass('public.hardening_step_002') IS NOT NULL;").Trim()
-    $marker4 = (Invoke-DockerCatalogQuery $disposable2 "SELECT to_regclass('public.hardening_step_004') IS NOT NULL;").Trim()
-    $injection.dbSideEffects = [ordered]@{ hardening_step_001_exists = $marker1; hardening_step_002_exists = $marker2; hardening_step_004_exists = $marker4 }
-    if ($marker1 -ne 't' -or $marker2 -ne 't') { throw "expected the two successful migrations to have applied their tables (step001=$marker1 step002=$marker2)" }
-    if ($marker4 -eq 't') { throw "H-04 VIOLATION: hardening_step_004 exists in the database even though its migration was reported NOT_ATTEMPTED - step 4 must never have run" }
-    Write-Host "H-04 (DB side effect): PASS - hardening_step_001 exists, hardening_step_002 exists, hardening_step_004 absent (marker4=$marker4)"
+    $marker3 = (Invoke-DockerCatalogQuery $disposable2 "SELECT to_regclass('public.hardening_step_003') IS NOT NULL;").Trim()
+    $marker5 = (Invoke-DockerCatalogQuery $disposable2 "SELECT to_regclass('public.hardening_step_005') IS NOT NULL;").Trim()
+    $marker6 = (Invoke-DockerCatalogQuery $disposable2 "SELECT to_regclass('public.hardening_step_006') IS NOT NULL;").Trim()
+    $injection.dbSideEffects = [ordered]@{ hardening_step_001_exists = $marker1; hardening_step_002_exists = $marker2; hardening_step_003_exists = $marker3; hardening_step_005_exists = $marker5; hardening_step_006_exists = $marker6 }
+    if ($marker1 -ne 't' -or $marker2 -ne 't' -or $marker3 -ne 't') { throw "expected the three successful migrations to have applied their tables (step001=$marker1 step002=$marker2 step003=$marker3)" }
+    if ($marker5 -eq 't' -or $marker6 -eq 't') { throw "H-04 VIOLATION: a migration after the failed fourth step produced a database side effect (step005=$marker5 step006=$marker6)" }
+    Write-Host "H-04 (DB side effect): PASS - hardening steps 001-003 exist; steps 005-006 are absent (step005=$marker5 step006=$marker6)"
 
     $exitCodeOk = ($execution.overallStatus -eq 'FAIL')
     Write-Host "H-05 (non-zero outcome recorded): $(if ($exitCodeOk) { 'PASS' } else { 'FAIL' })"
     if (-not $exitCodeOk) { throw 'H-05 not proven: overallStatus was not FAIL' }
 
-    Write-Host 'Stop-on-first-failure: PASS (steps 1-2 applied, step 3 failed, step 4 never attempted and has no database side effect)'
+    Write-Host 'Stop-on-first-failure: PASS (steps 1-3 applied, step 4 failed, steps 5-6 never attempted and have no database side effects)'
 
     $injection.status = 'PASS'
 } catch {
@@ -379,7 +388,7 @@ $report.failureInjection = $injection
 # 3. PARTIAL STATE: only 030+031 applied, preflight against the full batch
 # =====================================================================
 Write-Host ''
-Write-Host '=== PARTIAL STATE: 030+031 applied, 032-034 absent - preflight must classify as NOT_READY ==='
+Write-Host '=== PARTIAL STATE: 030+031 applied, 032-035 absent - preflight must classify as NOT_READY ==='
 $partial = [ordered]@{ status = 'FAIL'; preflight = $null; cleanup = $null }
 $disposable3 = $null
 try {
@@ -393,7 +402,7 @@ try {
     Write-Host '030+031 applied (baseline for partial-state test)'
 
     $partialQueryFn = { param([string]$Sql) return Invoke-DockerCatalogQuery $disposable3 $Sql }
-    $partialPreflight = Test-SnagListPreflightAssertions -Query $partialQueryFn -BatchId 'SNAG-LIST-030-034'
+    $partialPreflight = Test-SnagListPreflightAssertions -Query $partialQueryFn -BatchId 'SNAG-LIST-030-035'
     $partial.preflight = $partialPreflight
     $partialOk = ($partialPreflight.status -eq 'NOT_READY') -and (@($partialPreflight.reasons | Where-Object { $_ -match 'partial|drift' }).Count -gt 0)
     if (-not $partialOk) { throw "partial-state preflight did not report the expected blocked/partial-drift state: $($partialPreflight | ConvertTo-Json -Depth 5)" }

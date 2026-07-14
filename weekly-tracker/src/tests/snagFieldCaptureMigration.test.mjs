@@ -2,6 +2,7 @@ import {readFileSync} from 'node:fs';
 const sql=readFileSync(new URL('../migrations/035_snag_canonical_field_capture.sql',import.meta.url),'utf8');let pass=0,fail=0;const check=(label,value)=>value?(pass++,console.log(`  OK ${label}`)):(fail++,console.error(`  FAIL ${label}`));
 check('publication state is independent from workflow status',/publication_state text NOT NULL DEFAULT 'PUBLISHED'.*CAPTURED.*PUBLISHED.*ARCHIVED/s.test(sql));
 check('project sequence never derives a new number from deleted rows',/project_snag_sequences/.test(sql)&&/ON CONFLICT\(project_id\) DO UPDATE SET last_number=project_snag_sequences\.last_number\+1/.test(sql));
+check('legacy inserts advance the project counter before canonical capture',/TG_OP='INSERT'.*project_snag_sequences\(project_id,last_number\).*greatest\(public\.project_snag_sequences\.last_number,EXCLUDED\.last_number\)/s.test(sql));
 check('capture is idempotent and immediately persistent',/capture_snag_observation/.test(sql)&&/snag_command_requests/.test(sql)&&/'SNAG_CAPTURED'/.test(sql));
 check('trade catalog is project scoped and configurable',/CREATE TABLE public\.project_snag_trades/.test(sql)&&/configure_snag_catalog/.test(sql));
 check('stakeholder account is optional',/user_id uuid REFERENCES auth\.users\(id\) ON DELETE SET NULL/.test(sql));

@@ -45,6 +45,10 @@ ALTER TABLE public.snags ADD CONSTRAINT snags_publication_timestamps CHECK (
 CREATE OR REPLACE FUNCTION public.normalize_snag_publication_timestamps() RETURNS trigger
 LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
 BEGIN
+  IF TG_OP='INSERT' AND NEW.snag_number IS NOT NULL THEN
+    INSERT INTO public.project_snag_sequences(project_id,last_number) VALUES(NEW.project_id,NEW.snag_number)
+    ON CONFLICT(project_id) DO UPDATE SET last_number=greatest(public.project_snag_sequences.last_number,EXCLUDED.last_number);
+  END IF;
   IF NEW.publication_state='PUBLISHED' THEN NEW.published_at:=coalesce(NEW.published_at,NEW.created_at,now());NEW.published_by:=coalesce(NEW.published_by,NEW.created_by);
   ELSIF NEW.publication_state='CAPTURED' THEN NEW.published_at:=NULL;NEW.published_by:=NULL;NEW.archived_at:=NULL;NEW.archived_by:=NULL;END IF;RETURN NEW;
 END $$;

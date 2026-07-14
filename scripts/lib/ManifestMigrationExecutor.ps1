@@ -42,6 +42,9 @@ function Invoke-ManifestMigrationSequence {
     if ($ChecksumResults.Count -ne $Manifest.migrations.Count) {
         throw 'checksum results do not match the manifest migration count - refusing to apply against a mismatched validation set'
     }
+    if ($Manifest.Contains('stopOnFirstFailure') -and -not $Manifest.stopOnFirstFailure) {
+        throw 'manifest does not authorize stop-on-first-failure execution'
+    }
 
     $result = [ordered]@{
         overallStatus = 'NOT_RUN'

@@ -42,6 +42,9 @@ function Import-MigrationManifest {
     if ($manifest.approvedProjectRef -notmatch '^[a-z0-9]{15,25}$') { throw "manifest approvedProjectRef does not look like a Supabase project ref: $($manifest.approvedProjectRef)" }
     if ($manifest.authoritativeCommit -notmatch '^[0-9a-f]{40}$') { throw "manifest authoritativeCommit is not a full 40-character SHA: $($manifest.authoritativeCommit)" }
     if (-not $manifest.migrations -or $manifest.migrations.Count -eq 0) { throw 'manifest declares zero migrations' }
+    if ($manifest.Contains('requiredDatabaseUser') -and $manifest.requiredDatabaseUser -ne 'postgres') { throw 'manifest requiredDatabaseUser must be postgres' }
+    if ($manifest.Contains('stopOnFirstFailure') -and -not $manifest.stopOnFirstFailure) { throw 'manifest must require stop-on-first-failure semantics' }
+    if ($manifest.Contains('approvalPhrase') -and [string]::IsNullOrWhiteSpace($manifest.approvalPhrase)) { throw 'manifest approvalPhrase is empty' }
 
     foreach ($m in $manifest.migrations) {
         foreach ($requiredField in @('number', 'file', 'sha256')) {
@@ -241,6 +244,7 @@ function Test-RepositoryIdentity {
 # ---------------------------------------------------------------------------
 function Get-ManifestApprovalPhrase {
     param([Parameter(Mandatory)][hashtable]$Manifest)
+    if ($Manifest.Contains('approvalPhrase')) { return [string]$Manifest.approvalPhrase }
     return "APPLY $($Manifest.batchId) TO $($Manifest.approvedProjectRef)"
 }
 

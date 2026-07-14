@@ -1,4 +1,8 @@
-# Owner runbook: Snag List migrations 030→034 to production
+# SUPERSEDED — DO NOT USE FOR FIRST SNAG LIST PRODUCTION RELEASE
+
+This historical `030–034` procedure is retained only for forensic traceability. Use `docs/SNAG_LIST_030_035_OWNER_RUNBOOK.md` for the canonical first release.
+
+# Owner runbook: Snag List migrations 030→034 to production (historical)
 
 Target: `szgbkeqornkdngoegyso`. Sequence: `030 → 031 → 032 → 033 → 034`.
 Authoritative application commit: `7234b6413e46d76b82794dcedbe66fa2600f4e46`.

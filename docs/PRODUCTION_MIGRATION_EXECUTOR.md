@@ -21,11 +21,11 @@ the exact commands below for the owner to run.
 | `scripts/manifests/<batch>.psd1` | Reviewed, tracked manifest: which migration files, in what order, with what SHA-256, for which approved project ref and authoritative commit. |
 | `scripts/lib/MigrationManifestValidator.ps1` | Pure validation functions: manifest schema, strict order (+ contiguity), path containment (blocks traversal/absolute paths), byte-exact checksums, git-tracked-and-clean state (independent of checksum — see below), repository HEAD ancestry, the deterministic confirmation phrase, secret redaction. |
 | `scripts/lib/ManifestMigrationExecutor.ps1` | Connection-agnostic execution engine (`Invoke-ManifestMigrationSequence`). Takes already-resolved PG connection values and a validated manifest; applies each file via one `psql -X -v ON_ERROR_STOP=1` invocation per file, in order, stopping on the first non-zero exit. No retry loop. Used unmodified by both the disposable certification and the real production apply script. |
-| `scripts/lib/SnagListMigrationContract.ps1` | Batch-specific (Snag List 030-034) read-only object-inventory and contract assertions, via the same `$Query`-callback convention as `lib/RemediationPreflightPostflight.ps1`. |
+| `scripts/lib/SnagListMigrationContract.ps1` | Batch-specific (Snag List 030-035) read-only object-inventory and contract assertions, via the same `$Query`-callback convention as `lib/RemediationPreflightPostflight.ps1`. |
 | `scripts/production-migration-apply.ps1` | The CLI. Two parameter sets: `-ValidateOnly` (manifest/order/path/checksum/git-identity only — never touches Docker, network, or a credential) and Apply mode (everything `-ValidateOnly` checks, plus verified-backup checksum, approved-preflight-result checksum and status, an exact confirmation phrase computed from the manifest, then the production connection and apply). |
 | `scripts/production-migration-preflight-live.ps1` | Read-only. Confirms the batch's objects are entirely absent and predecessor objects are present, via a bounded `READ ONLY REPEATABLE READ` transaction per query (`New-ReadOnlyCatalogScript`) with a forbidden-statement guard. Writes an atomic evidence file whose `status` the apply script re-checks. |
 | `scripts/production-migration-postflight-live.ps1` | Read-only. Confirms every expected object exists with the expected contract (RLS enabled, private buckets, no anon execute grant). Never calls a business RPC, never creates a row. |
-| `scripts/production-migration-disposable-certification.ps1` | Restores the already-verified production backup into disposable, throwaway Postgres containers (never production) and proves: (1) happy path — preflight READY → apply → postflight PASS → 0 unexpected row-count differences on pre-existing tables → a repeat preflight against the same now-applied database reports NOT_READY; (2) failure injection — a 4-migration test batch where the 3rd fails: the 4th is reported NOT_ATTEMPTED **and** its database object is proven absent by direct query, not just missing from the log; (3) partial state — only the first 2 of 5 migrations applied, preflight against the full manifest reports NOT_READY with a drift/partial reason. |
+| `scripts/production-migration-disposable-certification.ps1` | Restores the already-verified production backup into disposable, throwaway Postgres containers (never production) and proves: (1) happy path — preflight READY → apply → postflight PASS → 0 unexpected row-count differences on pre-existing tables → a repeat preflight against the same now-applied database reports NOT_READY; (2) failure injection — a 6-migration test batch where steps 1–3 pass and step 4 fails: steps 5–6 are reported NOT_ATTEMPTED **and** their database objects are proven absent by direct query, not just missing from the log; (3) partial state — only the first 2 of 6 migrations applied, preflight against the full manifest reports NOT_READY with a drift/partial reason. |
 | `scripts/tests/production-migration-executor.tests.ps1` | Plain assertion script (no Pester), fully offline. Covers manifest/order/path/checksum/identity validation, secret redaction, atomic evidence, no-retry-loop, no-arbitrary-SQL-surface, and the idempotency/partial-apply policy below. |
 
 ## Manifest contract
@@ -36,7 +36,7 @@ A `.psd1` manifest is a plain PowerShell data file (`Import-PowerShellDataFile`
 ```powershell
 @{
     schemaVersion = 1
-    batchId = 'SNAG-LIST-030-034'
+    batchId = 'SNAG-LIST-030-035'
     approvedProjectRef = 'szgbkeqornkdngoegyso'
     authoritativeCommit = '<40-char full SHA>'
     migrationsDirectory = 'weekly-tracker\src\migrations'
@@ -122,7 +122,7 @@ happened rather than being assumed).
 
 ```powershell
 .\scripts\production-migration-apply.ps1 `
-  -ManifestPath .\scripts\manifests\snag-list-030-034.psd1 `
+  -ManifestPath .\scripts\manifests\snag-list-030-035.psd1 `
   -ValidateOnly
 ```
 
@@ -187,7 +187,7 @@ needed to exercise the policy logic), and both are *also* proven against a
 real, live disposable connection in
 `scripts/production-migration-disposable-certification.ps1`: the repeat-run
 check reuses the same database immediately after a successful full apply,
-and the partial-state check applies only the first 2 of 5 migrations to a
+and the partial-state check applies only the first 2 of 6 migrations to a
 fresh disposable clone before running preflight against the full manifest.
 
 ## Secret handling
@@ -211,7 +211,7 @@ fresh disposable clone before running preflight against the full manifest.
 remediation regression suite — predates this generalized executor) used to
 hardcode "029 is the max migration number anywhere in the repository". That
 was only ever true until later, unrelated batches were added — Snag List
-`030-034` makes it permanently false, and it is *supposed* to be false: new
+`030-035` makes it permanently false, and it is *supposed* to be false: new
 migrations are expected to keep landing after 029 forever.
 
 The suite now checks the narrower invariant it actually needs, which does
