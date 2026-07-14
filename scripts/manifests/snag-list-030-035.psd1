@@ -7,7 +7,13 @@
     approvedProjectRef = 'szgbkeqornkdngoegyso'
     authoritativeCommit = '848659b770b02202c0b5e1a711c3a677aec34ef2'
     requiredDatabaseUser = 'postgres'
-    approvalPhrase = 'APPROVE PRODUCTION APPLY SNAG LIST 030-035'
+    approvalContract = @{
+        schemaVersion = 'snag-list-release-approval/v1'
+        releaseId = 'snag-list-030-035'
+        expectedBranch = 'feature/snag-list-evidence-workflow'
+        migrationStart = '030'
+        migrationEnd = '035'
+    }
     stopOnFirstFailure = $true
     expectedPredecessorClassification = 'READY_FOR_SNAG-LIST-030-035'
     expectedFinalClassification = 'ALREADY_APPLIED'

@@ -16,6 +16,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 . (Join-Path $root 'scripts\lib\ManifestMigrationExecutor.ps1')
 . (Join-Path $root 'scripts\lib\SnagListMigrationContract.ps1')
 . (Join-Path $root 'scripts\lib\PreflightEvidenceContract.ps1')
+. (Join-Path $root 'scripts\lib\ReleaseApprovalContract.ps1')
 
 $pass = 0; $fail = 0
 function A([string]$n, [bool]$c) { if ($c) { $script:pass++; Write-Host "[PASS] $n" } else { $script:fail++; Write-Host "[FAIL] $n" } }
@@ -38,6 +39,7 @@ $newScripts = @(
     'scripts\lib\ManifestMigrationExecutor.ps1',
     'scripts\lib\SnagListMigrationContract.ps1',
     'scripts\lib\PreflightEvidenceContract.ps1',
+    'scripts\lib\ReleaseApprovalContract.ps1',
     'scripts\production-migration-apply.ps1',
     'scripts\production-migration-preflight-live.ps1',
     'scripts\production-migration-postflight-live.ps1'
@@ -73,7 +75,7 @@ if ($LASTEXITCODE -eq 0 -and $ancestorCommit) {
     try { $ancestorResult = Test-RepositoryIdentity -RepoRoot $root -ExpectedCommit $ancestorCommit } catch {}
     A 'ancestor semantics: HEAD~1 (a real ancestor, not equal to HEAD) is accepted' ($ancestorResult -eq (& git -C $root rev-parse HEAD).Trim())
 }
-A 'real manifest: exact owner approval phrase is deterministic' ((Get-ManifestApprovalPhrase -Manifest $realManifest) -eq 'APPROVE PRODUCTION APPLY SNAG LIST 030-035')
+A 'real manifest: versioned release approval contract is declared' ($realManifest.approvalContract.schemaVersion -eq 'snag-list-release-approval/v1' -and $realManifest.approvalContract.releaseId -eq 'snag-list-030-035')
 
 # --- Scenario 14: missing manifest ---
 AThrows 'scenario 14: missing manifest file' { Import-MigrationManifest -Path (Join-Path $root 'scripts\manifests\does-not-exist.psd1') } 'manifest not found'
@@ -208,7 +210,7 @@ foreach ($src in @(@{n='apply';t=$applySource},@{n='preflight';t=$preflightSourc
 }
 
 # --- Confirmation phrase is compared, not blindly trusted ---
-A 'apply CLI compares Approval against manifest-derived phrase (case-sensitive)' ($applySource -match '\$Approval -cne \$expectedApproval')
+A 'apply CLI delegates exact approval validation to centralized contract helper' ($applySource -match 'Assert-ReleaseApproval -Approval \$Approval -Descriptor \$approvalDescriptor')
 
 # --- SnagListMigrationContract: object lists include migration 030-035 objects ---
 $contractSource = Get-Content -Raw (Join-Path $root 'scripts\lib\SnagListMigrationContract.ps1')
@@ -441,6 +443,69 @@ try {
     A 'pre-apply report marks every migration NOT_ATTEMPTED' ($applySource -match "attempted = \`$false; status = 'NOT_ATTEMPTED'")
 } finally {
     Remove-Item -LiteralPath $evidenceFixtureDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# ---------------------------------------------------------------------------
+# Versioned release approval contract. Descriptor construction is pure; the
+# repository-bound tests use a throwaway local Git repository and never read
+# credentials or access a network/database.
+# ---------------------------------------------------------------------------
+$approvalHead = ('a' * 40); $approvalManifestHash = ('b' * 64)
+$approvalDescriptor = New-ReleaseApprovalDescriptor -ReleaseId 'snag-list-030-035' -Branch 'feature/snag-list-evidence-workflow' -CertifiedHead $approvalHead -ManifestPath 'scripts/manifests/snag-list-030-035.psd1' -ManifestSha256 $approvalManifestHash -MigrationStart '030' -MigrationEnd '035'
+$approvalPhrase = Get-RequiredReleaseApprovalPhrase -Descriptor $approvalDescriptor
+A 'approval A: exact full-HEAD/full-manifest phrase passes' (Test-ReleaseApprovalPhrase -Approval $approvalPhrase -Descriptor $approvalDescriptor)
+A 'approval B: old unbound phrase is rejected' (-not (Test-ReleaseApprovalPhrase -Approval 'APPROVE PRODUCTION APPLY SNAG LIST 030-035' -Descriptor $approvalDescriptor))
+A 'approval C: abbreviated SHA phrase is rejected' (-not (Test-ReleaseApprovalPhrase -Approval 'APPROVE PRODUCTION APPLY SNAG LIST 030-035 AT 91CA79B' -Descriptor $approvalDescriptor))
+$wrongHeadDescriptor = New-ReleaseApprovalDescriptor -ReleaseId 'snag-list-030-035' -Branch 'feature/snag-list-evidence-workflow' -CertifiedHead ('c' * 40) -ManifestPath 'scripts/manifests/snag-list-030-035.psd1' -ManifestSha256 $approvalManifestHash -MigrationStart '030' -MigrationEnd '035'
+A 'approval D: wrong full HEAD is rejected' (-not (Test-ReleaseApprovalPhrase -Approval $approvalPhrase -Descriptor $wrongHeadDescriptor))
+$wrongHashDescriptor = New-ReleaseApprovalDescriptor -ReleaseId 'snag-list-030-035' -Branch 'feature/snag-list-evidence-workflow' -CertifiedHead $approvalHead -ManifestPath 'scripts/manifests/snag-list-030-035.psd1' -ManifestSha256 ('d' * 64) -MigrationStart '030' -MigrationEnd '035'
+A 'approval E: wrong manifest SHA-256 is rejected' (-not (Test-ReleaseApprovalPhrase -Approval $approvalPhrase -Descriptor $wrongHashDescriptor))
+A 'approval F: wrong migration range phrase is rejected' (-not (Test-ReleaseApprovalPhrase -Approval ($approvalPhrase -replace '030-035','030-034') -Descriptor $approvalDescriptor))
+AThrows 'approval G: wrong release ID is rejected by descriptor' { New-ReleaseApprovalDescriptor -ReleaseId 'wrong-release' -Branch 'feature/snag-list-evidence-workflow' -CertifiedHead $approvalHead -ManifestPath 'scripts/manifests/snag-list-030-035.psd1' -ManifestSha256 $approvalManifestHash -MigrationStart '030' -MigrationEnd '035' } 'invalid releaseId'
+A 'approval H: missing phrase is rejected' (-not (Test-ReleaseApprovalPhrase -Approval $null -Descriptor $approvalDescriptor))
+A 'approval I: empty phrase is rejected' (-not (Test-ReleaseApprovalPhrase -Approval '' -Descriptor $approvalDescriptor))
+A 'approval J: outer whitespace is trimmed' (Test-ReleaseApprovalPhrase -Approval "  $approvalPhrase`r`n" -Descriptor $approvalDescriptor)
+A 'approval K: changed internal whitespace is rejected' (-not (Test-ReleaseApprovalPhrase -Approval ($approvalPhrase -replace ' APPLY ','  APPLY ') -Descriptor $approvalDescriptor))
+A 'approval L: wrong case is rejected ordinally' (-not (Test-ReleaseApprovalPhrase -Approval $approvalPhrase.ToLowerInvariant() -Descriptor $approvalDescriptor))
+A 'approval M: extra prose is rejected' (-not (Test-ReleaseApprovalPhrase -Approval "Owner says: $approvalPhrase" -Descriptor $approvalDescriptor))
+A 'approval U: mismatch has dedicated classification' ((Get-ReleaseApprovalFailureClassification) -eq 'BLOCKED BEFORE APPLY - APPROVAL CONTRACT MISMATCH')
+A 'approval V: mismatch report marks all migrations NOT_ATTEMPTED' ($applySource -match 'Get-ReleaseApprovalFailureClassification' -and $applySource -match "attempted = \`$false; status = 'NOT_ATTEMPTED'")
+$approvalGateIndex = $applySource.IndexOf('Assert-ReleaseApproval -Approval')
+A 'approval T: gate precedes backup, credential, network and migration execution' ($approvalGateIndex -gt 0 -and $approvalGateIndex -lt $applySource.IndexOf('$backup = (Resolve-Path') -and $approvalGateIndex -lt $applySource.IndexOf('$conn = Get-ProductionConnectionFingerprint') -and $approvalGateIndex -lt $applySource.IndexOf('$applyReport.execution = Invoke-ManifestMigrationSequence'))
+A 'approval workflow: ShowRequiredApproval is a separate parameter set' ($applySource -match "ParameterSetName = 'ShowApproval'" -and $applySource -match 'SHOW_REQUIRED_APPROVAL: PASS')
+
+$approvalRepo = Join-Path ([IO.Path]::GetTempPath()) "approval-repo-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+try {
+    New-Item -ItemType Directory -Path (Join-Path $approvalRepo 'scripts\manifests') -Force | Out-Null
+    Copy-Item -LiteralPath $realManifestPath -Destination (Join-Path $approvalRepo 'scripts\manifests\snag-list-030-035.psd1')
+    Set-Content -LiteralPath (Join-Path $approvalRepo 'README.md') -Value 'fixture' -Encoding ascii
+    & git -C $approvalRepo init -q; & git -C $approvalRepo config core.autocrlf false; & git -C $approvalRepo config user.email 'fixture@example.invalid'; & git -C $approvalRepo config user.name 'Fixture'; & git -C $approvalRepo checkout -q -b 'feature/snag-list-evidence-workflow'; & git -C $approvalRepo add .; & git -C $approvalRepo commit -q -m baseline
+    $fixtureManifestPath = Join-Path $approvalRepo 'scripts\manifests\snag-list-030-035.psd1'
+    $fixtureManifest = Import-MigrationManifest -Path $fixtureManifestPath
+    $repoDescriptor1 = Get-RepositoryReleaseApprovalDescriptor -Manifest $fixtureManifest -ManifestPath $fixtureManifestPath -RepoRoot $approvalRepo
+    A 'approval repository A: clean expected branch produces descriptor' ($repoDescriptor1.branch -eq 'feature/snag-list-evidence-workflow')
+
+    Add-Content -LiteralPath (Join-Path $approvalRepo 'README.md') -Value 'dirty'
+    AThrows 'approval N: dirty tracked tree blocks generation' { Get-RepositoryReleaseApprovalDescriptor -Manifest $fixtureManifest -ManifestPath $fixtureManifestPath -RepoRoot $approvalRepo } 'tracked working tree is dirty'
+    & git -C $approvalRepo checkout -q -- README.md
+    Add-Content -LiteralPath (Join-Path $approvalRepo 'README.md') -Value 'staged'; & git -C $approvalRepo add README.md
+    AThrows 'approval O: non-empty staging blocks generation' { Get-RepositoryReleaseApprovalDescriptor -Manifest $fixtureManifest -ManifestPath $fixtureManifestPath -RepoRoot $approvalRepo } 'staging area is not empty'
+    & git -C $approvalRepo reset -q HEAD -- README.md; & git -C $approvalRepo checkout -q -- README.md
+    & git -C $approvalRepo checkout -q -b wrong-branch
+    AThrows 'approval P: wrong branch blocks generation' { Get-RepositoryReleaseApprovalDescriptor -Manifest $fixtureManifest -ManifestPath $fixtureManifestPath -RepoRoot $approvalRepo } 'does not match'
+    & git -C $approvalRepo checkout -q 'feature/snag-list-evidence-workflow'
+    Add-Content -LiteralPath $fixtureManifestPath -Value '# uncommitted manifest drift'
+    AThrows 'approval Q: uncommitted manifest change blocks generation' { Get-RepositoryReleaseApprovalDescriptor -Manifest $fixtureManifest -ManifestPath $fixtureManifestPath -RepoRoot $approvalRepo } 'tracked working tree is dirty'
+    & git -C $approvalRepo checkout -q -- scripts/manifests/snag-list-030-035.psd1
+
+    Add-Content -LiteralPath (Join-Path $approvalRepo 'README.md') -Value 'new clean commit'; & git -C $approvalRepo add README.md; & git -C $approvalRepo commit -q -m next
+    $repoDescriptor2 = Get-RepositoryReleaseApprovalDescriptor -Manifest $fixtureManifest -ManifestPath $fixtureManifestPath -RepoRoot $approvalRepo
+    A 'approval R: new clean commit rebinds full HEAD' ($repoDescriptor2.certifiedHead -ne $repoDescriptor1.certifiedHead -and $repoDescriptor2.manifestSha256 -eq $repoDescriptor1.manifestSha256)
+    Add-Content -LiteralPath $fixtureManifestPath -Value '# committed manifest change'; & git -C $approvalRepo add $fixtureManifestPath; & git -C $approvalRepo commit -q -m manifest-change
+    $repoDescriptor3 = Get-RepositoryReleaseApprovalDescriptor -Manifest $fixtureManifest -ManifestPath $fixtureManifestPath -RepoRoot $approvalRepo
+    A 'approval S: committed manifest content changes bound SHA-256' ($repoDescriptor3.manifestSha256 -ne $repoDescriptor2.manifestSha256)
+} finally {
+    Remove-Item -LiteralPath $approvalRepo -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host "TOTAL: $pass passed, $fail failed"

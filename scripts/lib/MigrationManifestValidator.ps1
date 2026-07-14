@@ -44,7 +44,7 @@ function Import-MigrationManifest {
     if (-not $manifest.migrations -or $manifest.migrations.Count -eq 0) { throw 'manifest declares zero migrations' }
     if ($manifest.Contains('requiredDatabaseUser') -and $manifest.requiredDatabaseUser -ne 'postgres') { throw 'manifest requiredDatabaseUser must be postgres' }
     if ($manifest.Contains('stopOnFirstFailure') -and -not $manifest.stopOnFirstFailure) { throw 'manifest must require stop-on-first-failure semantics' }
-    if ($manifest.Contains('approvalPhrase') -and [string]::IsNullOrWhiteSpace($manifest.approvalPhrase)) { throw 'manifest approvalPhrase is empty' }
+    if (-not $manifest.Contains('approvalContract')) { throw 'manifest approvalContract is missing' }
 
     foreach ($m in $manifest.migrations) {
         foreach ($requiredField in @('number', 'file', 'sha256')) {
@@ -242,12 +242,6 @@ function Test-RepositoryIdentity {
 # operator's typed confirmation is always checked against what the manifest
 # itself declares - not against a string the invoker could vary.
 # ---------------------------------------------------------------------------
-function Get-ManifestApprovalPhrase {
-    param([Parameter(Mandatory)][hashtable]$Manifest)
-    if ($Manifest.Contains('approvalPhrase')) { return [string]$Manifest.approvalPhrase }
-    return "APPLY $($Manifest.batchId) TO $($Manifest.approvedProjectRef)"
-}
-
 # ---------------------------------------------------------------------------
 # Redacts anything that looks like a connection string, bearer/JWT token, or
 # a PG*=<value> environment assignment from a block of text before it is

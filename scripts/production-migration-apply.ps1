@@ -2,10 +2,14 @@
 param(
     [Parameter(Mandatory, ParameterSetName = 'Validate')]
     [Parameter(Mandatory, ParameterSetName = 'Apply')]
+    [Parameter(Mandatory, ParameterSetName = 'ShowApproval')]
     [string]$ManifestPath,
 
     [Parameter(Mandatory, ParameterSetName = 'Validate')]
     [switch]$ValidateOnly,
+
+    [Parameter(Mandatory, ParameterSetName = 'ShowApproval')]
+    [switch]$ShowRequiredApproval,
 
     [Parameter(ParameterSetName = 'Apply')]
     [string]$PostgresImage = 'postgres:17',
@@ -67,6 +71,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\ManifestMigrationExecutor.ps1')
 . (Join-Path $PSScriptRoot 'lib\ProductionConnection.ps1')
 . (Join-Path $PSScriptRoot 'lib\PreflightEvidenceContract.ps1')
+. (Join-Path $PSScriptRoot 'lib\ReleaseApprovalContract.ps1')
 
 Write-Host "Loading manifest: $ManifestPath"
 $manifest = Import-MigrationManifest -Path $ManifestPath
@@ -93,7 +98,36 @@ if ($PSCmdlet.ParameterSetName -eq 'Validate') {
     exit 0
 }
 
+$approvalDescriptor = Get-RepositoryReleaseApprovalDescriptor -Manifest $manifest -ManifestPath $ManifestPath -RepoRoot $repoRoot
+if ($PSCmdlet.ParameterSetName -eq 'ShowApproval') {
+    Write-Host 'REQUIRED OWNER APPROVAL (copy exactly; comparison is ordinal and case-sensitive after trimming outer whitespace):'
+    Write-Host (Get-RequiredReleaseApprovalPhrase -Descriptor $approvalDescriptor)
+    Write-Host 'SHOW_REQUIRED_APPROVAL: PASS - no Docker, network, credential, or database access was attempted'
+    exit 0
+}
+
 # --- Apply mode: everything above already passed. Now the apply-only gates. ---
+
+try {
+    Assert-ReleaseApproval -Approval $Approval -Descriptor $approvalDescriptor | Out-Null
+} catch {
+    $approvalFailureReport = [ordered]@{
+        batchId = $manifest.batchId; repositoryCommit = $actualHead; completedAtUtc = [DateTime]::UtcNow.ToString('o')
+        approvalSchema = $approvalDescriptor.schema; releaseId = $approvalDescriptor.releaseId
+        classification = Get-ReleaseApprovalFailureClassification; overallStatus = 'BLOCKED_BEFORE_APPLY'
+        failure = $_.Exception.Message
+        execution = [ordered]@{ steps = @($manifest.migrations | ForEach-Object { [ordered]@{ number = $_.number; file = $_.file; attempted = $false; status = 'NOT_ATTEMPTED' } }) }
+    }
+    $approvalFailureJson = $approvalFailureReport | ConvertTo-Json -Depth 10
+    Assert-NoSecretLeak -Text $approvalFailureJson | Out-Null
+    $approvalFailureOutputDir = Split-Path -Parent $OutputPath
+    if (-not (Test-Path -LiteralPath $approvalFailureOutputDir)) { New-Item -ItemType Directory -Path $approvalFailureOutputDir -Force | Out-Null }
+    $approvalFailureTemp = "$OutputPath.tmp-$([guid]::NewGuid().ToString('N'))"
+    Write-Utf8NoBom -Path $approvalFailureTemp -Value $approvalFailureJson
+    Move-Item -LiteralPath $approvalFailureTemp -Destination $OutputPath -Force
+    throw
+}
+Write-Host 'Release approval contract: PASS'
 
 $backup = (Resolve-Path -LiteralPath $VerifiedBackupPath).Path
 $backupManifestPath = Join-Path $backup 'backup-manifest.json'
@@ -127,12 +161,6 @@ try {
     throw
 }
 Write-Host 'Preflight approval: PASS'
-
-$expectedApproval = Get-ManifestApprovalPhrase -Manifest $manifest
-if ($Approval -cne $expectedApproval) {
-    throw "ABORT: confirmation phrase does not match. expected exactly: $expectedApproval"
-}
-Write-Host 'Confirmation phrase: PASS'
 
 if (-not $EnvFile) { $EnvFile = Join-Path $repoRoot 'weekly-tracker\.env.production.local' }
 

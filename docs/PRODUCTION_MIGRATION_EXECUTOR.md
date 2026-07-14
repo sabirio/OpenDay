@@ -22,7 +22,8 @@ the exact commands below for the owner to run.
 | `scripts/lib/MigrationManifestValidator.ps1` | Pure validation functions: manifest schema, strict order (+ contiguity), path containment (blocks traversal/absolute paths), byte-exact checksums, git-tracked-and-clean state (independent of checksum — see below), repository HEAD ancestry, the deterministic confirmation phrase, secret redaction. |
 | `scripts/lib/ManifestMigrationExecutor.ps1` | Connection-agnostic execution engine (`Invoke-ManifestMigrationSequence`). Takes already-resolved PG connection values and a validated manifest; applies each file via one `psql -X -v ON_ERROR_STOP=1` invocation per file, in order, stopping on the first non-zero exit. No retry loop. Used unmodified by both the disposable certification and the real production apply script. |
 | `scripts/lib/SnagListMigrationContract.ps1` | Batch-specific (Snag List 030-035) read-only object-inventory and contract assertions, via the same `$Query`-callback convention as `lib/RemediationPreflightPostflight.ps1`. |
-| `scripts/production-migration-apply.ps1` | The CLI. Two parameter sets: `-ValidateOnly` (manifest/order/path/checksum/git-identity only — never touches Docker, network, or a credential) and Apply mode (everything `-ValidateOnly` checks, plus verified-backup checksum, approved-preflight-result checksum and status, an exact confirmation phrase computed from the manifest, then the production connection and apply). |
+| `scripts/production-migration-apply.ps1` | The CLI. `-ValidateOnly` checks manifest/order/path/checksum/git identity; `-ShowRequiredApproval` validates the clean committed release identity and prints the exact bound phrase; Apply independently recomputes that descriptor before any backup, credential, network, or database gate. |
+| `scripts/lib/ReleaseApprovalContract.ps1` | Single versioned generator and validator for `snag-list-release-approval/v1`; binds approval to release ID, branch, full runtime HEAD, canonical manifest path/hash, and migration range. |
 | `scripts/production-migration-preflight-live.ps1` | Read-only. Confirms the batch's objects are entirely absent and predecessor objects are present, via a bounded `READ ONLY REPEATABLE READ` transaction per query (`New-ReadOnlyCatalogScript`) with a forbidden-statement guard. Writes an atomic evidence file whose `status` the apply script re-checks. |
 | `scripts/production-migration-postflight-live.ps1` | Read-only. Confirms every expected object exists with the expected contract (RLS enabled, private buckets, no anon execute grant). Never calls a business RPC, never creates a row. |
 | `scripts/lib/PreflightEvidenceContract.ps1` | Authoritative writer, legacy adapter, reader and strict validator for versioned Snag List preflight evidence. Apply commands do not probe JSON property paths directly. |
@@ -30,6 +31,32 @@ the exact commands below for the owner to run.
 | `scripts/tests/production-migration-executor.tests.ps1` | Plain assertion script (no Pester), fully offline. Covers manifest/order/path/checksum/identity validation, secret redaction, atomic evidence, no-retry-loop, no-arbitrary-SQL-surface, and the idempotency/partial-apply policy below. |
 
 ## Manifest contract
+
+## Release approval contract
+
+`snag-list-release-approval/v1` avoids Git self-reference: the manifest stores
+only stable release metadata (`releaseId`, expected branch, migration range,
+schema version). It never embeds the future commit containing itself. Both
+`-ShowRequiredApproval` and Apply independently read the current full HEAD and
+compute the canonical manifest SHA-256 at runtime.
+
+The exact phrase is:
+
+```text
+APPROVE PRODUCTION APPLY SNAG LIST 030-035 AT <40-char-head> MANIFEST <64-char-manifest-sha256>
+```
+
+The working tree must have no tracked changes and the index must be empty.
+The expected branch, manifest path, release ID, range and schema must match.
+Comparison trims only leading/trailing whitespace, then uses ordinal,
+case-sensitive equality. Internal whitespace, comments, surrounding prose,
+old unbound phrases and abbreviated SHAs are rejected.
+
+Approval rejection happens before backup validation, credential loading,
+network access or database connection. Its classification is `BLOCKED BEFORE
+APPLY — APPROVAL CONTRACT MISMATCH`; all migrations are `NOT_ATTEMPTED` and an
+atomic secret-safe report is written. The phrase must be regenerated after
+every tooling commit.
 
 ## Preflight evidence contract
 

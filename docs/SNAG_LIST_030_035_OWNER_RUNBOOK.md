@@ -10,7 +10,9 @@ This is the canonical owner-controlled procedure for the first Snag List product
 - Production project ref: `szgbkeqornkdngoegyso`
 - Required database user: `postgres`
 - Stop on first failure: mandatory
-- Owner confirmation phrase: `APPROVE PRODUCTION APPLY SNAG LIST 030-035`
+- Approval contract: `snag-list-release-approval/v1`
+- Release ID: `snag-list-030-035`
+- Owner confirmation phrase: generated at runtime from the full committed HEAD and full canonical manifest SHA-256
 
 | Migration | SHA-256 |
 |---|---|
@@ -31,6 +33,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-mig
 ```
 
 Expected: six ordered hashes, tracked-and-clean PASS, repository identity PASS, and `VALIDATE_ONLY: PASS`. Validate-only must not read credentials, connect to a network, or start Docker.
+
+Then, from the same clean committed tree, print the only acceptable approval:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-migration-apply.ps1 `
+  -ManifestPath .\scripts\manifests\snag-list-030-035.psd1 -ShowRequiredApproval
+```
+
+The phrase binds the release to the full 40-character runtime HEAD and full
+64-character manifest SHA-256. Copy it exactly. Leading/trailing whitespace is
+trimmed; internal whitespace and case are compared ordinally without
+normalization. Comments, prose, short SHAs, old phrases, and multiple phrases
+are rejected. This command performs no Docker, credential, network, or
+database access.
 
 ## 2. Fresh backup and disposable restore
 
@@ -61,7 +77,8 @@ than 30 minutes. Never edit evidence or bypass this gate.
 
 ## 4. Approval and apply — owner terminal only
 
-After reviewing backup and preflight evidence, the owner supplies exactly `APPROVE PRODUCTION APPLY SNAG LIST 030-035` and runs:
+After reviewing backup and preflight evidence, the owner supplies exactly the
+current `-ShowRequiredApproval` output and runs:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-migration-apply.ps1 `
@@ -70,7 +87,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-mig
   -ExpectedBackupManifestSha256 <sha256> `
   -ApprovedPreflightPath <preflight-evidence.json> `
   -ExpectedPreflightSha256 <sha256> `
-  -Approval "APPROVE PRODUCTION APPLY SNAG LIST 030-035" `
+  -Approval "<exact generated phrase only>" `
   -OutputPath <apply-evidence.json>
 ```
 
@@ -80,6 +97,11 @@ A gate failure before the first SQL invocation is `BLOCKED BEFORE APPLY`, not
 `FAILED AT MIGRATION 030`. `FAILED AT MIGRATION XXX` requires proof that the
 SQL invocation for XXX was attempted. `ALREADY_APPLIED` is postflight-only;
 `PARTIAL_STATE` and `PARTIAL_DRIFT` remain forensic stops.
+
+An approval failure after repository validation is `BLOCKED BEFORE APPLY —
+APPROVAL CONTRACT MISMATCH`, not repository drift or preflight rejection. The
+executor writes a secret-safe atomic report with every migration
+`NOT_ATTEMPTED` before any credential access.
 
 ## 5. Postflight and acceptance
 
@@ -101,3 +123,7 @@ After any tooling correction, start a new owner-controlled production release
 run with renewed explicit approval. The verified backup from a failed run is
 valid historical recovery evidence, but the default next-run decision is:
 `CREATE A NEW FRESH PRODUCTION BACKUP`.
+
+The approval phrase used in the failed run is not reusable. After any tooling
+commit, rerun `-ShowRequiredApproval` and obtain a new explicit owner
+authorization for that exact output.

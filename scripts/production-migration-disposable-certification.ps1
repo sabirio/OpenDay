@@ -46,6 +46,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\ManifestMigrationExecutor.ps1')
 . (Join-Path $PSScriptRoot 'lib\SnagListMigrationContract.ps1')
 . (Join-Path $PSScriptRoot 'lib\PreflightEvidenceContract.ps1')
+. (Join-Path $PSScriptRoot 'lib\ReleaseApprovalContract.ps1')
 
 $BackupPath = (Resolve-Path -LiteralPath $BackupPath).Path
 $manifestPath = Join-Path $repoRoot 'scripts\manifests\snag-list-030-035.psd1'
@@ -66,12 +67,23 @@ $report = [ordered]@{
     startedAtUtc = [DateTime]::UtcNow.ToString('o')
     backupPath = $BackupPath
     restorePostgresImage = $RestorePostgresImage
+    releaseApproval = $null
     happyPath = $null
     failureInjection = $null
     partialState = $null
     preApplyFailure = $null
     overallStatus = 'FAIL'
 }
+
+$manifestForApproval = Import-MigrationManifest -Path $manifestPath
+$approvalContract = $manifestForApproval.approvalContract
+$disposableApprovalDescriptor = New-ReleaseApprovalDescriptor -ReleaseId $approvalContract.releaseId -Branch $approvalContract.expectedBranch -CertifiedHead ((git -C $repoRoot rev-parse HEAD).Trim().ToLowerInvariant()) -ManifestPath 'scripts/manifests/snag-list-030-035.psd1' -ManifestSha256 ((Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()) -MigrationStart $approvalContract.migrationStart -MigrationEnd $approvalContract.migrationEnd -SchemaVersion $approvalContract.schemaVersion
+$exactDisposableApproval = Get-RequiredReleaseApprovalPhrase -Descriptor $disposableApprovalDescriptor
+Assert-ReleaseApproval -Approval $exactDisposableApproval -Descriptor $disposableApprovalDescriptor | Out-Null
+$oneCharacterMismatchRejected = -not (Test-ReleaseApprovalPhrase -Approval ($exactDisposableApproval + 'X') -Descriptor $disposableApprovalDescriptor)
+if (-not $oneCharacterMismatchRejected) { throw 'disposable approval gate accepted a one-character mismatch' }
+$report.releaseApproval = [ordered]@{ status = 'PASS'; schema = $disposableApprovalDescriptor.schema; exactAccepted = $true; oneCharacterMismatchRejected = $true; preNetwork = $true }
+Write-Host 'Release approval gate: exact full-identity phrase PASS; one-character mismatch REJECTED; no credential/network access'
 
 # ---------------------------------------------------------------------------
 # Restores the verified backup into a fresh, uniquely-named disposable
