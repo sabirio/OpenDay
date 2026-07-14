@@ -25,8 +25,9 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $manifest = Import-MigrationManifest -Path $ManifestPath
 Test-ManifestMigrationOrder -Manifest $manifest | Out-Null
 Test-ManifestMigrationChecksums -Manifest $manifest -RepoRoot $repoRoot | Out-Null
+Test-ManifestMigrationsTrackedAndClean -Manifest $manifest -RepoRoot $repoRoot | Out-Null
 Test-RepositoryIdentity -RepoRoot $repoRoot -ExpectedCommit $manifest.authoritativeCommit | Out-Null
-Write-Host "Manifest/checksum/identity: PASS ($($manifest.batchId))"
+Write-Host "Manifest/checksum/cleanliness/identity: PASS ($($manifest.batchId))"
 
 if (-not $EnvFile) { $EnvFile = Join-Path $repoRoot 'weekly-tracker\.env.production.local' }
 $queryTempDirectory = Join-Path ([IO.Path]::GetTempPath()) "migration-postflight-live-$([guid]::NewGuid().ToString('N').Substring(0,8))"

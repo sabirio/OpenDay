@@ -31,8 +31,9 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $manifest = Import-MigrationManifest -Path $ManifestPath
 Test-ManifestMigrationOrder -Manifest $manifest | Out-Null
 $checksums = Test-ManifestMigrationChecksums -Manifest $manifest -RepoRoot $repoRoot
+Test-ManifestMigrationsTrackedAndClean -Manifest $manifest -RepoRoot $repoRoot | Out-Null
 Test-RepositoryIdentity -RepoRoot $repoRoot -ExpectedCommit $manifest.authoritativeCommit | Out-Null
-Write-Host "Manifest/checksum/identity: PASS ($($manifest.batchId))"
+Write-Host "Manifest/checksum/cleanliness/identity: PASS ($($manifest.batchId))"
 
 if (-not $EnvFile) { $EnvFile = Join-Path $repoRoot 'weekly-tracker\.env.production.local' }
 $backup = (Resolve-Path -LiteralPath $VerifiedBackupPath).Path

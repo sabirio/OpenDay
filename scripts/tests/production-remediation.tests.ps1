@@ -66,7 +66,30 @@ foreach ($f in @('lib\ProductionSecurityStateEmulator.ps1', 'lib\RemediationPref
 # ===========================================================================
 Assert-True '028_production_security_reconciliation.sql exists' (Test-Path -LiteralPath $migrationPath -PathType Leaf)
 $existingMigrationNumbers = Get-ChildItem -LiteralPath $migrationsRoot -Filter '*.sql' -File | ForEach-Object { if ($_.Name -match '^(\d{3})_') { [int]$Matches[1] } } | Where-Object { $_ -ne $null }
-Assert-True '029 is the next free canonical migration number (no 030+ file exists that should have come first)' (($existingMigrationNumbers | Sort-Object -Descending | Select-Object -First 1) -eq 29)
+# Historical note: this assertion originally hardcoded "029 is the max
+# migration number in the repository", which was true only until later,
+# unrelated batches (Snag List 030-034) were added - a legitimate,
+# expected event this suite has nothing to say about. The invariant this
+# suite actually needs is narrower and does not go stale as the repository
+# grows: 028/029 - the two numbers THIS remediation contract is about -
+# each appear exactly once and are both present with no gap between them.
+# "Next free migration number" is no longer a fixed historical fact; where
+# a caller needs it, it is max(existing)+1, computed fresh, never hardcoded.
+#
+# This deliberately does NOT assert repo-wide migration-number uniqueness:
+# docs/MIGRATION_RUNBOOK.md documents that this repository's raw file
+# listing has known, intentional historical duplicates/skips from before
+# the "fresh path" convention existed (both 001_gantt_system.sql and
+# 001_initial_schema.sql exist; 011 is deliberately excluded from a fresh
+# install) - a real, documented fact, not a defect this suite should flag.
+$allMigrationNumbers = @($existingMigrationNumbers | Sort-Object)
+$countOf028 = @($allMigrationNumbers | Where-Object { $_ -eq 28 }).Count
+$countOf029 = @($allMigrationNumbers | Where-Object { $_ -eq 29 }).Count
+Assert-True 'migration number 028 appears exactly once' ($countOf028 -eq 1)
+Assert-True 'migration number 029 appears exactly once' ($countOf029 -eq 1)
+Assert-True 'migrations 028 and 029 are both present with no gap between them' (($allMigrationNumbers -contains 28) -and ($allMigrationNumbers -contains 29))
+$dynamicNextFree = if ($allMigrationNumbers.Count -gt 0) { ($allMigrationNumbers | Select-Object -Last 1) + 1 } else { 1 }
+Assert-True 'dynamically computed next-free migration number is strictly greater than 029 (later batches such as Snag List 030-034 are expected and do not invalidate the 028/029 remediation contract)' ($dynamicNextFree -gt 29)
 
 $contractPath = Join-Path $scriptsRoot 'contracts\canonical-security-contract.json'
 $contract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json

@@ -77,6 +77,13 @@ Write-Host 'Migration order: PASS'
 $checksums = Test-ManifestMigrationChecksums -Manifest $manifest -RepoRoot $repoRoot
 Write-Host "Migration checksums: PASS ($($checksums.Count)/$($checksums.Count) byte-identical)"
 
+# A checksum match against the manifest is not proof the file matches what
+# Git has committed - a dirty working-tree file with its manifest checksum
+# updated to match would otherwise pass silently. Distinct gate, distinct
+# failure message.
+Test-ManifestMigrationsTrackedAndClean -Manifest $manifest -RepoRoot $repoRoot | Out-Null
+Write-Host 'Migration files tracked and clean: PASS'
+
 $actualHead = Test-RepositoryIdentity -RepoRoot $repoRoot -ExpectedCommit $manifest.authoritativeCommit
 Write-Host "Repository identity: PASS (HEAD=$actualHead)"
 

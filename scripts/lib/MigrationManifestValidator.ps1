@@ -141,6 +141,63 @@ function Test-ManifestMigrationChecksums {
 }
 
 # ---------------------------------------------------------------------------
+# A checksum match against the MANIFEST's declared hash is not the same
+# invariant as "this file's content is exactly what Git has committed at
+# HEAD" - a migration file can be modified on disk, its manifest sha256
+# updated to match the new (uncommitted) content, and Test-
+# ManifestMigrationChecksums would report PASS even though the file no
+# longer matches anything ever reviewed or committed. This function closes
+# that gap with its own distinct failure: TRACKED MIGRATION FILE IS DIRTY,
+# never conflated with MIGRATION HASH MISMATCH.
+#
+# Confirms, for one already-resolved absolute path:
+#   1. the file is tracked by Git (git ls-files --error-unmatch);
+#   2. `git status --porcelain` for that exact path is empty - no unstaged
+#      change, no staged change, no intent-to-add, no unmerged conflict
+#      marker (all of these produce a non-empty porcelain line).
+# Does not by itself re-verify the file's content against a specific commit
+# blob - Test-RepositoryIdentity (HEAD == manifest.authoritativeCommit)
+# combined with "git status is clean for this path" together already imply
+# the working-tree file is byte-identical to the blob at HEAD; callers are
+# expected to run both.
+# ---------------------------------------------------------------------------
+function Assert-MigrationFileTrackedAndClean {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][string]$AbsolutePath
+    )
+
+    $lsFilesResult = & git -C $RepoRoot ls-files --error-unmatch -- $AbsolutePath 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($lsFilesResult)) {
+        throw "TRACKED MIGRATION FILE IS DIRTY: not tracked by Git: $AbsolutePath"
+    }
+
+    $porcelain = & git -C $RepoRoot status --porcelain -- $AbsolutePath 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "TRACKED MIGRATION FILE IS DIRTY: git status failed for $AbsolutePath" }
+    if (-not [string]::IsNullOrWhiteSpace(($porcelain -join "`n"))) {
+        throw "TRACKED MIGRATION FILE IS DIRTY: uncommitted changes (staged or unstaged) present for $AbsolutePath - refusing to apply a migration whose on-disk content is not what Git has committed, even if it matches the manifest checksum"
+    }
+    return $true
+}
+
+# ---------------------------------------------------------------------------
+# Runs Assert-MigrationFileTrackedAndClean for every migration in the
+# manifest, resolving each path the same way Test-ManifestMigrationChecksums
+# does. Fail-closed on the first dirty/untracked file found.
+# ---------------------------------------------------------------------------
+function Test-ManifestMigrationsTrackedAndClean {
+    param(
+        [Parameter(Mandatory)][hashtable]$Manifest,
+        [Parameter(Mandatory)][string]$RepoRoot
+    )
+    foreach ($m in $Manifest.migrations) {
+        $path = Resolve-ManifestMigrationPath -Manifest $Manifest -Migration $m -RepoRoot $RepoRoot
+        Assert-MigrationFileTrackedAndClean -RepoRoot $RepoRoot -AbsolutePath $path | Out-Null
+    }
+    return $true
+}
+
+# ---------------------------------------------------------------------------
 # Confirms the checked-out repository HEAD matches the manifest's
 # authoritativeCommit. Local, read-only `git rev-parse`.
 # ---------------------------------------------------------------------------
@@ -152,8 +209,26 @@ function Test-RepositoryIdentity {
     $head = (& git -C $RepoRoot rev-parse HEAD 2>$null)
     if ($LASTEXITCODE -ne 0) { throw 'git rev-parse HEAD failed - is this a git repository?' }
     $head = $head.Trim()
+    # The manifest's authoritativeCommit identifies the reviewed application
+    # commit that introduced the migration files themselves (and is what
+    # their SHA-256 was computed against) - not "the only commit this tool
+    # may ever be run from". Later commits that only touch tooling (this
+    # hardening pass, for example) must not make a previously-certified
+    # manifest impossible to validate or apply. What actually matters for
+    # safety - that the reviewed migration content is genuinely present -
+    # is an ancestor check, not an exact-equality check, and is reinforced
+    # independently by Test-ManifestMigrationChecksums (byte-exact hash) and
+    # Test-ManifestMigrationsTrackedAndClean (no uncommitted drift).
     if ($head -ne $ExpectedCommit) {
-        throw "repository HEAD ($head) does not match the manifest's authoritative commit ($ExpectedCommit)"
+        # PowerShell 5.1 under $ErrorActionPreference='Stop' promotes any
+        # stderr line from a native command into a terminating error even
+        # through `2>$null` - Invoke-NativeTool (from RestoreVerifyHelpers.ps1,
+        # already dot-sourced by every caller of this function) is the
+        # established safe wrapper that avoids that trap.
+        $ancestorCheck = Invoke-NativeTool -Command 'git' -ArgumentList @('-C', $RepoRoot, 'merge-base', '--is-ancestor', $ExpectedCommit, $head)
+        if ($ancestorCheck.ExitCode -ne 0) {
+            throw "repository HEAD ($head) does not contain the manifest's authoritative commit ($ExpectedCommit) as an ancestor"
+        }
     }
     return $head
 }

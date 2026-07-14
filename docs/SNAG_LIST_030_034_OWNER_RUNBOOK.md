@@ -20,8 +20,13 @@ git status --short
 git rev-parse HEAD
 ```
 
-Expected: only the 9 known protected untracked operational files; HEAD =
-`7234b6413e46d76b82794dcedbe66fa2600f4e46`.
+Expected: only the 9 known protected untracked operational files; HEAD
+contains commit `7234b6413e46d76b82794dcedbe66fa2600f4e46` (the reviewed
+application commit) as an ancestor — HEAD does not need to equal it exactly.
+Later commits that only touch migration tooling (this repository's own
+hardening passes, for example) are expected and do not block this runbook;
+`scripts/production-migration-apply.ps1 -ValidateOnly` in step 1 below
+verifies this precisely.
 
 ## 1. Validate the manifest (no credentials, no network)
 

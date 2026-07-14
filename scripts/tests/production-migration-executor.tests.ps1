@@ -50,7 +50,25 @@ A 'real manifest: 5 migrations declared' ($realManifest.migrations.Count -eq 5)
 A 'real manifest: order valid' (Test-ManifestMigrationOrder -Manifest $realManifest)
 $realChecksums = Test-ManifestMigrationChecksums -Manifest $realManifest -RepoRoot $root
 A 'real manifest: all 5 checksums byte-identical' (($realChecksums | Where-Object { $_.byteIdentical }).Count -eq 5)
-A 'real manifest: repository identity matches authoritative commit' ((Test-RepositoryIdentity -RepoRoot $root -ExpectedCommit $realManifest.authoritativeCommit) -eq $realManifest.authoritativeCommit)
+$realManifestHead = Test-RepositoryIdentity -RepoRoot $root -ExpectedCommit $realManifest.authoritativeCommit
+A 'real manifest: authoritative commit is HEAD or an ancestor of HEAD' ($realManifestHead -match '^[0-9a-f]{40}$')
+$isExactOrAncestor = ($realManifestHead -eq $realManifest.authoritativeCommit)
+if (-not $isExactOrAncestor) {
+    & git -C $root merge-base --is-ancestor $realManifest.authoritativeCommit $realManifestHead 2>$null
+    $isExactOrAncestor = ($LASTEXITCODE -eq 0)
+}
+A 'real manifest: authoritative commit genuinely precedes-or-equals current HEAD' $isExactOrAncestor
+
+# Positive proof the ancestor semantics actually work (not just "no
+# exception was thrown"): a genuine ancestor of HEAD (HEAD~1, an existing
+# commit strictly before current HEAD) must be accepted.
+$ancestorCommit = (& git -C $root rev-parse 'HEAD~1' 2>$null)
+if ($LASTEXITCODE -eq 0 -and $ancestorCommit) {
+    $ancestorCommit = $ancestorCommit.Trim()
+    $ancestorResult = $null
+    try { $ancestorResult = Test-RepositoryIdentity -RepoRoot $root -ExpectedCommit $ancestorCommit } catch {}
+    A 'ancestor semantics: HEAD~1 (a real ancestor, not equal to HEAD) is accepted' ($ancestorResult -eq (& git -C $root rev-parse HEAD).Trim())
+}
 A 'real manifest: approval phrase is deterministic and includes batch+target' ((Get-ManifestApprovalPhrase -Manifest $realManifest) -eq 'APPLY SNAG-LIST-030-034 TO szgbkeqornkdngoegyso')
 
 # --- Scenario 14: missing manifest ---
@@ -125,7 +143,7 @@ try {
     } 'must be a bare filename|does not match the expected'
 
     # --- Scenario 10: HEAD mismatch ---
-    AThrows 'scenario 10: repository HEAD mismatch' { Test-RepositoryIdentity -RepoRoot $root -ExpectedCommit ('f' * 40) } 'does not match'
+    AThrows 'scenario 10: repository HEAD mismatch (non-ancestor commit)' { Test-RepositoryIdentity -RepoRoot $root -ExpectedCommit ('f' * 40) } 'does not contain.*ancestor'
 
     # --- Manifest schema validation: bad project ref / bad commit format ---
     $badRefPath = Join-Path $tmpDir 'bad-ref.psd1'
@@ -225,6 +243,104 @@ $partialResult = Test-SnagListPreflightAssertions -Query $partialQuery -BatchId 
 A 'partial-apply: mixed presence is classified NOT_READY (blocked pending forensic review)' ($partialResult.status -eq 'NOT_READY')
 A 'partial-apply: reason names drift/partial state, not a resumable state' (@($partialResult.reasons | Where-Object { $_ -match 'partial|drift' }).Count -gt 0)
 A 'partial-apply: safe default is BLOCK, never an automatic resume-from-next-migration' ($applySource -notmatch '(?i)resume|continue.?from.?next')
+
+# ---------------------------------------------------------------------------
+# H-02: valid-but-wrong target project ref. Get-ProductionConnectionFingerprint
+# never opens a network connection - it only parses a connection URL and
+# validates its fields - so this is exercised via dependency injection: a
+# fake, syntactically-valid PRODUCTION_DB_URL pointing at a DIFFERENT (but
+# equally well-formed) project ref, written to a gitignored fixture file
+# (the function requires its EnvFile to be git-ignored, exactly like the
+# real .env.production.local). No real credential, no real host, no network
+# call of any kind.
+# ---------------------------------------------------------------------------
+. (Join-Path $root 'scripts\lib\ProductionConnection.ps1')
+$fingerprintFixtureDir = Join-Path $root 'work\executor-hardening-fixtures'
+New-Item -ItemType Directory -Path $fingerprintFixtureDir -Force | Out-Null
+try {
+    $wrongRefEnvPath = Join-Path $fingerprintFixtureDir 'wrong-ref.env'
+    Set-Content -LiteralPath $wrongRefEnvPath -Value 'PRODUCTION_DB_URL=postgresql://postgres.aaaaaaaaaaaaaaaaaaaa:fakepassword123@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres' -Encoding utf8 -NoNewline
+    AThrows 'H-02: valid-format expected ref vs different valid-format actual ref is blocked before any migration execution' {
+        Get-ProductionConnectionFingerprint -EnvFile $wrongRefEnvPath -RepoRoot $root -ExpectedProjectRef $realManifest.approvedProjectRef
+    } 'does not match production'
+
+    $rightRefEnvPath = Join-Path $fingerprintFixtureDir 'right-ref.env'
+    Set-Content -LiteralPath $rightRefEnvPath -Value "PRODUCTION_DB_URL=postgresql://postgres.$($realManifest.approvedProjectRef):fakepassword123@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres" -Encoding utf8 -NoNewline
+    $matchingFingerprint = $null
+    try { $matchingFingerprint = Get-ProductionConnectionFingerprint -EnvFile $rightRefEnvPath -RepoRoot $root -ExpectedProjectRef $realManifest.approvedProjectRef } catch {}
+    A 'H-02 control: matching project ref is accepted (proves the rejection above is ref-specific, not a fixture-format problem)' ($null -ne $matchingFingerprint -and $matchingFingerprint.User -eq "postgres.$($realManifest.approvedProjectRef)")
+} finally {
+    Remove-Item -LiteralPath $fingerprintFixtureDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+$applyIndexTargetCheck = $applySource.IndexOf('$conn = Get-ProductionConnectionFingerprint')
+$applyIndexMigrationExec = $applySource.IndexOf('Invoke-ManifestMigrationSequence -Manifest')
+A 'H-02: target fingerprint check happens before any migration is executed in the apply CLI' ($applyIndexTargetCheck -gt 0 -and $applyIndexTargetCheck -lt $applyIndexMigrationExec)
+
+# ---------------------------------------------------------------------------
+# H-07/H-08/H-09: dirty tracked migration, independent of checksum.
+# Uses scripts/tests/fixtures/900_dirty_gate_test_migration.sql - a
+# dedicated, tracked, test-only fixture (never a historical or Snag List
+# migration) so this can safely modify-then-restore working-tree content.
+# Restoration always runs in a finally block via `git checkout --`, proven
+# by a post-test hash comparison against the original committed content.
+# ---------------------------------------------------------------------------
+$dirtyFixtureRelative = 'scripts\tests\fixtures\900_dirty_gate_test_migration.sql'
+$dirtyFixtureAbsolute = Join-Path $root $dirtyFixtureRelative
+$originalFixtureHash = (Get-FileHash -LiteralPath $dirtyFixtureAbsolute -Algorithm SHA256).Hash.ToLowerInvariant()
+$originalFixtureContent = Get-Content -Raw -LiteralPath $dirtyFixtureAbsolute
+try {
+    Add-Content -LiteralPath $dirtyFixtureAbsolute -Value '-- dirty-gate test mutation, restored by test cleanup' -Encoding utf8
+    $dirtyHash = (Get-FileHash -LiteralPath $dirtyFixtureAbsolute -Algorithm SHA256).Hash.ToLowerInvariant()
+    A 'dirty-gate fixture: mutation actually changed the file content' ($dirtyHash -ne $originalFixtureHash)
+
+    $dirtyManifestTemplate = @{
+        schemaVersion = 1; batchId = 'TEST-DIRTY-GATE'; approvedProjectRef = 'szgbkeqornkdngoegyso'
+        authoritativeCommit = $realManifest.authoritativeCommit
+        migrationsDirectory = 'scripts\tests\fixtures'; contiguousSequence = $false
+    }
+
+    # H-07: dirty file, STALE manifest checksum (still the original) -
+    # blocked by the checksum gate, with the checksum-specific message.
+    $staleManifest = $dirtyManifestTemplate.Clone()
+    $staleManifest.migrations = @(@{ number = 900; file = '900_dirty_gate_test_migration.sql'; sha256 = $originalFixtureHash })
+    AThrows 'H-07: dirty file with STALE manifest checksum is blocked by the hash gate' {
+        Test-ManifestMigrationChecksums -Manifest $staleManifest -RepoRoot $root
+    } 'MIGRATION HASH MISMATCH'
+
+    # H-08: dirty file, manifest checksum UPDATED to match the dirty content
+    # - checksum validation now passes, but the dirty-state gate still
+    # blocks, with its own distinct message, before any execution.
+    $updatedManifest = $dirtyManifestTemplate.Clone()
+    $updatedManifest.migrations = @(@{ number = 900; file = '900_dirty_gate_test_migration.sql'; sha256 = $dirtyHash })
+    $checksumPassed = $false
+    try { Test-ManifestMigrationChecksums -Manifest $updatedManifest -RepoRoot $root | Out-Null; $checksumPassed = $true } catch {}
+    A 'H-08: checksum validation PASSES once the manifest hash matches the dirty content' $checksumPassed
+    AThrows 'H-08: dirty-state gate still blocks even though checksum validation passed' {
+        Test-ManifestMigrationsTrackedAndClean -Manifest $updatedManifest -RepoRoot $root
+    } 'TRACKED MIGRATION FILE IS DIRTY'
+} finally {
+    Invoke-NativeTool -Command 'git' -ArgumentList @('-C', $root, 'checkout', '--', $dirtyFixtureRelative) | Out-Null
+    $restoredHash = (Get-FileHash -LiteralPath $dirtyFixtureAbsolute -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($restoredHash -ne $originalFixtureHash) {
+        # Last-resort direct restore if `git checkout` could not run for any reason.
+        Set-Content -LiteralPath $dirtyFixtureAbsolute -Value $originalFixtureContent -NoNewline -Encoding utf8
+    }
+}
+$finalFixtureHash = (Get-FileHash -LiteralPath $dirtyFixtureAbsolute -Algorithm SHA256).Hash.ToLowerInvariant()
+A 'dirty-gate fixture: restored to original committed content after the test (cleanup proven, not assumed)' ($finalFixtureHash -eq $originalFixtureHash)
+
+# H-09: clean tracked file, matching checksum - both gates pass. Uses the
+# real, already-committed Snag List manifest/migrations rather than the
+# dirty-gate fixture: the fixture above is only *staged* at this point in
+# the working tree (it becomes committed, and therefore a true "clean"
+# baseline, only once this hardening pass's own follow-up commit lands),
+# so it cannot yet demonstrate a genuinely clean state on its own. The real
+# manifest's 5 migration files are already committed at HEAD right now,
+# which is exactly what H-09 needs to prove.
+$cleanChecksumsOk = $false; $cleanDirtyGateOk = $false
+try { Test-ManifestMigrationChecksums -Manifest $realManifest -RepoRoot $root | Out-Null; $cleanChecksumsOk = $true } catch {}
+try { Test-ManifestMigrationsTrackedAndClean -Manifest $realManifest -RepoRoot $root | Out-Null; $cleanDirtyGateOk = $true } catch {}
+A 'H-09: clean tracked files (real Snag List manifest) with matching checksums pass both the checksum and dirty-state gates' ($cleanChecksumsOk -and $cleanDirtyGateOk)
 
 Write-Host "TOTAL: $pass passed, $fail failed"
 if ($fail) { exit 1 }
