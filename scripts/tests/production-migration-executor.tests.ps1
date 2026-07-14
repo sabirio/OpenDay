@@ -15,6 +15,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 . (Join-Path $root 'scripts\lib\MigrationManifestValidator.ps1')
 . (Join-Path $root 'scripts\lib\ManifestMigrationExecutor.ps1')
 . (Join-Path $root 'scripts\lib\SnagListMigrationContract.ps1')
+. (Join-Path $root 'scripts\lib\PreflightEvidenceContract.ps1')
 
 $pass = 0; $fail = 0
 function A([string]$n, [bool]$c) { if ($c) { $script:pass++; Write-Host "[PASS] $n" } else { $script:fail++; Write-Host "[FAIL] $n" } }
@@ -36,6 +37,7 @@ $newScripts = @(
     'scripts\lib\MigrationManifestValidator.ps1',
     'scripts\lib\ManifestMigrationExecutor.ps1',
     'scripts\lib\SnagListMigrationContract.ps1',
+    'scripts\lib\PreflightEvidenceContract.ps1',
     'scripts\production-migration-apply.ps1',
     'scripts\production-migration-preflight-live.ps1',
     'scripts\production-migration-postflight-live.ps1'
@@ -225,7 +227,7 @@ A 'SnagListTables source declares all 11 expected tables' (@($expectedTables | W
 # and every predecessor object, already present.
 $allPresentQuery = {
     param([string]$Sql)
-    if ($Sql -match "pg_locks") { return '0' }
+    if ($Sql -match "pg_locks") { return '[]' }
     return 't'
 }
 $repeatRunResult = Test-SnagListPreflightAssertions -Query $allPresentQuery -BatchId 'SNAG-LIST-030-035'
@@ -237,7 +239,7 @@ A 'idempotency: repeat-run reason names "already exists"' (@($repeatRunResult.re
 # present (simulates 030 applied, 031-034 not yet applied).
 $partialQuery = {
     param([string]$Sql)
-    if ($Sql -match 'pg_locks') { return '0' }
+    if ($Sql -match 'pg_locks') { return '[]' }
     if ($Sql -match "to_regclass\('public\.snags'\)") { return 't' }
     if ($Sql -match "to_regclass\('public\.projects'\)|to_regclass\('public\.profiles'\)|to_regclass\('auth\.users'\)|to_regprocedure\('public\.can_") { return 't' }
     return 'f'
@@ -251,7 +253,7 @@ A 'partial-apply: safe default is BLOCK, never an automatic resume-from-next-mig
 $only035Names = 'project_snag_sequences|project_snag_trades|project_stakeholders|snag_trade_stakeholders|snag_comments|capture_snag_observation|execute_snag_product_command|publish_snag_observations|add_snag_comment|configure_snag_catalog'
 $legacyOnlyQuery = {
     param([string]$Sql)
-    if ($Sql -match 'pg_locks') { return '0' }
+    if ($Sql -match 'pg_locks') { return '[]' }
     if ($Sql -match $only035Names) { return 'f' }
     return 't'
 }
@@ -261,7 +263,7 @@ A 'partial state: 030-034 present with 035 missing is classified PARTIAL_STATE' 
 
 $driftQuery = {
     param([string]$Sql)
-    if ($Sql -match 'pg_locks') { return '0' }
+    if ($Sql -match 'pg_locks') { return '[]' }
     if ($Sql -match "to_regclass\('public\.projects'\)|to_regclass\('public\.profiles'\)|to_regclass\('auth\.users'\)|to_regprocedure\('public\.can_") { return 'f' }
     if ($Sql -match 'project_snag_trades') { return 't' }
     return 'f'
@@ -364,6 +366,82 @@ $cleanChecksumsOk = $false; $cleanDirtyGateOk = $false
 try { Test-ManifestMigrationChecksums -Manifest $realManifest -RepoRoot $root | Out-Null; $cleanChecksumsOk = $true } catch {}
 try { Test-ManifestMigrationsTrackedAndClean -Manifest $realManifest -RepoRoot $root | Out-Null; $cleanDirtyGateOk = $true } catch {}
 A 'H-09: clean tracked files (real Snag List manifest) with matching checksums pass both the checksum and dirty-state gates' ($cleanChecksumsOk -and $cleanDirtyGateOk)
+
+# ---------------------------------------------------------------------------
+# Versioned preflight evidence contract. Fully local: fixtures contain no
+# connection data and Import-SnagListPreflightEvidence performs no network or
+# credential access.
+# ---------------------------------------------------------------------------
+$evidenceFixtureDir = Join-Path ([IO.Path]::GetTempPath()) "preflight-contract-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+New-Item -ItemType Directory -Path $evidenceFixtureDir | Out-Null
+function New-ValidEvidenceFixture {
+    param([datetime]$At = [DateTime]::UtcNow)
+    return [ordered]@{
+        schemaVersion = 'snag-list-preflight/v1'; generatedAtUtc = $At.ToString('o'); batchId = 'SNAG-LIST-030-035'
+        productionFingerprintVerified = $true; readOnlyVerified = $true
+        assertions = [ordered]@{
+            predecessorState = [ordered]@{ projects = $true }
+            blockingLocks = [ordered]@{ conflictingLockCount = 0; safe = $true; details = @() }
+            classification = 'READY'; status = 'READY_FOR_SNAG-LIST-030-035'
+        }
+        status = 'READY_FOR_SNAG-LIST-030-035'
+    }
+}
+function Write-EvidenceFixture([string]$Name, $Value) {
+    $path = Join-Path $evidenceFixtureDir $Name
+    Write-Utf8NoBom -Path $path -Value ($Value | ConvertTo-Json -Depth 10)
+    return $path
+}
+try {
+    $fixtureNow = [datetime]'2026-07-14T12:00:00Z'
+    $validPath = Write-EvidenceFixture 'valid.json' (New-ValidEvidenceFixture -At $fixtureNow)
+    $validModel = Import-SnagListPreflightEvidence -Path $validPath -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow.AddMinutes(5)
+    A 'evidence A: canonical READY/zero-lock/fingerprint/read-only fixture passes' ($validModel.status -eq 'READY_FOR_SNAG-LIST-030-035' -and $validModel.blockingLocks.conflictingLockCount -eq 0)
+
+    $incidentPath = Join-Path $root 'work\snag-list-030-035-production-release\20260714T122738Z\preflight-evidence.json'
+    $incidentRaw = Get-Content -Raw -LiteralPath $incidentPath | ConvertFrom-Json
+    $incidentAt = [datetime]$incidentRaw.generatedAtUtc
+    $incidentModel = Import-SnagListPreflightEvidence -Path $incidentPath -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $incidentAt.AddMinutes(5)
+    A 'evidence B: historical incident schema is accepted only through explicit legacy adapter' ($incidentModel.sourceSchemaVersion -eq 'legacy-unversioned-v0' -and $incidentModel.blockingLocks.safe)
+
+    $missing = New-ValidEvidenceFixture -At $fixtureNow; $missing.assertions.Remove('blockingLocks')
+    AThrows 'evidence C: missing blockingLocks hard-fails before connection' { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture 'missing.json' $missing) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'blockingLocks.*no migration was attempted'
+    $nullLocks = New-ValidEvidenceFixture -At $fixtureNow; $nullLocks.assertions.blockingLocks = $null
+    AThrows 'evidence D: null blockingLocks hard-fails' { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture 'null.json' $nullLocks) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'assertions.blockingLocks'
+    foreach ($wrong in @('none', 7, $true)) {
+        $wrongType = New-ValidEvidenceFixture -At $fixtureNow; $wrongType.assertions.blockingLocks = $wrong
+        AThrows "evidence E: wrong blockingLocks type '$wrong' hard-fails" { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture "wrong-$wrong.json" $wrongType) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'assertions.blockingLocks'
+    }
+    $locked = New-ValidEvidenceFixture -At $fixtureNow; $locked.assertions.blockingLocks = [ordered]@{ conflictingLockCount = 1; safe = $false; details = @([ordered]@{ pid = 42; mode = 'AccessExclusiveLock'; schema = 'public'; relation = 'projects' }) }
+    AThrows 'evidence F: one blocking lock hard-fails' { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture 'locked.json' $locked) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'blocking locks present.*no migration was attempted'
+    foreach ($state in @('PARTIAL_STATE','PARTIAL_DRIFT','ALREADY_APPLIED')) {
+        $notReady = New-ValidEvidenceFixture -At $fixtureNow; $notReady.assertions.classification = $state; $notReady.assertions.status = 'NOT_READY'; $notReady.status = 'NOT_READY'
+        AThrows "evidence state: $state cannot enter apply" { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture "$state.json" $notReady) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'state is not READY.*no migration was attempted'
+    }
+    $unknown = New-ValidEvidenceFixture -At $fixtureNow; $unknown.schemaVersion = 'snag-list-preflight/v999'
+    AThrows 'evidence J: unknown schema version hard-fails' { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture 'unknown.json' $unknown) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'unsupported schema version.*no migration was attempted'
+    $contradiction = New-ValidEvidenceFixture -At $fixtureNow; $contradiction.assertions.blockingLocks.details = @([ordered]@{ pid = 42 })
+    AThrows 'evidence K: contradictory count/details hard-fails' { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture 'contradiction.json' $contradiction) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'contradictory.*no migration was attempted'
+    $stale = New-ValidEvidenceFixture -At $fixtureNow.AddMinutes(-31)
+    AThrows 'evidence L: stale evidence hard-fails' { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture 'stale.json' $stale) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'stale.*no migration was attempted'
+    $badFingerprint = New-ValidEvidenceFixture -At $fixtureNow; $badFingerprint.productionFingerprintVerified = $false
+    AThrows 'evidence M: failed fingerprint hard-fails' { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture 'fingerprint.json' $badFingerprint) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'productionFingerprintVerified.*no migration was attempted'
+    $badReadOnly = New-ValidEvidenceFixture -At $fixtureNow; $badReadOnly.readOnlyVerified = $false
+    AThrows 'evidence N: failed read-only assertion hard-fails' { Import-SnagListPreflightEvidence -Path (Write-EvidenceFixture 'readonly.json' $badReadOnly) -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $fixtureNow } 'readOnlyVerified.*no migration was attempted'
+
+    A 'classification O1: pre-apply failure is BLOCKED BEFORE APPLY' ((Get-SnagListReleaseFailureStatus -Phase PRE_APPLY) -eq 'BLOCKED BEFORE APPLY - EXECUTOR EVIDENCE CONTRACT DEFECT')
+    A 'classification O2: NOT_ATTEMPTED migration cannot be labeled failed' ((Get-SnagListReleaseFailureStatus -Phase EXECUTION -Steps @([pscustomobject]@{number='030';status='NOT_ATTEMPTED';attempted=$false})) -notmatch 'FAILED AT MIGRATION')
+    A 'classification O3: migration failure requires an actually attempted step' ((Get-SnagListReleaseFailureStatus -Phase EXECUTION -Steps @([pscustomobject]@{number='033';status='FAIL';attempted=$true})) -eq 'FAILED AT MIGRATION 033')
+
+    $gateIndex = $applySource.IndexOf('Import-SnagListPreflightEvidence')
+    $connectionIndex = $applySource.IndexOf('$conn = Get-ProductionConnectionFingerprint')
+    A 'evidence gate is executed before apply connection creation' ($gateIndex -gt 0 -and $gateIndex -lt $connectionIndex)
+    A 'producer and consumer share the centralized evidence helper' ($preflightSource -match 'New-SnagListPreflightEvidence' -and $applySource -match 'Import-SnagListPreflightEvidence')
+    A 'pre-apply report uses canonical BLOCKED BEFORE APPLY classification' ($applySource -match 'Get-SnagListReleaseFailureStatus -Phase PRE_APPLY' -and $applySource -match "overallStatus = 'BLOCKED_BEFORE_APPLY'")
+    A 'pre-apply report marks every migration NOT_ATTEMPTED' ($applySource -match "attempted = \`$false; status = 'NOT_ATTEMPTED'")
+} finally {
+    Remove-Item -LiteralPath $evidenceFixtureDir -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host "TOTAL: $pass passed, $fail failed"
 if ($fail) { exit 1 }

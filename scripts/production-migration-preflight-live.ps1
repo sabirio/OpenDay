@@ -27,6 +27,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\ProductionConnection.ps1')
 . (Join-Path $PSScriptRoot 'lib\SecurityContractInventory.ps1')
 . (Join-Path $PSScriptRoot 'lib\SnagListMigrationContract.ps1')
+. (Join-Path $PSScriptRoot 'lib\PreflightEvidenceContract.ps1')
 
 $manifest = Import-MigrationManifest -Path $ManifestPath
 Test-ManifestMigrationOrder -Manifest $manifest | Out-Null
@@ -42,17 +43,13 @@ if (-not (Test-Path -LiteralPath $backupManifestPath)) { throw 'verified backup 
 if ((Get-FileChecksum -Path $backupManifestPath).ToLowerInvariant() -ne $ExpectedBackupManifestSha256.ToLowerInvariant()) { throw 'verified backup manifest checksum mismatch' }
 
 $queryTempDirectory = Join-Path ([IO.Path]::GetTempPath()) "migration-preflight-live-$([guid]::NewGuid().ToString('N').Substring(0,8))"
-$result = [ordered]@{
-    generatedAtUtc = [DateTime]::UtcNow.ToString('o')
-    batchId = $manifest.batchId
-    productionFingerprintVerified = $false
-    assertions = $null
-    status = 'NOT_READY'
-}
+$productionFingerprintVerified = $false
+$readOnlyVerified = $false
+$assertions = $null
 
 try {
     $conn = Get-ProductionConnectionFingerprint -EnvFile $EnvFile -RepoRoot $repoRoot -ExpectedProjectRef $manifest.approvedProjectRef
-    $result.productionFingerprintVerified = $true
+    $productionFingerprintVerified = $true
     Write-Host 'Production fingerprint: PASS'
 
     $env:PGHOST = $conn.Host
@@ -89,13 +86,15 @@ try {
         return Invoke-RawWrappedQuery -WrappedSql (New-ReadOnlyCatalogScript -CatalogQuery $Sql)
     }
 
-    $result.assertions = Test-SnagListPreflightAssertions -Query $queryFn -BatchId $manifest.batchId
-    $result.status = $result.assertions.status
+    $assertions = Test-SnagListPreflightAssertions -Query $queryFn -BatchId $manifest.batchId
+    $readOnlyVerified = $true
 } finally {
     Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
     Remove-Item Env:PGHOST, Env:PGPORT, Env:PGDATABASE, Env:PGUSER, Env:PGSSLMODE -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $queryTempDirectory) { Remove-Item -LiteralPath $queryTempDirectory -Recurse -Force -ErrorAction SilentlyContinue }
 }
+
+$result = New-SnagListPreflightEvidence -BatchId $manifest.batchId -ProductionFingerprintVerified $productionFingerprintVerified -ReadOnlyVerified $readOnlyVerified -Assertions $assertions
 
 $json = $result | ConvertTo-Json -Depth 10
 Assert-NoSecretLeak -Text $json | Out-Null

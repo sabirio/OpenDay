@@ -85,7 +85,7 @@ function Test-SnagListPreflightAssertions {
     $result = [ordered]@{
         inventory = $null
         predecessorState = $null
-        blockingLocks = [ordered]@{ conflictingLockCount = -1; safe = $false }
+        blockingLocks = [ordered]@{ conflictingLockCount = -1; safe = $false; details = @() }
         reasons = @()
         classification = 'UNKNOWN'
         status = 'NOT_READY'
@@ -111,7 +111,9 @@ function Test-SnagListPreflightAssertions {
     }
 
     $lockSql = @"
-SELECT count(*) FROM pg_locks l
+SELECT COALESCE(json_agg(json_build_object(
+  'pid', l.pid, 'mode', l.mode, 'schema', n.nspname, 'relation', c.relname
+) ORDER BY l.pid, l.mode, c.relname)::text, '[]') FROM pg_locks l
 JOIN pg_class c ON c.oid = l.relation
 JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
@@ -119,8 +121,10 @@ WHERE n.nspname = 'public'
   AND l.mode IN ('AccessExclusiveLock','ExclusiveLock','ShareRowExclusiveLock')
 "@
     $lockRaw = (& $Query $lockSql).Trim()
-    $blockingLockCount = if ([string]::IsNullOrWhiteSpace($lockRaw)) { 0 } else { [int]$lockRaw }
-    $result.blockingLocks = [ordered]@{ conflictingLockCount = $blockingLockCount; safe = ($blockingLockCount -eq 0) }
+    if ([string]::IsNullOrWhiteSpace($lockRaw)) { throw 'preflight lock inventory returned no JSON result' }
+    try { [object[]]$blockingLockDetails = ConvertFrom-Json -InputObject $lockRaw } catch { throw 'preflight lock inventory returned malformed JSON' }
+    $blockingLockCount = ($blockingLockDetails | Measure-Object).Count
+    $result.blockingLocks = [ordered]@{ conflictingLockCount = $blockingLockCount; safe = ($blockingLockCount -eq 0); details = $blockingLockDetails }
     if ($blockingLockCount -ne 0) { $result.reasons += "found $blockingLockCount conflicting lock(s) on predecessor tables" }
 
     if ($result.reasons.Count -eq 0 -and -not $anyPresent) {

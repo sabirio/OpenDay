@@ -45,6 +45,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\MigrationManifestValidator.ps1')
 . (Join-Path $PSScriptRoot 'lib\ManifestMigrationExecutor.ps1')
 . (Join-Path $PSScriptRoot 'lib\SnagListMigrationContract.ps1')
+. (Join-Path $PSScriptRoot 'lib\PreflightEvidenceContract.ps1')
 
 $BackupPath = (Resolve-Path -LiteralPath $BackupPath).Path
 $manifestPath = Join-Path $repoRoot 'scripts\manifests\snag-list-030-035.psd1'
@@ -68,6 +69,7 @@ $report = [ordered]@{
     happyPath = $null
     failureInjection = $null
     partialState = $null
+    preApplyFailure = $null
     overallStatus = 'FAIL'
 }
 
@@ -255,7 +257,7 @@ function Invoke-DockerCatalogQuery {
 # 1. HAPPY PATH
 # =====================================================================
 Write-Host '=== HAPPY PATH: restore -> preflight(READY) -> apply 030-035 -> postflight(PASS) ==='
-$happy = [ordered]@{ status = 'FAIL'; preflight = $null; execution = $null; postflight = $null; rowPreservation = $null; repeatState = $null; cleanup = $null }
+$happy = [ordered]@{ status = 'FAIL'; preflight = $null; evidenceContract = $null; execution = $null; postflight = $null; rowPreservation = $null; repeatState = $null; cleanup = $null }
 $disposable1 = $null
 try {
     $disposable1 = New-DisposableRestoredContainer -Label 'happy'
@@ -268,6 +270,11 @@ try {
     $preflight = Test-SnagListPreflightAssertions -Query $queryFn -BatchId 'SNAG-LIST-030-035'
     $happy.preflight = $preflight
     if ($preflight.status -ne 'READY_FOR_SNAG-LIST-030-035') { throw "preflight did not report READY: $($preflight | ConvertTo-Json -Depth 5)" }
+    $contractNow = [DateTime]::UtcNow
+    $contractPath = Join-Path ([IO.Path]::GetTempPath()) "disposable-preflight-$([guid]::NewGuid().ToString('N')).json"
+    $contractEvidence = New-SnagListPreflightEvidence -BatchId 'SNAG-LIST-030-035' -ProductionFingerprintVerified $true -ReadOnlyVerified $true -Assertions $preflight -GeneratedAtUtc $contractNow
+    Write-Utf8NoBom -Path $contractPath -Value ($contractEvidence | ConvertTo-Json -Depth 10)
+    try { $happy.evidenceContract = Import-SnagListPreflightEvidence -Path $contractPath -ExpectedBatchId 'SNAG-LIST-030-035' -NowUtc $contractNow } finally { Remove-Item -LiteralPath $contractPath -Force -ErrorAction SilentlyContinue }
     Write-Host 'Preflight: READY_FOR_SNAG-LIST-030-035 (PASS)'
 
     $manifest = Import-MigrationManifest -Path $manifestPath
@@ -390,9 +397,23 @@ $report.failureInjection = $injection
 Write-Host ''
 Write-Host '=== PARTIAL STATE: 030+031 applied, 032-035 absent - preflight must classify as NOT_READY ==='
 $partial = [ordered]@{ status = 'FAIL'; preflight = $null; cleanup = $null }
+$preApplyFailure = [ordered]@{ status = 'FAIL'; classification = $null; before = $null; after = $null }
 $disposable3 = $null
 try {
     $disposable3 = New-DisposableRestoredContainer -Label 'partial'
+    $preApplyFailure.before = (Invoke-DockerCatalogQuery $disposable3 "SELECT to_regclass('public.snags') IS NULL;").Trim()
+    $invalidEvidencePath = Join-Path ([IO.Path]::GetTempPath()) "invalid-preflight-$([guid]::NewGuid().ToString('N')).json"
+    Write-Utf8NoBom -Path $invalidEvidencePath -Value ('{"schemaVersion":"snag-list-preflight/v1","generatedAtUtc":"' + [DateTime]::UtcNow.ToString('o') + '","batchId":"SNAG-LIST-030-035","productionFingerprintVerified":true,"readOnlyVerified":true,"assertions":{"predecessorState":{},"classification":"READY","status":"READY_FOR_SNAG-LIST-030-035"},"status":"READY_FOR_SNAG-LIST-030-035"}')
+    try {
+        try { Import-SnagListPreflightEvidence -Path $invalidEvidencePath -ExpectedBatchId 'SNAG-LIST-030-035' | Out-Null; throw 'invalid evidence unexpectedly passed' } catch {
+            if ($_.Exception.Message -notmatch 'blockingLocks.*no migration was attempted') { throw }
+            $preApplyFailure.classification = Get-SnagListReleaseFailureStatus -Phase PRE_APPLY
+        }
+    } finally { Remove-Item -LiteralPath $invalidEvidencePath -Force -ErrorAction SilentlyContinue }
+    $preApplyFailure.after = (Invoke-DockerCatalogQuery $disposable3 "SELECT to_regclass('public.snags') IS NULL;").Trim()
+    if ($preApplyFailure.before -ne 't' -or $preApplyFailure.after -ne 't' -or $preApplyFailure.classification -ne 'BLOCKED BEFORE APPLY - EXECUTOR EVIDENCE CONTRACT DEFECT') { throw 'pre-apply failure did not preserve predecessor state' }
+    $preApplyFailure.status = 'PASS'
+    Write-Host 'Pre-apply invalid evidence: BLOCKED BEFORE APPLY, migration 030 NOT_ATTEMPTED, database unchanged - PASS'
     $fullManifest = Import-MigrationManifest -Path $manifestPath
     $partialManifest = $fullManifest.Clone()
     $partialManifest.migrations = @($fullManifest.migrations[0], $fullManifest.migrations[1])
@@ -417,6 +438,7 @@ try {
     if ($disposable3) { $partial.cleanup = if (Remove-DisposableRestoredContainer -Disposable $disposable3) { 'PASS' } else { 'FAIL' } }
 }
 $report.partialState = $partial
+$report.preApplyFailure = $preApplyFailure
 
 $report.completedAtUtc = [DateTime]::UtcNow.ToString('o')
 $report.overallStatus = if ($happy.status -eq 'PASS' -and $injection.status -eq 'PASS' -and $partial.status -eq 'PASS') { 'PASS' } else { 'FAIL' }

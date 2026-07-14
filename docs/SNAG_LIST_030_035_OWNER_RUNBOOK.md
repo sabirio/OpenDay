@@ -50,6 +50,15 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-mig
 
 Required status: `READY_FOR_SNAG-LIST-030-035`. `PARTIAL_STATE`, `PARTIAL_DRIFT`, or `ALREADY_APPLIED` is a hard stop requiring forensic review. Never repair migration history or automatically resume.
 
+Preflight evidence uses schema `snag-list-preflight/v1`. The canonical lock
+field is `assertions.blockingLocks`, containing a consistent non-negative
+`conflictingLockCount`, boolean `safe`, and `details[]`. The evidence must also
+record a successful production fingerprint, read-only execution, predecessor
+state, classification, status, batch identity and creation timestamp. Apply
+rejects unsupported schemas, missing/malformed/contradictory fields, any lock,
+non-READY state, failed fingerprint/read-only assertions, and evidence older
+than 30 minutes. Never edit evidence or bypass this gate.
+
 ## 4. Approval and apply — owner terminal only
 
 After reviewing backup and preflight evidence, the owner supplies exactly `APPROVE PRODUCTION APPLY SNAG LIST 030-035` and runs:
@@ -67,6 +76,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-mig
 
 The executor applies files in manifest order, one `psql` invocation per file with `ON_ERROR_STOP=1`. On failure, every later step remains `NOT_ATTEMPTED`. Do not retry blindly.
 
+A gate failure before the first SQL invocation is `BLOCKED BEFORE APPLY`, not
+`FAILED AT MIGRATION 030`. `FAILED AT MIGRATION XXX` requires proof that the
+SQL invocation for XXX was attempted. `ALREADY_APPLIED` is postflight-only;
+`PARTIAL_STATE` and `PARTIAL_DRIFT` remain forensic stops.
+
 ## 5. Postflight and acceptance
 
 Run canonical postflight using the same manifest and apply evidence. Confirm all eleven Snag List tables and required RPCs, RLS, no PUBLIC/anon execution, private plan/evidence buckets and limits, monotonic non-reusing numbering, Captured/Published separation, assigned-contractor visibility, safe account-independent stakeholders, idempotent Activity, and preservation of predecessor rows, plans, evidence, ACL, ownership, and unrelated modules.
@@ -82,3 +96,8 @@ Archive the backup, restore report, manifest hash, preflight, apply report, post
 - Already applied: do not rerun; verify postflight and retained evidence.
 
 Nothing in this runbook authorizes an AI agent to open production, print credentials, deploy, or push.
+
+After any tooling correction, start a new owner-controlled production release
+run with renewed explicit approval. The verified backup from a failed run is
+valid historical recovery evidence, but the default next-run decision is:
+`CREATE A NEW FRESH PRODUCTION BACKUP`.

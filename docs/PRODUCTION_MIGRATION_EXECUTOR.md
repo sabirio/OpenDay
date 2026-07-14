@@ -25,10 +25,41 @@ the exact commands below for the owner to run.
 | `scripts/production-migration-apply.ps1` | The CLI. Two parameter sets: `-ValidateOnly` (manifest/order/path/checksum/git-identity only — never touches Docker, network, or a credential) and Apply mode (everything `-ValidateOnly` checks, plus verified-backup checksum, approved-preflight-result checksum and status, an exact confirmation phrase computed from the manifest, then the production connection and apply). |
 | `scripts/production-migration-preflight-live.ps1` | Read-only. Confirms the batch's objects are entirely absent and predecessor objects are present, via a bounded `READ ONLY REPEATABLE READ` transaction per query (`New-ReadOnlyCatalogScript`) with a forbidden-statement guard. Writes an atomic evidence file whose `status` the apply script re-checks. |
 | `scripts/production-migration-postflight-live.ps1` | Read-only. Confirms every expected object exists with the expected contract (RLS enabled, private buckets, no anon execute grant). Never calls a business RPC, never creates a row. |
+| `scripts/lib/PreflightEvidenceContract.ps1` | Authoritative writer, legacy adapter, reader and strict validator for versioned Snag List preflight evidence. Apply commands do not probe JSON property paths directly. |
 | `scripts/production-migration-disposable-certification.ps1` | Restores the already-verified production backup into disposable, throwaway Postgres containers (never production) and proves: (1) happy path — preflight READY → apply → postflight PASS → 0 unexpected row-count differences on pre-existing tables → a repeat preflight against the same now-applied database reports NOT_READY; (2) failure injection — a 6-migration test batch where steps 1–3 pass and step 4 fails: steps 5–6 are reported NOT_ATTEMPTED **and** their database objects are proven absent by direct query, not just missing from the log; (3) partial state — only the first 2 of 6 migrations applied, preflight against the full manifest reports NOT_READY with a drift/partial reason. |
 | `scripts/tests/production-migration-executor.tests.ps1` | Plain assertion script (no Pester), fully offline. Covers manifest/order/path/checksum/identity validation, secret redaction, atomic evidence, no-retry-loop, no-arbitrary-SQL-surface, and the idempotency/partial-apply policy below. |
 
 ## Manifest contract
+
+## Preflight evidence contract
+
+The canonical schema is `snag-list-preflight/v1`. The preflight writer and
+apply reader share `PreflightEvidenceContract.ps1`. Required fields include
+`generatedAtUtc`, `batchId`, `productionFingerprintVerified`,
+`readOnlyVerified`, `assertions.predecessorState`,
+`assertions.classification`, `assertions.status`, and
+`assertions.blockingLocks`.
+
+`assertions.blockingLocks` is the sole writable lock representation. It
+contains `conflictingLockCount`, `safe`, and `details[]`; count, safety and
+detail length must agree. Missing, null, malformed, contradictory or non-zero
+lock evidence fails closed before credential access or migration execution.
+Evidence older than 30 minutes, from the future by more than one minute, with
+an unsupported schema, failed fingerprint/read-only assertion, or any state
+other than READY is rejected.
+
+Unversioned evidence produced by the earlier canonical preflight has one
+explicit `legacy-unversioned-v0` adapter. The adapter validates every required
+legacy field and converts it to the v1 internal model. It never treats absent
+lock evidence as zero.
+
+`ALREADY_APPLIED` follows postflight-only certification and must not enter
+apply. `PARTIAL_STATE` and `PARTIAL_DRIFT` require a forensic stop. Manual JSON
+editing or gate bypass is prohibited.
+
+Failures before an actual SQL invocation are classified `BLOCKED BEFORE
+APPLY`; `FAILED AT MIGRATION XXX` is emitted only for an attempted migration
+step. Every later step remains `NOT_ATTEMPTED` after a migration failure.
 
 A `.psd1` manifest is a plain PowerShell data file (`Import-PowerShellDataFile`
 — never `Invoke-Expression`, no code execution). Required keys:

@@ -66,6 +66,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\MigrationManifestValidator.ps1')
 . (Join-Path $PSScriptRoot 'lib\ManifestMigrationExecutor.ps1')
 . (Join-Path $PSScriptRoot 'lib\ProductionConnection.ps1')
+. (Join-Path $PSScriptRoot 'lib\PreflightEvidenceContract.ps1')
 
 Write-Host "Loading manifest: $ManifestPath"
 $manifest = Import-MigrationManifest -Path $ManifestPath
@@ -102,9 +103,28 @@ Write-Host 'Backup manifest checksum: PASS'
 
 $preflightPath = (Resolve-Path -LiteralPath $ApprovedPreflightPath).Path
 if ((Get-FileChecksum -Path $preflightPath).ToLowerInvariant() -ne $ExpectedPreflightSha256.ToLowerInvariant()) { throw 'ABORT: approved preflight checksum mismatch' }
-$preflight = Get-Content -Raw -LiteralPath $preflightPath | ConvertFrom-Json
-if ($preflight.status -ne "READY_FOR_$($manifest.batchId)" -or -not $preflight.productionFingerprintVerified -or -not $preflight.blockingLocks.safe) {
-    throw "ABORT: preflight evidence is failed, stale, or incomplete (status=$($preflight.status))"
+try {
+    $preflight = Import-SnagListPreflightEvidence -Path $preflightPath -ExpectedBatchId $manifest.batchId
+} catch {
+    $preApplyReport = [ordered]@{
+        batchId = $manifest.batchId
+        repositoryCommit = $actualHead
+        completedAtUtc = [DateTime]::UtcNow.ToString('o')
+        classification = Get-SnagListReleaseFailureStatus -Phase PRE_APPLY
+        overallStatus = 'BLOCKED_BEFORE_APPLY'
+        failure = $_.Exception.Message
+        execution = [ordered]@{
+            steps = @($manifest.migrations | ForEach-Object { [ordered]@{ number = $_.number; file = $_.file; attempted = $false; status = 'NOT_ATTEMPTED' } })
+        }
+    }
+    $preApplyJson = $preApplyReport | ConvertTo-Json -Depth 10
+    Assert-NoSecretLeak -Text $preApplyJson | Out-Null
+    $preApplyOutputDir = Split-Path -Parent $OutputPath
+    if (-not (Test-Path -LiteralPath $preApplyOutputDir)) { New-Item -ItemType Directory -Path $preApplyOutputDir -Force | Out-Null }
+    $preApplyTemp = "$OutputPath.tmp-$([guid]::NewGuid().ToString('N'))"
+    Write-Utf8NoBom -Path $preApplyTemp -Value $preApplyJson
+    Move-Item -LiteralPath $preApplyTemp -Destination $OutputPath -Force
+    throw
 }
 Write-Host 'Preflight approval: PASS'
 
