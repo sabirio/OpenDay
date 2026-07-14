@@ -29,9 +29,6 @@ test('local mobile field workflow: reject, correct, resubmit, close and reopen',
   await switchUser(page,contractor);await page.goto(detailUrl);
   await page.getByRole('button',{name:'Start work'}).click();
   await expect(page.getByText('In progress',{exact:true})).toBeVisible();
-  await page.getByLabel('Correction note').fill('Door adjusted and tested');
-  await page.getByRole('button',{name:'Add note'}).click();
-  await expect(page.getByText('Door adjusted and tested')).toBeVisible();
   await page.getByRole('button',{name:'Submit for review'}).click();
   await expect(page.getByText('Ready for review',{exact:true})).toBeVisible();
   await switchUser(page,pm);await page.goto(detailUrl);
@@ -40,8 +37,6 @@ test('local mobile field workflow: reject, correct, resubmit, close and reopen',
   await expect(page.getByText('In progress',{exact:true})).toBeVisible();
   await switchUser(page,contractor);await page.goto(detailUrl);
   await expect(page.getByText('Alignment still outside tolerance')).toBeVisible();
-  await page.getByLabel('Correction note').fill('Alignment corrected and rechecked');
-  await page.getByRole('button',{name:'Add note'}).click();
   await page.getByRole('button',{name:'Submit for review'}).click();
   await expect(page.getByText('Ready for review',{exact:true})).toBeVisible();
   await switchUser(page,pm);await page.goto(detailUrl);

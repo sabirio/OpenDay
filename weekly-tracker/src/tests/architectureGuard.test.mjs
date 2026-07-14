@@ -189,6 +189,33 @@ const evidenceServiceText = readFileSync(path.join(srcRoot, 'services/evidence/e
 check('registered evidence identity cannot be silently replaced', /upsert:false/.test(evidenceServiceText) && !/\.update\(|upsert:true/.test(evidenceServiceText));
 check('Phase 4 does not implement PDF or analytics integrations', !sourceFiles.some(({ rel, text }) => /evidence/i.test(rel) && /pdf export|Risk Engine|Opening Readiness|Contractor Performance|OpenDay FM/i.test(text)));
 
+// Snag bounded-context guard. This scans the complete production domain tree,
+// rather than protecting a hand-picked filename, so newly added domain files
+// inherit the same isolation rules automatically.
+const snagDomainFiles = sourceFiles.filter(({ rel }) => rel.startsWith('core/snags/'));
+const forbiddenSnagDomainImports = snagDomainFiles.flatMap(({ rel, text }) =>
+  [...text.matchAll(/^\s*import(?:[\s\S]*?)from\s+['"]([^'"]+)['"]/gm)].filter(([, spec]) =>
+    /(^|\/)(react|react-router|lib\/supabase|services|components|pages|hooks|engines|contractor|siteVisit|site-visit|pdf)/i.test(spec)
+  ).map(([, spec]) => `${rel} -> ${spec}`));
+check(`Snag domain has no UI, Supabase, browser, adjacent-module or engine imports (found: ${forbiddenSnagDomainImports.join(', ') || 'none'})`, forbiddenSnagDomainImports.length === 0);
+
+const snagBrowserApiUses = snagDomainFiles.filter(({ text }) =>
+  /\b(window|document|localStorage|sessionStorage|navigator|URL\.createObjectURL|fetch)\b/.test(text)
+).map(({ rel }) => rel);
+check(`Snag domain uses no browser APIs (found: ${snagBrowserApiUses.join(', ') || 'none'})`, snagBrowserApiUses.length === 0);
+
+const snagUiFiles = sourceFiles.filter(({ rel }) => /^(pages\/snags|components\/snags|hooks\/useSnag)/.test(rel));
+const snagUiDirectPersistence = snagUiFiles.filter(({ text }) =>
+  /\.from\(['"](?:snags|snag_events|snag_evidence|snag_plan_versions)['"]\)|\.rpc\(['"](?:execute_snag_command|create_snag_|register_snag_)/.test(text)
+).map(({ rel }) => rel);
+check(`Snag UI performs no direct database writes/RPCs (found: ${snagUiDirectPersistence.join(', ') || 'none'})`, snagUiDirectPersistence.length === 0);
+
+const snagLifecycleDefinitions = snagDomainFiles.filter(({ text }) => /export const SNAG_STATUSES\s*=/.test(text)).map(({ rel }) => rel);
+check(`Snag lifecycle has one canonical definition (found: ${snagLifecycleDefinitions.join(', ')})`, snagLifecycleDefinitions.length === 1 && snagLifecycleDefinitions[0] === 'core/snags/config.js');
+
+const standaloneEntryText = readFileSync(path.join(srcRoot, 'core/snags/index.js'), 'utf8');
+check('Snag standalone public entry does not depend on adjacent business modules', !/(weekly|contractor|siteVisit|site-visit|progress|risk|readiness)/i.test(standaloneEntryText));
+
 const siteVisitSubmitText = readFileSync(path.join(srcRoot, 'core/siteVisit/submitSiteVisitModel.js'), 'utf8');
 check('site visit application command uses one atomic service and no legacy multi-write imports',
   /submitSiteVisitAtomic/.test(siteVisitSubmitText) && !/insertSiteVisitHeader|insertSiteVisitWPObservations|insertSiteVisitDiscrepancies|updateGanttDiscrepancy/.test(siteVisitSubmitText));

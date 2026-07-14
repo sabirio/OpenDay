@@ -108,3 +108,53 @@ The mobile evidence section lazily downloads a selected private Blob only after 
 Evidence metadata reads remain scoped to one Snag through the existing bounded detail query. Private images are loaded one at a time on demand; retries reuse one identity and do not retain duplicate object URLs. The maximum is 20 registered file evidence items per Snag. No Risk, Opening Readiness, Contractor Performance, analytics, notifications, OCR/AI, markup, image conversion or OpenDay FM dependency is introduced.
 
 Production use of migration 034 requires separate approval for the table extension, intent table, bucket, Storage/RLS policies, immutable trigger and four security-definer RPCs. It also requires review of operational expired-intent cleanup and a decision on malware/deep-file inspection. Phase 4 applies these objects only to the guarded local environment.
+
+## Phase 5 CPOS context map and module contract
+
+OpenDay is a CPOS composed of Shared Platform Core, independent business modules, domain engines and application orchestration. Shared Core owns Company/Tenant, User, Role, Project, membership/access, audit actor and canonical site references. Snag List consumes those identities; it does not define competing Company, User, Role, Project or tenant-isolation models.
+
+```text
+React UI -> controller hooks -> application adapters -> Snag commands/use cases
+                                                   -> ports -> Supabase/RPC/Storage
+Snag append-only events -> OpenDay orchestrator -> read models/future engines
+```
+
+Snag List owns the Snag aggregate, lifecycle, assignment, due date, location, plan revision/page/pin linkage, evidence metadata and append-only history. Supabase, PostgreSQL RPC, RLS and private Storage are infrastructure adapters. React gathers input and renders state; it does not authorize, implement transitions or write Snag tables directly.
+
+Allowed domain dependencies are deterministic domain policies, contracts and Shared Core identity passed through application context. Prohibited domain dependencies are React/Router, browser APIs, Supabase/Storage, UI/PDF code and Weekly Report, Site Visit, Progress, Risk or Readiness modules. Adjacent modules consume a safe integration contract through an OpenDay orchestrator; they do not import the Snag database or call the Snag engine directly.
+
+The public module contract declares only Shared Core capabilities (`identity`, `tenancy`, `projects`, `audit`) and explicitly excludes adjacent business modules. Its entitlement seam answers whether `openday.snags` is enabled; pricing, billing and subscription administration remain platform responsibilities. Standalone and integrated modes therefore use the same domain and persistence contract. A separately packaged standalone application shell is not yet produced.
+
+## Commands, ports and integration events
+
+The browser application calls narrow application adapters. Critical writes terminate at security-definer RPCs that authorize against canonical project access and atomically update current state, command request, evidence where applicable, and append-only history. `client_request_id` plus fingerprint provides idempotent replay; expected aggregate version provides optimistic concurrency. Reads remain project-scoped and bounded.
+
+`toSnagIntegrationEvent` is the pure adapter from an existing `snag_events` record to schema version 1. The envelope contains event type/id/time, actor, company, project, aggregate type/id, correlation ID and safe payload. Company identity must be supplied by Shared Core/orchestration and project mismatch fails closed. URL, token, secret and storage-path fields are recursively removed. Only event types emitted by migrations 030, 033 and 034 are accepted; no speculative plan, analytics or scoring events are declared.
+
+The append-only `snag_events` table is forensic history and the transactional event record for current commands, not a general event platform or durable external outbox. No network publication guarantee exists. A future publisher must add delivery state/outbox semantics in a separately reviewed migration before claiming at-least-once external delivery. Future Benchmark, Contractor Performance, Risk or Readiness engines may consume versioned envelopes/read models through orchestration, but none is implemented here.
+
+## Architecture certification decisions
+
+| Rule | Result | Evidence / limitation |
+| --- | --- | --- |
+| Bounded context; no React/Supabase/other engines in domain | PASS | Recursive architecture guard over `core/snags`; isolated domain tests |
+| No duplicate Project/User/Company/access core | PASS | Shared identities enter as context; canonical RLS access functions remain authoritative |
+| Thin UI and centralized lifecycle | PASS | UI delegates through hooks/adapters; single `SNAG_STATUSES` definition and workflow API |
+| Stable commands, atomicity, idempotency | PASS | Command RPC plus request fingerprint/version contracts and local certification |
+| RLS, tenant/project isolation and private Storage | PASS | Migrations 030-034 contract tests and disposable local RLS/Storage certification |
+| Immutable plans/history and historical linkage | PASS | Immutable metadata/triggers; activation never rewrites Snag plan references |
+| Versioned integration events | PASS | Safe schema-v1 envelope, correlation and tenant/project validation |
+| Forensic audit foundation | PARTIAL | Actor/time/before-after/reason/correlation retained; no durable external outbox or explicit user-vs-system discriminator |
+| Standalone possible | PARTIAL | Runtime domain boundary is independent; standalone packaging/configuration shell is deferred |
+| Integrated mode without fork | PASS | Same module contract consumes Shared Core and exposes orchestration envelope |
+| Future analytics readiness | PASS | Immutable event/evidence/revision identities retained without implementing analytics engines |
+
+### Architecture decisions and deferred scope
+
+- ADR-5.1: retain the proven RPC transaction boundary; do not introduce repository abstractions that merely wrap one current adapter.
+- ADR-5.2: adapt append-only events into a safe integration envelope; do not turn audit history into an unproven global event bus.
+- ADR-5.3: obtain Company scope from Shared Core/orchestration rather than duplicating tenant ownership inside the Snag domain.
+- ADR-5.4: expose a minimal entitlement capability seam; defer billing, marketplace and company configuration UI.
+- ADR-5.5: preserve migrations 030-034 byte-for-byte; Phase 5 requires no schema change.
+
+Next MVP work may add a standalone application shell and explicit system-action audit identity. Later platform work may add a transactional outbox, analytics projections and module commerce. A general event platform, speculative engine APIs, marketplace implementation, configurable workflow designer and large UI redesign are explicitly rejected from Phase 5 scope.
