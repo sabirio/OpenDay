@@ -76,6 +76,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\production-mig
   -VerifiedBackupPath <fresh-backup-directory> `
   -ExpectedBackupManifestSha256 <sha256> `
   -ExpectedBackupScriptSha256 <canonical-backup-script-sha256> `
+  -ExpectedRestoreReportSha256 <restore-verification-json-sha256> `
   -OutputPath <preflight-evidence.json>
 ```
 

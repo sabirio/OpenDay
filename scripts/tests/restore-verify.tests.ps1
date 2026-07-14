@@ -331,7 +331,7 @@ try {
 # 7. Report schema contains required fields (structural check on source)
 # ===========================================================================
 $requiredReportFields = @('verificationVersion', 'timestampUtc', 'backupPath', 'backupTimestamp', 'postgresImage',
-    'checksumStatus', 'manifestStatus', 'releaseBindingStatus', 'migrationHistory', 'roleMemberships', 'restoreSteps', 'schemas', 'tableCount', 'tables',
+    'checksumStatus', 'manifestStatus', 'backupManifestSha256', 'releaseBindingStatus', 'migrationHistory', 'roleMemberships', 'restoreSteps', 'schemas', 'tableCount', 'tables',
     'constraints', 'unexpectedInvalidConstraints', 'triggers', 'sessionReplicationRole', 'cleanup', 'overallStatus', 'failureReason')
 foreach ($f in $requiredReportFields) {
     Assert-True "report schema: `$diag defines '$f'" ($scriptText -match [regex]::Escape("$f =") -or $scriptText -match [regex]::Escape("`$diag.$f "))

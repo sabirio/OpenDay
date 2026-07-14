@@ -197,6 +197,10 @@ A 'scenario 18e: Assert-NoSecretLeak accepts already-redacted text' ((Assert-NoS
 # --- Scenario 19: non-zero exit code on failure is structural, not incidental ---
 A 'scenario 19: apply CLI exits non-zero on FAIL' ($applySource -match "if \(\`$applyReport\.overallStatus -eq 'PASS'\) \{ exit 0 \} else \{ exit 1 \}")
 $preflightSource = Get-Content -Raw (Join-Path $root 'scripts\production-migration-preflight-live.ps1')
+A 'restore evidence: preflight requires restore report checksum' ($preflightSource -match 'ExpectedRestoreReportSha256')
+A 'restore evidence: preflight requires release-qualified PASS' ($preflightSource -match 'releaseBindingStatus.*PASS')
+A 'restore evidence: preflight binds exact backup directory' ($preflightSource -match 'belongs to a different backup directory')
+A 'restore evidence: preflight binds backup manifest hash' ($preflightSource -match 'backup-manifest linkage mismatch')
 A 'preflight CLI exits non-zero on NOT_READY' ($preflightSource -match "else \{ exit 1 \}")
 $postflightSource = Get-Content -Raw (Join-Path $root 'scripts\production-migration-postflight-live.ps1')
 A 'postflight CLI exits non-zero on FAIL' ($postflightSource -match "else \{ exit 1 \}")

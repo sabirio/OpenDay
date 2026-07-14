@@ -29,6 +29,10 @@ both release-manifest hash fields to the approved manifest, and
 `scriptSha256` to the canonical backup entry point. The separate
 `-ExpectedBackupManifestSha256` is the completed JSON file's sidecar hash and
 is intentionally not embedded recursively inside that JSON file.
+Preflight additionally requires `-ExpectedRestoreReportSha256` and verifies
+that the exact report is a release-qualified PASS, names the same backup
+directory, and records the same backup-manifest SHA-256. A restore report from
+another backup therefore cannot authorize apply.
 
 ## Components
 

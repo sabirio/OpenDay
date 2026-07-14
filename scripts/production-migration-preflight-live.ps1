@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory)][string]$VerifiedBackupPath,
     [Parameter(Mandatory)][string]$ExpectedBackupManifestSha256,
     [Parameter(Mandatory)][string]$ExpectedBackupScriptSha256,
+    [Parameter(Mandatory)][string]$ExpectedRestoreReportSha256,
     [Parameter(Mandatory)][string]$OutputPath,
     [string]$EnvFile
 )
@@ -49,6 +50,14 @@ $actualHead = (& git -C $repoRoot rev-parse HEAD).Trim().ToLowerInvariant()
 if ((Get-FileHash -LiteralPath (Join-Path $repoRoot 'scripts\production-backup.ps1') -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedBackupScriptSha256) { throw 'verified canonical backup script checksum mismatch' }
 Assert-BackupManifestReleaseBinding -Manifest $backupManifest -ExpectedSourceCommit $actualHead -ExpectedReleaseManifestSha256 $releaseManifestHash -ExpectedBackupScriptSha256 $ExpectedBackupScriptSha256 | Out-Null
 Write-Host 'Backup release binding: PASS'
+$restoreReportPath = Join-Path $backup 'restore-verification.json'
+if (-not (Test-Path -LiteralPath $restoreReportPath -PathType Leaf)) { throw 'verified restore report is missing' }
+if ((Get-FileHash -LiteralPath $restoreReportPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedRestoreReportSha256) { throw 'verified restore report checksum mismatch' }
+$restoreReport = Get-Content -LiteralPath $restoreReportPath -Raw | ConvertFrom-Json
+if ([string]$restoreReport.overallStatus -cne 'PASS' -or [string]$restoreReport.releaseBindingStatus -cne 'PASS') { throw 'verified restore report is not release-qualified PASS' }
+if ([IO.Path]::GetFullPath([string]$restoreReport.backupPath) -cne $backup) { throw 'verified restore report belongs to a different backup directory' }
+if ([string]$restoreReport.backupManifestSha256 -cne $ExpectedBackupManifestSha256.ToLowerInvariant()) { throw 'verified restore report backup-manifest linkage mismatch' }
+Write-Host 'Restore evidence binding: PASS'
 
 $queryTempDirectory = Join-Path ([IO.Path]::GetTempPath()) "migration-preflight-live-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 $productionFingerprintVerified = $false

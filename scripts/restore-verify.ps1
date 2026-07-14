@@ -111,6 +111,7 @@ $diag = [ordered]@{
     postgresImage = $PostgresImage
     checksumStatus = 'UNKNOWN'
     manifestStatus = 'UNKNOWN'
+    backupManifestSha256 = $null
     releaseBindingStatus = 'UNKNOWN'
     migrationHistory = [ordered]@{ schema = $null; status = 'UNKNOWN'; action = 'UNKNOWN' }
     roleMemberships = [ordered]@{ status = 'UNKNOWN'; expectedEdges = @(); restoredEdges = @(); match = $false; grantorFidelity = 'normalized' }
@@ -205,7 +206,9 @@ try {
     Add-Step 'minimum_size_check' 'PASS'
 
     try {
-        $manifest = Get-Content -LiteralPath (Join-Path $BackupPath 'backup-manifest.json') -Raw | ConvertFrom-Json
+        $manifestFile = Join-Path $BackupPath 'backup-manifest.json'
+        $manifest = Get-Content -LiteralPath $manifestFile -Raw | ConvertFrom-Json
+        $diag.backupManifestSha256 = (Get-FileHash -LiteralPath $manifestFile -Algorithm SHA256).Hash.ToLowerInvariant()
     } catch {
         $diag.failureReason = "backup-manifest.json is not valid JSON: $($_.Exception.Message)"; $diag.failedStep = 'pre_validation'; throw $diag.failureReason
     }
