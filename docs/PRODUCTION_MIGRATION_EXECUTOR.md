@@ -14,6 +14,15 @@ owner-executed. An agent's role stops at: building/testing this tooling,
 running `-ValidateOnly`, running the disposable certification, and preparing
 the exact commands below for the owner to run.
 
+Release ordering is exact approval validation, fresh canonical backup,
+disposable restore verification, fresh preflight, then apply. Backup path or
+parameter failures are classified `BLOCKED BEFORE APPLY - BACKUP TOOLING
+DEFECT`, with migrations `030`-`035` all `NOT_ATTEMPTED`; manual `pg_dump`
+substitution is not a release bypass. The backup entry point resolves
+script-relative defaults only after parameter binding and provides
+credential-free `-ValidateOnly` and `-ShowResolvedPaths` modes that work from
+arbitrary working directories on Windows PowerShell 5.1.
+
 ## Components
 
 | File | Purpose |
