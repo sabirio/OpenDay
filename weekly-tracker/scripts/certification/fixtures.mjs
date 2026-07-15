@@ -14,6 +14,7 @@ import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 import { SUPABASE_URL, SERVICE_ROLE_KEY, DB_URL, ANON_KEY } from './env.mjs';
+import { getLocalFixturePassword } from './fixturePassword.mjs';
 
 try {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/`, { headers: { apikey: ANON_KEY } });
@@ -32,7 +33,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const PASSWORD = 'Cert-Test-Pass-1!';
+const PASSWORD = getLocalFixturePassword();
 
 // project ids are fixed/high so they never collide with the auto-increment
 // sequence (which starts at 1 after 019_primary_key_defaults.sql)
@@ -64,7 +65,14 @@ async function ensureUser(spec) {
   const { data: list, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
   if (listErr) throw listErr;
   const existing = list.users.find(u => u.email === spec.email);
-  if (existing) return existing.id;
+  if (existing) {
+    const { error } = await admin.auth.admin.updateUserById(existing.id, {
+      password: PASSWORD,
+      email_confirm: true,
+    });
+    if (error) throw new Error(`updateUserById(${spec.email}): ${error.message}`);
+    return existing.id;
+  }
 
   const { data, error } = await admin.auth.admin.createUser({
     email: spec.email,

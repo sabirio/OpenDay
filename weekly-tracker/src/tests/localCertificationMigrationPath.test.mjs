@@ -14,6 +14,9 @@ function accepts(overrides = {}) {
 }
 
 const deploy = readFileSync(new URL('../../scripts/certification/resetAndDeploy.mjs', import.meta.url), 'utf8');
+const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
+const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
+const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 const seed = readFileSync(new URL('../../scripts/seed-test-users.mjs', import.meta.url), 'utf8');
 const seedSql = readFileSync(new URL('../../scripts/certification/seed-test-data.sql', import.meta.url), 'utf8');
 const playwright = readFileSync(new URL('../../playwright.config.js', import.meta.url), 'utf8');
@@ -27,9 +30,10 @@ const contract = JSON.parse(readFileSync(new URL('../../../scripts/contracts/can
 console.log('\nlocalCertificationMigrationPath - target and fixture safety');
 check('IPv4 loopback accepted', accepts());
 check('localhost accepted', accepts({ apiUrl: 'http://localhost:54321', dbUrl: 'postgresql://postgres@localhost:54322/postgres' }));
-check('IPv6 loopback accepted', accepts({ apiUrl: 'http://[::1]:54321', dbUrl: 'postgresql://postgres@[::1]:54322/postgres' }));
+check('IPv6 loopback rejected by strict localhost guard', !accepts({ apiUrl: 'http://[::1]:54321', dbUrl: 'postgresql://postgres@[::1]:54322/postgres' }));
 check('remote HTTPS rejected', !accepts({ apiUrl: 'https://project.supabase.co' }));
 check('Supabase cloud host rejected', !accepts({ apiUrl: 'http://project.supabase.co:54321' }));
+check('hosted Supabase database host rejected', !accepts({ dbUrl: 'postgresql://postgres@db.project.supabase.co:54322/postgres' }));
 check('private LAN host rejected', !accepts({ apiUrl: 'http://192.168.1.20:54321' }));
 check('API credentials rejected', !accepts({ apiUrl: 'http://user:pass@127.0.0.1:54321' }));
 check('remote database rejected', !accepts({ dbUrl: 'postgresql://postgres@db.example.com:5432/postgres' }));
@@ -51,6 +55,11 @@ check('deploy guard runs before reset or psql', deploy.indexOf('assertLocalTarge
 check('canonical path ends at 029', contract.canonicalMigrationPath.included.at(-1) === '029_production_acl_followup.sql');
 const migrationNumbers = contract.canonicalMigrationPath.included.map(name => Number(name.slice(0, 3)));
 check('canonical path ordering is strictly increasing', migrationNumbers.every((value, index) => index === 0 || value > migrationNumbers[index - 1]));
+check('normal local dev script does not reset database', packageJson.scripts['local:dev'] === 'vite');
+check('cert reset script is explicitly local destructive workflow', packageJson.scripts['cert:reset'] === 'npm run cert:reset:local' && /resetAndDeploy\.mjs/.test(packageJson.scripts['cert:reset:local']));
+check('fixture password supports LOCAL_FIXTURE_PASSWORD with safe local fallback', /LOCAL_FIXTURE_PASSWORD/.test(fixturePassword) && /DEFAULT_LOCAL_FIXTURE_PASSWORD/.test(fixturePassword));
+check('cert fixtures synchronize password for existing Auth users', /updateUserById\(existing\.id/.test(fixtures) && /password:\s*PASSWORD/.test(fixtures));
+check('cert fixture password regression script exists', /verifyFixturePasswordPersistence\.mjs/.test(packageJson.scripts['cert:verify-fixture-password']));
 check('Playwright guard runs before web server declaration', playwright.indexOf('assertLocalTarget') < playwright.indexOf('webServerCommand'));
 check('Playwright requires fixture preflight before Vite', /playwrightPreflight\.mjs && npm\.cmd run dev/.test(playwright));
 check('fixture preflight guards before Auth client construction', preflight.indexOf('assertLocalTarget') < preflight.indexOf('createClient(target'));
