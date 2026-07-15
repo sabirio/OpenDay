@@ -1,3 +1,196 @@
-import {useEffect,useRef,useState} from 'react';import {Link,useNavigate,useParams,useSearchParams} from 'react-router-dom';import {useAuth} from '../../auth/AuthContext.jsx';import {useProjectContractors,useSnagCommand} from '../../hooks/snags/useSnagController.js';import {usePlanCommand} from '../../hooks/plans/usePlanController.js';import {normalizeSnagForm,snagErrorMessage,SNAG_PRIORITIES} from '../../hooks/snags/useSnagPresentation.js';
-const EMPTY={title:'',description:'',categoryCode:'GENERAL',disciplineCode:'GENERAL',priority:'MEDIUM',assigneeId:'',dueDate:'',zoneId:'',level:'',room:'',locationText:''};
-export default function SnagCreatePage(){const {projectId}=useParams();const [query]=useSearchParams();const {user,role}=useAuth();const navigate=useNavigate();const contractors=useProjectContractors(projectId);const placement=query.get('planId')?{planVersionId:query.get('planId'),pageNumber:Number(query.get('page')),x:Number(query.get('x')),y:Number(query.get('y'))}:null;const draftKey=`openday:snag-create:v1:${user?.id}:${projectId}`;const [form,setForm]=useState(()=>{try{return JSON.parse(sessionStorage.getItem(draftKey))||EMPTY}catch{return EMPTY}});const [errors,setErrors]=useState({});const dirty=useRef(false);const success=result=>{sessionStorage.removeItem(draftKey);navigate(`/projects/${projectId}/snags/${result.snag.id}`)};const command=useSnagCommand(success);const planCommand=usePlanCommand(success);useEffect(()=>{if(dirty.current)sessionStorage.setItem(draftKey,JSON.stringify(form))},[draftKey,form]);useEffect(()=>{const guard=event=>{if(dirty.current){event.preventDefault();event.returnValue=''}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard)},[]);const set=(key,value)=>{dirty.current=true;setForm(current=>({...current,[key]:value}))};async function submit(event){event.preventDefault();setErrors({});try{const payload=normalizeSnagForm(form);if(placement)await planCommand.execute({type:'createSnagFromPlan',actor:{id:user.id,role},projectId,payload:{...payload,...placement}},'create-plan');else await command.execute({type:'createSnag',actor:{id:user.id,role},projectId,payload},'create')}catch(error){if(error.field)setErrors({[error.field]:error.message})}}const pending=command.pending||planCommand.pending;return <div className="snag-page snag-form-page"><header><Link className="snag-back" to={placement?`/projects/${projectId}/plans/${placement.planVersionId}`:`/projects/${projectId}/snags`}>Back</Link><h1>{placement?'Create snag from plan':'Create snag'}</h1><p>{placement?`Pinned to page ${placement.pageNumber}. Text location remains required for field clarity.`:'Record the issue where it was found. A plan pin is not required.'}</p></header>{placement?<div className="plan-placement-summary" role="status">Plan pin: page {placement.pageNumber}, normalized position {placement.x.toFixed(3)}, {placement.y.toFixed(3)}</div>:null}{command.error||planCommand.error?<div role="alert" className="snag-error">{snagErrorMessage(command.error||planCommand.error)}</div>:null}{Object.keys(errors).length?<div role="alert" className="snag-error" tabIndex="-1">Check the required fields below.</div>:null}<form onSubmit={submit} className="snag-form"><label>Title <span aria-hidden="true">*</span><input autoFocus className="ds-input" value={form.title} onChange={event=>set('title',event.target.value)} aria-invalid={!!errors.title}/></label><label>Description<textarea className="ds-textarea" rows="4" value={form.description} onChange={event=>set('description',event.target.value)}/></label><div className="snag-form-row"><label>Category<input className="ds-input" value={form.categoryCode} onChange={event=>set('categoryCode',event.target.value)}/></label><label>Discipline<input className="ds-input" value={form.disciplineCode} onChange={event=>set('disciplineCode',event.target.value)}/></label></div><div className="snag-form-row"><label>Priority<select className="ds-select" value={form.priority} onChange={event=>set('priority',event.target.value)}>{SNAG_PRIORITIES.map(value=><option key={value}>{value}</option>)}</select></label><label>Due date<input className="ds-input" type="date" value={form.dueDate} onChange={event=>set('dueDate',event.target.value)}/></label></div><label>Assignee<select className="ds-select" value={form.assigneeId} onChange={event=>set('assigneeId',event.target.value)}><option value="">Unassigned</option>{contractors.map(contractor=><option key={contractor.id} value={contractor.id}>{contractor.name||contractor.email}</option>)}</select></label><fieldset><legend>Location <span aria-hidden="true">*</span></legend><div className="snag-form-row"><label>Zone<input className="ds-input" value={form.zoneId} onChange={event=>set('zoneId',event.target.value)}/></label><label>Level/floor<input className="ds-input" value={form.level} onChange={event=>set('level',event.target.value)}/></label><label>Room/space<input className="ds-input" value={form.room} onChange={event=>set('room',event.target.value)}/></label></div><label>Location description<input className="ds-input" value={form.locationText} onChange={event=>set('locationText',event.target.value)} aria-invalid={!!errors.location}/></label></fieldset><div className="snag-sticky-actions"><Link className="btn btn-ghost" to={`/projects/${projectId}/snags`}>Cancel</Link><button className="btn btn-primary" disabled={pending}>{pending?'Creating…':'Create snag'}</button></div></form></div>}
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../auth/AuthContext.jsx';
+import { useProjectContractors, useSnagCommand } from '../../hooks/snags/useSnagController.js';
+import { usePlanCommand } from '../../hooks/plans/usePlanController.js';
+import { normalizeSnagForm, snagErrorMessage, SNAG_PRIORITIES } from '../../hooks/snags/useSnagPresentation.js';
+
+const EMPTY = {
+  title: '',
+  description: '',
+  categoryCode: 'GENERAL',
+  disciplineCode: 'GENERAL',
+  priority: 'MEDIUM',
+  assigneeId: '',
+  dueDate: '',
+  zoneId: '',
+  level: '',
+  room: '',
+  locationText: '',
+};
+
+export default function SnagCreatePage() {
+  const { projectId } = useParams();
+  const [query] = useSearchParams();
+  const { user, role } = useAuth();
+  const navigate = useNavigate();
+  const contractors = useProjectContractors(projectId);
+
+  const placement = query.get('planId')
+    ? {
+        planVersionId: query.get('planId'),
+        pageNumber: Number(query.get('page')),
+        x: Number(query.get('x')),
+        y: Number(query.get('y')),
+      }
+    : null;
+  const planReturn = placement
+    ? `/projects/${projectId}/plans/${placement.planVersionId}?placement=1&page=${placement.pageNumber}`
+    : null;
+
+  const draftKey = `openday:snag-create:v1:${user?.id}:${projectId}`;
+  const [form, setForm] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(draftKey)) || EMPTY;
+    } catch {
+      return EMPTY;
+    }
+  });
+  const [errors, setErrors] = useState({});
+  const dirty = useRef(false);
+
+  const success = result => {
+    sessionStorage.removeItem(draftKey);
+    dirty.current = false;
+    if (placement) {
+      navigate(`${planReturn}&created=${result.snag.id}`);
+    } else {
+      navigate(`/projects/${projectId}/snags/${result.snag.id}`);
+    }
+  };
+
+  const command = useSnagCommand(success);
+  const planCommand = usePlanCommand(success);
+
+  useEffect(() => {
+    if (dirty.current) sessionStorage.setItem(draftKey, JSON.stringify(form));
+  }, [draftKey, form]);
+
+  useEffect(() => {
+    const guard = event => {
+      if (dirty.current) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, []);
+
+  const set = (key, value) => {
+    dirty.current = true;
+    setForm(current => ({ ...current, [key]: value }));
+  };
+
+  async function submit(event) {
+    event.preventDefault();
+    setErrors({});
+    try {
+      const payload = normalizeSnagForm(form);
+      if (placement) {
+        await planCommand.execute(
+          { type: 'createSnagFromPlan', actor: { id: user.id, role }, projectId, payload: { ...payload, ...placement } },
+          'create-plan'
+        );
+      } else {
+        await command.execute({ type: 'createSnag', actor: { id: user.id, role }, projectId, payload }, 'create');
+      }
+    } catch (error) {
+      if (error.field) setErrors({ [error.field]: error.message });
+    }
+  }
+
+  const pending = command.pending || planCommand.pending;
+
+  return (
+    <div className="snag-page snag-form-page">
+      <header>
+        <Link className="snag-back" to={planReturn || `/projects/${projectId}/snags`}>Back</Link>
+        <h1>{placement ? 'Create snag from plan' : 'Create snag'}</h1>
+        <p>
+          {placement
+            ? `Pinned to page ${placement.pageNumber}. Text location remains required for field clarity.`
+            : 'Record the issue where it was found. A plan pin is not required.'}
+        </p>
+      </header>
+
+      {placement ? (
+        <div className="plan-placement-summary" role="status">
+          Plan pin: page {placement.pageNumber}, normalized position {placement.x.toFixed(3)}, {placement.y.toFixed(3)}
+        </div>
+      ) : null}
+
+      {command.error || planCommand.error ? (
+        <div role="alert" className="snag-error">{snagErrorMessage(command.error || planCommand.error)}</div>
+      ) : null}
+      {Object.keys(errors).length ? (
+        <div role="alert" className="snag-error" tabIndex="-1">Check the required fields below.</div>
+      ) : null}
+
+      <form onSubmit={submit} className="snag-form">
+        <label>
+          Title <span aria-hidden="true">*</span>
+          <input autoFocus className="ds-input" value={form.title} onChange={event => set('title', event.target.value)} aria-invalid={!!errors.title} />
+        </label>
+        <label>
+          Description
+          <textarea className="ds-textarea" rows="4" value={form.description} onChange={event => set('description', event.target.value)} />
+        </label>
+        <div className="snag-form-row">
+          <label>
+            Category
+            <input className="ds-input" value={form.categoryCode} onChange={event => set('categoryCode', event.target.value)} />
+          </label>
+          <label>
+            Discipline
+            <input className="ds-input" value={form.disciplineCode} onChange={event => set('disciplineCode', event.target.value)} />
+          </label>
+        </div>
+        <div className="snag-form-row">
+          <label>
+            Priority
+            <select className="ds-select" value={form.priority} onChange={event => set('priority', event.target.value)}>
+              {SNAG_PRIORITIES.map(value => <option key={value}>{value}</option>)}
+            </select>
+          </label>
+          <label>
+            Due date
+            <input className="ds-input" type="date" value={form.dueDate} onChange={event => set('dueDate', event.target.value)} />
+          </label>
+        </div>
+        <label>
+          Assignee
+          <select className="ds-select" value={form.assigneeId} onChange={event => set('assigneeId', event.target.value)}>
+            <option value="">Unassigned</option>
+            {contractors.map(contractor => <option key={contractor.id} value={contractor.id}>{contractor.name || contractor.email}</option>)}
+          </select>
+        </label>
+        <fieldset>
+          <legend>Location <span aria-hidden="true">*</span></legend>
+          <div className="snag-form-row">
+            <label>
+              Zone
+              <input className="ds-input" value={form.zoneId} onChange={event => set('zoneId', event.target.value)} />
+            </label>
+            <label>
+              Level/floor
+              <input className="ds-input" value={form.level} onChange={event => set('level', event.target.value)} />
+            </label>
+            <label>
+              Room/space
+              <input className="ds-input" value={form.room} onChange={event => set('room', event.target.value)} />
+            </label>
+          </div>
+          <label>
+            Location description
+            <input className="ds-input" value={form.locationText} onChange={event => set('locationText', event.target.value)} aria-invalid={!!errors.location} />
+          </label>
+        </fieldset>
+        <div className="snag-sticky-actions">
+          <Link className="btn btn-ghost" to={planReturn || `/projects/${projectId}/snags`}>Cancel</Link>
+          <button className="btn btn-primary" disabled={pending}>{pending ? 'Creating...' : 'Create snag'}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
