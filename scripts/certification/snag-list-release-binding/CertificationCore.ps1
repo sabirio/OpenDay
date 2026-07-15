@@ -48,14 +48,14 @@ function Get-CertificationScriptArtifacts([string]$RepoRoot) {
 }
 
 function Get-DockerImageIdentity([string]$Image) {
-    $imageId = Invoke-Docker @('image','inspect','--format','{{.Id}}',$Image) -Capture
-    $created = Invoke-Docker @('image','inspect','--format','{{.Created}}',$Image) -Capture
-    $repoDigestsRaw = Invoke-Docker @('image','inspect','--format','{{range .RepoDigests}}{{.}}{{"\n"}}{{end}}',$Image) -Capture
-    $repoDigests = @($repoDigestsRaw -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $inspect = @(Invoke-Docker @('image','inspect',$Image) -Capture | ConvertFrom-Json)
+    if ($inspect.Count -lt 1) { throw "Docker image inspect returned no records: $Image" }
+    $imageRecord = $inspect[0]
+    $repoDigests = @($imageRecord.RepoDigests | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     [ordered]@{
         image = $Image
-        imageId = $imageId
-        created = $created
+        imageId = $imageRecord.Id
+        created = $imageRecord.Created
         repoDigests = $repoDigests
     }
 }
