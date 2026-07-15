@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:CertificationSchema = 'openday/snag-list-docker-certification/v1'
+$script:ReleaseAttestationSchema = 'openday/snag-list-production-gate-attestation/v1'
 $script:AllowedImage = 'postgres:17'
 $script:ExpectedReleaseManifestSha256 = '21f4cc08c281c29e64328e68bf72a5aa49594f1dd8243b63c1dbfe3e6ec8bc8a'
 
@@ -19,6 +20,54 @@ function Write-CanonicalJson([object]$Value, [string]$Path) {
     $json = $Value | ConvertTo-Json -Depth 30 -Compress
     [IO.File]::WriteAllText($Path, $json + "`n", [Text.UTF8Encoding]::new($false))
     Get-Sha256 $Path
+}
+
+function Get-ArtifactDescriptor([string]$Name, [string]$Path) {
+    $item = Get-Item -LiteralPath $Path
+    [ordered]@{
+        name = $Name
+        path = (Resolve-Path -LiteralPath $Path).Path.Replace('\','/')
+        bytes = $item.Length
+        sha256 = Get-Sha256 $Path
+    }
+}
+
+function Get-DockerImageIdentity([string]$Image) {
+    $imageId = Invoke-Docker @('image','inspect','--format','{{.Id}}',$Image) -Capture
+    $created = Invoke-Docker @('image','inspect','--format','{{.Created}}',$Image) -Capture
+    $repoDigestsRaw = Invoke-Docker @('image','inspect','--format','{{range .RepoDigests}}{{.}}{{"\n"}}{{end}}',$Image) -Capture
+    $repoDigests = @($repoDigestsRaw -split "`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    [ordered]@{
+        image = $Image
+        imageId = $imageId
+        created = $created
+        repoDigests = $repoDigests
+    }
+}
+
+function Get-DockerRuntimeIdentity {
+    [ordered]@{
+        serverVersion = Invoke-Docker @('version','--format','{{.Server.Version}}') -Capture
+        clientVersion = Invoke-Docker @('version','--format','{{.Client.Version}}') -Capture
+    }
+}
+
+function Get-SanitizedDockerRun($Context) {
+    [ordered]@{
+        kind = $Context.kind
+        runId = $Context.runId
+        database = $Context.database
+        host = $Context.host
+        port = $Context.port
+        container = $Context.container
+        containerId = $Context.containerId
+        volume = $Context.volume
+        network = $Context.network
+        networkId = $Context.networkId
+        image = $Context.image
+        serverIdentitySha256 = Get-TextSha256 $Context.serverIdentity
+        fingerprint = $Context.fingerprint
+    }
 }
 
 function Invoke-Docker([string[]]$Arguments, [switch]$Capture) {
@@ -183,6 +232,117 @@ function New-LocalPreflight($Context,[string]$RepoRoot,$Backup,$Restore,[string]
     [ordered]@{path=$path;hash=$hash;report=$report;phrase=$phrase}
 }
 
+function New-ReleaseAttestation($SourceContext,$RestoreContext,[string]$RepoRoot,$Predecessor,$Backup,$Restore,$Preflight,$Apply,$Postflight,$CertificationReport,$NegativePre,$NegativePost,$Lifecycle,$Cleanup,[string]$WorkDir,[string]$Head,[string]$Branch,[DateTime]$StartedAtUtc,[DateTime]$CompletedAtUtc) {
+    $manifestPath = Join-Path $RepoRoot 'scripts/manifests/snag-list-030-035.psd1'
+    $manifestHash = Get-Sha256 $manifestPath
+    if ($manifestHash -ne $script:ExpectedReleaseManifestSha256) { throw 'Attestation rejected: release manifest hash mismatch' }
+    $files = Get-ReleaseFiles $RepoRoot
+    foreach ($f in $files) { if ($f.actual -ne $f.expected) { throw "Attestation rejected: migration hash mismatch: $($f.file)" } }
+
+    $certificationScripts = @(
+        Get-ArtifactDescriptor 'certification-core' (Join-Path $RepoRoot 'scripts/certification/snag-list-release-binding/CertificationCore.ps1')
+        Get-ArtifactDescriptor 'certification-entrypoint' (Join-Path $RepoRoot 'scripts/certification/snag-list-release-binding/Invoke-SnagListReleaseBindingCertification.ps1')
+        Get-ArtifactDescriptor 'release-binding-tests' (Join-Path $RepoRoot 'scripts/tests/snag-list-release-binding-certification.tests.ps1')
+    )
+    $supportingArtifacts = @(
+        Get-ArtifactDescriptor 'dependency-closure' $Predecessor.inventoryPath
+        Get-ArtifactDescriptor 'backup-manifest' $Backup.manifestPath
+        Get-ArtifactDescriptor 'backup-dump' $Backup.dumpPath
+        Get-ArtifactDescriptor 'restore-report' $Restore.path
+        Get-ArtifactDescriptor 'preflight-report' $Preflight.path
+        Get-ArtifactDescriptor 'apply-report' $Apply.path
+        Get-ArtifactDescriptor 'postflight-report' $Postflight.path
+        Get-ArtifactDescriptor 'certification-report' $CertificationReport.path
+    )
+    $negativeScenarios = @($Lifecycle.count + $NegativePre.count + $NegativePost.count)
+    if ($negativeScenarios[0] -ne 31) { throw "Attestation rejected: expected 31 negative checks, got $($negativeScenarios[0])" }
+    if ($Cleanup.containers -ne 0 -or $Cleanup.volumes -ne 0 -or $Cleanup.networks -ne 0) { throw 'Attestation rejected: cleanup leaks remain' }
+
+    [ordered]@{
+        schemaVersion = 1
+        schema = $script:ReleaseAttestationSchema
+        status = 'PASS'
+        releaseId = 'snag-list-030-035'
+        generatedAtUtc = $CompletedAtUtc.ToString('o')
+        validUntilUtc = $CompletedAtUtc.AddHours(24).ToString('o')
+        timestamps = [ordered]@{
+            startedAtUtc = $StartedAtUtc.ToString('o')
+            completedAtUtc = $CompletedAtUtc.ToString('o')
+        }
+        repository = [ordered]@{
+            exactHead = $Head
+            branch = $Branch
+            manifestPath = 'scripts/manifests/snag-list-030-035.psd1'
+            manifestSha256 = $manifestHash
+        }
+        releaseManifest = [ordered]@{
+            sha256 = $manifestHash
+            migrations = @($files | ForEach-Object { [ordered]@{ number = $_.number; file = $_.file; sha256 = $_.actual } })
+        }
+        certificationScripts = $certificationScripts
+        docker = [ordered]@{
+            runtime = Get-DockerRuntimeIdentity
+            image = Get-DockerImageIdentity $script:AllowedImage
+            network = [ordered]@{ name = $SourceContext.network; id = $SourceContext.networkId }
+            independentRuns = @(
+                Get-SanitizedDockerRun $SourceContext
+                Get-SanitizedDockerRun $RestoreContext
+            )
+        }
+        evidence = [ordered]@{
+            predecessorSchemaFingerprint = $Predecessor.schemaFingerprint
+            sourceFingerprint = $SourceContext.fingerprint
+            restoreFingerprint = $RestoreContext.fingerprint
+            schemaFingerprint = $Postflight.report.schemaFingerprint
+            backupManifestSha256 = $Backup.manifestHash
+            restoreReportSha256 = $Restore.hash
+            preflightReportSha256 = $Preflight.hash
+            applyReportSha256 = $Apply.hash
+            postflightReportSha256 = $Postflight.hash
+            supportingArtifacts = $supportingArtifacts
+        }
+        checks = [ordered]@{
+            status = 'PASS'
+            passed = 31
+            total = 31
+            lifecycleNegativeChecks = $Lifecycle.count
+            preApplyNegativeChecks = $NegativePre.count
+            postApplyNegativeChecks = $NegativePost.count
+        }
+        cleanup = [ordered]@{
+            status = 'PASS'
+            containers = $Cleanup.containers
+            volumes = $Cleanup.volumes
+            networks = $Cleanup.networks
+        }
+        productionGateContract = [ordered]@{
+            gateReadsOnlyThisArtifact = $true
+            requiredChecks = @('artifactExists','sha256Matches','statusPass','exactHeadMatches','releaseManifestSha256Matches','notExpired','notModified')
+            noLogReconstructionRequired = $true
+        }
+        productionAccessed = $false
+        stagingAccessed = $false
+    }
+}
+
+function Write-ReleaseAttestation($Attestation,[string]$WorkDir) {
+    $path = Join-Path $WorkDir 'release-attestation.json'
+    $hash = Write-CanonicalJson $Attestation $path
+    [ordered]@{ path = $path; sha256 = $hash; report = $Attestation }
+}
+
+function Assert-ReleaseAttestationForProductionGate([string]$Path,[string]$ExpectedSha256,[string]$ExpectedHead,[string]$ExpectedManifestSha256,[DateTime]$NowUtc = [DateTime]::UtcNow) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'ATTESTATION GATE REJECTED: artifact missing' }
+    if ((Get-Sha256 $Path) -cne $ExpectedSha256) { throw 'ATTESTATION GATE REJECTED: artifact SHA-256 mismatch' }
+    $artifact = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    if ($artifact.schema -ne $script:ReleaseAttestationSchema) { throw 'ATTESTATION GATE REJECTED: schema mismatch' }
+    if ($artifact.status -ne 'PASS') { throw 'ATTESTATION GATE REJECTED: status is not PASS' }
+    if ($artifact.repository.exactHead -cne $ExpectedHead) { throw 'ATTESTATION GATE REJECTED: exact HEAD mismatch' }
+    if ($artifact.repository.manifestSha256 -cne $ExpectedManifestSha256) { throw 'ATTESTATION GATE REJECTED: release manifest mismatch' }
+    if ([DateTime]::Parse($artifact.validUntilUtc).ToUniversalTime() -lt $NowUtc.ToUniversalTime()) { throw 'ATTESTATION GATE REJECTED: artifact expired' }
+    $artifact
+}
+
 function Invoke-LocalApply($Context,[string]$RepoRoot,$Backup,$Restore,$Preflight,[string]$Phrase,[string]$WorkDir,[string]$Head) {
     Assert-TargetContext $Context
     if((Get-Sha256 $Preflight.path) -ne $Preflight.hash){throw 'Preflight evidence changed'}
@@ -272,10 +432,15 @@ function Invoke-TargetLifecycleNegativeScenarios([string]$RunId,[string]$Network
 }
 
 function Test-NoResourceLeaks([string]$RunId) {
+    $counts = Get-CertificationLeakCounts $RunId
+    if($counts.containers -or $counts.volumes -or $counts.networks){throw 'Cleanup leak detected'}
+}
+
+function Get-CertificationLeakCounts([string]$RunId) {
     $containers=@(& docker ps -aq --filter "label=openday.cert.run=$RunId" 2>$null)
     $volumes=@(& docker volume ls -q --filter "label=openday.cert.run=$RunId" 2>$null)
     $networks=@(& docker network ls -q --filter "label=openday.cert.run=$RunId" 2>$null)
-    if(@($containers).Count -or @($volumes).Count -or @($networks).Count){throw 'Cleanup leak detected'}
+    [ordered]@{ containers = @($containers | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count; volumes = @($volumes | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count; networks = @($networks | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count }
 }
 
 function Invoke-PostApplyNegativeScenarios($Context,[string]$RepoRoot,$Backup,$Restore,$Preflight,$Apply,[string]$WorkDir,[string]$Head) {
@@ -292,4 +457,5 @@ function Remove-CertificationResources([string]$RunId,[string[]]$Containers,[str
     foreach($v in $labelVolumes){ if(-not [string]::IsNullOrWhiteSpace($v)){ & docker volume rm -f $v *> $null } }
     & docker network rm $Network *> $null 2>&1
     Test-NoResourceLeaks $RunId
+    Get-CertificationLeakCounts $RunId
 }
