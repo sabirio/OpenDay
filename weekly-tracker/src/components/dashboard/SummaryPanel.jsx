@@ -5,7 +5,7 @@ import { maxOf } from '../../hooks/useChartMathPresentation';
 import { useDashboardSummaryPanelModel } from '../../hooks/useDashboardSummaryPanelModel';
 
 const DONUT_SEGMENTS = [
-  { label: 'On Track',  key: 'On Track',  color: 'var(--text-primary)'  },
+  { label: 'On Track',  key: 'On Track',  color: 'var(--status-done)'   },
   { label: 'At Risk',   key: 'At Risk',   color: 'var(--status-warn)'   },
   { label: 'Delayed',   key: 'Delayed',   color: 'var(--status-warn)'   },
   { label: 'Critical',  key: 'Critical',  color: 'var(--status-alert)'  },
@@ -17,6 +17,8 @@ function SmallDonut({ counts, total }) {
   const circ = 2 * Math.PI * r;
   const safeTotal = maxOf([total, 1]);
   const allOnTrack = total > 0 && (counts['On Track'] ?? 0) === total;
+  const onTrack = counts['On Track'] ?? 0;
+  const centerLabel = allOnTrack ? '100% OK' : `${onTrack} OK`;
 
   let cumOffset = 0;
   const arcs = DONUT_SEGMENTS.map(seg => {
@@ -28,11 +30,11 @@ function SmallDonut({ counts, total }) {
   });
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-      <svg width={96} height={96} viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
+    <div className="dashboard-donut-wrap">
+      <svg width={104} height={104} viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border)" strokeWidth={sw} />
         {allOnTrack ? (
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--text-primary)" strokeWidth={sw} />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--status-done)" strokeWidth={sw} />
         ) : arcs.map(({ label, color, n, segLen, dashoffset }) =>
           n > 0 ? (
             <circle
@@ -47,10 +49,11 @@ function SmallDonut({ counts, total }) {
             />
           ) : null
         )}
-        <text x={cx} y={cy + 5} textAnchor="middle" fontSize={14} fontWeight={800} fill="var(--text-primary)">{total}</text>
+        <text x={cx} y={cy - 1} textAnchor="middle" fontSize={10} fontWeight={800} fill="var(--text-primary)">{centerLabel}</text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="var(--text-muted)">{total} projects</text>
       </svg>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div className="dashboard-donut-legend">
         {DONUT_SEGMENTS.map(({ label, key, color }) => {
           const n = counts[key] ?? 0;
           return (
@@ -68,6 +71,8 @@ function SmallDonut({ counts, total }) {
 
 export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], svKpis, lastVisitDate }) {
   const { analytics, donutCounts, donutTotal } = useDashboardSummaryPanelModel(rows, allRows);
+  const siteVisitValue = svKpis?.totalVisits ?? 0;
+  const siteVisitSub = siteVisitValue > 0 && lastVisitDate ? `Last ${formatDate(lastVisitDate)}` : 'No visits yet';
 
   return (
     <>
@@ -90,34 +95,35 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], s
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16, alignItems: 'stretch' }}>
-        <KpiCard label="Total Projects"    value={kpis.total}           color="var(--text-secondary)" />
-        <KpiCard label="Active"            value={kpis.active}          color="var(--status-done)"    sub={`${kpis.total - kpis.active} closed`} />
-        <KpiCard label="New Opening"       value={kpis.newOpening}      color="var(--accent)"         sub="project type" />
-        <KpiCard label="Rebuilding"        value={kpis.rebuilding}      color="var(--text-secondary)" sub="project type" />
-        <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)"         sub={`${reportsTotal} total`} />
-
-        {svKpis && svKpis.totalVisits > 0 && (
-          <KpiCard
-            label="Site Visits"
-            value={svKpis.totalVisits}
-            color="var(--accent)"
-            sub={lastVisitDate ? `Last ${formatDate(lastVisitDate)}` : 'no visits'}
-          />
-        )}
-
-        {/* vertical divider */}
-        {donutTotal > 0 && (
-          <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', flexShrink: 0, margin: '0 4px' }} />
-        )}
-
-        {/* Portfolio Health donut */}
-        {donutTotal > 0 && (
-          <div style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '12px 16px', flexShrink: 0, minWidth: 220 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 10 }}>Portfolio Health</div>
-            <SmallDonut counts={donutCounts} total={donutTotal} />
+      <div className="dashboard-kpi-row">
+        <div className="dashboard-kpi-cluster">
+          <div className="dashboard-kpi-cluster-title">Portfolio Scope</div>
+          <div className="dashboard-kpi-mini-grid">
+            <KpiCard label="Total Projects" value={kpis.total} color="var(--text-secondary)" />
+            <KpiCard label="Active" value={kpis.active} color="var(--status-done)" sub={`${kpis.total - kpis.active} closed`} />
           </div>
-        )}
+          <div className="dashboard-kpi-meta">
+            <span>{kpis.newOpening} new opening</span>
+            <span>{kpis.rebuilding} rebuilding</span>
+          </div>
+        </div>
+
+        <div className="dashboard-kpi-cluster">
+          <div className="dashboard-kpi-cluster-title">Evidence Flow</div>
+          <div className="dashboard-kpi-mini-grid">
+            <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)" sub={`${reportsTotal} total`} />
+            <KpiCard label="Site Visits" value={siteVisitValue} color="var(--text-secondary)" sub={siteVisitSub} />
+          </div>
+        </div>
+
+        <div className="dashboard-kpi-cluster dashboard-health-card">
+          <div className="dashboard-kpi-cluster-title">Portfolio Health</div>
+          {donutTotal > 0 ? <SmallDonut counts={donutCounts} total={donutTotal} /> : (
+            <div className="empty-state" style={{ padding: 12 }}>
+              <div className="empty-state__title">No health signal yet</div>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

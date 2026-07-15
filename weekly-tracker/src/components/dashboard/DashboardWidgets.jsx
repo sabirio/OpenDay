@@ -145,7 +145,7 @@ export function TextBlock({ label, value }) {
 }
 
 const SCHED_STYLES = {
-  'On Track': { color: 'var(--status-done)',  background: 'var(--status-done-bg)',  border: '1px solid var(--border)' },
+  'On Track': { color: '#4ade80',  background: 'rgba(20, 83, 45, 0.30)',  border: '1px solid rgba(74, 222, 128, 0.18)' },
   'Critical': { color: 'var(--status-alert)', background: 'var(--status-alert-bg)', border: '1px solid var(--border)' },
   'Delayed':  { color: 'var(--status-alert)', background: 'var(--status-alert-bg)', border: '1px solid var(--border)' },
   'At Risk':  { color: 'var(--status-warn)',  background: 'var(--status-warn-bg)',  border: '1px solid var(--border)' },

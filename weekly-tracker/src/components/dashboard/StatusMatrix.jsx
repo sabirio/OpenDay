@@ -16,18 +16,18 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
   const matrixRows = useStatusMatrixRows(rows, snapshotData, snapshotMode);
 
   return (
-    <div className="dashboard-summary-card" style={{ marginBottom: 16 }}>
+    <div className="dashboard-summary-card status-matrix-card" style={{ marginBottom: 16 }}>
       <div style={{ marginBottom: 14 }}>
         <h2 style={{ fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>Project Status Matrix</h2>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Sorted by priority · click row to open project</div>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table className="dashboard-table" style={{ width: '100%', tableLayout: 'auto' }}>
+      <div className="status-matrix-scroll">
+        <table className="dashboard-table status-matrix-table">
           <thead>
             <tr>
-              <th>Store Code</th>
-              <th style={{ minWidth: 140 }}>Current Phase</th><th>Progress</th><th>Schedule</th><th>Risk Level</th>
-              <th>Blockers</th><th>Support Required</th><th>Alert</th>
+              <th>Store</th>
+              <th>Phase</th><th>Progress</th><th>Schedule</th><th>Risk</th>
+              <th>Blocked</th><th>Support</th><th>Alert</th>
               <th>Target Opening</th><th>Days Left</th><th>Latest Report</th><th>Report Status</th>
             </tr>
           </thead>
@@ -55,16 +55,16 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
                       <strong style={{ color: 'var(--text-primary)' }}>{project.storeCode}</strong>
                     </div>
                   </td>
-                  <td style={{ fontSize: 12, color: 'var(--text-secondary)', minWidth: 140, whiteSpace: 'nowrap' }}>{phase || <span style={{ color: 'var(--text-muted)' }}>No report</span>}</td>
+                  <td className="status-matrix-phase">{phase || <span style={{ color: 'var(--text-muted)' }}>No report</span>}</td>
                   <td>
                     {noSnapData ? (
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                        <div style={{ width: 48, background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden', flexShrink: 0 }}>
-                          <div style={{ width: `${displayProgress}%`, height: '100%', background: 'var(--progress-fill)', borderRadius: 3 }} />
+                      <div className="status-progress-cell">
+                        <div className="status-progress-track" aria-hidden="true">
+                          <div className={displayProgress > 0 ? 'status-progress-fill' : 'status-progress-zero'} style={{ width: displayProgress > 0 ? `${displayProgress}%` : '100%' }} />
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', minWidth: 28 }}>{displayProgress}%</span>
+                        <span className="status-progress-value">{displayProgress}%</span>
                         {delta && (
                           <span style={{
                             fontSize: 11, fontWeight: 700,

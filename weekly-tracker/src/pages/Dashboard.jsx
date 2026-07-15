@@ -172,12 +172,12 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
       <SummaryPanel kpis={kpis} reportsTotal={reports.length} rows={spiRows} allRows={allRows} svKpis={svKpis} lastVisitDate={lastVisitDate} />
 
       {/* ── Filters + Snapshot toolbar ── */}
-      <div style={{ display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:16 }}>
-        <div style={{ position:"relative" }}>
-          <span style={{ position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:"var(--text-muted)",display:"flex" }}><Icon name="search" size={15} /></span>
-          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search…" style={{ paddingLeft:34,paddingRight:12,height:36,borderRadius:9,border:"1.5px solid var(--border)",fontSize:13,color:"var(--text-primary)",background:"var(--bg-input)",outline:"none",minWidth:180 }}/>
+      <div className="dashboard-control-panel">
+        <div className="dashboard-search-field">
+          <span><Icon name="search" size={15} /></span>
+          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search..." />
         </div>
-        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid var(--border)",fontSize:13,color:"var(--text-primary)",background:"var(--bg-input)",cursor:"pointer",outline:"none" }}>
+        <select className="dashboard-status-select" value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
           {[["all","All statuses"],["on-track","On Track"],["at-risk","At Risk"],["critical","Critical"],["no-report","No Report"],["missing","Missing/Overdue"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
         {filtersActive&&<button type="button" onClick={clearFilters} style={{ display:"inline-flex",alignItems:"center",gap:5,height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid var(--border)",background:"var(--status-alert-bg)",color:"var(--status-alert)",fontSize:13,fontWeight:600,cursor:"pointer" }}>Clear <Icon name="close" size={13} /></button>}
@@ -218,9 +218,9 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
       <StatusMatrix rows={defaultSorted} alerts={alerts} drawerProjectId={drawerProjectId} onSelect={sel} snapshotData={snapshotData} snapshotMode={!!snapshotWeek}/>
 
       {/* ── View tabs ── */}
-      <div style={{ display:"flex",gap:3,marginBottom:16,background:"var(--accent-subtle)",borderRadius:12,padding:4,border:"1px solid var(--border)",width:"fit-content" }}>
+      <div className="dashboard-tabs">
         {VIEWS.map(({id,label})=>(
-          <button key={id} type="button" onClick={()=>setActiveView(id)} style={{ padding:"7px 18px",borderRadius:9,border:"none",background:activeView===id?"var(--accent)":"transparent",color:activeView===id?"var(--bg-surface)":"var(--text-muted)",boxShadow:activeView===id?"var(--shadow-sm)":"none",fontSize:13,fontWeight:activeView===id?700:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" }}>
+          <button key={id} type="button" onClick={()=>setActiveView(id)} className={`dashboard-tab${activeView===id ? ' is-active' : ''}`}>
             {label}
           </button>
         ))}
