@@ -32,6 +32,21 @@ function Get-ArtifactDescriptor([string]$Name, [string]$Path) {
     }
 }
 
+function Get-CertificationScriptArtifacts([string]$RepoRoot) {
+    $candidates = @(
+        [ordered]@{ name = 'certification-core'; path = 'scripts/certification/snag-list-release-binding/CertificationCore.ps1' }
+        [ordered]@{ name = 'certification-entrypoint'; path = 'scripts/certification/snag-list-release-binding/Invoke-SnagListReleaseBindingCertification.ps1' }
+        [ordered]@{ name = 'final-attestation-generator'; path = 'scripts/certification/snag-list-release-binding/New-SnagListFinalReleaseAttestation.ps1' }
+        [ordered]@{ name = 'release-binding-tests'; path = 'scripts/tests/snag-list-release-binding-certification.tests.ps1' }
+    )
+    @($candidates | ForEach-Object {
+        $path = Join-Path $RepoRoot $_.path
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            Get-ArtifactDescriptor $_.name $path
+        }
+    })
+}
+
 function Get-DockerImageIdentity([string]$Image) {
     $imageId = Invoke-Docker @('image','inspect','--format','{{.Id}}',$Image) -Capture
     $created = Invoke-Docker @('image','inspect','--format','{{.Created}}',$Image) -Capture
@@ -239,11 +254,7 @@ function New-ReleaseAttestation($SourceContext,$RestoreContext,[string]$RepoRoot
     $files = Get-ReleaseFiles $RepoRoot
     foreach ($f in $files) { if ($f.actual -ne $f.expected) { throw "Attestation rejected: migration hash mismatch: $($f.file)" } }
 
-    $certificationScripts = @(
-        Get-ArtifactDescriptor 'certification-core' (Join-Path $RepoRoot 'scripts/certification/snag-list-release-binding/CertificationCore.ps1')
-        Get-ArtifactDescriptor 'certification-entrypoint' (Join-Path $RepoRoot 'scripts/certification/snag-list-release-binding/Invoke-SnagListReleaseBindingCertification.ps1')
-        Get-ArtifactDescriptor 'release-binding-tests' (Join-Path $RepoRoot 'scripts/tests/snag-list-release-binding-certification.tests.ps1')
-    )
+    $certificationScripts = Get-CertificationScriptArtifacts $RepoRoot
     $supportingArtifacts = @(
         Get-ArtifactDescriptor 'dependency-closure' $Predecessor.inventoryPath
         Get-ArtifactDescriptor 'backup-manifest' $Backup.manifestPath
@@ -331,7 +342,219 @@ function Write-ReleaseAttestation($Attestation,[string]$WorkDir) {
     [ordered]@{ path = $path; sha256 = $hash; report = $Attestation }
 }
 
-function Assert-ReleaseAttestationForProductionGate([string]$Path,[string]$ExpectedSha256,[string]$ExpectedHead,[string]$ExpectedManifestSha256,[DateTime]$NowUtc = [DateTime]::UtcNow) {
+function Assert-JsonProperty($Object,[string]$Property,[string]$Context) {
+    if ($null -eq $Object -or $null -eq $Object.PSObject.Properties[$Property]) {
+        throw "ATTESTATION GATE REJECTED: missing $Context.$Property"
+    }
+    $value = $Object.PSObject.Properties[$Property].Value
+    if ($null -eq $value -or ($value -is [string] -and [string]::IsNullOrWhiteSpace($value))) {
+        throw "ATTESTATION GATE REJECTED: empty $Context.$Property"
+    }
+    $value
+}
+
+function Assert-ArtifactsMatchDisk($Artifacts,[string]$Context) {
+    foreach ($artifact in @($Artifacts)) {
+        $path = Assert-JsonProperty $artifact 'path' $Context
+        $sha256 = Assert-JsonProperty $artifact 'sha256' $Context
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "ATTESTATION GATE REJECTED: missing bound artifact: $path"
+        }
+        if ((Get-Sha256 $path) -cne $sha256) {
+            throw "ATTESTATION GATE REJECTED: bound artifact SHA mismatch: $path"
+        }
+    }
+}
+
+function Assert-RunAttestationComplete($Run,[string]$ExpectedHead,[string]$ExpectedBranch,[string]$ExpectedManifestSha256,[string]$Label) {
+    if ($Run.schema -ne $script:ReleaseAttestationSchema) { throw "ATTESTATION GATE REJECTED: $Label schema mismatch" }
+    if ($Run.status -ne 'PASS') { throw "ATTESTATION GATE REJECTED: $Label status is not PASS" }
+    if ($Run.repository.exactHead -cne $ExpectedHead) { throw "ATTESTATION GATE REJECTED: $Label HEAD mismatch" }
+    if ($Run.repository.branch -cne $ExpectedBranch) { throw "ATTESTATION GATE REJECTED: $Label branch mismatch" }
+    if ($Run.repository.manifestSha256 -cne $ExpectedManifestSha256) { throw "ATTESTATION GATE REJECTED: $Label manifest mismatch" }
+    if ($Run.checks.passed -ne 31 -or $Run.checks.total -ne 31) { throw "ATTESTATION GATE REJECTED: $Label negative scenarios are not 31/31" }
+    if ($Run.cleanup.containers -ne 0 -or $Run.cleanup.volumes -ne 0 -or $Run.cleanup.networks -ne 0) { throw "ATTESTATION GATE REJECTED: $Label cleanup is not 0/0/0" }
+    if (@($Run.docker.independentRuns).Count -ne 2) { throw "ATTESTATION GATE REJECTED: $Label does not contain source and restore Docker identities" }
+    if ([string]::IsNullOrWhiteSpace($Run.evidence.schemaFingerprint)) { throw "ATTESTATION GATE REJECTED: $Label missing schema fingerprint" }
+    if ([string]::IsNullOrWhiteSpace($Run.evidence.backupManifestSha256) -or [string]::IsNullOrWhiteSpace($Run.evidence.restoreReportSha256) -or [string]::IsNullOrWhiteSpace($Run.evidence.preflightReportSha256) -or [string]::IsNullOrWhiteSpace($Run.evidence.applyReportSha256) -or [string]::IsNullOrWhiteSpace($Run.evidence.postflightReportSha256)) {
+        throw "ATTESTATION GATE REJECTED: $Label missing required evidence hashes"
+    }
+}
+
+function Read-ReleaseAttestationArtifact([string]$Path,[string]$ExpectedSha256) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "ATTESTATION GATE REJECTED: run attestation missing: $Path" }
+    $actual = Get-Sha256 $Path
+    if ($actual -cne $ExpectedSha256) { throw "ATTESTATION GATE REJECTED: run attestation SHA mismatch: $Path" }
+    [ordered]@{
+        path = (Resolve-Path -LiteralPath $Path).Path.Replace('\','/')
+        sha256 = $actual
+        report = (Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json)
+        descriptor = Get-ArtifactDescriptor 'run-attestation' $Path
+    }
+}
+
+function Get-RunIdentitySet($Run) {
+    $dockerRuns = @($Run.docker.independentRuns)
+    [ordered]@{
+        containers = @($dockerRuns | ForEach-Object { $_.containerId })
+        volumes = @($dockerRuns | ForEach-Object { $_.volume })
+        networks = @(@($Run.docker.network.id) + @($dockerRuns | ForEach-Object { $_.networkId }) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+        evidenceHashes = @($Run.evidence.backupManifestSha256,$Run.evidence.restoreReportSha256,$Run.evidence.preflightReportSha256,$Run.evidence.applyReportSha256,$Run.evidence.postflightReportSha256)
+    }
+}
+
+function Assert-DisjointIdentitySet($A,$B,[string]$Name) {
+    $overlap = @($A | Where-Object { $B -contains $_ -and -not [string]::IsNullOrWhiteSpace($_) })
+    if ($overlap.Count -gt 0) { throw "ATTESTATION GATE REJECTED: RUN_A and RUN_B reuse $Name identities: $($overlap -join ',')" }
+}
+
+function Get-GitCleanProof([string]$RepoRoot,[switch]$SkipGitCleanCheck) {
+    if ($SkipGitCleanCheck) {
+        return [ordered]@{ status = 'SKIPPED_FOR_UNIT_TEST'; trackedTreeClean = $true; stagingEmpty = $true }
+    }
+    & git -C $RepoRoot diff --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'ATTESTATION GATE REJECTED: tracked working tree is dirty' }
+    & git -C $RepoRoot diff --cached --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'ATTESTATION GATE REJECTED: staging area is not empty' }
+    [ordered]@{ status = 'PASS'; trackedTreeClean = $true; stagingEmpty = $true }
+}
+
+function Test-GitAncestor([string]$RepoRoot,[string]$Ancestor,[string]$Descendant) {
+    & git -C $RepoRoot merge-base --is-ancestor $Ancestor $Descendant
+    $LASTEXITCODE -eq 0
+}
+
+function New-FinalReleaseAttestation([string]$RunAAttestationPath,[string]$RunAAttestationSha256,[string]$RunBAttestationPath,[string]$RunBAttestationSha256,[string]$RepoRoot,[string]$Head,[string]$Branch,[DateTime]$StartedAtUtc,[DateTime]$CompletedAtUtc,[switch]$SkipGitCleanCheck) {
+    $runA = Read-ReleaseAttestationArtifact $RunAAttestationPath $RunAAttestationSha256
+    $runB = Read-ReleaseAttestationArtifact $RunBAttestationPath $RunBAttestationSha256
+    if ($runA.path -ceq $runB.path) { throw 'ATTESTATION GATE REJECTED: RUN_A and RUN_B use the same attestation artifact' }
+    if ($runA.sha256 -ceq $runB.sha256) { throw 'ATTESTATION GATE REJECTED: RUN_A and RUN_B attestation hashes are identical' }
+
+    $manifestPath = Join-Path $RepoRoot 'scripts/manifests/snag-list-030-035.psd1'
+    $manifestHash = Get-Sha256 $manifestPath
+    if ($manifestHash -ne $script:ExpectedReleaseManifestSha256) { throw 'Attestation rejected: release manifest hash mismatch' }
+    Assert-RunAttestationComplete $runA.report $Head $Branch $manifestHash 'RUN_A'
+    Assert-RunAttestationComplete $runB.report $Head $Branch $manifestHash 'RUN_B'
+
+    $identityA = Get-RunIdentitySet $runA.report
+    $identityB = Get-RunIdentitySet $runB.report
+    Assert-DisjointIdentitySet $identityA.containers $identityB.containers 'container'
+    Assert-DisjointIdentitySet $identityA.volumes $identityB.volumes 'volume'
+    Assert-DisjointIdentitySet $identityA.networks $identityB.networks 'network'
+    Assert-DisjointIdentitySet $identityA.evidenceHashes $identityB.evidenceHashes 'evidence'
+    if ($runA.report.evidence.schemaFingerprint -cne $runB.report.evidence.schemaFingerprint) { throw 'ATTESTATION GATE REJECTED: RUN_A and RUN_B schema fingerprints differ' }
+
+    $files = Get-ReleaseFiles $RepoRoot
+    foreach ($f in $files) { if ($f.actual -ne $f.expected) { throw "Attestation rejected: migration hash mismatch: $($f.file)" } }
+    $gitClean = Get-GitCleanProof $RepoRoot -SkipGitCleanCheck:$SkipGitCleanCheck
+    $directParent = (& git -C $RepoRoot rev-parse "$Head^").Trim()
+    $commit5963589 = (& git -C $RepoRoot rev-parse '5963589').Trim()
+    $ancestry = [ordered]@{
+        commit5963589 = (Test-GitAncestor $RepoRoot $commit5963589 $Head)
+        commit3fd31aa = (Test-GitAncestor $RepoRoot '3fd31aa' $Head)
+        commitFd62e224 = (Test-GitAncestor $RepoRoot 'fd62e2249dcf9460d75bc1d4de65f28157696828' $Head)
+    }
+
+    [ordered]@{
+        schemaVersion = 2
+        schema = $script:ReleaseAttestationSchema
+        status = 'PASS'
+        releaseId = 'snag-list-030-035'
+        generatedAtUtc = $CompletedAtUtc.ToString('o')
+        validUntilUtc = $CompletedAtUtc.AddHours(24).ToString('o')
+        timestamps = [ordered]@{ startedAtUtc = $StartedAtUtc.ToString('o'); completedAtUtc = $CompletedAtUtc.ToString('o') }
+        repository = [ordered]@{
+            root = (Resolve-Path -LiteralPath $RepoRoot).Path.Replace('\','/')
+            exactHead = $Head
+            directParent = $directParent
+            branch = $Branch
+            manifestPath = 'scripts/manifests/snag-list-030-035.psd1'
+            manifestSha256 = $manifestHash
+            cleanProof = $gitClean
+            ancestry = $ancestry
+        }
+        releaseManifest = [ordered]@{
+            sha256 = $manifestHash
+            migrationRange = '030-035'
+            migrations = @($files | ForEach-Object { [ordered]@{ number = $_.number; file = $_.file; path = $_.path.Replace('\','/'); bytes = (Get-Item -LiteralPath $_.path).Length; sha256 = $_.actual } })
+        }
+        certificationScripts = Get-CertificationScriptArtifacts $RepoRoot
+        runtime = [ordered]@{
+            powershellVersion = $PSVersionTable.PSVersion.ToString()
+            docker = $runA.report.docker.runtime
+            image = $runA.report.docker.image
+        }
+        runs = [ordered]@{
+            RUN_A = [ordered]@{ attestation = $runA.descriptor; report = $runA.report; identities = $identityA }
+            RUN_B = [ordered]@{ attestation = $runB.descriptor; report = $runB.report; identities = $identityB }
+        }
+        independence = [ordered]@{
+            status = 'PASS'
+            differentRunArtifacts = $true
+            differentContainers = $true
+            differentVolumes = $true
+            differentNetworks = $true
+            sameExactHead = $true
+            sameManifest = $true
+            sameSchemaFingerprint = $true
+        }
+        checks = [ordered]@{
+            status = 'PASS'
+            runs = 2
+            passed = 62
+            total = 62
+            runA = [ordered]@{ passed = 31; total = 31 }
+            runB = [ordered]@{ passed = 31; total = 31 }
+        }
+        cleanup = [ordered]@{
+            status = 'PASS'
+            RUN_A = $runA.report.cleanup
+            RUN_B = $runB.report.cleanup
+        }
+        productionGateContract = [ordered]@{
+            gateReadsOnlyThisArtifact = $true
+            requiredChecks = @('artifactExists','sha256Matches','statusPass','exactHeadMatches','branchMatches','releaseManifestSha256Matches','migrationHashesMatch','certificationScriptHashesMatch','twoRunBindingsPresent','runStatusPass','negativeScenarios31Of31','fingerprintsMatch','cleanupZero','notExpired','notModified','trackedTreeClean','stagingEmpty')
+            noLogReconstructionRequired = $true
+        }
+        productionAccessed = $false
+        stagingAccessed = $false
+    }
+}
+
+function Write-FinalReleaseAttestation($Attestation,[string]$WorkDir) {
+    $path = Join-Path $WorkDir 'release-attestation.json'
+    $hash = Write-CanonicalJson $Attestation $path
+    [ordered]@{ path = $path; sha256 = $hash; report = $Attestation }
+}
+
+function Assert-FinalReleaseAttestationForProductionGate($Artifact,[string]$ExpectedHead,[string]$ExpectedManifestSha256,[switch]$SkipGitCleanCheck) {
+    if ($Artifact.schemaVersion -ne 2) { throw 'ATTESTATION GATE REJECTED: final attestation schemaVersion must be 2' }
+    if ($Artifact.repository.exactHead -cne $ExpectedHead) { throw 'ATTESTATION GATE REJECTED: exact HEAD mismatch' }
+    if ($Artifact.repository.manifestSha256 -cne $ExpectedManifestSha256) { throw 'ATTESTATION GATE REJECTED: release manifest mismatch' }
+    if ($Artifact.releaseManifest.migrationRange -ne '030-035') { throw 'ATTESTATION GATE REJECTED: migration range mismatch' }
+    if (@($Artifact.releaseManifest.migrations).Count -ne 6) { throw 'ATTESTATION GATE REJECTED: migration binding incomplete' }
+    if ($Artifact.checks.runA.passed -ne 31 -or $Artifact.checks.runA.total -ne 31 -or $Artifact.checks.runB.passed -ne 31 -or $Artifact.checks.runB.total -ne 31) { throw 'ATTESTATION GATE REJECTED: RUN_A/RUN_B negative scenarios are not 31/31' }
+    if ($Artifact.cleanup.RUN_A.containers -ne 0 -or $Artifact.cleanup.RUN_A.volumes -ne 0 -or $Artifact.cleanup.RUN_A.networks -ne 0 -or $Artifact.cleanup.RUN_B.containers -ne 0 -or $Artifact.cleanup.RUN_B.volumes -ne 0 -or $Artifact.cleanup.RUN_B.networks -ne 0) { throw 'ATTESTATION GATE REJECTED: cleanup is not 0/0/0 for both runs' }
+    if ($Artifact.independence.status -ne 'PASS') { throw 'ATTESTATION GATE REJECTED: independence proof is not PASS' }
+    Assert-RunAttestationComplete $Artifact.runs.RUN_A.report $ExpectedHead $Artifact.repository.branch $ExpectedManifestSha256 'RUN_A'
+    Assert-RunAttestationComplete $Artifact.runs.RUN_B.report $ExpectedHead $Artifact.repository.branch $ExpectedManifestSha256 'RUN_B'
+    $identityA = Get-RunIdentitySet $Artifact.runs.RUN_A.report
+    $identityB = Get-RunIdentitySet $Artifact.runs.RUN_B.report
+    Assert-DisjointIdentitySet $identityA.containers $identityB.containers 'container'
+    Assert-DisjointIdentitySet $identityA.volumes $identityB.volumes 'volume'
+    Assert-DisjointIdentitySet $identityA.networks $identityB.networks 'network'
+    if ($Artifact.runs.RUN_A.report.evidence.schemaFingerprint -cne $Artifact.runs.RUN_B.report.evidence.schemaFingerprint) { throw 'ATTESTATION GATE REJECTED: schema fingerprints differ' }
+    Assert-ArtifactsMatchDisk $Artifact.certificationScripts 'certificationScripts'
+    Assert-ArtifactsMatchDisk @($Artifact.runs.RUN_A.attestation,$Artifact.runs.RUN_B.attestation) 'runAttestations'
+    Assert-ArtifactsMatchDisk $Artifact.runs.RUN_A.report.evidence.supportingArtifacts 'RUN_A.supportingArtifacts'
+    Assert-ArtifactsMatchDisk $Artifact.runs.RUN_B.report.evidence.supportingArtifacts 'RUN_B.supportingArtifacts'
+    foreach ($migration in @($Artifact.releaseManifest.migrations)) {
+        if ((Get-Sha256 $migration.path) -cne $migration.sha256) { throw "ATTESTATION GATE REJECTED: migration hash mismatch: $($migration.file)" }
+    }
+    if (-not $SkipGitCleanCheck) { [void](Get-GitCleanProof $Artifact.repository.root) }
+}
+
+function Assert-ReleaseAttestationForProductionGate([string]$Path,[string]$ExpectedSha256,[string]$ExpectedHead,[string]$ExpectedManifestSha256,[DateTime]$NowUtc = [DateTime]::UtcNow,[switch]$SkipGitCleanCheck) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'ATTESTATION GATE REJECTED: artifact missing' }
     if ((Get-Sha256 $Path) -cne $ExpectedSha256) { throw 'ATTESTATION GATE REJECTED: artifact SHA-256 mismatch' }
     $artifact = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
@@ -340,6 +563,9 @@ function Assert-ReleaseAttestationForProductionGate([string]$Path,[string]$Expec
     if ($artifact.repository.exactHead -cne $ExpectedHead) { throw 'ATTESTATION GATE REJECTED: exact HEAD mismatch' }
     if ($artifact.repository.manifestSha256 -cne $ExpectedManifestSha256) { throw 'ATTESTATION GATE REJECTED: release manifest mismatch' }
     if ([DateTime]::Parse($artifact.validUntilUtc).ToUniversalTime() -lt $NowUtc.ToUniversalTime()) { throw 'ATTESTATION GATE REJECTED: artifact expired' }
+    if ($artifact.schemaVersion -eq 2) {
+        Assert-FinalReleaseAttestationForProductionGate $artifact $ExpectedHead $ExpectedManifestSha256 -SkipGitCleanCheck:$SkipGitCleanCheck
+    }
     $artifact
 }
 
