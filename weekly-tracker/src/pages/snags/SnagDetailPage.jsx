@@ -89,19 +89,20 @@ export default function SnagDetailPage() {
 
   async function completeCapturedObservation(event) {
     event.preventDefault();
+    const payload = {
+      title: captureForm.title || snag.title,
+      description: captureForm.description || snag.description,
+      priority: captureForm.priority,
+    };
+    if (captureForm.tradeId || snag.tradeId) payload.tradeId = captureForm.tradeId || snag.tradeId;
+    if (captureForm.stakeholderId || snag.stakeholderId) payload.stakeholderId = captureForm.stakeholderId || snag.stakeholderId;
+    if (captureForm.dueDate) payload.dueDate = captureForm.dueDate;
     await product.execute({
       type: 'completeCapture',
       projectId,
       snagId,
       expectedVersion: snag.version,
-      payload: {
-        title: captureForm.title || snag.title,
-        description: captureForm.description || snag.description,
-        tradeId: captureForm.tradeId || snag.tradeId,
-        stakeholderId: captureForm.stakeholderId || snag.stakeholderId,
-        priority: captureForm.priority,
-        dueDate: captureForm.dueDate,
-      },
+      payload,
     });
     navigate(captureReturn ? `${captureReturn}&created=${snag.id}` : `/projects/${projectId}/snags`);
   }
@@ -124,9 +125,9 @@ export default function SnagDetailPage() {
         </div>
       </header>
 
-      {command.error ? (
+      {command.error || product.error ? (
         <div className="snag-error" role="alert">
-          {snagErrorMessage(command.error)}
+          {snagErrorMessage(command.error || product.error)}
           {preserved ? <p>Your unsent text: "{preserved}"</p> : null}
         </div>
       ) : null}
