@@ -19,14 +19,10 @@ function WhyPanel({ explainResult }) {
   const source = officialTotal != null ? 'snapshot' : 'live';
 
   return (
-    <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 10 }}>
+    <div className="weekly-why-panel">
       <button
         onClick={() => setOpen(v => !v)}
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-          fontSize: 12, fontWeight: 700, color: 'var(--text-muted)',
-          display: 'flex', alignItems: 'center', gap: 5,
-        }}
+        className="weekly-why-toggle"
         aria-expanded={open}
       >
         Why {roundPct(total)}%? <span style={{ fontSize: 10 }}>{open ? '▲' : '▼'}</span>

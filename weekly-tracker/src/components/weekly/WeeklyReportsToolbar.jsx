@@ -43,14 +43,8 @@ export default function WeeklyReportsToolbar({
         {selectedProject && (
         <button
           type="button"
+          className={showGantt ? "weekly-gantt-button is-active" : "weekly-gantt-button"}
           onClick={onToggleGantt}
-          style={{
-            minHeight: 40, padding: "7px 16px", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer",
-            border: `1.5px solid ${showGantt ? "var(--status-done)" : "var(--border)"}`,
-            background: showGantt ? "var(--status-done-bg)" : "var(--accent-subtle)",
-            color: showGantt ? "var(--status-done)" : "var(--text-primary)",
-            flexShrink: 0,
-          }}
         >
           {showGantt ? "Hide Gantt" : "View Gantt ->"}
         </button>

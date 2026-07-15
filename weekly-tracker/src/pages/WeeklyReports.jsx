@@ -188,7 +188,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   return (
     <ErrorBoundary>
       <div className="weekly-reports-surface">
-        <div className="page-header">
+        <div className="page-header weekly-page-title">
           <div>
             <h1>Weekly Reports</h1>
             <p>Verified weekly progress, PM comparison, risks, evidence, and opening readiness by project.</p>
@@ -213,7 +213,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           onProjectChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}
           onReportChange={e => setSelectedReportId(e.target.value)}
           onToggleGantt={() => setShowGantt(v => !v)}
-          actions={selectedProject ? <ExportButton label="Export PDF" /> : null}
+          actions={selectedProject ? <ExportButton label="Export PDF" compact /> : null}
           statusLine={selectedProject ? (
             <span>
               <strong>{selectedProject.storeCode}</strong>
@@ -317,12 +317,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 explainResult={explainResult}
               />
 
-              <CompactProgressTrend
-                series={progressSeries}
-                scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
-                spi={engineOutputs?.progressComparison?.spi}
-              />
-
               <PhaseBoard
                 phases={phaseClassifications}
                 phaseChangeFlags={phaseChangeFlags}
@@ -339,12 +333,19 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               </PhaseBoard>
             </div>
 
-            <ActionRequiredPanel
-              report={selectedReport}
-              svKpis={svKpis}
-              portfolioKpis={portfolioKpis}
-              additionalWorksList={additionalWorksList}
-            />
+            <div className="weekly-overview-side">
+              <ActionRequiredPanel
+                report={selectedReport}
+                svKpis={svKpis}
+                portfolioKpis={portfolioKpis}
+                additionalWorksList={additionalWorksList}
+              />
+              <CompactProgressTrend
+                series={progressSeries}
+                scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
+                spi={engineOutputs?.progressComparison?.spi}
+              />
+            </div>
           </section>
         )}
 

@@ -42,6 +42,7 @@ function Sidebar({ mobileOpen = false, onClose = () => {} }) {
 
   const visibleNav = getAllowedNavItemsForRole(role, NAV_ITEMS);
   const badgeStyle = ROLE_BADGE_STYLES[role] ?? {};
+  const profileInitial = (user?.name || user?.email || 'O').trim().charAt(0).toUpperCase();
 
   async function handleLogout() {
     await logout();
@@ -50,27 +51,17 @@ function Sidebar({ mobileOpen = false, onClose = () => {} }) {
 
   return (
     <aside className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}>
-      <div style={{ padding: '12px 0 8px', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className="sidebar-brand">
         {/* Inline SVG mark — theme-adaptive via CSS vars, matches the login screen.
             (Replaces the old /logo-dark.png|/logo-light.png files that were deleted.) */}
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" role="img" aria-label="OpenDay">
+        <svg width="30" height="30" viewBox="0 0 32 32" fill="none" role="img" aria-label="OpenDay">
           <rect width="32" height="32" rx="8" fill="var(--bg-elevated)" />
-          <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="var(--accent)" />
+          <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" stroke="var(--accent)" strokeWidth="1.8" strokeLinejoin="round" fill="none" />
         </svg>
-        <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+        <span>
           OpenDay
         </span>
       </div>
-
-      {/* User info */}
-      {user && (
-        <div className="sidebar-user">
-          <div className="sidebar-user-name">{user.name}</div>
-          <div className="sidebar-role-badge" style={badgeStyle}>
-            {role}
-          </div>
-        </div>
-      )}
 
       <nav>
         {visibleNav.map((item) => (
@@ -80,16 +71,27 @@ function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         ))}
       </nav>
 
-      <div style={{ marginTop: 'auto', paddingTop: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <ThemeToggle theme={theme} onToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
-          {user && (
-            <button className="sidebar-logout-btn" onClick={handleLogout}>
-              Sign out
+      <div className="sidebar-footer">
+        {user && (
+          <div className="sidebar-profile-card">
+            <div className="sidebar-profile-avatar" aria-hidden="true">{profileInitial}</div>
+            <div className="sidebar-profile-copy">
+              <div className="sidebar-user-name">{user.email || user.name}</div>
+              <div className="sidebar-role-badge" style={badgeStyle}>
+                {role}
+              </div>
+            </div>
+            <button className="sidebar-logout-icon" onClick={handleLogout} title="Sign out" aria-label="Sign out">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M15 7l5 5-5 5M20 12H9M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
-          )}
+          </div>
+        )}
+        <div className="sidebar-footer-controls">
+          <ThemeToggle theme={theme} onToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+        <div className="sidebar-credit">
           by Sabir Khairullin
         </div>
       </div>

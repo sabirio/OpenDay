@@ -3,7 +3,7 @@
  * PDF" in the print dialog). className="no-print" hides the button itself
  * in the printed output (see src/styles/print.css).
  */
-export default function ExportButton({ label = 'Export PDF' }) {
+export default function ExportButton({ label = 'Export PDF', compact = false }) {
   return (
     <button
       type="button"
@@ -11,10 +11,10 @@ export default function ExportButton({ label = 'Export PDF' }) {
       onClick={() => window.print()}
       style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        padding: '8px 16px', borderRadius: 8, minHeight: 44,
+        padding: compact ? '7px 13px' : '8px 16px', borderRadius: 8, minHeight: compact ? 36 : 44,
         background: 'var(--accent)', color: 'var(--text-inverse)',
         border: 'none', cursor: 'pointer',
-        fontSize: 14, fontWeight: 600,
+        fontSize: compact ? 13 : 14, fontWeight: 700,
       }}
     >
       ⬇ {label}

@@ -25,9 +25,9 @@ export default function ProjectHeader({ project }) {
         <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3 }}>
           {project.shoppingMallName || project.storeCode || '—'}
         </h2>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+        <div className="weekly-project-meta">
           {meta.map((part, i) => (
-            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span key={i} className="weekly-project-meta-item">
               {i > 0 && <span style={{ color: 'var(--border-strong)' }}>·</span>}
               {part}
             </span>

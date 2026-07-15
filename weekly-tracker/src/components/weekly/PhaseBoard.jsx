@@ -30,13 +30,8 @@ export default function PhaseBoard({ phases, phaseChangeFlags, children }) {
         <span>Click a phase for work package detail</span>
       </div>
 
-      <div className="weekly-phase-table" role="table" aria-label="Phase status matrix">
-        <div className="weekly-phase-row weekly-phase-row-head" role="row">
-          <span>Phase</span>
-          <span>Progress</span>
-          <span>Change</span>
-          <span>Status</span>
-        </div>
+      {/* Compact stepper: source data is unchanged; only the scan pattern changes. */}
+      <div className="weekly-phase-table" role="list" aria-label="Phase status matrix">
         {phases.map(phase => {
           const hasChanges = phaseChangeFlags?.[phase.id];
           const isActive = activePhaseId === phase.id;
@@ -44,15 +39,19 @@ export default function PhaseBoard({ phases, phaseChangeFlags, children }) {
             <button
               key={phase.id}
               type="button"
+              role="listitem"
               className={isActive ? 'weekly-phase-row is-active' : 'weekly-phase-row'}
               onClick={() => setActivePhaseId(isActive ? null : phase.id)}
             >
-              <span>
+              <span className={`weekly-phase-marker status-${phase.status}`} aria-hidden="true" />
+              <span className="weekly-phase-title">
                 <strong>{phase.name}</strong>
                 {phase.weight != null && <small>{phase.weight}% weight</small>}
               </span>
-              <span>{phase.status === 'out_of_scope' ? 'Not in scope' : `${phase.pct}%`}</span>
-              <span className={hasChanges ? 'has-change' : ''}>{hasChanges ? changeLabel(phase) : '—'}</span>
+              <span className="weekly-phase-pct">{phase.status === 'out_of_scope' ? 'Not in scope' : `${phase.pct}%`}</span>
+              <span className={hasChanges ? 'weekly-phase-delta has-change' : 'weekly-phase-delta'}>
+                {hasChanges ? changeLabel(phase) : '—'}
+              </span>
               <span className={`weekly-phase-status status-${phase.status}`}>{phase.status.replaceAll('_', ' ')}</span>
             </button>
           );
