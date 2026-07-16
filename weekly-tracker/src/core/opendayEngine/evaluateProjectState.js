@@ -74,7 +74,7 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
     ? calculateProjectProgress(wpCumulativeStatuses.workPackageStatuses, scopeWPIds, phaseWeightOverrides, isV2 ? v2ProgressTemplate : gatedTemplate)
     : estimateProgressFromStatuses(cumulativeStatuses);
 
-  const progressPoints  = sorted.map((r, i) => ({ date: r.reportingDate || r.submittedAt, value: progressAtIndex(sorted, i) }));
+  const progressPoints  = sorted.map((r, i) => ({ date: r.reportingDate || r.submittedAt, value: progressAtIndex(sorted, i, null, null, phaseWeightOverrides) }));
   const daysSinceReport = latestReport ? daysSince(latestReport.reportingDate || latestReport.submittedAt, referenceDate) : null;
   const missingReport   = isMissingReport(latestReport, referenceDate);
   const daysToOpening   = project.targetOpeningDate ? daysUntil(project.targetOpeningDate, referenceDate) : null;

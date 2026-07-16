@@ -226,6 +226,28 @@ console.log('\ncalculateProjectProgress — scope isolation');
   assert('result progress follows scoped total', scopedResult.progress === 100);
   assert('breakdown includes only one scoped phase', scopedResult.phases.length === 1);
   assert('breakdown phase is phase_a', scopedResult.phases[0]?.id === 'phase_a');
+
+  // Engine-audit regression (2026-07-16): calculateProjectProgressResult()
+  // used to hardcode phaseWeightOverrides to null instead of threading it
+  // through like its sibling calculateProjectProgress() does — silently
+  // corrupting progress_history.overall_progress for any project using
+  // scope.weightOverrides. Same fixture as above (full scope, no scope
+  // filter) so the only variable is the override.
+  const overrides = { phase_a: 90, phase_b: 10 };
+  const overriddenProgress = calculateProjectProgress(wpStatuses, null, overrides, template);
+  const overriddenResult = calculateProjectProgressResult(
+    { workPackageStatuses: wpStatuses },
+    null,
+    null,
+    template,
+    overrides
+  );
+  assert('calculateProjectProgress with 90/10 override → 45%', overriddenProgress === 45);
+  assert(
+    'calculateProjectProgressResult matches calculateProjectProgress for the same override (was silently ignored)',
+    overriddenResult.progress === overriddenProgress
+  );
+  assert('override actually changes the result vs. default weights (25%)', overriddenResult.progress !== 25);
 }
 
 // ── calculateWPTaskWeightedProgress — pins PhaseStepper.jsx's former local

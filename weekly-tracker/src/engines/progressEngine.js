@@ -372,9 +372,10 @@ export function calculateRawWPAverageProgress(wpProgressArray, fallback = 0) {
  * @param {number} index         — inclusive upper bound (0-based)
  * @param {string[]|null} [scopeWPIds] - active WP ids; null = full scope
  * @param {Template|null} [template]
+ * @param {Record<string, number>|null} [phaseWeightOverrides]
  * @returns {number} 0-100
  */
-export function progressAtIndex(sortedReports, index, scopeWPIds = null, template = null) {
+export function progressAtIndex(sortedReports, index, scopeWPIds = null, template = null, phaseWeightOverrides = null) {
   const slice  = sortedReports.slice(0, index + 1);
   const wpCum  = computeWPCumulativeStatuses(slice);
   const legCum = computeCumulativeStatuses(slice);
@@ -382,7 +383,7 @@ export function progressAtIndex(sortedReports, index, scopeWPIds = null, templat
   const snapshotScope = sortedReports[index]?.snapshotWeights
     ? null // snapshotWeights already encode scope; pass null so engine uses them directly
     : scopeWPIds;
-  return calculateProjectProgressResult(wpCum, legCum, snapshotScope, template).progress;
+  return calculateProjectProgressResult(wpCum, legCum, snapshotScope, template, phaseWeightOverrides).progress;
 }
 
 /**
@@ -392,9 +393,10 @@ export function progressAtIndex(sortedReports, index, scopeWPIds = null, templat
  * @param {Record<string, any>|null} legacyCumulative — result of computeCumulativeStatuses()
  * @param {string[]|null} [scopeWPIds]     - active WP ids; null = full scope
  * @param {Template|null} [template]
+ * @param {Record<string, number>|null} [phaseWeightOverrides]
  * @returns {ProgressResult}
  */
-export function calculateProjectProgressResult(wpCumulative, legacyCumulative, scopeWPIds = null, template = null) {
+export function calculateProjectProgressResult(wpCumulative, legacyCumulative, scopeWPIds = null, template = null, phaseWeightOverrides = null) {
   if (wpCumulative?.workPackageStatuses) {
     const wpStatuses = wpCumulative.workPackageStatuses;
     const { workPackages, phaseWeights, phases: resolvedPhases } = resolveTemplate(template);
@@ -414,7 +416,7 @@ export function calculateProjectProgressResult(wpCumulative, legacyCumulative, s
 
     return {
       format:   'gantt',
-      progress: calculateProjectProgress(wpStatuses, scopeWPIds, null, template),
+      progress: calculateProjectProgress(wpStatuses, scopeWPIds, phaseWeightOverrides, template),
       phases,
     };
   }

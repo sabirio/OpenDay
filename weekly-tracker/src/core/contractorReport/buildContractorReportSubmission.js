@@ -75,7 +75,7 @@ export function buildContractorReportSubmission({
   const v2Template = isV2
     ? buildV2ProgressTemplate(project.scope?.zoneAreas, project.scope?.zones ?? null, project.scope?.categories ?? null)
     : null;
-  const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template).progress;
+  const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template, project.scope?.weightOverrides ?? null).progress;
 
   const wpProgressArray = ganttTasks.length > 0
     ? ganttTasks.map(task => {

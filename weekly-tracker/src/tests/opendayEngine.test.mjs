@@ -186,6 +186,30 @@ console.log('\nD) evaluateProjectState — mixed progress (structural checks)');
   check('contScore has a totalScore field',   typeof state.contScore.totalScore === 'number');
 }
 
+// ── D2) evaluateProjectState — phaseWeightOverrides consistency (engine-audit
+// regression, 2026-07-16): progressAtIndex() used to be called with no
+// phaseWeightOverrides argument, so the last point of progressPoints (the
+// trend series) could disagree with the headline `progress` for the exact
+// same report on a project using scope.weightOverrides. ────────────────────
+
+console.log('\nD2) evaluateProjectState — phaseWeightOverrides consistency');
+{
+  const today = new Date().toISOString().slice(0, 10);
+  const baseProject = makeProject();
+  const overriddenProject = makeProject({
+    scope: { weightOverrides: { demolition: 70, floor_prep: 10, rough_in: 10, finishes: 10 } },
+  });
+  const report = { id: 4, projectId: baseProject.id, reportingDate: today, workPackageStatuses: MIXED_WPS, overallProgress: 45 };
+
+  const baseState = evaluateProjectState(baseProject, [makeReport(report)], []);
+  const overriddenState = evaluateProjectState(overriddenProject, [makeReport(report)], []);
+
+  check('headline progress differs once demolition (100% complete) is overweighted',
+    overriddenState.progress !== baseState.progress);
+  check('progressPoints last value matches headline progress (was silently ignoring the override)',
+    overriddenState.progressPoints.at(-1).value === overriddenState.progress);
+}
+
 // ── E) evaluateProjectState — no target opening date -> readiness "No Date" ────
 
 console.log('\nE) evaluateProjectState — no target opening date');
