@@ -1,5 +1,6 @@
 import { getWPById, getPhaseById } from '../../../config/masterTaskLibrary.js';
-import { getWPByIdV2, retailFitoutV2, CATEGORY_LIBRARY, V2_TEMPLATE_TYPE } from '../../../domains/construction/templates/retailFitoutV2.js';
+import { getWPByIdV2, retailFitoutV2, CATEGORY_LIBRARY, ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from '../../../domains/construction/templates/retailFitoutV2.js';
+import { getScopeWPIds } from '../scope/getScopeWPIds.js';
 
 /**
  * Single source of truth for "how should this work package's row be
@@ -43,6 +44,41 @@ export function getWPGrouping(templateType, wpId) {
 /** True when a templateType uses the zoned v1-incompatible grouping model. */
 export function isZonedTemplate(templateType) {
   return templateType === V2_TEMPLATE_TYPE;
+}
+
+/**
+ * v2 (zoned) equivalent of masterTaskLibrary.js's getScopedGanttWorkPackages —
+ * same output shape (`{ id, name, tasks: [{name, weight}], groups }`), grouped
+ * by CATEGORY instead of phase (v2 has no phase concept; each category is the
+ * v1-compatible "phase-shaped" grouping unit for display, matching how
+ * buildV2ProgressTemplate.js treats each category as a synthetic v1 phase for
+ * progress math). scope === null/undefined -> full list.
+ *
+ * @param {object|null} [scope] — project.scope (zones|workPackages|categories)
+ * @returns {Array<{id:string, name:string, tasks:Array<{name:string,weight:number}>, groups:Array}>}
+ */
+export function getScopedGanttWorkPackagesV2(scope = null) {
+  const scopedWPIds = getScopeWPIds(scope, ALL_WORK_PACKAGES_V2); // null = full scope
+  const categoryIds = scope?.categories ?? null;                  // null = all categories
+  const byCategory = new Map();
+
+  for (const wp of ALL_WORK_PACKAGES_V2) {
+    if (scopedWPIds && !scopedWPIds.includes(wp.id)) continue;
+    if (categoryIds && !categoryIds.includes(wp.categoryId)) continue;
+    if (!byCategory.has(wp.categoryId)) byCategory.set(wp.categoryId, []);
+    byCategory.get(wp.categoryId).push(wp);
+  }
+
+  return Array.from(byCategory.entries()).map(([categoryId, wps]) => {
+    const label = CATEGORY_LIBRARY[categoryId]?.label ?? categoryId;
+    const taskNames = wps.map(wp => wp.label);
+    return {
+      id:     categoryId,
+      name:   label,
+      tasks:  wps.map(wp => ({ name: wp.label, weight: 1 })),
+      groups: [{ id: `${categoryId}.g`, name: label, tasks: taskNames }],
+    };
+  });
 }
 
 /**
