@@ -67,9 +67,19 @@ export function getAvailableSnagActions(state, actor) {
   if (!state || !actor) return [];
   const role = roleOf(actor);
   const actions = [];
+  // Engine-audit fix (2026-07-16): assignSnag/unassignSnag are 030's legacy
+  // status-transition actions and have no awareness of the 035 publication
+  // lifecycle (CAPTURED/PUBLISHED/ARCHIVED). A still-private CAPTURED
+  // observation's assigneeId is unconditionally overwritten by
+  // publishObservation (035 SQL) once trade/stakeholder are set — so
+  // assigning via the legacy action first silently loses that assignment.
+  // Publication (which resolves the real assignee from the stakeholder
+  // record) is the only correct way to assign a CAPTURED observation.
+  const isCaptured = state.publicationState === 'CAPTURED';
   for (const [type, spec] of Object.entries(TRANSITIONS)) {
     if (!spec.roles.has(role) || !spec.from.includes(state.status)) continue;
     if (spec.assigned && String(state.assigneeId) !== String(actor.id)) continue;
+    if (isCaptured && (type === 'assignSnag' || type === 'unassignSnag')) continue;
     actions.push(type);
   }
   if (PM_ROLES.has(role) && !['CLOSED', 'CANCELLED'].includes(state.status)) actions.push('updateSnagDetails', 'updateSnagLocation');
