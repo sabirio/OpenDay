@@ -389,3 +389,46 @@ export function test9_withinPhaseSplit() {
     `walls.framing should be 3× walls.marking (duration_pct 0.30/0.10=3)`
   );
 }
+
+// ─── Test 10: calculateForecastOpening's openingMarkerId parameter ───────────
+// Engine-audit fix (2026-07-16): openingMarkerId used to be hardcoded to v1's
+// 'handover.keys' with no override, unlike calculateKeyDates' own
+// openingMarkerId param. Proves the parameter actually changes resolution:
+// a synthetic v2-style marker id, passed explicitly, must be found and used
+// instead of silently falling back to "latest reforecast finish across all
+// WPs" (which a real v2 gantt — no 'handover.keys' WP at all — would
+// otherwise always hit).
+
+export function test10_forecastOpeningCustomMarker() {
+  const start = new Date('2025-01-01');
+  const wpA = {
+    id: 'wp.a', earlyStart: start, earlyFinish: addDays(start, 10), duration_days: 10,
+    actual_progress: 100, status: 'completed', actual_end: isoDate(addDays(start, 10)),
+  };
+  const wpMarker = {
+    id: 'v2.opening.marker', earlyStart: start, earlyFinish: addDays(start, 15), duration_days: 15,
+    actual_progress: 0, status: 'not_started',
+  };
+  const wpLate = {
+    id: 'wp.late', earlyStart: start, earlyFinish: addDays(start, 30), duration_days: 30,
+    actual_progress: 0, status: 'not_started',
+  };
+  const ganttResult = [wpA, wpMarker, wpLate];
+  const today = start;
+
+  const withCustomMarker = calculateForecastOpening(ganttResult, today, [], 'v2.opening.marker');
+  const withDefaultMarker = calculateForecastOpening(ganttResult, today, []); // 'handover.keys' not present in this fixture
+
+  assert(
+    isoDate(withCustomMarker.forecastOpeningDate) === isoDate(addDays(start, 15)),
+    `custom marker should resolve to wpMarker's own finish (${isoDate(addDays(start, 15))}), got ${isoDate(withCustomMarker.forecastOpeningDate)}`
+  );
+  assert(
+    isoDate(withDefaultMarker.forecastOpeningDate) === isoDate(addDays(start, 30)),
+    `default marker (absent from this fixture) should fall back to the latest reforecast finish (${isoDate(addDays(start, 30))}), got ${isoDate(withDefaultMarker.forecastOpeningDate)}`
+  );
+  assert(
+    withCustomMarker.forecastOpeningDate.getTime() !== withDefaultMarker.forecastOpeningDate.getTime(),
+    'passing openingMarkerId must actually change which WP resolves the forecast'
+  );
+}

@@ -421,9 +421,17 @@ export function calculateKeyDates(ganttResult, completionMarkerId = 'comm.snaggi
  *
  * @param {object[]} ganttResult  — WPs with actual_progress, status, earlyStart, earlyFinish
  * @param {Date|string} today
+ * @param {object[]} [dependencyRules]
+ * @param {string} [openingMarkerId] — v1's 'handover.keys' (default). Pass
+ *   'common.handover.keys_possession' for v2 — same parameterization
+ *   calculateKeyDates() already uses, kept in sync (engine-audit fix,
+ *   2026-07-16: this hardcoded the v1 id with no way to override it, unlike
+ *   its sibling; not exploitable today since this function has no live
+ *   caller, but would silently mis-forecast if one is ever wired up for v2
+ *   without this).
  * @returns {{ forecastOpeningDate: Date, confidence: "high"|"medium"|"low" }}
  */
-export function calculateForecastOpening(ganttResult, today, dependencyRules = DEPENDENCY_RULES) {
+export function calculateForecastOpening(ganttResult, today, dependencyRules = DEPENDENCY_RULES, openingMarkerId = 'handover.keys') {
   if (!ganttResult || ganttResult.length === 0) {
     return { forecastOpeningDate: null, confidence: 'low' };
   }
@@ -439,7 +447,7 @@ export function calculateForecastOpening(ganttResult, today, dependencyRules = D
 
   // If no actual progress: return planned projected opening
   if (wpsWithData.length === 0) {
-    const { projectedOpeningDate } = calculateKeyDates(ganttResult);
+    const { projectedOpeningDate } = calculateKeyDates(ganttResult, undefined, openingMarkerId);
     return { forecastOpeningDate: projectedOpeningDate, confidence: 'low' };
   }
 
@@ -529,10 +537,10 @@ export function calculateForecastOpening(ganttResult, today, dependencyRules = D
   }
 
   // Keys WP
-  const keysWP = ganttResult.find(w => w.id === 'handover.keys');
+  const keysWP = ganttResult.find(w => w.id === openingMarkerId);
   let forecastOpeningDate;
-  if (keysWP && reforecastFinish['handover.keys']) {
-    forecastOpeningDate = reforecastFinish['handover.keys'];
+  if (keysWP && reforecastFinish[openingMarkerId]) {
+    forecastOpeningDate = reforecastFinish[openingMarkerId];
   } else {
     // Fall back to latest reforecast finish
     const dates = Object.values(reforecastFinish).filter(Boolean);

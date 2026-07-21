@@ -12,6 +12,7 @@ import {
   test7_noDemorNormalizationSumsToOne,
   test8_proportionalScaling,
   test9_withinPhaseSplit,
+  test10_forecastOpeningCustomMarker,
 } from './ganttEngine.test.js';
 
 import {
@@ -44,6 +45,7 @@ const tests = [
   { name: 'Gantt Test 7: No-demo excluded phase — normalization sums to 1.0',           fn: test7_noDemorNormalizationSumsToOne },
   { name: 'Gantt Test 8: Proportional scaling — 300d project is 3× the 100d project',  fn: test8_proportionalScaling },
   { name: 'Gantt Test 9: Within-phase split preserved (walls.framing = 3× marking)',   fn: test9_withinPhaseSplit },
+  { name: 'Gantt Test 10: calculateForecastOpening openingMarkerId parameter',         fn: test10_forecastOpeningCustomMarker },
   { name: 'Discrepancy Test 1: All scenarios (ok / warning / critical)',                fn: test1_allScenarios },
   { name: 'Discrepancy Test 2: Boundary edge cases (delta 10, 25, 26, 0, 9)',          fn: test2_boundaries },
   { name: 'Weights Test 1: getDefaultPhaseWeights returns protected copy',             fn: test1_getDefaultPhaseWeights },
