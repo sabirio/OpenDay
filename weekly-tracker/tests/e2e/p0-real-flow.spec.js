@@ -183,11 +183,9 @@ async function submitContractorReport(page) {
   await page.locator('[data-testid="toggle-support-required-No"]').click();
   await page.locator('[data-testid="toggle-activities-blocked-No"]').click();
 
-  const textareas = page.locator('[data-testid="contractor-report-form"] textarea');
-  await textareas.nth(0).fill('1) E2E progress verification\n2) E2E site works\n3) E2E coordination');
-  await textareas.nth(1).fill('1) E2E next works\n2) E2E procurement\n3) E2E QA');
-  await textareas.nth(2).fill('No blockers for P0 E2E.');
-  await textareas.nth(3).fill(`P0 E2E contractor report ${RUN_ID}`);
+  await page.getByLabel(/Top 3 Activities .* Next Week/i).fill('1) E2E progress verification\n2) E2E site works\n3) E2E coordination');
+  await page.getByLabel(/Top 3 Activities .* Week \+2/i).fill('1) E2E next works\n2) E2E procurement\n3) E2E QA');
+  await page.getByLabel(/Final Comments or Pending Issues/i).fill(`No blockers for P0 E2E. Run ${RUN_ID}`);
 
   await page.locator('input[type="file"][accept="image/*"]').setInputFiles({
     name: 'p0-e2e.png',
@@ -312,6 +310,7 @@ async function assertPortfolioUi(page) {
   // getByText(STORE_CODE) can match that hidden node first in DOM order.
   // Intersect with :visible so this only matches the real on-screen content.
   await expect(page.getByText(STORE_CODE).and(page.locator(':visible')).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('tab', { name: 'Details & Evidence' }).click();
   await expect(page.getByText(/Site Photos|GC Report Photos/).first()).toBeVisible({ timeout: 20_000 });
 
   await page.goto('/');
