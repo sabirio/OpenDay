@@ -13,6 +13,7 @@ import GcInvitationModal from "../components/projects/GcInvitationModal";
 import ProjectEditorModal from "../components/projects/ProjectEditorModal";
 import ProjectFilters from "../components/projects/ProjectFilters";
 import ProjectTable from "../components/projects/ProjectTable";
+import { useToast } from "../components/shared/Toast.jsx";
 import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
 
 const emptyProject = {
@@ -50,6 +51,7 @@ const inputStyle = {
 
 
 function Projects({ projects, onSaveProject, onDeleteProject }) {
+  const toast = useToast();
   const [showForm, setShowForm] = useState(false);
   const [newProject, setNewProject] = useState(emptyProject);
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -137,6 +139,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       const savedProject = await onSaveProject(payload);
 
       const projectEndDate = newProject.constructionEndDate || newProject.targetOpeningDate;
+      let ganttFailed = false;
       if (savedProject?.id && newProject.constructionStartDate && projectEndDate) {
         try {
           if (savedProject.ganttGeneratedAt) {
@@ -169,17 +172,21 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           }
         } catch (ganttErr) {
           console.warn('[gantt] generation failed (non-fatal):', ganttErr);
+          ganttFailed = true;
         }
       }
 
+      const wasEditing = Boolean(editingProjectId);
       setNewProject(emptyProject);
       originalProjectRef.current = emptyProject;
       setEditingProjectId(null);
       setConflict(null);
       setShowForm(false);
+      toast.success(wasEditing ? "Project updated." : "Project created.");
+      if (ganttFailed) toast.error("Project saved, but the schedule could not be regenerated. Reopen this project to try again.");
     } catch (err) {
       console.error("Failed to save project:", err);
-      alert("Failed to save project. Please try again.");
+      toast.error("Failed to save project. Please try again.");
     }
   }
 
@@ -199,7 +206,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       originalProjectRef.current = snapshot;
     } catch (err) {
       console.error("Failed to reload project:", err);
-      alert("Failed to reload the latest data. Please close and reopen the editor.");
+      toast.error("Failed to reload the latest data. Please close and reopen the editor.");
     } finally {
       setConflict(null);
     }
@@ -220,9 +227,10 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         setNewProject(emptyProject);
         setEditingProjectId(null);
         setShowForm(false);
+        toast.success(`${label} deleted.`);
       } catch (err) {
         console.error("Failed to delete project:", err);
-        alert("Failed to delete project. Please try again.");
+        toast.error("Failed to delete project. Please try again.");
       }
     }
   }

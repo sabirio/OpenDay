@@ -5,12 +5,14 @@ import { formatDate, daysUntil } from "../../utils/reportUtils";
 import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
 import { DetailField, FieldRow, FormSection } from "./ProjectFormParts";
 import Modal from "../shared/Modal";
+import { useToast } from "../shared/Toast.jsx";
 
 const PHASE_MAP = Object.fromEntries(
   PHASES.map(p => [p.id, { ...p, bg: "var(--bg-elevated)", border: "var(--border)" }])
 );
 
 export default function ProjectDetailModal({ project, onClose, onEdit }) {
+  const toast = useToast();
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
   const openingColor = getOpeningColor(daysLeft);
@@ -127,7 +129,7 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
             </a>
             <button className="small-button" onClick={() => {
               navigator.clipboard.writeText(`${window.location.origin}/contractor-report/${project.id}`);
-              alert("Link copied.");
+              toast.success("Link copied.", { duration: 2500 });
             }}>Copy</button>
           </div>
         </div>

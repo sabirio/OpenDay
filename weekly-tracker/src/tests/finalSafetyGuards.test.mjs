@@ -23,7 +23,12 @@ const suppressions = walk(srcRoot)
     .map((line, index) => ({ rel: path.relative(srcRoot, file).replace(/\\/g, '/'), line: index + 1, text: line.trim() }))
     .filter(row => /eslint-disable(?:-next-line|-line)?|@ts-(?:ignore|expect-error)/.test(row.text)));
 
-check('suppression inventory is exactly the reviewed 20 entries', suppressions.length === 20);
+// UX audit (2026-07-21): 21st entry is components/shared/Toast.jsx's
+// `useToast` export, using the exact same react-refresh/only-export-components
+// suppression already reviewed/accepted for auth/AuthContext.jsx's `useAuth`
+// (a context+hook pair in one file is the standard React pattern this rule
+// otherwise flags).
+check('suppression inventory is exactly the reviewed 21 entries', suppressions.length === 21);
 check('every suppression is a single-line exception', suppressions.every(row => /eslint-disable-(?:next-line|line)|@ts-(?:ignore|expect-error)/.test(row.text)));
 check('no blanket eslint-disable exists', suppressions.every(row => !/^\/\/\s*eslint-disable\s*$/.test(row.text)));
 

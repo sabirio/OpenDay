@@ -2817,12 +2817,12 @@ button.weekly-phase-row {
   .field-form-recovery-actions button { min-height: 44px; width: 100%; }
 }
 
-.site-visit-navigator, .site-visit-review { margin-bottom: 16px; padding: 18px; border: 1px solid var(--field-border); border-radius: 12px; background: white; }
+.site-visit-navigator, .site-visit-review { margin-bottom: 16px; padding: 18px; border: 1px solid var(--field-border); border-radius: 12px; background: var(--field-bg-card); }
 .site-visit-nav-heading { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
 .site-visit-nav-heading h2, .site-visit-review h2 { margin: 0; color: var(--field-text-heading); font-size: 1rem; }
 .site-visit-nav-heading p, .site-visit-review p { margin: 5px 0 0; color: var(--field-text-secondary); font-size: .8125rem; }
 .site-visit-filters { display: flex; gap: 6px; overflow-x: auto; padding: 14px 0 10px; }
-.site-visit-filters button, .site-visit-nav-actions button, .site-visit-review button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--field-border-strong); border-radius: 8px; background: white; color: var(--field-text-body); text-transform: capitalize; }
+.site-visit-filters button, .site-visit-nav-actions button, .site-visit-review button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--field-border-strong); border-radius: 8px; background: var(--field-bg-card); color: var(--field-text-body); text-transform: capitalize; }
 .site-visit-filters button[aria-pressed="true"] { border-color: var(--field-accent-sitevisit); background: var(--field-info-bg); color: var(--field-info-fg-dark); font-weight: 700; }
 .site-visit-current-item { min-width: 0; padding: 12px 0; }
 .site-visit-group-label { margin-bottom: 5px; color: var(--field-text-label); font-size: .75rem; font-weight: 700; overflow-wrap: anywhere; }
@@ -2831,3 +2831,49 @@ button.weekly-phase-row {
 .site-visit-nav-actions button:disabled { opacity: .45; }
 @media (max-width: 560px) { .site-visit-navigator, .site-visit-review { padding: 14px; } .site-visit-review div { flex-direction: column; } .site-visit-review button { width: 100%; } }
 @supports (padding: max(0px)) { .field-form-sticky-submit { padding-bottom: max(10px, env(safe-area-inset-bottom)); } }
+
+/* ============================================================
+   TOAST — shared feedback primitive (UX audit, 2026-07-21).
+   Replaces alert()/silent-failure patterns app-wide.
+   ============================================================ */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.8125rem;
+  pointer-events: auto;
+  animation: toast-in 0.15s ease-out;
+}
+.toast span { flex: 1; }
+.toast-success { border-color: var(--status-done); }
+.toast-error   { border-color: var(--status-alert); }
+.toast-dismiss {
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--text-muted);
+  font-size: 1.1rem; line-height: 1; cursor: pointer; border-radius: var(--radius-sm);
+}
+.toast-dismiss:hover { background: var(--bg-input); color: var(--text-primary); }
+.toast-dismiss:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+@media (max-width: 480px) { .toast-stack { width: calc(100vw - 24px); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } }

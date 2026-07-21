@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, Component, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Layout from "./components/Layout";
+import { ToastProvider } from "./components/shared/Toast.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { useAuth } from "./auth/AuthContext";
 import { getDefaultRoute } from "./engines/permissionEngine";
@@ -284,6 +285,7 @@ function App() {
   if (isAuthenticated && projectsState === 'error' && !isContractorReportRoute) return <GlobalErrorScreen onRetry={loadProjects} />;
 
   return (
+    <ToastProvider>
     <ErrorBoundary>
     <BrowserRouter
       future={{
@@ -452,6 +454,7 @@ function App() {
       </Suspense>
     </BrowserRouter>
     </ErrorBoundary>
+    </ToastProvider>
   );
 }
 

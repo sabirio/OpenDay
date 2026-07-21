@@ -3,6 +3,7 @@ import { useAllRows } from "../hooks/useAllRows";
 import { useWeeklyReportReviewModel } from "../hooks/useWeeklyReportReviewModel";
 import { useWeeklyGanttTasks } from "../hooks/useWeeklyGanttTasks";
 import { useAuth } from "../auth/AuthContext";
+import { useToast } from "../components/shared/Toast.jsx";
 import PrintHeader from "../components/print/PrintHeader";
 import ExportButton from "../components/print/ExportButton";
 // TODO wave4: WORK_PACKAGES here is the intentional legacy-report fallback
@@ -59,6 +60,7 @@ class ErrorBoundary extends React.Component {
 // ─── Main component ───────────────────────────────────────────────────────────
 function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
   const { user } = useAuth();
+  const toast = useToast();
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedReportId,  setSelectedReportId]  = useState("");
   const [showMissingModal,  setShowMissingModal]  = useState(false);
@@ -177,8 +179,9 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
       await resizeTask(wpId, { plannedStart, plannedEnd, durationDays });
     } catch (err) {
       console.error('[GanttResize] failed to save:', err);
+      toast.error("Couldn't save the schedule change — please try dragging again.");
     }
-  }, [resizeTask]);
+  }, [resizeTask, toast]);
   const reviewTabs = [
     { id: "overview", label: "Overview" },
     { id: "verification", label: "Verification" },
