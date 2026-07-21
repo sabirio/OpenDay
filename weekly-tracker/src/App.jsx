@@ -31,6 +31,7 @@ const Unauthorized     = lazy(() => import("./pages/Unauthorized"));
 const ContractorSelect = lazy(() => import("./pages/ContractorSelect"));
 const SiteVisitSelect  = lazy(() => import("./pages/SiteVisitSelect"));
 const SnagListPage     = lazy(() => import("./pages/snags/SnagListPage"));
+const SnagFieldPage    = lazy(() => import("./pages/snags/SnagFieldPage"));
 const SnagCreatePage   = lazy(() => import("./pages/snags/SnagCreatePage"));
 const SnagDetailPage   = lazy(() => import("./pages/snags/SnagDetailPage"));
 const SnagProjectSelectPage = lazy(() => import("./pages/snags/SnagProjectSelectPage"));
@@ -390,6 +391,7 @@ function App() {
                   />
                   <Route path="/snags" element={<ProtectedRoute resource="snags"><SnagProjectSelectPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/snags/field" element={<ProtectedRoute resource="snags"><SnagFieldPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/new" element={<ProtectedRoute resource="snags"><SnagCreatePage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagDetailPage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans" element={<ProtectedRoute resource="snags"><PlanManagementPage/></ProtectedRoute>} />

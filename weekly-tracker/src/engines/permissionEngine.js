@@ -17,5 +17,11 @@ export function getDefaultRoute(role) {
 
 // Returns a filtered list of nav items the role can see.
 export function getAllowedNavItems(role, navItems) {
-  return navItems.filter((item) => canAccess(role, item.resource));
+  return navItems.flatMap((item) => {
+    if (item.children) {
+      const children = item.children.filter((child) => canAccess(role, child.resource));
+      return children.length ? [{ ...item, children }] : [];
+    }
+    return canAccess(role, item.resource) ? [item] : [];
+  });
 }

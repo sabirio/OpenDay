@@ -59,8 +59,11 @@ check("mobile plan placement is still gated to ['Admin','PM']", fieldPlanView.in
 
 // ── Desktop regression: original desktop markup/hooks are untouched ────
 const snagListPage = read('../pages/snags/SnagListPage.jsx');
-check('desktop snag list markup (snag-page shell) is still present', snagListPage.includes('className="snag-page"'));
-check('mobile shell is an early return, not a replacement of the desktop branch', snagListPage.includes('if(isMobile){') && snagListPage.includes('<SnagFieldShell'));
+const snagFieldPage = read('../pages/snags/SnagFieldPage.jsx');
+const app = read('../App.jsx');
+check('Site Snag management shell remains the normal project route', snagListPage.includes('site-snag-page') && snagListPage.includes('Site Snag'));
+check('Field Snag List has an explicit project-scoped route', app.includes('/projects/:projectId/snags/field') && snagFieldPage.includes('<SnagFieldShell'));
+check('viewport no longer switches Site Snag into Field Snag List', !snagListPage.includes('useIsMobile') && !snagListPage.includes('<SnagFieldShell'));
 
 // ── Trade -> preferred stakeholder preselection wired into the shared detail page ──
 const snagDetailPage = read('../pages/snags/SnagDetailPage.jsx');

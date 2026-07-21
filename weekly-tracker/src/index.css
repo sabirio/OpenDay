@@ -96,6 +96,59 @@ body {
   border-left: none;
 }
 
+.sidebar-nav-group {
+  display: grid;
+  gap: 3px;
+}
+
+.sidebar-nav-group-toggle {
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font: 600 0.8125rem/1.25 var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.sidebar-nav-group-toggle:hover,
+.sidebar-nav-group-toggle:focus-visible,
+.sidebar-nav-group.active > .sidebar-nav-group-toggle {
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-primary);
+}
+
+.sidebar-nav-group-chevron {
+  font-size: 0.875rem;
+  transition: transform 0.18s ease-out;
+}
+
+.sidebar-nav-group-toggle[aria-expanded="true"] .sidebar-nav-group-chevron {
+  transform: rotate(180deg);
+}
+
+.sidebar-nav-children {
+  display: grid;
+  gap: 2px;
+  padding-left: 10px;
+}
+
+.sidebar-nav-children[hidden] {
+  display: none;
+}
+
+.sidebar-nav-children a {
+  padding-left: 18px;
+}
+
 
 /* ── Main content ────────────────────────────────────────── */
 .main-content {

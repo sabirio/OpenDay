@@ -33,10 +33,16 @@ export const NAV_ITEMS = [
   { to: '/',                   label: 'Project Dashboard', resource: 'dashboard'      },
   { to: '/projects',           label: 'Portfolio',        resource: 'projects'       },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
-  { to: '/site-visit-select',  label: 'Site Visit',       resource: 'site_visit'     },
+  {
+    id: 'site-works',
+    label: 'Site Works',
+    children: [
+      { to: '/site-visit-select', label: 'Site Visit', resource: 'site_visit' },
+      { to: '/snags', label: 'Site Snag', resource: 'snags' },
+    ],
+  },
   { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine'    },
   { to: '/weight-audit',       label: 'Weight Audit',     resource: 'weight_audit'   },
-  { to: '/snags',                label: 'Snag List',      resource: 'snags'          },
   { to: '/admin/users',        label: 'Users',            resource: 'admin_users'    },
   // Template Editor (/admin/template-editor) route still exists but is hidden from
   // the nav until its save path (onSave -> templatesApi) is wired. See PROJECT_MEMORY.md.

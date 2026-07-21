@@ -210,3 +210,14 @@
 @media (prefers-reduced-motion: reduce) {
   .snag-field-shell * { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Explicit Field Snag List route remains field-oriented at every width. */
+@media (min-width: 641px) {
+  .snag-field-tabbar,
+  .snag-field-capture-confirm { left: 200px; }
+}
+
+@media (min-width: 901px) {
+  .snag-field-tabbar,
+  .snag-field-capture-confirm { left: 216px; }
+}

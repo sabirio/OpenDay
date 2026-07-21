@@ -7,7 +7,7 @@ const ADD_TAB = { key: 'add', label: 'Add', icon: '+' };
 export default function SnagFieldTabBar({ mode, onSelect, canCreate }) {
   const tabs = canCreate ? [TABS[0], ADD_TAB, TABS[1]] : TABS;
   return (
-    <nav className="snag-field-tabbar" aria-label="Field mode navigation">
+    <nav className="snag-field-tabbar" aria-label="Field Snag List navigation">
       {tabs.map(tab => (
         <button
           key={tab.key}

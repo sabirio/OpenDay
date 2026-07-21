@@ -19,6 +19,43 @@ function isNavItemActive(item, pathname) {
   return pathname === item.to || pathname.startsWith(`${item.to}/`);
 }
 
+function NavGroup({ item, pathname, onNavigate }) {
+  const childActive = item.children.some((child) => isNavItemActive(child, pathname));
+  const [toggleState, setToggleState] = useState({ pathname, expanded: childActive });
+  const expanded = toggleState.pathname === pathname ? toggleState.expanded : childActive;
+
+  return (
+    <div className={`sidebar-nav-group${childActive ? ' active' : ''}`}>
+      <button
+        type="button"
+        className="sidebar-nav-group-toggle"
+        aria-expanded={expanded}
+        aria-controls={`sidebar-group-${item.id}`}
+        onClick={() => setToggleState({ pathname, expanded: !expanded })}
+      >
+        <span>{item.label}</span>
+        <span className="sidebar-nav-group-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div id={`sidebar-group-${item.id}`} className="sidebar-nav-children" hidden={!expanded}>
+        {item.children.map((child) => {
+          const active = isNavItemActive(child, pathname);
+          return (
+            <Link
+              key={child.to}
+              to={child.to}
+              onClick={onNavigate}
+              className={active ? 'active' : undefined}
+              aria-current={active ? 'page' : undefined}
+            >
+              {child.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ThemeToggle({ theme, onToggle }) {
   const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   return (
@@ -84,6 +121,9 @@ function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
 
       <nav>
         {visibleNav.map((item) => {
+          if (item.children) {
+            return <NavGroup key={item.id} item={item} pathname={pathname} onNavigate={onClose} />;
+          }
           const active = isNavItemActive(item, pathname);
           return (
             <Link key={item.to} to={item.to} onClick={onClose} className={active ? 'active' : undefined} aria-current={active ? 'page' : undefined}>

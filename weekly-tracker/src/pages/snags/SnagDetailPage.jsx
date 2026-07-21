@@ -26,6 +26,15 @@ function planReturnUrl(projectId, snag) {
   return `/projects/${projectId}/plans/${snag.location.planVersionId}?placement=1&page=${snag.location.pageNumber || 1}`;
 }
 
+// `captureReturn` may come from a bare path with no query string (e.g. the
+// Field Snag List's `/projects/:id/snags/field` returnTo) as well as one
+// that already has one (`?placement=1&page=1`) — always appending `&` broke
+// the bare-path case into `.../field&created=<id>`, which React Router
+// then tried to match against `:snagId` instead of the intended route.
+function withCreatedParam(url, snagIdValue) {
+  return `${url}${url.includes('?') ? '&' : '?'}created=${snagIdValue}`;
+}
+
 export default function SnagDetailPage() {
   const { projectId, snagId } = useParams();
   const [query] = useSearchParams();
@@ -60,7 +69,9 @@ export default function SnagDetailPage() {
   const { snag, events, evidence, comments = [] } = detail.data;
   const navOrder = routerLocation.state?.navOrder;
   const nav = selectSnagNavigation(navOrder, snagId);
-  const goToObservation = id => navigate(`/projects/${projectId}/snags/${id}`, { state: navOrder ? { navOrder } : undefined });
+  const goToObservation = id => navigate(`/projects/${projectId}/snags/${id}`, {
+    state: { ...(navOrder ? { navOrder } : {}), ...(routerLocation.state?.returnTo ? { returnTo: routerLocation.state.returnTo } : {}) },
+  });
   const model = buildSnagListModel([snag], {}, actor).rows[0];
   const actions = new Set(model.actions);
   const roleName = String(role || '').toUpperCase();
@@ -71,8 +82,10 @@ export default function SnagDetailPage() {
   const drawingReturn = planReturnUrl(projectId, snag);
   // Mobile Field Mode has no desktop plan-viewer route to return to — send
   // the PM back into the same field shell (defaults to Plan Mode) instead.
-  const mobileFieldReturn = `/projects/${projectId}/snags?field=plan`;
-  const captureReturn = query.get('capture') === '1' ? (isMobile ? mobileFieldReturn : drawingReturn) : false;
+  const contextualReturn = routerLocation.state?.returnTo;
+  const isFieldReturn = Boolean(contextualReturn?.includes('/snags/field'));
+  const captureReturn = query.get('capture') === '1' ? (contextualReturn || drawingReturn) : false;
+  const detailReturn = contextualReturn || `/projects/${projectId}/snags?view=observations`;
   const selectedTrade = catalog.trades.find(item => item.id === (captureForm.tradeId || snag.tradeId));
   const suggestions = catalog.mappings
     .filter(item => item.trade_id === selectedTrade?.id)
@@ -114,15 +127,15 @@ export default function SnagDetailPage() {
       expectedVersion: snag.version,
       payload,
     });
-    navigate(captureReturn ? `${captureReturn}&created=${snag.id}` : `/projects/${projectId}/snags`);
+    navigate(captureReturn ? withCreatedParam(captureReturn, snag.id) : `/projects/${projectId}/snags`);
   }
 
   return (
     <div className="snag-page snag-detail">
       <header className="snag-page-header">
         <div>
-          <Link className="snag-back" to={captureReturn || `/projects/${projectId}/snags`}>
-            {captureReturn ? 'Back to drawing' : 'Back to observations'}
+          <Link className="snag-back" to={captureReturn || detailReturn}>
+            {contextualReturn ? (isFieldReturn ? 'Back to Field Snag List' : 'Back to Site Snag') : captureReturn ? 'Back to drawing' : 'Back to Site Snag'}
           </Link>
           <span className="snag-number">Observation #{snag.snagNumber}</span>
           <h1>{snag.title}</h1>

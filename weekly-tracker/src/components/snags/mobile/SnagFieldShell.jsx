@@ -12,16 +12,16 @@ import SnagFieldListView from './SnagFieldListView.jsx';
 // of the three field screens is showing, nothing about the Observation
 // domain itself.
 export default function SnagFieldShell({ projectId, project, status, reload, model, filters, setFilters, selected, setSelected, publish, publishNotice, catalog }) {
-  const [query] = useSearchParams();
-  const [mode, setMode] = useState(query.get('field') === 'list' ? 'list' : 'plan');
+  const [query, setQuery] = useSearchParams();
+  const mode = query.get('tab') === 'list' ? 'list' : 'plan';
   const [pendingAdd, setPendingAdd] = useState(false);
 
   function handleTab(next) {
     if (next === 'add') {
-      setMode('plan');
+      setQuery({ tab: 'plan' }, { replace: true });
       setPendingAdd(true);
     } else {
-      setMode(next);
+      setQuery(next === 'list' ? { tab: 'list' } : {}, { replace: true });
     }
   }
 
@@ -29,8 +29,8 @@ export default function SnagFieldShell({ projectId, project, status, reload, mod
     <div className="snag-field-shell">
       <header className="snag-field-header">
         <div>
-          <Link className="snag-back" to="/snags">All project observations</Link>
-          <h1>Observations</h1>
+          <Link className="snag-back" to={`/projects/${projectId}/snags`}>Back to Site Snag</Link>
+          <h1>Field Snag List</h1>
           <p>{project?.storeCode || `Project ${projectId}`} · {model.total} items</p>
         </div>
       </header>

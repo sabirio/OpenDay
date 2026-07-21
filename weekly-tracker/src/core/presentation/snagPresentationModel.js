@@ -1,5 +1,5 @@
 import { DEFAULT_SNAG_CONFIG, SNAG_PRIORITIES, SNAG_STATUSES, getAvailableSnagActions, isObservationPublishReady, normalizeLocation, normalizeDueDate, requireText, selectSnagNavigation } from '../snags/index.js';
-import { deriveDueState, filterSnags, summarizeSnags } from '../../engines/snagReadModelEngine.js';
+import { buildSiteSnagOverview, deriveDueState, filterSnags, summarizeSnags } from '../../engines/snagReadModelEngine.js';
 
 export const STATUS_LABELS={OPEN:'Open',ASSIGNED:'Assigned',IN_PROGRESS:'In progress',READY_FOR_REVIEW:'Ready for review',CLOSED:'Closed',CANCELLED:'Cancelled'};
 export const PRIORITY_LABELS={LOW:'Low',MEDIUM:'Medium',HIGH:'High',CRITICAL:'Critical'};
@@ -30,4 +30,4 @@ export function formatPublishNoticeMessage(result){const count=result?.needsDeta
 // starting value. Mirrors the `is_preferred` flag set via the
 // snag_trade_stakeholders MAP_STAKEHOLDER catalog command (035 migration).
 export function resolvePreferredStakeholder(mappings,tradeId){if(!tradeId)return null;const preferred=(mappings||[]).find(item=>item.trade_id===tradeId&&item.is_preferred);return preferred?.stakeholder_id||null;}
-export {SNAG_STATUSES,SNAG_PRIORITIES,isObservationPublishReady,selectSnagNavigation};
+export {SNAG_STATUSES,SNAG_PRIORITIES,buildSiteSnagOverview,isObservationPublishReady,selectSnagNavigation};

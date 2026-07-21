@@ -6,12 +6,12 @@ import { Link } from 'react-router-dom';
 // date, and location. Trade/stakeholder names are resolved from the shared
 // capture catalog (same catalog the desktop capture form uses) so no second
 // lookup/service is introduced.
-export default function SnagFieldCard({ snag, tradeName, stakeholderName, navOrder }) {
+export default function SnagFieldCard({ snag, tradeName, stakeholderName, navOrder, returnTo }) {
   return (
     <Link
       className="snag-field-card"
       to={`/projects/${snag.projectId}/snags/${snag.id}`}
-      state={navOrder ? { navOrder } : undefined}
+      state={{ ...(navOrder ? { navOrder } : {}), ...(returnTo ? { returnTo } : {}) }}
     >
       <div className="snag-field-card-top">
         <span className="snag-number">#{snag.snagNumber}{tradeName ? ` · ${tradeName}` : ''}</span>

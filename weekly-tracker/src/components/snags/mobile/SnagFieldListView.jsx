@@ -70,7 +70,7 @@ export default function SnagFieldListView({ projectId, status, reload, model, fi
                 <span>Select Observation #{snag.snagNumber}</span>
               </label>
             ) : null}
-            <SnagFieldCard snag={snag} tradeName={tradeName(snag.tradeId)} stakeholderName={stakeholderName(snag.stakeholderId)} navOrder={navOrder} />
+            <SnagFieldCard snag={snag} tradeName={tradeName(snag.tradeId)} stakeholderName={stakeholderName(snag.stakeholderId)} navOrder={navOrder} returnTo={`/projects/${projectId}/snags/field?tab=list`} />
           </div>
         ))}
       </div>
