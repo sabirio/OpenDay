@@ -123,10 +123,10 @@ export async function regenerateGantt(projectId) {
   const projectEndDate = project.construction_end_date || project.target_opening_date;
   const isV2 = project.template_type === V2_TEMPLATE_ID;
 
-  let ganttResult, constructionCompletionDate;
+  let ganttResult, constructionCompletionDate, projectedOpeningDate;
   if (isV2) {
     const scope = project.scope || {};
-    ({ ganttResult, constructionCompletionDate } = buildV2GanttResult(
+    ({ ganttResult, constructionCompletionDate, projectedOpeningDate } = buildV2GanttResult(
       project.construction_start_date,
       projectEndDate,
       project.store_size_sqm || 1000,
@@ -155,7 +155,7 @@ export async function regenerateGantt(projectId) {
       templateOptions
     );
     ganttResult = calculateGantt(wps, DEPENDENCY_RULES, project.construction_start_date);
-    ({ constructionCompletionDate } = calculateKeyDates(ganttResult));
+    ({ constructionCompletionDate, projectedOpeningDate } = calculateKeyDates(ganttResult));
   }
 
   // Upsert with preserved progress
@@ -203,6 +203,12 @@ export async function regenerateGantt(projectId) {
 
   await updateGanttDates(projectId, {
     constructionCompletionDate: constructionCompletionDate?.toISOString().split('T')[0] || null,
+    // Engine-audit fix (2026-07-16): forecastOpeningDate was previously
+    // omitted here — updateGanttDates() only patches a column when its key
+    // is present, so the DB's forecast_opening_date silently kept the value
+    // from the last full generateAndSaveGantt() call forever, even after a
+    // routine scope/date edit that regenerates the schedule.
+    forecastOpeningDate:        projectedOpeningDate?.toISOString().split('T')[0] || null,
     ganttGeneratedAt:           new Date().toISOString(),
     ganttEngineVersion:         GANTT_ENGINE_VERSION,
   });
