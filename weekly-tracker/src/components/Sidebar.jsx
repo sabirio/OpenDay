@@ -1,8 +1,23 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getAllowedNavItemsForRole } from '../hooks/useDefaultRoute';
 import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
+
+// UX-audit fix (2026-07-21): plain prefix-matching NavLink made "Portfolio"
+// (/projects) light up as active for every /projects/:id/snags/* and
+// /projects/:id/plans/* route too — since Snag List's own nav entry lives
+// at a different top-level path (/snags), it never highlighted while a
+// user was deep in a project-scoped snag/plan page, so the sidebar's
+// "you are here" state actively lied. Project-scoped snag/plan URLs now
+// correctly activate "Snag List" instead of "Portfolio".
+function isNavItemActive(item, pathname) {
+  if (item.to === '/') return pathname === '/';
+  const isProjectScopedSnagOrPlan = /^\/projects\/[^/]+\/(snags|plans)(\/|$)/.test(pathname);
+  if (item.to === '/projects') return pathname.startsWith('/projects') && !isProjectScopedSnagOrPlan;
+  if (item.to === '/snags') return pathname === '/snags' || isProjectScopedSnagOrPlan;
+  return pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
 
 function ThemeToggle({ theme, onToggle }) {
   return (
@@ -19,6 +34,7 @@ function ThemeToggle({ theme, onToggle }) {
 function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const [theme, setTheme] = useState(
     () => localStorage.getItem('theme') || document.documentElement.getAttribute('data-theme') || 'dark'
@@ -64,11 +80,14 @@ function Sidebar({ mobileOpen = false, onClose = () => {} }) {
       </div>
 
       <nav>
-        {visibleNav.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={onClose}>
-            {item.label}
-          </NavLink>
-        ))}
+        {visibleNav.map((item) => {
+          const active = isNavItemActive(item, pathname);
+          return (
+            <Link key={item.to} to={item.to} onClick={onClose} className={active ? 'active' : undefined} aria-current={active ? 'page' : undefined}>
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="sidebar-footer">
