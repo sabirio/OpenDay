@@ -17,3 +17,24 @@ weekly-tracker/skills-lock.json
 weekly-tracker/.codex/
 audit.json
 weekly-tracker/audit.json
+
+# Same class as .agents/.codex/.impeccable above: per-tool skill/rule
+# mirrors materialized into the project root by the dev environment, not
+# part of this app's source (2026-07-16).
+.augment/
+.claude/
+.codebuddy/
+.codewhale/
+.continue/
+.cursor/
+.factory/
+.gemini/
+.github/prompts/
+.kilocode/
+.kiro/
+.opencode/
+.qoder/
+.roo/
+.trae/
+.warp/
+.windsurf/
