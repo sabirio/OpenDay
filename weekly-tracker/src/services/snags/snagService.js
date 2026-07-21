@@ -43,7 +43,12 @@ export async function captureObservation({projectId,planId,page,x,y,clientReques
   if(error)throw safeError(error);return {...data,snag:fromDb(data.snag)};
 }
 export async function executeProductCommand(command) {
-  const {data,error}=await supabase.rpc('execute_snag_product_command',{p_command:{type:command.type,projectId:Number(command.projectId),snagId:command.snagId,payload:command.payload||{}},p_client_request_id:command.clientRequestId,p_expected_version:command.expectedVersion});
+  // Engine-audit fix (2026-07-16): explicit ?? null, matching executeCommand
+  // above — behaviorally identical either way (undefined is dropped by
+  // JSON.stringify regardless), but the inconsistency was the same shape as
+  // this project's real dropped-argument bugs (F-02 and others found in this
+  // audit), so kept in sync rather than left to drift on a future refactor.
+  const {data,error}=await supabase.rpc('execute_snag_product_command',{p_command:{type:command.type,projectId:Number(command.projectId),snagId:command.snagId,payload:command.payload||{}},p_client_request_id:command.clientRequestId,p_expected_version:command.expectedVersion??null});
   if(error)throw safeError(error);return {...data,snag:fromDb(data.snag)};
 }
 export async function publishObservations(projectId,snagIds,clientRequestId) {
