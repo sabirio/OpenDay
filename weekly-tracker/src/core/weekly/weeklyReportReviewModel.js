@@ -131,7 +131,7 @@ export function buildWeeklyReportReviewModel({
   const templateIssues = activeTemplate ? validateTemplate(activeTemplate) : [];
   const templateErrorIssues = templateIssues.filter(issue => issue.severity === 'error');
   const portfolioKpis = computeCanonicalMissingSummary(canonicalResult ? [canonicalResult] : []);
-  const engineOutputs = buildProgressContext({ selectedProject, selectedReport, projectReports, overallProgress });
+  const engineOutputs = buildProgressContext({ selectedProject, selectedReport, overallProgress });
   const additionalWorksList = computeAdditionalWorksSummary(sortReportsAscending(projectReports));
   const scope = selectedProject?.scope ?? null;
   const isV2 = isZonedTemplate(selectedProject?.templateType);
