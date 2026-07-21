@@ -149,10 +149,11 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       {/* Monte Carlo forecast model toggle — affects every project's forecast
           (CRITICAL/HIGH cards in the Overview tab), not just one widget, since
           all rows share one useRiskRows() computation. */}
-      <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Forecast model:</span>
+      <div className="no-print" role="group" aria-labelledby="forecast-model-label" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <span id="forecast-model-label" style={{ fontSize: 13, color: "var(--text-muted)" }}>Forecast model:</span>
         <button
           type="button"
+          aria-pressed={!useSCurve}
           onClick={() => setUseSCurve(false)}
           style={{
             padding: "4px 12px", borderRadius: 6, fontSize: 13, cursor: "pointer",
@@ -165,6 +166,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
         </button>
         <button
           type="button"
+          aria-pressed={useSCurve}
           onClick={() => setUseSCurve(true)}
           style={{
             padding: "4px 12px", borderRadius: 6, fontSize: 13, cursor: "pointer",
@@ -185,9 +187,9 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
       {/* Critical early warnings (always visible) */}
       <CriticalWarnings rows={criticalRows} Glyph={Glyph} />
       {/* ── Tab navigation ── */}
-      <div style={{ display: "flex", gap: 3, marginBottom: 20, background: "var(--accent-subtle)", borderRadius: 12, padding: 4, border: "1px solid var(--border)", width: "fit-content" }}>
+      <div role="group" aria-label="Risk dashboard view" style={{ display: "flex", gap: 3, marginBottom: 20, background: "var(--accent-subtle)", borderRadius: 12, padding: 4, border: "1px solid var(--border)", width: "fit-content", maxWidth: "100%", overflowX: "auto" }}>
         {VIEWS.map(({ id, label }) => (
-          <button key={id} type="button" data-testid="risk-view-tab" data-view-id={id} onClick={() => setActiveView(id)} style={{
+          <button key={id} type="button" aria-pressed={activeView === id} data-testid="risk-view-tab" data-view-id={id} onClick={() => setActiveView(id)} style={{
             padding: "8px 18px", borderRadius: 9, border: "none",
             background: activeView === id ? "var(--bg-surface)" : "transparent",
             color: activeView === id ? "var(--accent)" : "var(--text-muted)",

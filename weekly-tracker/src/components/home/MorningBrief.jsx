@@ -21,8 +21,7 @@ function MorningBrief({ summary }) {
     <div style={{
       padding: '14px 18px',
       background: 'var(--bg-elevated)',
-      border: '1.5px solid var(--border)',
-      borderLeft: `4px solid ${color}`,
+      border: `1.5px solid ${color}`,
       borderRadius: 10,
       marginBottom: 20,
     }}>

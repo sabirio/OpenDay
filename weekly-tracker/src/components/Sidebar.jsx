@@ -34,7 +34,7 @@ function ThemeToggle({ theme, onToggle }) {
   );
 }
 
-function Sidebar({ mobileOpen = false, onClose = () => {} }) {
+function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -69,7 +69,7 @@ function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   }
 
   return (
-    <aside className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`} aria-label="Primary navigation">
+    <aside id="primary-navigation" ref={navRef} className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`} aria-label="Primary navigation">
       <div className="sidebar-brand">
         {/* Inline SVG mark — theme-adaptive via CSS vars, matches the login screen.
             (Replaces the old /logo-dark.png|/logo-light.png files that were deleted.) */}

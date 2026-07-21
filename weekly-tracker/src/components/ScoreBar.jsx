@@ -10,7 +10,7 @@ export function ScoreBar({ label, pts, max, color }) {
         <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>{pts} / {max}</span>
       </div>
       <div style={{ background: "var(--border)", borderRadius: 4, height: 6, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.4s ease" }} />
+        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4 }} />
       </div>
     </div>
   );

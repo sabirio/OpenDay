@@ -22,8 +22,7 @@ function PriorityRow({ ins }) {
         display: 'flex', flexDirection: 'column', gap: 4,
         padding: '12px 16px',
         background: 'var(--bg-elevated)',
-        border: '1.5px solid var(--border)',
-        borderLeft: `4px solid ${sev.color}`,
+        border: `1.5px solid ${sev.color}`,
         borderRadius: 10,
         cursor: hasBlockers ? 'pointer' : 'default',
       }}

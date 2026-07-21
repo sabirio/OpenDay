@@ -614,13 +614,14 @@ export default function GanttChart({
               height: ROW_H, padding: '0 10px 0 24px',
               cursor: readOnly ? 'default' : 'pointer',
               borderBottom: `1px solid ${C.border}22`,
-              borderLeft: `3px solid ${
+              outline: `1px solid ${
                 selectedTask?.id === wp.id ? C.blue
                 : t?.isCritical ? `${C.redCrit}88`
                 : disc?.status === 'critical' ? C.red
                 : disc?.status === 'warning'  ? C.yellow
                 : 'transparent'
               }`,
+              outlineOffset: -1,
               background: selectedTask?.id === wp.id ? 'var(--accent-subtle)' : 'transparent',
               flexShrink: 0,
             }}>

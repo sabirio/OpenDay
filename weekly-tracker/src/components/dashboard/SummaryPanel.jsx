@@ -79,8 +79,7 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], s
       {analytics?.mcRiskyCount > 0 && (
         <div style={{
           background: 'var(--status-warn-bg)',
-          border: '1px solid var(--border)',
-          borderLeft: '4px solid var(--status-warn)',
+          border: '1px solid var(--status-warn)',
           borderRadius: 10,
           padding: '8px 14px',
           marginBottom: 10,

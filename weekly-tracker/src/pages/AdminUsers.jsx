@@ -95,7 +95,7 @@ function AdminUsers({ projects = [] }) {
           <h1 className="page-title">User Management</h1>
           <p className="page-subtitle">Assign roles and projects to team members</p>
         </div>
-        <button className="btn-ghost" onClick={loadUsers}>Refresh</button>
+        <button type="button" className="btn-ghost" onClick={loadUsers}>Refresh</button>
       </div>
 
       {error && (
@@ -115,6 +115,7 @@ function AdminUsers({ projects = [] }) {
               <div className="admin-user-info">
                 <input
                   className="admin-user-name-input"
+                  aria-label={`Display name for ${user.email}`}
                   value={user.name ?? ''}
                   onChange={e => updateField(user.id, 'name', e.target.value)}
                   placeholder="Display name"
@@ -125,12 +126,14 @@ function AdminUsers({ projects = [] }) {
 
             {/* Role selector */}
             <div className="admin-user-section">
-              <label className="admin-label">Role</label>
-              <div className="admin-role-grid">
+              <div id={`role-label-${user.id}`} className="admin-label">Role</div>
+              <div className="admin-role-grid" role="group" aria-labelledby={`role-label-${user.id}`}>
                 {ROLES.map(role => (
                   <button
+                    type="button"
                     key={role}
                     className="admin-role-btn"
+                    aria-pressed={user.role === role}
                     style={user.role === role ? ROLE_COLORS[role] : {}}
                     onClick={() => updateField(user.id, 'role', role)}
                   >
@@ -167,8 +170,9 @@ function AdminUsers({ projects = [] }) {
             </div>
 
             {/* Save */}
-            <button
-              className={`btn-primary admin-save-btn ${saved === user.id ? 'admin-save-ok' : ''}`}
+              <button
+                type="button"
+                className={`btn-primary admin-save-btn ${saved === user.id ? 'admin-save-ok' : ''}`}
               onClick={() => saveUser(user)}
               disabled={saving === user.id}
             >

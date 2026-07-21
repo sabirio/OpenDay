@@ -116,7 +116,6 @@ export function PhaseSection({ phaseKey, tasks, ganttWpProgress, onUpdateProgres
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}
         style={{
           padding: '12px 22px',
-          borderLeft: '4px solid var(--field-accent-contractor)',
           borderBottom: open ? '1px solid var(--field-bg-subtle)' : 'none',
           background: 'var(--field-bg-faint)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
@@ -124,6 +123,7 @@ export function PhaseSection({ phaseKey, tasks, ganttWpProgress, onUpdateProgres
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--field-accent-contractor)', flexShrink: 0 }} />
           <span style={{
             fontSize: 10, color: 'var(--field-text-secondary)', display: 'inline-block',
             transition: 'transform 0.15s',

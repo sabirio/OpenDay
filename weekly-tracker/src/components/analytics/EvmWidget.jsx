@@ -78,7 +78,7 @@ export default function EvmWidget({ evm }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden', marginBottom: 4 }}>
-            <div style={{ width: `${fractionToPercent(gauge / gaugeW)}%`, height: '100%', background: c, borderRadius: 3, transition: 'width 0.3s' }} />
+            <div style={{ width: `${fractionToPercent(gauge / gaugeW)}%`, height: '100%', background: c, borderRadius: 3 }} />
           </div>
           <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
             EV {evm.EV}% · PV {evm.PV}%

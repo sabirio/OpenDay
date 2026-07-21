@@ -1,8 +1,8 @@
 export function FormSection({ title, accentColor, children }) {
   return (
     <div style={{ background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 14, marginBottom: 14, overflow: "hidden" }}>
-      <div style={{ padding: "11px 20px", borderBottom: "1px solid var(--border)", borderLeft: `4px solid ${accentColor}`, background: "var(--overlay-dim)" }}>
-        <h3 style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</h3>
+      <div style={{ padding: "11px 20px", borderBottom: "1px solid var(--border)", background: "var(--overlay-dim)" }}>
+        <h3 style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 700, color: "var(--text-muted)", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}><span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: accentColor }} />{title}</h3>
       </div>
       <div style={{ padding: "18px 20px" }}>{children}</div>
     </div>

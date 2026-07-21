@@ -19,12 +19,11 @@ function ProjectRow({ project }) {
     : { bg: 'var(--bg-elevated)',    color: 'var(--text-muted)',  border: 'var(--border)' };
 
   return (
-    <div
+    <button
+      type="button"
       className="site-visit-select-row"
-      role="button"
-      tabIndex={0}
       onClick={() => navigate(`/site-visit/${project.id}`)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/site-visit/${project.id}`); } }}
+      aria-label={`Start site visit for ${project.storeCode || project.shoppingMallName || 'project'}`}
       style={{
         borderBottom: '1px solid var(--border)',
         cursor: 'pointer',
@@ -85,7 +84,7 @@ function ProjectRow({ project }) {
       >
         Start Visit →
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -133,8 +132,9 @@ function SiteVisitSelect({ projects = [] }) {
       </div>
 
       {projects.length === 0 ? (
-        <div className="dashboard-summary-card" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-muted)' }}>
-          No projects available. Add projects first.
+        <div className="empty-state" role="status">
+          <h2 className="empty-state__title">No projects available</h2>
+          <p className="empty-state__text">Projects you can visit will appear here when access is assigned.</p>
         </div>
       ) : (
         <>

@@ -19,7 +19,7 @@ const WP_LABELS = Object.fromEntries(
 function MiniBar({ pct, color = 'var(--accent)', width = 72, height = 4 }) {
   return (
     <div style={{ width, background: 'var(--border)', borderRadius: 3, height, overflow: 'hidden', flexShrink: 0 }}>
-      <div style={{ width: `${clamp(pct, 0, 100)}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.3s ease' }} />
+      <div style={{ width: `${clamp(pct, 0, 100)}%`, height: '100%', background: color, borderRadius: 3 }} />
     </div>
   );
 }
@@ -173,7 +173,7 @@ export default function WeightAudit({ projects }) {
                   <div style={{
                     fontSize: 12, color: 'var(--status-alert)',
                     background: 'var(--status-alert-bg)', border: '1px solid var(--border)',
-                    borderLeft: '3px solid var(--status-alert)', borderRadius: 6, padding: '6px 12px',
+                    borderColor: 'var(--status-alert)', borderRadius: 6, padding: '6px 12px',
                   }}>
                     <div style={{ fontWeight: 700, marginBottom: 4 }}>
                       {errors.length} error{errors.length !== 1 ? 's' : ''}
@@ -190,7 +190,7 @@ export default function WeightAudit({ projects }) {
                 <div style={{
                   fontSize: 11, color: 'var(--status-warn)',
                   background: 'var(--status-warn-bg)', border: '1px solid var(--border)',
-                  borderLeft: '3px solid var(--status-warn)', borderRadius: 6, padding: '4px 10px',
+                  borderColor: 'var(--status-warn)', borderRadius: 6, padding: '4px 10px',
                 }}>
                   {warnings.map((w, i) => <div key={i}>[{w.code}] {w.message}</div>)}
                 </div>

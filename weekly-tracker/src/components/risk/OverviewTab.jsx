@@ -31,7 +31,7 @@ function OverviewTab({ sortedByRisk, expandedRow, setExpandedRow }) {
         const c = riskScore.color;
         const dTo = daysToOpening;
         return (
-          <div key={project.id} className="dashboard-summary-card" style={{ margin: 0, borderLeft: `4px solid ${c.text}`, paddingLeft: 20 }}>
+          <div key={project.id} className="dashboard-summary-card" style={{ margin: 0, border: `1px solid ${c.text}`, paddingLeft: 20 }}>
             <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
               <div style={{ flexShrink: 0 }}><RiskGauge score={riskScore.score} level={riskScore.level} color={c} /></div>
               <div style={{ flex: 1, minWidth: 220 }}>

@@ -140,8 +140,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
               <div key={a.pid} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '7px 14px',
                 background: a.spiStatus === 'critical' ? 'var(--status-alert-bg)' : 'var(--status-warn-bg)',
-                border: '1.5px solid var(--border)', borderRadius: 9, marginBottom: 5, fontSize: 12,
-                borderLeft: `4px solid ${st.color}`,
+                border: `1.5px solid ${st.color}`, borderRadius: 9, marginBottom: 5, fontSize: 12,
               }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, color: st.color }}>
                   <Icon name={a.spiStatus === 'critical' ? 'block' : 'warning'} size={14} /> {st.label}
@@ -154,6 +153,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
                 )}
                 <button
                   type="button"
+                  aria-label={`Dismiss ${a.code} schedule alert`}
                   onClick={() => setDismissedAlertIds(prev => new Set([...prev, a.pid]))}
                   style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                 ><Icon name="close" size={14} /></button>
@@ -175,15 +175,16 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
       <div className="dashboard-control-panel">
         <div className="dashboard-search-field">
           <span><Icon name="search" size={15} /></span>
-          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search..." />
+          <input aria-label="Search projects" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search projects…" />
         </div>
-        <select className="dashboard-status-select" value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
+        <select aria-label="Filter projects by status" className="dashboard-status-select" value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
           {[["all","All statuses"],["on-track","On Track"],["at-risk","At Risk"],["critical","Critical"],["no-report","No Report"],["missing","Missing/Overdue"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
         {filtersActive&&<button type="button" onClick={clearFilters} style={{ display:"inline-flex",alignItems:"center",gap:5,height:36,padding:"0 12px",borderRadius:9,border:"1.5px solid var(--border)",background:"var(--status-alert-bg)",color:"var(--status-alert)",fontSize:13,fontWeight:600,cursor:"pointer" }}>Clear <Icon name="close" size={13} /></button>}
         <div style={{ width:1,height:24,background:"var(--border)",margin:"0 2px" }} />
-        <label style={{ fontSize:12,color:"var(--text-muted)",fontWeight:600,whiteSpace:"nowrap" }}>View snapshot for week:</label>
+        <label htmlFor="dashboard-snapshot-week" style={{ fontSize:12,color:"var(--text-muted)",fontWeight:600,whiteSpace:"nowrap" }}>View snapshot for week:</label>
         <input
+          id="dashboard-snapshot-week"
           type="week"
           max={currentISOWeek()}
           value={snapshotWeek || ''}
@@ -202,15 +203,14 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
       {snapshotWeek && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
-          background: 'var(--accent-subtle)', border: '1.5px solid var(--border)',
-          borderLeft: '4px solid var(--accent)', borderRadius: 9,
+          background: 'var(--accent-subtle)', border: '1.5px solid var(--accent)', borderRadius: 9,
           padding: '8px 14px', marginBottom: 12, fontSize: 13,
         }}>
           <span style={{ fontWeight: 700, color: 'var(--accent)' }}>
             {snapshotLoading ? 'Loading snapshot…' : `Viewing snapshot: ${isoWeekLabel(snapshotWeek)}`}
           </span>
           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Read-only · progress values from history</span>
-          <button type="button" onClick={() => handleSnapshotWeekChange(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Icon name="close" size={15} /></button>
+          <button type="button" aria-label="Return to live dashboard" onClick={() => handleSnapshotWeekChange(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Icon name="close" size={15} /></button>
         </div>
       )}
 
@@ -218,9 +218,9 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
       <StatusMatrix rows={defaultSorted} alerts={alerts} drawerProjectId={drawerProjectId} onSelect={sel} snapshotData={snapshotData} snapshotMode={!!snapshotWeek}/>
 
       {/* ── View tabs ── */}
-      <div className="dashboard-tabs">
+      <div className="dashboard-tabs" role="group" aria-label="Dashboard view">
         {VIEWS.map(({id,label})=>(
-          <button key={id} type="button" onClick={()=>setActiveView(id)} className={`dashboard-tab${activeView===id ? ' is-active' : ''}`}>
+          <button key={id} type="button" aria-pressed={activeView===id} onClick={()=>setActiveView(id)} className={`dashboard-tab${activeView===id ? ' is-active' : ''}`}>
             {label}
           </button>
         ))}

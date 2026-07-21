@@ -21,7 +21,7 @@ function ContractorSelect({ projects = [] }) {
       {/* Minimal top bar */}
       <header className="contractor-header">
         <div className="contractor-header-brand">
-          <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+          <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true">
             <rect width="32" height="32" rx="8" fill="var(--bg-elevated)" />
             <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="var(--accent)" />
           </svg>
@@ -30,7 +30,7 @@ function ContractorSelect({ projects = [] }) {
         <div className="contractor-header-user">
           <span className="contractor-role-badge">Contractor</span>
           <span className="contractor-user-name">{user?.name}</span>
-          <button className="btn-ghost-sm" onClick={logout}>
+          <button type="button" className="btn-ghost-sm" onClick={logout}>
             Sign out
           </button>
         </div>
@@ -44,9 +44,9 @@ function ContractorSelect({ projects = [] }) {
         </div>
 
         {assignedProjects.length === 0 ? (
-          <div className="contractor-no-projects">
-            <p>No projects are assigned to your account yet.</p>
-            <p>Contact your project manager.</p>
+          <div className="contractor-no-projects" role="status">
+            <h2>No assigned projects</h2>
+            <p>Your assigned projects will appear here. Contact your project manager if you expected access.</p>
           </div>
         ) : (
           <div className="contractor-project-grid">
@@ -67,6 +67,7 @@ function ContractorSelect({ projects = [] }) {
                   <span>PM: {project.projectManager || '—'}</span>
                 </div>
                 <button
+                  type="button"
                   className="btn-primary contractor-project-btn"
                   onClick={() => navigate(`/contractor-report/${project.id}`)}
                 >

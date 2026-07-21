@@ -141,8 +141,8 @@
   --field-text-heading:       #111827;
   --field-text-body:          #374151;
   --field-text-secondary:     #6b7280;
-  --field-text-muted:         #9ca3af;
-  --field-text-label:         #94a3b8;
+  --field-text-muted:         #6b7280;
+  --field-text-label:         #64748b;
 
   --field-border:             #e5e7eb;
   --field-border-strong:      #d1d5db;
@@ -312,7 +312,6 @@
 .progress-fill {
   height: 100%;
   border-radius: var(--radius-full);
-  transition: width 0.3s ease;
 }
 .progress-fill--active  { background: var(--accent);        }
 .progress-fill--done    { background: var(--status-done);   }
@@ -330,7 +329,7 @@
   box-shadow: var(--shadow);
 }
 .card--orange { border-color: var(--status-warn); }
-.card--red    { border-left: 3px solid var(--status-alert); }
+.card--red    { border-color: var(--status-alert); }
 
 
 /* ── 7. Buttons ──────────────────────────────────────────────────────────── */
@@ -348,6 +347,7 @@
   transition: opacity 0.15s, background 0.15s;
   white-space: nowrap;
   font-family: var(--font-sans);
+  min-height: 40px;
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -377,6 +377,11 @@
   font-family: var(--font-sans);
 }
 .btn-ghost-sm:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .btn-danger { background: var(--status-alert); color: #fff; }
 .btn-danger:hover:not(:disabled) { opacity: 0.85; }

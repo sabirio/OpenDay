@@ -5,7 +5,7 @@ export default function CriticalWarnings({ rows, Glyph }) {
   if (rows.length === 0) return null;
 
   return (
-    <div style={{ background: "var(--status-alert-bg)", border: "1.5px solid var(--border)", borderRadius: 14, padding: "16px 20px", marginBottom: 20, borderLeft: "4px solid var(--status-alert)" }}>
+    <div style={{ background: "var(--status-alert-bg)", border: "1.5px solid var(--status-alert)", borderRadius: 14, padding: "16px 20px", marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <span style={{ color: "var(--status-alert)", display: "inline-flex", alignItems: "center" }}><Glyph name="alert" size={18} /></span>
         <span style={{ fontSize: 14, fontWeight: 800, color: "var(--status-alert)" }}>EARLY WARNING - {rows.length} CRITICAL PROJECT{rows.length > 1 ? "S" : ""} REQUIRE IMMEDIATE ACTION</span>

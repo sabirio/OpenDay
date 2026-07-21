@@ -61,8 +61,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                 onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = "var(--accent-subtle)"; }}
                 onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = "transparent"; }}
               >
-                {/* Project — left border accent here (tr border-left unreliable with collapse) */}
-                <td style={{ padding: "10px 10px", borderLeft: `3px solid ${borderColor}` }}>
+                <td style={{ padding: "10px 10px", color: borderColor }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-primary)" }}>{project.storeCode}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{project.shoppingMallName}</div>
@@ -115,7 +114,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
               /* ── Expanded row ── */
               isExp && (
                 <tr key={`${project.id}-exp`} style={{ background: "var(--accent-subtle)" }}>
-                  <td colSpan={8} style={{ padding: "0 12px 20px 12px", borderLeft: `3px solid ${borderColor}` }}>
+                  <td colSpan={8} style={{ padding: "0 12px 20px 12px" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24, paddingTop: 16 }}>
 
                       {/* ── Col 1: Risk Factors ── */}
