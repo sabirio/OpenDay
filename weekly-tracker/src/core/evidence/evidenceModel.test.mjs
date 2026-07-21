@@ -8,7 +8,17 @@ ok('contractor types are bounded',()=>assert.deepEqual(allowedEvidenceTypes('Con
 ok('PM types exclude correction',()=>assert.deepEqual(allowedEvidenceTypes('PM'),['CONDITION','VERIFICATION','GENERAL']));
 ok('permissive review is satisfied',()=>assert.equal(evidenceRequirements(DEFAULT_EVIDENCE_POLICY,[],'review').satisfied,true));
 ok('enabled review counts registered correction',()=>assert.equal(evidenceRequirements({...DEFAULT_EVIDENCE_POLICY,correctionRequiredForReview:true,requiredEvidenceCount:1},[{evidence_type:'CORRECTION',original_filename:'x.jpg'}],'review').satisfied,true));
-ok('notes do not count as file evidence',()=>assert.equal(evidenceRequirements({...DEFAULT_EVIDENCE_POLICY,correctionRequiredForReview:true},[{evidence_type:'CORRECTION',original_filename:null}],'review').satisfied,false));
+// requiredEvidenceCount:1 is explicit here (DEFAULT_EVIDENCE_POLICY's own
+// requiredEvidenceCount is 0, which alone would already satisfy any count —
+// this test needs a real nonzero requirement to demonstrate that a note-only
+// entry doesn't count as file evidence).
+ok('notes do not count as file evidence',()=>assert.equal(evidenceRequirements({...DEFAULT_EVIDENCE_POLICY,correctionRequiredForReview:true,requiredEvidenceCount:1},[{evidence_type:'CORRECTION',original_filename:null}],'review').satisfied,false));
+// Engine-audit fix (2026-07-16): requiredEvidenceCount:0 must be respected as
+// "zero items satisfy this once required is true", not silently coerced to
+// the 1-item default by a `||` fallback (currently dormant in production
+// since get_snag_evidence_policy hardcodes required to false, but the JS
+// itself must be correct if that policy is ever turned on).
+ok('requiredEvidenceCount:0 is respected, not coerced to 1',()=>assert.equal(evidenceRequirements({...DEFAULT_EVIDENCE_POLICY,correctionRequiredForReview:true,requiredEvidenceCount:0},[],'review').satisfied,true));
 ok('upload reducer reaches retryable failure',()=>assert.equal(reduceEvidenceUpload(reduceEvidenceUpload({status:'idle'},{type:'SELECT',file:{},previewUrl:'blob:x'}),{type:'FAIL',error:{code:'NETWORK_ERROR'}}).status,'failed'));
 ok('cancel clears transient state',()=>assert.equal(reduceEvidenceUpload({status:'failed',file:{}},{type:'CANCEL'}).file,null));
 ok('success clears file',()=>assert.equal(reduceEvidenceUpload({status:'registering',file:{}},{type:'SUCCESS',evidence:{id:'1'}}).file,null));
