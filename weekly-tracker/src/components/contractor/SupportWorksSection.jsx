@@ -1,4 +1,4 @@
-import { FormSection, ToggleGroup, TextAreaField } from "./FormParts";
+import { FormSection, ToggleGroup, CheckboxListItem, TextAreaField } from "./FormParts";
 
 const supportTypes = [
   { label: "Decision",    description: "Assistance in making critical project decisions affecting schedule, budget, or scope." },
@@ -28,28 +28,17 @@ function SupportWorksSection({ form, updateField, toggleCheckbox }) {
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 12 }}>Support Type</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {supportTypes.map(({ label, description }) => {
-                  const active = (form.supportTypes || []).includes(label);
-                  return (
-                    <label key={label} onClick={() => toggleCheckbox("supportTypes", label)} style={{
-                      display: "flex", alignItems: "flex-start", gap: 14, padding: "12px 14px",
-                      borderRadius: 10, cursor: "pointer", background: active ? "var(--field-accent-blue-subtle)" : "transparent",
-                    }}>
-                      <div style={{
-                        width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: 2,
-                        border: `2px solid ${active ? "var(--field-accent-blue-fg2)" : "var(--field-border-strong)"}`,
-                        background: active ? "var(--field-accent-blue-fg2)" : "var(--field-bg-card)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        {active && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--field-bg-card)" }} />}
-                      </div>
-                      <div>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--field-text-heading)" }}>{label}</span>
-                        <span style={{ fontSize: 13, color: "var(--field-text-secondary)" }}> — {description}</span>
-                      </div>
-                    </label>
-                  );
-                })}
+                {supportTypes.map(({ label, description }) => (
+                  <CheckboxListItem
+                    key={label}
+                    label={label}
+                    description={description}
+                    active={(form.supportTypes || []).includes(label)}
+                    onToggle={() => toggleCheckbox("supportTypes", label)}
+                    activeBg="var(--field-accent-blue-subtle)"
+                    activeBorder="var(--field-accent-blue-fg2)"
+                  />
+                ))}
               </div>
             </div>
             <TextAreaField label="Support Description" value={form.supportDescription} onChange={(v) => updateField("supportDescription", v)} placeholder="What support is needed and why..." rows={3} />
@@ -72,8 +61,9 @@ function SupportWorksSection({ form, updateField, toggleCheckbox }) {
         {form.additionalWorks === "Yes" && (
           <>
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Main Reason for Additional Works</div>
+              <label htmlFor="additional-works-reason" style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Main Reason for Additional Works</label>
               <select
+                id="additional-works-reason"
                 value={form.additionalWorksParty}
                 onChange={(e) => updateField("additionalWorksParty", e.target.value)}
                 style={{ padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--field-border-strong)", fontSize: 13, background: "var(--field-bg-card)", width: "100%", maxWidth: 320, cursor: "pointer", outline: "none" }}
@@ -87,8 +77,9 @@ function SupportWorksSection({ form, updateField, toggleCheckbox }) {
             </div>
             <TextAreaField label="Description" value={form.additionalWorksDescription} onChange={(v) => updateField("additionalWorksDescription", v)} placeholder="Explain the project change, reason, and affected scope..." rows={4} />
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Estimated Additional Cost</div>
+              <label htmlFor="additional-works-cost" style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Estimated Additional Cost</label>
               <input
+                id="additional-works-cost"
                 type="text"
                 value={form.additionalWorksCost}
                 onChange={(e) => updateField("additionalWorksCost", e.target.value)}

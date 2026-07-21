@@ -1,4 +1,4 @@
-import { FormSection, ToggleGroup, ChipGroup, TextAreaField } from "./FormParts";
+import { FormSection, ToggleGroup, ChipGroup, CheckboxListItem, TextAreaField } from "./FormParts";
 import { isBadScheduleStatus } from "../../utils/reportUtils";
 
 const riskOptions = [
@@ -34,28 +34,17 @@ function ScheduleRiskSection({ form, updateField, toggleCheckbox }) {
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 10 }}>Main Risk Indication</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {riskOptions.map(({ label, description }) => {
-                const active = (form.risks || []).includes(label);
-                return (
-                  <label key={label} onClick={() => toggleCheckbox("risks", label)} style={{
-                    display: "flex", alignItems: "flex-start", gap: 14, padding: "12px 14px",
-                    borderRadius: 10, cursor: "pointer", background: active ? "var(--field-danger-bg)" : "transparent",
-                  }}>
-                    <div style={{
-                      width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: 2,
-                      border: `2px solid ${active ? "var(--field-danger-fg)" : "var(--field-border-strong)"}`,
-                      background: active ? "var(--field-danger-fg)" : "var(--field-bg-card)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                      {active && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--field-bg-card)" }} />}
-                    </div>
-                    <div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--field-text-heading)" }}>{label}</span>
-                      <span style={{ fontSize: 13, color: "var(--field-text-secondary)" }}> — {description}</span>
-                    </div>
-                  </label>
-                );
-              })}
+              {riskOptions.map(({ label, description }) => (
+                <CheckboxListItem
+                  key={label}
+                  label={label}
+                  description={description}
+                  active={(form.risks || []).includes(label)}
+                  onToggle={() => toggleCheckbox("risks", label)}
+                  activeBg="var(--field-danger-bg)"
+                  activeBorder="var(--field-danger-fg)"
+                />
+              ))}
             </div>
           </div>
           <ChipGroup label="Risk Owner" options={riskOwners} values={form.riskOwners}

@@ -70,6 +70,7 @@ class ErrorBoundary extends Component {
           {this.state.error?.message || 'An unexpected error occurred.'}
         </div>
         <button
+          type="button"
           onClick={() => window.location.reload()}
           style={{ marginTop: 8, padding: '8px 24px', background: 'var(--accent)', color: 'var(--text-inverse)', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
         >
@@ -113,6 +114,7 @@ function GlobalErrorScreen({ onRetry }) {
         Could not connect to the database. Check your network and try again.
       </div>
       <button
+        type="button"
         onClick={onRetry}
         style={{ marginTop: 8, padding: '8px 24px', background: 'var(--accent)', color: 'var(--text-inverse)', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
       >

@@ -20,13 +20,16 @@ function isNavItemActive(item, pathname) {
 }
 
 function ThemeToggle({ theme, onToggle }) {
+  const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   return (
     <button
+      type="button"
       className="theme-toggle"
       onClick={onToggle}
-      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={label}
+      aria-label={label}
     >
-      {theme === 'dark' ? '☀' : '☾'}
+      <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
     </button>
   );
 }
@@ -66,7 +69,7 @@ function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   }
 
   return (
-    <aside className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`}>
+    <aside className={`sidebar${mobileOpen ? ' sidebar-open' : ''}`} aria-label="Primary navigation">
       <div className="sidebar-brand">
         {/* Inline SVG mark — theme-adaptive via CSS vars, matches the login screen.
             (Replaces the old /logo-dark.png|/logo-light.png files that were deleted.) */}
@@ -100,7 +103,7 @@ function Sidebar({ mobileOpen = false, onClose = () => {} }) {
                 {role}
               </div>
             </div>
-            <button className="sidebar-logout-icon" onClick={handleLogout} title="Sign out" aria-label="Sign out">
+            <button type="button" className="sidebar-logout-icon" onClick={handleLogout} title="Sign out" aria-label="Sign out">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M15 7l5 5-5 5M20 12H9M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
