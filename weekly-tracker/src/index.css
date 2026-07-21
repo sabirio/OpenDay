@@ -1735,6 +1735,21 @@ button.weekly-phase-row {
 }
 
 .modal {
+  /* Bug fix (2026-07-16): Modal.jsx (commit 6661939) renders .modal-overlay
+     and .modal as SIBLINGS, not .modal nested inside .modal-overlay — but
+     this rule was never updated to match. Without its own position/z-index,
+     .modal stayed in normal document flow while the fixed, z-index:1000
+     overlay painted on top of it, visually washing it out and intercepting
+     every click. Fixed + centered + z-index above the overlay restores the
+     original nested-overlay look without touching the (intentional) JSX
+     structure. Affects every modal built on this shared shell (project
+     editor, project detail, GC invitation, missing reports, etc).
+   */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1001;
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
