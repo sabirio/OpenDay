@@ -253,7 +253,12 @@ export default function SnagDetailPage() {
           {canManage ? (
             <button className="btn" disabled={product.pending} onClick={async () => {
               const result = await product.execute({ type: 'duplicateObservation', projectId, snagId, expectedVersion: snag.version });
-              navigate(`/projects/${projectId}/plans/${result.snag.location.planVersionId}?placement=1&snagId=${result.snag.id}&version=${result.snag.version}&page=${result.snag.location.pageNumber || 1}`);
+              // Engine-audit fix (2026-07-16): the duplicate can only be pinned
+              // to a drawing when the source observation itself was; without a
+              // planVersionId this used to navigate to ".../plans/undefined".
+              navigate(result.snag.location?.planVersionId
+                ? `/projects/${projectId}/plans/${result.snag.location.planVersionId}?placement=1&snagId=${result.snag.id}&version=${result.snag.version}&page=${result.snag.location.pageNumber || 1}`
+                : `/projects/${projectId}/snags/${result.snag.id}`);
             }}>Duplicate</button>
           ) : null}
           {actions.has('assignSnag') ? (
