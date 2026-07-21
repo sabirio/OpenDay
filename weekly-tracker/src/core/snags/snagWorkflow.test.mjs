@@ -1,4 +1,4 @@
-import { DEFAULT_SNAG_CONFIG, InMemorySnagRepository, SNAG_STATUSES, SnagDomainError, deriveDueState, executeSnagCommand, filterSnags } from './index.js';
+import { DEFAULT_SNAG_CONFIG, InMemorySnagRepository, SNAG_STATUSES, SnagDomainError, deriveDueState, executeSnagCommand, filterSnags, isObservationPublishReady } from './index.js';
 
 let pass=0, fail=0;
 const check=(label,value)=>{if(value){pass++;console.log(`  OK ${label}`)}else{fail++;console.error(`  FAIL ${label}`)}};
@@ -51,5 +51,17 @@ check('history ordering is deterministic',repo.events.every((event,index)=>event
 check('due state is timezone-stable',deriveDueState({...created.snag,status:'ASSIGNED'},'2026-07-13T23:59:59-11:00',DEFAULT_SNAG_CONFIG.dueSoonDays)==='DUE_SOON');
 check('terminal due state is completed',deriveDueState(cancelled.snag,'2026-07-13T00:00:00Z')==='COMPLETED');
 check('selectors filter by project/status/zone',filterSnags([created.snag,cancelled.snag],{projectId:'10',status:'CANCELLED',zoneId:'sales'}).length===1);
+
+// isObservationPublishReady — engine-audit fix (2026-07-16): mirrors 035
+// SQL's OBSERVATION_NEEDS_DETAILS check (trade + stakeholder + description-
+// or-evidence) so the UI can explain a not-ready observation in advance
+// instead of surfacing a bare RPC rejection.
+check('missing trade blocks publish',isObservationPublishReady({tradeId:null,stakeholderId:'s1',description:'x'}).ready===false);
+check('missing stakeholder blocks publish',isObservationPublishReady({tradeId:'t1',stakeholderId:null,description:'x'}).ready===false);
+check('empty description with no evidence blocks publish',isObservationPublishReady({tradeId:'t1',stakeholderId:'s1',description:''},0).ready===false);
+check('empty description but with evidence is publish-ready',isObservationPublishReady({tradeId:'t1',stakeholderId:'s1',description:''},1).ready===true);
+check('trade+stakeholder+description all present is publish-ready',isObservationPublishReady({tradeId:'t1',stakeholderId:'s1',description:'Observed crack'},0).ready===true);
+check('missing list names every unmet requirement',JSON.stringify(isObservationPublishReady({tradeId:null,stakeholderId:null,description:''},0).missing)===JSON.stringify(['trade','stakeholder','description or evidence']));
+check('whitespace-only description counts as empty',isObservationPublishReady({tradeId:'t1',stakeholderId:'s1',description:'   '},0).ready===false);
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);process.exit(fail?1:0);

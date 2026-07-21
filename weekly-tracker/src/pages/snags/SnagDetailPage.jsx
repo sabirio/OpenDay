@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { useCaptureCatalog, useProjectContractors, useSnagCommand, useSnagDetail, useSnagProductCommand } from '../../hooks/snags/useSnagController.js';
-import { buildSnagListModel, snagErrorMessage, SNAG_PRIORITIES } from '../../hooks/snags/useSnagPresentation.js';
+import { buildSnagListModel, isObservationPublishReady, snagErrorMessage, SNAG_PRIORITIES } from '../../hooks/snags/useSnagPresentation.js';
 import { SnagPriority, SnagStatus } from '../../components/snags/SnagStatus.jsx';
 import SnagHistory from '../../components/snags/SnagHistory.jsx';
 import EvidenceSection from '../../components/snags/EvidenceSection.jsx';
@@ -61,6 +61,7 @@ export default function SnagDetailPage() {
   const canManage = ['ADMIN', 'PM'].includes(roleName);
   const canAddEvidence = actions.has('addSnagEvidence') || canManage;
   const isCaptured = snag.publicationState === 'CAPTURED';
+  const publishReadiness = isObservationPublishReady(snag, evidence?.length ?? 0);
   const drawingReturn = planReturnUrl(projectId, snag);
   const captureReturn = query.get('capture') === '1' && drawingReturn;
   const selectedTrade = catalog.trades.find(item => item.id === (captureForm.tradeId || snag.tradeId));
@@ -243,7 +244,12 @@ export default function SnagDetailPage() {
           <h2 id="actions-heading">Available actions</h2>
           {drawingReturn ? <Link className="btn" to={drawingReturn.replace('placement=1&', '')}>Show on drawing</Link> : null}
           {actions.has('updateSnagLocation') ? <Link className="btn" to={`/projects/${projectId}/plans?snagId=${snag.id}&version=${snag.version}`}>{snag.location?.planVersionId ? 'Change plan pin' : 'Set on drawing'}</Link> : null}
-          {isCaptured && canManage ? <button className="btn btn-primary" disabled={product.pending} onClick={() => product.execute({ type: 'publishObservation', projectId, snagId, expectedVersion: snag.version })}>Publish Observation</button> : null}
+          {isCaptured && canManage ? (
+            <div className="snag-action-block">
+              <button className="btn btn-primary" disabled={product.pending || !publishReadiness.ready} onClick={() => product.execute({ type: 'publishObservation', projectId, snagId, expectedVersion: snag.version })}>Publish Observation</button>
+              {!publishReadiness.ready ? <p className="snag-help">Needs {publishReadiness.missing.join(', ')} before this can be published.</p> : null}
+            </div>
+          ) : null}
           {canManage ? (
             <button className="btn" disabled={product.pending} onClick={async () => {
               const result = await product.execute({ type: 'duplicateObservation', projectId, snagId, expectedVersion: snag.version });

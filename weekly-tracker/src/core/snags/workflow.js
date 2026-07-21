@@ -63,6 +63,25 @@ export function updateSnagLocation(state, command, context) {
 
 export { TRANSITIONS };
 
+/**
+ * Mirrors 035_snag_canonical_field_capture.sql's publishObservation
+ * OBSERVATION_NEEDS_DETAILS check exactly (trade + stakeholder required,
+ * plus either a non-empty description or at least one evidence item) — the
+ * SQL RPC is still the enforced source of truth, this only lets the client
+ * explain *why* in advance instead of surfacing a bare RPC rejection.
+ * Engine-audit fix (2026-07-16): this rule previously existed only in SQL.
+ * @param {{tradeId?: string|null, stakeholderId?: string|null, description?: string|null}} snag
+ * @param {number} [evidenceCount]
+ * @returns {{ready: boolean, missing: string[]}}
+ */
+export function isObservationPublishReady(snag, evidenceCount = 0) {
+  const missing = [];
+  if (!snag?.tradeId) missing.push('trade');
+  if (!snag?.stakeholderId) missing.push('stakeholder');
+  if (!String(snag?.description || '').trim() && evidenceCount === 0) missing.push('description or evidence');
+  return { ready: missing.length === 0, missing };
+}
+
 export function getAvailableSnagActions(state, actor) {
   if (!state || !actor) return [];
   const role = roleOf(actor);
