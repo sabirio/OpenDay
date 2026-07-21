@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { useCaptureCatalog, useProjectContractors, useSnagCommand, useSnagDetail, useSnagProductCommand } from '../../hooks/snags/useSnagController.js';
-import { buildSnagListModel, isObservationPublishReady, snagErrorMessage, SNAG_PRIORITIES } from '../../hooks/snags/useSnagPresentation.js';
+import { buildSnagListModel, isObservationPublishReady, resolvePreferredStakeholder, selectSnagNavigation, snagErrorMessage, SNAG_PRIORITIES } from '../../hooks/snags/useSnagPresentation.js';
 import { SnagPriority, SnagStatus } from '../../components/snags/SnagStatus.jsx';
 import SnagHistory from '../../components/snags/SnagHistory.jsx';
 import EvidenceSection from '../../components/snags/EvidenceSection.jsx';
+import { useIsMobile } from '../../hooks/shared/useViewport.js';
 
 const ACTION_LABELS = {
   startSnagWork: 'Start work',
@@ -29,6 +30,8 @@ export default function SnagDetailPage() {
   const { projectId, snagId } = useParams();
   const [query] = useSearchParams();
   const navigate = useNavigate();
+  const routerLocation = useLocation();
+  const isMobile = useIsMobile();
   const { user, role } = useAuth();
   const detail = useSnagDetail(projectId, snagId);
   const contractors = useProjectContractors(projectId);
@@ -55,6 +58,9 @@ export default function SnagDetailPage() {
   }
 
   const { snag, events, evidence, comments = [] } = detail.data;
+  const navOrder = routerLocation.state?.navOrder;
+  const nav = selectSnagNavigation(navOrder, snagId);
+  const goToObservation = id => navigate(`/projects/${projectId}/snags/${id}`, { state: navOrder ? { navOrder } : undefined });
   const model = buildSnagListModel([snag], {}, actor).rows[0];
   const actions = new Set(model.actions);
   const roleName = String(role || '').toUpperCase();
@@ -63,7 +69,10 @@ export default function SnagDetailPage() {
   const isCaptured = snag.publicationState === 'CAPTURED';
   const publishReadiness = isObservationPublishReady(snag, evidence?.length ?? 0);
   const drawingReturn = planReturnUrl(projectId, snag);
-  const captureReturn = query.get('capture') === '1' && drawingReturn;
+  // Mobile Field Mode has no desktop plan-viewer route to return to — send
+  // the PM back into the same field shell (defaults to Plan Mode) instead.
+  const mobileFieldReturn = `/projects/${projectId}/snags?field=plan`;
+  const captureReturn = query.get('capture') === '1' ? (isMobile ? mobileFieldReturn : drawingReturn) : false;
   const selectedTrade = catalog.trades.find(item => item.id === (captureForm.tradeId || snag.tradeId));
   const suggestions = catalog.mappings
     .filter(item => item.trade_id === selectedTrade?.id)
@@ -126,6 +135,14 @@ export default function SnagDetailPage() {
         </div>
       </header>
 
+      {isMobile && nav.total > 1 ? (
+        <nav className="snag-mobile-review-nav" aria-label="Observation navigation">
+          <button className="btn" disabled={!nav.previousId} onClick={() => nav.previousId && goToObservation(nav.previousId)}>Previous</button>
+          <span>{nav.position} of {nav.total}</span>
+          <button className="btn" disabled={!nav.nextId} onClick={() => nav.nextId && goToObservation(nav.nextId)}>Next</button>
+        </nav>
+      ) : null}
+
       {command.error || product.error ? (
         <div className="snag-error" role="alert">
           {snagErrorMessage(command.error || product.error)}
@@ -148,7 +165,11 @@ export default function SnagDetailPage() {
                 </label>
                 <label>
                   Building trade
-                  <select className="ds-select" value={captureForm.tradeId || snag.tradeId || ''} onChange={event => setCaptureForm({ ...captureForm, tradeId: event.target.value, stakeholderId: '' })}>
+                  <select className="ds-select" value={captureForm.tradeId || snag.tradeId || ''} onChange={event => {
+                    const tradeId = event.target.value;
+                    const preferred = resolvePreferredStakeholder(catalog.mappings, tradeId);
+                    setCaptureForm({ ...captureForm, tradeId, stakeholderId: preferred || '' });
+                  }}>
                     <option value="">Select trade</option>
                     {catalog.trades.filter(item => item.is_active).map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
                   </select>

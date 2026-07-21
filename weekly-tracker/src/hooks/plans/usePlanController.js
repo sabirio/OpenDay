@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useReducer,useRef,useState} from 'react';import {createClientRequestId} from '../../core/write/writeCommand.js';import {buildPlanUploadState,validatePlanFile} from '../../core/plans/planModel.js';import {getCanvasMetrics,PLAN_ZOOM} from '../../engines/planCoordinateEngine.js';import * as app from '../../core/application/planApplicationAdapter.js';
+import {useCallback,useEffect,useReducer,useRef,useState} from 'react';import {createClientRequestId} from '../../core/write/writeCommand.js';import {buildPlanUploadState,validatePlanFile} from '../../core/plans/planModel.js';import {getCanvasMetrics,normalizePlanPoint,PLAN_ZOOM,renderPlanPoint} from '../../engines/planCoordinateEngine.js';import * as app from '../../core/application/planApplicationAdapter.js';
 export function useProjectPlans(projectId){const [state,setState]=useState({status:'loading',items:[],error:null});const load=useCallback(async()=>{setState(current=>({...current,status:'loading'}));try{setState({status:'ready',items:await app.listPlans(projectId),error:null})}catch(error){setState({status:'error',items:[],error})}},[projectId]);useEffect(()=>{Promise.resolve().then(load)},[load]);return {...state,reload:load}}
 export function usePlanPins(projectId,planId,page){const [items,setItems]=useState([]);const load=useCallback(async()=>{if(!planId){setItems([]);return}setItems(await app.listPlanPins(projectId,planId,page))},[projectId,planId,page]);useEffect(()=>{Promise.resolve().then(load).catch(()=>setItems([]))},[load]);return {items,reload:load}}
 export function usePlanUpload(projectId,onSuccess){const [state,dispatch]=useReducer(buildPlanUploadState,{status:'idle',progress:0,error:null});const requestId=useRef(null);const run=useCallback(async({file,name,version})=>{let path;dispatch({type:'START'});try{const meta=validatePlanFile(file);requestId.current=requestId.current||createClientRequestId();const intent=await app.authorizeUpload(projectId,requestId.current);path=intent.path;dispatch({type:'AUTHORIZED'});await app.uploadPlan(path,file);dispatch({type:'UPLOADED'});const {openPdfBlob}=await import('../../core/plans/pdfDocument.js');const parsed=await openPdfBlob(file);const pageCount=parsed.pageCount;await parsed.destroy();const plan=await app.registerPlan({projectId,requestId:requestId.current,name,version,filename:meta.safeFilename,pageCount});requestId.current=null;dispatch({type:'REGISTERED',plan});await onSuccess?.(plan);return plan}catch(error){if(path)await app.removeOrphanPlan(path).catch(()=>{});dispatch({type:'FAILED',error});throw error}},[projectId,onSuccess]);return {...state,run,reset:()=>dispatch({type:'RESET'})}}
@@ -6,3 +6,47 @@ export function usePlanDocument(plan){const [state,setState]=useState({status:'l
 export function usePlanCanvas(pdf,page,zoom,canvasRef){const renderId=useRef(0);useEffect(()=>{if(!pdf)return;let cancelled=false;const id=++renderId.current;(async()=>{const pdfPage=await pdf.document.getPage(page);const viewport=pdfPage.getViewport({scale:PLAN_ZOOM.renderScale*zoom});const canvas=canvasRef.current;if(!canvas||cancelled||id!==renderId.current)return;const metrics=getCanvasMetrics(viewport,window.devicePixelRatio);canvas.width=metrics.width;canvas.height=metrics.height;canvas.style.width=`${metrics.cssWidth}px`;canvas.style.height=`${metrics.cssHeight}px`;const context=canvas.getContext('2d');context.setTransform(metrics.ratio,0,0,metrics.ratio,0,0);await pdfPage.render({canvasContext:context,viewport}).promise})().catch(()=>{});return()=>{cancelled=true}},[pdf,page,zoom,canvasRef])}
 export function usePlanCommand(onSuccess){const [pending,setPending]=useState(false);const [error,setError]=useState(null);const ids=useRef(new Map());const execute=useCallback(async(command,key=command.type)=>{if(pending)return;const id=ids.current.get(key)||createClientRequestId();ids.current.set(key,id);setPending(true);setError(null);try{const result=await app.executePlanCommand({...command,clientRequestId:id});ids.current.delete(key);await onSuccess?.(result);return result}catch(err){setError(err);throw err}finally{setPending(false)}},[onSuccess,pending]);return {pending,error,execute}}
 export function usePlanLifecycle(onSuccess){const [pending,setPending]=useState(false);const execute=useCallback(async(planId,action)=>{if(pending)return;setPending(true);try{const result=await app.setPlanLifecycle(planId,action);await onSuccess?.(result);return result}finally{setPending(false)}},[onSuccess,pending]);return {pending,execute}}
+
+// Shared pin-placement interaction: the same long-press/crosshair-confirm
+// (fast capture) and click-to-open-full-form workflow, used by both the
+// desktop PlanViewerPage and Mobile Field Mode's Plan view so the placement
+// state machine and the normalized-coordinate math live in exactly one
+// place (see openday-issue: mobile field mode must reuse, not fork, pin
+// placement).
+export function usePlanPlacement({projectId,planId,page,targetSnagId,targetVersion,command,navigate,initialPlacing=false,initialFullForm=false}){
+  const [placing,setPlacing]=useState(initialPlacing);
+  const [fullFormPlacement,setFullFormPlacement]=useState(initialFullForm);
+  const [capturePoint,setCapturePoint]=useState(null);
+  const pressTimer=useRef(null);
+  const surfaceRef=useRef(null);
+
+  const pointAt=useCallback((x,y)=>normalizePlanPoint(x,y,surfaceRef.current.getBoundingClientRect()),[]);
+
+  const place=useCallback(async(x,y)=>{
+    if(!placing||!surfaceRef.current)return;
+    const point=pointAt(x,y);
+    if(targetSnagId){
+      await command.execute({type:'updateSnagPlanLocation',projectId,snagId:targetSnagId,expectedVersion:targetVersion,payload:{planVersionId:planId,pageNumber:page,...point}});
+      navigate(`/projects/${projectId}/snags/${targetSnagId}`);
+    } else if(fullFormPlacement){
+      navigate(`/projects/${projectId}/snags/new?planId=${planId}&page=${page}&x=${point.x}&y=${point.y}`);
+    } else {
+      setCapturePoint(point);
+    }
+  },[placing,pointAt,targetSnagId,command,projectId,planId,page,targetVersion,fullFormPlacement,navigate]);
+
+  const beginPress=useCallback(event=>{
+    if(!placing||targetSnagId)return;
+    const x=event.clientX,y=event.clientY;
+    pressTimer.current=setTimeout(()=>setCapturePoint(pointAt(x,y)),450);
+  },[placing,targetSnagId,pointAt]);
+  const endPress=useCallback(()=>clearTimeout(pressTimer.current),[]);
+
+  const startCapture=useCallback(()=>{setPlacing(true);setFullFormPlacement(false);setCapturePoint(null)},[]);
+  const startFullForm=useCallback(()=>{setPlacing(true);setFullFormPlacement(true);setCapturePoint(null)},[]);
+  const reposition=useCallback(()=>setCapturePoint(null),[]);
+
+  const capturePosition=capturePoint?renderPlanPoint(capturePoint,{width:100,height:100}):null;
+
+  return {placing,setPlacing,fullFormPlacement,setFullFormPlacement,capturePoint,setCapturePoint,surfaceRef,place,beginPress,endPress,startCapture,startFullForm,reposition,capturePosition};
+}

@@ -6,6 +6,12 @@ const detail = read('../pages/snags/SnagDetailPage.jsx');
 const list = read('../pages/snags/SnagListPage.jsx');
 const create = read('../pages/snags/SnagCreatePage.jsx');
 const management = read('../pages/plans/PlanManagementPage.jsx');
+// The long-press/crosshair placement state machine (450ms press timer) was
+// extracted into usePlanPlacement (src/hooks/plans/usePlanController.js) so
+// Mobile Field Mode's Plan tab can reuse it instead of forking a second
+// implementation — the timer itself now lives in the shared hook, not in
+// the desktop page component that calls it.
+const planController = read('../hooks/plans/usePlanController.js');
 
 let pass = 0;
 let fail = 0;
@@ -13,7 +19,8 @@ const check = (label, value) => value
   ? (pass++, console.log(`  OK ${label}`))
   : (fail++, console.error(`  FAIL ${label}`));
 
-check('drawing uses explicit long-press capture with crosshair confirmation', /setTimeout\(.*450/.test(viewer) && /plan-capture-crosshair/.test(viewer) && /Confirm & open Observation/.test(viewer));
+check('drawing uses explicit long-press capture with crosshair confirmation', /setTimeout\(.*450/.test(planController) && /plan-capture-crosshair/.test(viewer) && /Confirm & open Observation/.test(viewer));
+check('the desktop viewer wires up the shared placement hook rather than its own timer', /usePlanPlacement\(/.test(viewer));
 check('keyboard placement remains available', /event\.key==='Enter'/.test(viewer));
 check('UI terminology is Observation while technical routes remain stable', /Observation/.test(viewer) && /Observations/.test(list) && /snags/.test(list));
 check('Done remains captured and does not publish', /Done - keep Captured/.test(detail) && /completeCapture/.test(detail));

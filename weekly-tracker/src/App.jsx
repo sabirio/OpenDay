@@ -13,6 +13,7 @@ import { fetchAllTemplates } from "./data/templatesApi";
 import { constructionRetailV1 } from "./domains/construction/templates/constructionRetailV1";
 import "./styles/snags.css";
 import "./styles/plans.css";
+import "./styles/snagFieldMode.css";
 
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Home             = lazy(() => import("./pages/Home"));

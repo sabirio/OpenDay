@@ -1,4 +1,4 @@
-import { DEFAULT_SNAG_CONFIG, SNAG_PRIORITIES, SNAG_STATUSES, getAvailableSnagActions, isObservationPublishReady, normalizeLocation, normalizeDueDate, requireText } from '../snags/index.js';
+import { DEFAULT_SNAG_CONFIG, SNAG_PRIORITIES, SNAG_STATUSES, getAvailableSnagActions, isObservationPublishReady, normalizeLocation, normalizeDueDate, requireText, selectSnagNavigation } from '../snags/index.js';
 import { deriveDueState, filterSnags, summarizeSnags } from '../../engines/snagReadModelEngine.js';
 
 export const STATUS_LABELS={OPEN:'Open',ASSIGNED:'Assigned',IN_PROGRESS:'In progress',READY_FOR_REVIEW:'Ready for review',CLOSED:'Closed',CANCELLED:'Cancelled'};
@@ -24,4 +24,10 @@ export function snagErrorMessage(error){return {VERSION_CONFLICT:'This snag chan
 // message is unit-testable, matching this codebase's "decisions belong in
 // core/engines, not pages" rule.
 export function formatPublishNoticeMessage(result){const count=result?.needsDetails?.length||0;return count?`${count} of the selected observations still need a trade, stakeholder, or description/evidence before they can be published.`:null;}
-export {SNAG_STATUSES,SNAG_PRIORITIES,isObservationPublishReady};
+// Trade → preferred stakeholder auto-suggestion (mobile + desktop capture
+// forms both preselect this so the field/quick-capture flow needs less
+// typing); the PM/Admin can still override the selection, this only picks a
+// starting value. Mirrors the `is_preferred` flag set via the
+// snag_trade_stakeholders MAP_STAKEHOLDER catalog command (035 migration).
+export function resolvePreferredStakeholder(mappings,tradeId){if(!tradeId)return null;const preferred=(mappings||[]).find(item=>item.trade_id===tradeId&&item.is_preferred);return preferred?.stakeholder_id||null;}
+export {SNAG_STATUSES,SNAG_PRIORITIES,isObservationPublishReady,selectSnagNavigation};
