@@ -74,6 +74,7 @@ console.log('\nB) return shape');
   check('B8: tcpiStatus field present',     r !== null && 'tcpiStatus' in r);
   check('B9: EACdays field present',        r !== null && 'EACdays' in r);
   check('B10: EAC field present',           r !== null && 'EAC' in r);
+  check('B11: EACdaysIndeterminate field present', r !== null && 'EACdaysIndeterminate' in r);
 }
 
 // ── C) SPI computation ────────────────────────────────────────────────────────
@@ -124,6 +125,11 @@ check('D5: SPI=0.84 (EV=84)  → critical',          computeEVM(ovd, [], 84)?.sp
 check('D6: SPI=0.00 (EV=0)   → critical',          computeEVM(ovd, [], 0)?.spiStatus   === 'critical');
 // D7: AD-015 — future project not yet started (PV=0, EV=0) → not_started, not critical
 check('D7: future PV=0, EV=0 → not_started',       computeEVM(future, [], 0)?.spiStatus === 'not_started');
+// D8/D9: engine-audit fix (2026-07-16) — D6's fully-stalled project (SPI=0
+// via PV>0/EV=0) must flag EACdaysIndeterminate, distinct from D7's
+// genuinely-not-started project (PV=0/EV=0), which must not.
+check('D8: D6 fully-stalled project → EACdaysIndeterminate true',  computeEVM(ovd, [], 0)?.EACdaysIndeterminate === true);
+check('D9: D7 not-started project → EACdaysIndeterminate false',   computeEVM(future, [], 0)?.EACdaysIndeterminate === false);
 
 // ── E) TCPI ───────────────────────────────────────────────────────────────────
 // TCPI = (BAC-EV)/(BAC-PV). Null when remainingTime (BAC-PV) <= 0.

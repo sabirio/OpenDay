@@ -139,6 +139,28 @@ console.log('\nD) EACdays and EAC forecast date');
   check('D5: no targetOpeningDate → EAC=null', rNoTarget.EAC === null);
 }
 
+// ── D2) EACdaysIndeterminate — engine-audit regression (2026-07-16) ────────────
+// A fully-stalled project (PV>0 but EV=0, i.e. real expected progress exists
+// but nothing was reported) has SPI=0, which the EACdays formula (1/SPI)
+// can't evaluate. This used to silently leave EACdays=0 — indistinguishable
+// from "on schedule" — right next to a spiStatus of 'critical'. Must be
+// flagged as indeterminate, not faked as a real 0-day delay, and must stay
+// distinct from the "not started yet" case (PV=0 AND EV=0), which is a
+// different, non-alarming situation with its own 'not_started' status.
+console.log('\nD2) EACdaysIndeterminate — fully-stalled vs. not-yet-started');
+{
+  const rStalled = computeEVM(ovd, [], 0); // ovd: PV=100 always → EV=0 means SPI=0 with real expected progress
+  check('stalled project (PV>0, EV=0): SPI=0',                rStalled.SPI === 0);
+  check('stalled project: spiStatus is critical, not not_started', rStalled.spiStatus === 'critical');
+  check('stalled project: EACdaysIndeterminate is true',       rStalled.EACdaysIndeterminate === true);
+  check('stalled project: EACdays stays 0 (not faked as a real day count)', rStalled.EACdays === 0);
+
+  const rNotStarted = computeEVM(future, [], 0); // future: PV=0, EV=0 → genuinely not started
+  check('not-yet-started project: spiStatus is not_started',   rNotStarted.spiStatus === 'not_started');
+  check('not-yet-started project: EACdaysIndeterminate is false (distinct from a real stall)',
+    rNotStarted.EACdaysIndeterminate === false);
+}
+
 // ── E) TCPI ───────────────────────────────────────────────────────────────────
 // TCPI = round((100-EV)/(100-PV)*100)/100; null when 100-PV<=0.
 // mid project PV=51 (deterministic). Checked values:

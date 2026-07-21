@@ -105,6 +105,12 @@ export default function EvmWidget({ evm }) {
         </div>
       )}
 
+      {evm.EACdaysIndeterminate && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+          Forecast delay: <strong style={{ color: 'var(--status-alert)' }}>cannot be estimated — zero progress against schedule</strong>
+        </div>
+      )}
+
       {evm.spiHistory?.length >= 2 && (
         <div>
           <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 3 }}>Weekly SPI</div>

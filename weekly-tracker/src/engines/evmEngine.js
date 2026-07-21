@@ -34,10 +34,20 @@ export function computeEVM(project, sortedReports, progress) {
   // SPI — schedule performance index
   const SPI = computeCalendarSpi(EV, PV) ?? (EV > 0 ? 1 : 0);
 
-  // EAC forecast delay in days: project takes totalDays/SPI instead of totalDays
+  // EAC forecast delay in days: project takes totalDays/SPI instead of totalDays.
+  // Engine-audit fix (2026-07-16): SPI===0 with real expected progress (PV>0,
+  // i.e. genuinely stalled — NOT the "not started yet" PV=0/EV=0 case below)
+  // used to silently leave EACdays at 0, hiding the delay forecast for the
+  // single worst-case project right next to its own "Critical" badge. 1/SPI
+  // is undefined at SPI=0 (a stalled project has no computable finish date at
+  // its current rate), so this is flagged as indeterminate rather than
+  // faked as either "0 days late" or an arbitrary large number.
   let EACdays = 0;
+  let EACdaysIndeterminate = false;
   if (SPI > 0 && SPI < 1 && schedDev.totalDays > 0) {
     EACdays = Math.max(0, Math.round(schedDev.totalDays * (1 / SPI) - schedDev.totalDays));
+  } else if (SPI === 0 && !(PV === 0 && EV === 0) && schedDev.totalDays > 0) {
+    EACdaysIndeterminate = true;
   }
 
   // EAC as a Date (forecast opening)
@@ -81,5 +91,5 @@ export function computeEVM(project, sortedReports, progress) {
     return { date: report.reportingDate || report.submittedAt, spi, ev, pv };
   });
 
-  return { BAC, EV, PV, SPI, EAC, EACdays, TCPI, spiStatus, tcpiStatus, tcpiWarning, spiHistory };
+  return { BAC, EV, PV, SPI, EAC, EACdays, EACdaysIndeterminate, TCPI, spiStatus, tcpiStatus, tcpiWarning, spiHistory };
 }
