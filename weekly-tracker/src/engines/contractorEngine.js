@@ -2,6 +2,10 @@ import { computeCumulativeStatuses, computeWPCumulativeStatuses, DAY_MS, isBadSc
 import { calculateProjectProgressResult } from "./progressEngine";
 import { computePmAlignmentItems, summarizeAlignmentItems } from "./pmAlignmentEngine";
 import { computeScheduleDeviation } from "./riskEngine";
+import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
+import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
+import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
+import { buildV2ProgressTemplate } from "../core/projects/weights/buildV2ProgressTemplate";
 
 export function computeContractorScores(project, projReports, projSiteVisits, referenceDate = new Date()) {
   if (!projReports.length) {
@@ -48,10 +52,20 @@ export function computeContractorScores(project, projReports, projSiteVisits, re
     pmAlignmentPts = Math.max(0, Math.round(pmAlignmentPts));
   }
 
-  // 3. Contractor-Controlled Progress (0-25): penalise only when behind expected
+  // 3. Contractor-Controlled Progress (0-25): penalise only when behind expected.
+  // Engine-audit fix (2026-07-16): previously called with no scopeWPIds/template/
+  // phaseWeightOverrides at all, silently using the full default template's
+  // weights regardless of this project's actual scope or v2 zone areas — not a
+  // pinned-custom-v1-template resolution (that needs templatesById, unavailable
+  // here), but scope/v2/weightOverrides are all resolvable from `project` alone.
+  const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
+  const scopeWPIds = getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS);
+  const v2Template = isV2
+    ? buildV2ProgressTemplate(project?.scope?.zoneAreas, project?.scope?.zones ?? null, project?.scope?.categories ?? null)
+    : null;
   const wpCum  = computeWPCumulativeStatuses(projReports);
   const legCum = computeCumulativeStatuses(projReports) || {};
-  const gcProgress = calculateProjectProgressResult(wpCum, legCum).progress;
+  const gcProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template, project?.scope?.weightOverrides ?? null).progress;
   const schedDev = computeScheduleDeviation(project, gcProgress, referenceDate);
   let progressPts;
   if (!schedDev) {

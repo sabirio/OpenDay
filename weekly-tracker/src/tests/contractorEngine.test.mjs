@@ -161,6 +161,29 @@ console.log('\nD) Progress');
   const r = computeContractorScores(P_FUTURE, [R_SIMPLE], []);
   check('D2: future project → dev=0 → progress=25', r.breakdown.progress === 25);
 }
+{
+  // D3: engine-audit regression (2026-07-16) — gcProgress used to be computed
+  // with no scopeWPIds/template at all, so a project's scope narrowing was
+  // silently ignored. The report covers two phases: 'demo.strip_out'
+  // (phaseWeight 0.08, Completed) and 'walls.marking' (phaseWeight 0.20 via
+  // rough_in, Not Started). Scoped to just the completed WP, only that
+  // phase counts (unreported phases are excluded, not zeroed) → progress=100%
+  // → dev=0 → progressPts=25. Unscoped, both reported phases count and
+  // rough_in's 0% (larger weight) pulls the weighted average well below 100%.
+  const P_MID = { constructionStartDate: iso(now - 50 * DAY), constructionEndDate: iso(now + 50 * DAY) };
+  const R_WP = {
+    reportingDate: iso(now),
+    workPackageStatuses: {
+      demolition: { 'Strip Out & Clear': { status: 'Completed', progress: 100 } },
+      rough_in:   { 'Wall Marking & Setting Out': { status: 'Not Started', progress: 0 } },
+    },
+  };
+  const scoped   = computeContractorScores({ ...P_MID, scope: { workPackages: ['demo.strip_out'] } }, [R_WP], []);
+  const unscoped = computeContractorScores(P_MID, [R_WP], []);
+  check('D3: scoped to the completed WP → progress=25 (dev=0)', scoped.breakdown.progress === 25);
+  check('D3: unscoped → same report yields a lower progressPts (scope was not ignored)',
+    unscoped.breakdown.progress < scoped.breakdown.progress);
+}
 
 // ── E) Issue management ───────────────────────────────────────────────────────
 console.log('\nE) Issue management');
