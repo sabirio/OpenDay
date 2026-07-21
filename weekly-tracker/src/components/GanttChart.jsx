@@ -48,6 +48,13 @@ const C = {
   redCrit:   'var(--status-alert)',
   orange:    'var(--status-warn)',
   white60:   'var(--text-muted)',
+  // UI-consistency fix (2026-07-16): these two are generic translucent-white
+  // overlay effects (a resize-handle affordance, a barely-visible zebra
+  // stripe) rather than brand/status colors, so there's no design-system.css
+  // token that fits — centralized here instead of repeating the literal at
+  // each call site.
+  resizeHandle: 'rgba(255,255,255,0.45)',
+  stripeAlt:    'rgba(255,255,255,0.02)',
 };
 
 function fmtDate(d) {
@@ -338,14 +345,14 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
         <>
           <rect
             x={x} y={barY + 2} width={6} height={barHeight - 4} rx={2}
-            fill="rgba(255,255,255,0.45)"
+            fill={C.resizeHandle}
             style={{ cursor: 'ew-resize' }}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDragStart(e, 'left'); }}
           />
           <rect
             x={x + clamp(width, 2, Infinity) - 6} y={barY + 2} width={6} height={barHeight - 4} rx={2}
-            fill="rgba(255,255,255,0.45)"
+            fill={C.resizeHandle}
             style={{ cursor: 'ew-resize' }}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onDragStart(e, 'right'); }}
@@ -670,7 +677,7 @@ export default function GanttChart({
   // ── Grid alternating stripes ─────────────────────────────────────────────────
   const stripes = timelineHeaders.map((h, i) => (
     <rect key={`s-${i}`} x={h.x} y={0} width={h.width} height={totalHeight}
-      fill={i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent'} />
+      fill={i % 2 === 0 ? C.stripeAlt : 'transparent'} />
   ));
 
   // ── Row separator lines ──────────────────────────────────────────────────────

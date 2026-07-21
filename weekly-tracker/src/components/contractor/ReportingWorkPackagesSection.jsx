@@ -24,7 +24,7 @@ export default function ReportingWorkPackagesSection({
           data-testid="reporting-date"
           value={reportingDate}
           onChange={(e) => onReportingDateChange(e.target.value)}
-          style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 14, color: "var(--field-text-heading)", background: "white", outline: "none", width: 200 }}
+          style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 14, color: "var(--field-text-heading)", background: "var(--field-bg-card)", outline: "none", width: 200 }}
         />
       </div>
       {ganttTasks.length === 0 && !ganttLoading && (
@@ -42,7 +42,7 @@ export default function ReportingWorkPackagesSection({
                   style={{
                     padding: "12px 14px", borderRadius: 12, textAlign: "left",
                     border: `2px solid ${selected ? "var(--field-accent-orange-fg)" : "var(--field-border)"}`,
-                    background: selected ? "var(--field-accent-orange-bg)" : "white",
+                    background: selected ? "var(--field-accent-orange-bg)" : "var(--field-bg-card)",
                     color: selected ? "var(--field-accent-orange-fg)" : "var(--field-text-muted)",
                     fontWeight: selected ? 700 : 500, fontSize: 13,
                     cursor: "pointer", transition: "all 0.15s", lineHeight: 1.3,

@@ -50,6 +50,12 @@
   --shadow:            0 1px 3px oklch(0 0 0 / 0.35);
   --shadow-lg:         0 4px 16px oklch(0 0 0 / 0.50);
 
+  /* Header-bar dim overlay (modal/drawer header treatment). UI-consistency
+     fix (2026-07-16): ProjectDetailDrawer.jsx and ProjectFormParts.jsx each
+     hardcoded an identical rgba(0,0,0,0.15) literal for this — one shared
+     token instead. */
+  --overlay-dim:       oklch(0 0 0 / 0.15);
+
   /* Focus ring */
   --focus-ring:        0 0 0 2px oklch(0.6724 0.1308 38.7559 / 0.30);
 
@@ -142,6 +148,16 @@
   --field-border-strong:      #d1d5db;
   --field-bg-subtle:          #f3f4f6;
   --field-bg-faint:           #fafafa;
+
+  /* UI-consistency fix (2026-07-16): ~24 call sites across contractor/* and
+     sitevisit/* hardcoded "white" for card/input backgrounds, one of two
+     near-identical shadow literals, and "white" again for text/dots drawn
+     on top of a filled accent color — three more tokens in the same
+     always-on-regardless-of-theme namespace as the rest of this block. */
+  --field-bg-card:            #ffffff;
+  --field-shadow:             0 1px 3px rgba(0, 0, 0, 0.04);
+  --field-shadow-lg:          0 1px 4px rgba(0, 0, 0, 0.05);
+  --field-text-on-accent:     #ffffff;
 
   --field-success-bg:         #dcfce7;
   --field-success-border:     #86efac;
@@ -244,6 +260,8 @@
 
   --shadow:            0 1px 3px oklch(0 0 0 / 0.10);
   --shadow-lg:         0 4px 16px oklch(0 0 0 / 0.12);
+
+  --overlay-dim:       oklch(0 0 0 / 0.06);
 
   --focus-ring:        0 0 0 2px oklch(0.6171 0.1375 39.0427 / 0.25);
   --progress-fill:     oklch(0.6171 0.1375 39.0427);

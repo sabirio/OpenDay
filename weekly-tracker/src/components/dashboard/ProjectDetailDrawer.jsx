@@ -60,7 +60,7 @@ export default function ProjectDetailDrawer({ row, projSiteVisits, onClose, onRe
     >
 
         {/* Header */}
-        <div style={{ padding: '16px 22px 12px', borderBottom: '1px solid var(--border)', borderTop: `4px solid ${color}`, flexShrink: 0, background: 'rgba(0,0,0,0.15)' }}>
+        <div style={{ padding: '16px 22px 12px', borderBottom: '1px solid var(--border)', borderTop: `4px solid ${color}`, flexShrink: 0, background: 'var(--overlay-dim)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div id="project-detail-drawer-title" style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>{project.storeCode}</div>

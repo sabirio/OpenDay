@@ -44,10 +44,10 @@ function ScheduleRiskSection({ form, updateField, toggleCheckbox }) {
                     <div style={{
                       width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: 2,
                       border: `2px solid ${active ? "var(--field-danger-fg)" : "var(--field-border-strong)"}`,
-                      background: active ? "var(--field-danger-fg)" : "white",
+                      background: active ? "var(--field-danger-fg)" : "var(--field-bg-card)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      {active && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "white" }} />}
+                      {active && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--field-bg-card)" }} />}
                     </div>
                     <div>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "var(--field-text-heading)" }}>{label}</span>
@@ -74,7 +74,7 @@ function ScheduleRiskSection({ form, updateField, toggleCheckbox }) {
                   <button key={label} type="button" onClick={() => updateField("riskScale", label)} style={{
                     padding: "9px 24px", borderRadius: 10,
                     border: `2px solid ${sel ? border : "var(--field-border)"}`,
-                    background: sel ? bg : "white",
+                    background: sel ? bg : "var(--field-bg-card)",
                     color: sel ? color : "var(--field-text-muted)",
                     fontSize: 14, fontWeight: sel ? 700 : 400, cursor: "pointer",
                   }}>

@@ -145,7 +145,11 @@ export function TextBlock({ label, value }) {
 }
 
 const SCHED_STYLES = {
-  'On Track': { color: '#4ade80',  background: 'rgba(20, 83, 45, 0.30)',  border: '1px solid rgba(74, 222, 128, 0.18)' },
+  // UI-consistency fix (2026-07-16): was a hardcoded green, the only status
+  // badge in the app not using a design-system token — every other "On
+  // Track" badge (shared.jsx, SiteVisitComparison.jsx) already uses
+  // var(--status-done), this monochrome+orange theme's "good" color.
+  'On Track': { color: 'var(--status-done)', background: 'var(--status-done-bg)', border: '1px solid var(--border)' },
   'Critical': { color: 'var(--status-alert)', background: 'var(--status-alert-bg)', border: '1px solid var(--border)' },
   'Delayed':  { color: 'var(--status-alert)', background: 'var(--status-alert-bg)', border: '1px solid var(--border)' },
   'At Risk':  { color: 'var(--status-warn)',  background: 'var(--status-warn-bg)',  border: '1px solid var(--border)' },

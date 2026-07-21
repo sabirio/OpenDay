@@ -76,7 +76,7 @@ function WPTaskRow({ wpId, taskName, entry, prevEntry, onChange }) {
                 style={{
                   padding: "4px 9px", borderRadius: 6, fontSize: 11,
                   border: `1px solid ${sel ? opt.border : "var(--field-border)"}`,
-                  background: sel ? opt.bg : "white",
+                  background: sel ? opt.bg : "var(--field-bg-card)",
                   color: sel ? opt.color : "var(--field-text-muted)",
                   fontWeight: sel ? 700 : 400, cursor: "pointer", whiteSpace: "nowrap",
                   outline: "none",

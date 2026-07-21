@@ -48,11 +48,11 @@ function LookAheadDeclarationSection({ form, updateField, photoUrls, projectId, 
             style={{
               width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
               border: `2px solid ${form.declarationConfirmed ? "var(--field-accent-contractor)" : "var(--field-border-strong)"}`,
-              background: form.declarationConfirmed ? "var(--field-accent-contractor)" : "white",
+              background: form.declarationConfirmed ? "var(--field-accent-contractor)" : "var(--field-bg-card)",
               display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
             }}
           >
-            {form.declarationConfirmed && <span style={{ color: "white", fontSize: 13, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+            {form.declarationConfirmed && <span style={{ color: "var(--field-text-on-accent)", fontSize: 13, fontWeight: 800, lineHeight: 1 }}>✓</span>}
           </div>
           <span style={{ fontSize: 13, color: "var(--field-text-body)", lineHeight: 1.6, fontWeight: 500 }}>
             I confirm that the reported information reflects the actual site status and is accurate to the best of my knowledge.

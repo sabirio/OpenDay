@@ -161,11 +161,11 @@ export default function PhotoUpload({ projectId, existingPaths = [], onUpload, o
               {photo.preview ? <img src={photo.preview} alt={`Site photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : <div role="img" aria-label={`Previously uploaded site photo ${i + 1}`} style={{ height: '100%', display: 'grid', placeItems: 'center', padding: 8, textAlign: 'center', fontSize: 12 }}>Uploaded photo {i + 1}</div>}
               {(photo.status === 'uploading' || photo.status === 'queued') ? (
                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="spinner" size={18} style={{ color: 'white', animation: 'field-form-spin 0.8s linear infinite' }} />
+                  <Icon name="spinner" size={18} style={{ color: 'var(--field-text-on-accent)', animation: 'field-form-spin 0.8s linear infinite' }} />
                 </div>
               ) : photo.status === 'failed' ? (
                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(80,0,0,0.78)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center', padding: 4 }}>
-                  <span style={{ color: 'white', fontSize: 11 }}>Upload failed</span>
+                  <span style={{ color: 'var(--field-text-on-accent)', fontSize: 11 }}>Upload failed</span>
                   <button type="button" onClick={() => retryPhoto(photo)} style={{ minHeight: 32 }}>Retry</button>
                 </div>
               ) : (
@@ -179,7 +179,7 @@ export default function PhotoUpload({ projectId, existingPaths = [], onUpload, o
                     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0,
                   }}
                 >
-                  <Icon name="close" size={12} style={{ color: 'white' }} />
+                  <Icon name="close" size={12} style={{ color: 'var(--field-text-on-accent)' }} />
                 </button>
               )}
             </div>

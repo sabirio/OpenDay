@@ -49,7 +49,7 @@ function GanttWPRow({ task, entry, onChange }) {
               style={{
                 padding: '10px 14px', minHeight: 44, borderRadius: 8, fontSize: 13,
                 border: `1px solid ${sel ? opt.border : 'var(--field-border)'}`,
-                background: sel ? opt.bg : 'white',
+                background: sel ? opt.bg : 'var(--field-bg-card)',
                 color: sel ? opt.color : 'var(--field-text-muted)',
                 fontWeight: sel ? 700 : 500,
                 cursor: 'pointer', whiteSpace: 'nowrap', outline: 'none',
@@ -105,7 +105,7 @@ export function PhaseSection({ phaseKey, tasks, ganttWpProgress, onUpdateProgres
   const pctColor = phasePct >= 100 ? 'var(--field-success-fg)' : phasePct >= 50 ? 'var(--field-accent-contractor)' : 'var(--field-text-secondary)';
 
   return (
-    <div style={{ background: 'white', border: '1px solid var(--field-border)', borderRadius: 14, marginBottom: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+    <div style={{ background: 'var(--field-bg-card)', border: '1px solid var(--field-border)', borderRadius: 14, marginBottom: 14, overflow: 'hidden', boxShadow: 'var(--field-shadow)' }}>
       {/* Header */}
       <div
         role="button"

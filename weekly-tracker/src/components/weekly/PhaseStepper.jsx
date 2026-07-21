@@ -4,6 +4,15 @@ import { statusColor, statusStyles } from './sharedUtils';
 
 const TIER_GLYPH = { done: '✓', good: '▶', warn: '⚠', muted: '·' };
 
+// UI-consistency fix (2026-07-16): these were hardcoded literals (an
+// off-token orange glow color, two translucent-white overlay tones) —
+// named/centralized here so they're not magic numbers, matching the
+// resizeHandle/stripeAlt pattern already used for the same kind of
+// decorative (non-semantic) overlay effect in GanttChart.jsx.
+const DONE_GLOW = '0 0 12px var(--status-warn-bg)';
+const PROGRESS_FILL_BG = 'rgba(255,255,255,0.04)';
+const PROGRESS_FILL_BORDER = 'rgba(255,255,255,0.08)';
+
 const SHORT_NAME = name =>
   name
     .replace('Pre-construction', 'Pre-con')
@@ -22,7 +31,7 @@ function PhaseCard({ wp, pct, isSelected, onClick, hasChanges }) {
     border: '2px solid var(--status-warn)',
     background: 'var(--status-warn-bg)',
     color: 'var(--status-warn)',
-    boxShadow: '0 0 12px rgba(249,115,22,0.2)',
+    boxShadow: DONE_GLOW,
   } : hasProgress ? {
     border: '2px solid var(--border-strong)',
     background: 'var(--bg-elevated)',
@@ -58,8 +67,8 @@ function PhaseCard({ wp, pct, isSelected, onClick, hasChanges }) {
             <div style={{
               position: 'absolute', bottom: 0, left: 0, right: 0,
               height: `${pct}%`,
-              background: '#ffffff0a',
-              borderTop: '1px solid #ffffff15',
+              background: PROGRESS_FILL_BG,
+              borderTop: `1px solid ${PROGRESS_FILL_BORDER}`,
             }} />
           )}
           <span style={{ fontSize: 13, fontWeight: 800, lineHeight: 1, position: 'relative', zIndex: 1 }}>

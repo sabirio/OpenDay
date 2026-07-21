@@ -38,10 +38,10 @@ function SupportWorksSection({ form, updateField, toggleCheckbox }) {
                       <div style={{
                         width: 18, height: 18, borderRadius: "50%", flexShrink: 0, marginTop: 2,
                         border: `2px solid ${active ? "var(--field-accent-blue-fg2)" : "var(--field-border-strong)"}`,
-                        background: active ? "var(--field-accent-blue-fg2)" : "white",
+                        background: active ? "var(--field-accent-blue-fg2)" : "var(--field-bg-card)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                       }}>
-                        {active && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "white" }} />}
+                        {active && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--field-bg-card)" }} />}
                       </div>
                       <div>
                         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--field-text-heading)" }}>{label}</span>
@@ -76,7 +76,7 @@ function SupportWorksSection({ form, updateField, toggleCheckbox }) {
               <select
                 value={form.additionalWorksParty}
                 onChange={(e) => updateField("additionalWorksParty", e.target.value)}
-                style={{ padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--field-border-strong)", fontSize: 13, background: "white", width: "100%", maxWidth: 320, cursor: "pointer", outline: "none" }}
+                style={{ padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--field-border-strong)", fontSize: 13, background: "var(--field-bg-card)", width: "100%", maxWidth: 320, cursor: "pointer", outline: "none" }}
               >
                 <option value="">— Select —</option>
                 <option>Drawings Issues</option>
@@ -93,7 +93,7 @@ function SupportWorksSection({ form, updateField, toggleCheckbox }) {
                 value={form.additionalWorksCost}
                 onChange={(e) => updateField("additionalWorksCost", e.target.value)}
                 placeholder="e.g. 1 000 EUR"
-                style={{ width: "100%", maxWidth: 320, boxSizing: "border-box", padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--field-border-strong)", fontSize: 13, background: "white", outline: "none" }}
+                style={{ width: "100%", maxWidth: 320, boxSizing: "border-box", padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--field-border-strong)", fontSize: 13, background: "var(--field-bg-card)", outline: "none" }}
               />
             </div>
           </>

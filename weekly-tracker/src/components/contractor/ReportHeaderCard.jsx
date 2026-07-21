@@ -1,6 +1,6 @@
 function ReportHeaderCard({ project, weekInfo, weekPct, lastReport, daysSinceLast, projectReportsCount }) {
   return (
-    <div style={{ background: "white", borderRadius: 16, border: "1px solid var(--field-border)", padding: "24px 28px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+    <div style={{ background: "var(--field-bg-card)", borderRadius: 16, border: "1px solid var(--field-border)", padding: "24px 28px", marginBottom: 16, boxShadow: "var(--field-shadow-lg)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--field-accent-contractor)", marginBottom: 6 }}>Weekly Construction Report</div>

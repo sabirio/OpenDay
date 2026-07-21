@@ -3,9 +3,14 @@ export default function GanttLegend({ colors }) {
     { label: 'Planned',       bg: 'var(--border)',          border: colors.border },
     { label: 'In Progress',   bg: colors.blue,              border: 'none' },
     { label: 'Complete',      bg: colors.green,             border: 'none' },
-    { label: 'Critical Path', bg: 'rgba(255,100,100,0.4)', border: colors.redCrit },
-    { label: 'Warning',       bg: 'rgba(245,158,11,0.2)',  border: colors.yellow },
-    { label: 'Critical Disc', bg: 'rgba(239,68,68,0.2)',   border: colors.red },
+    // UI-consistency fix (2026-07-16): these three were the only hardcoded
+    // rgba literals left in this file — every sibling swatch already uses a
+    // token via `colors` (the C object GanttChart.jsx builds entirely from
+    // var(--...) tokens). --status-alert-bg/--status-warn-bg are the same
+    // faded-background tokens badges use app-wide.
+    { label: 'Critical Path', bg: 'var(--status-alert-bg)', border: colors.redCrit },
+    { label: 'Warning',       bg: 'var(--status-warn-bg)',  border: colors.yellow },
+    { label: 'Critical Disc', bg: 'var(--status-alert-bg)', border: colors.red },
   ];
   const lines = [
     { label: 'Today',         color: colors.white60, dashed: true },

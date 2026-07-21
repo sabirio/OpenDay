@@ -4,10 +4,16 @@ import { fetchActiveTemplate, saveTemplate } from '../data/templatesApi.js';
 
 const EPS = 0.001;
 
+// UI-consistency fix (2026-07-16): borderRadius was a hardcoded 10 instead
+// of the shared --radius-lg token every other card-shaped surface in the
+// app uses (design-system.css's own .card class, which this hand-rolled
+// object otherwise duplicates). This page is currently hidden from nav
+// (unwired save path — see App.jsx), so a full inline-style-to-className
+// rewrite wasn't attempted here; kept to a token-only fix.
 const card = {
   background: 'var(--bg-surface)',
   border: '1px solid var(--border)',
-  borderRadius: 10,
+  borderRadius: 'var(--radius-lg)',
   padding: '12px 16px',
 };
 

@@ -2,7 +2,7 @@
 
 export function FormSection({ title, accentColor = "var(--field-accent-contractor)", badge, children }) {
   return (
-    <div style={{ background: "white", border: "1px solid var(--field-border)", borderRadius: 14, marginBottom: 14, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+    <div style={{ background: "var(--field-bg-card)", border: "1px solid var(--field-border)", borderRadius: 14, marginBottom: 14, overflow: "hidden", boxShadow: "var(--field-shadow)" }}>
       <div style={{ padding: "12px 22px", borderBottom: "1px solid var(--field-bg-subtle)", borderLeft: `4px solid ${accentColor}`, background: "var(--field-bg-faint)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--field-text-heading)", margin: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>{title}</h3>
         {badge}
@@ -26,7 +26,7 @@ export function ToggleGroup({ name, label, options, value, onChange, colorMap })
               onClick={() => onChange(opt)} style={{
               padding: "9px 24px", borderRadius: 10,
               border: `2px solid ${sel ? (c.border || "var(--field-accent-contractor)") : "var(--field-border)"}`,
-              background: sel ? (c.bg || "var(--field-success-bg)") : "white",
+              background: sel ? (c.bg || "var(--field-success-bg)") : "var(--field-bg-card)",
               color: sel ? (c.color || "var(--field-success-fg-dark)") : "var(--field-text-muted)",
               fontSize: 14, fontWeight: sel ? 700 : 400, cursor: "pointer", transition: "all 0.12s",
             }}>
@@ -50,7 +50,7 @@ export function ChipGroup({ label, options, values, onToggle, activeBg = "var(--
             <button key={opt} type="button" onClick={() => onToggle(opt)} style={{
               padding: "7px 14px", borderRadius: 20,
               border: `1px solid ${sel ? activeBorder : "var(--field-border-strong)"}`,
-              background: sel ? activeBg : "white",
+              background: sel ? activeBg : "var(--field-bg-card)",
               color: sel ? activeColor : "var(--field-text-secondary)",
               fontSize: 13, fontWeight: sel ? 700 : 400, cursor: "pointer", transition: "all 0.1s",
             }}>

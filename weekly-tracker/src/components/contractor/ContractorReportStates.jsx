@@ -33,14 +33,14 @@ export function SubmittedReportState({ project, onSubmitAnother, onClose, idempo
           <button
             type="button"
             onClick={onSubmitAnother}
-            style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "var(--field-accent-contractor)", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+            style={{ padding: "12px 28px", borderRadius: 10, border: "none", background: "var(--field-accent-contractor)", color: "var(--field-text-on-accent)", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
           >
             Submit another report
           </button>
           <button
             type="button"
             onClick={onClose}
-            style={{ padding: "12px 28px", borderRadius: 10, border: "1px solid var(--field-border-strong)", background: "white", color: "var(--field-text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            style={{ padding: "12px 28px", borderRadius: 10, border: "1px solid var(--field-border-strong)", background: "var(--field-bg-card)", color: "var(--field-text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
           >
             Close
           </button>

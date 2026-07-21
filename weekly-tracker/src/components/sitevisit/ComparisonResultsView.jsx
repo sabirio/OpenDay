@@ -47,7 +47,7 @@ function ComparisonResultsView({ project, projectReports, savedVisit, onNewVisit
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
         {/* Result header */}
-        <div style={{ background: "white", borderRadius: 16, border: "1px solid var(--field-border)", padding: "24px 28px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ background: "var(--field-bg-card)", borderRadius: 16, border: "1px solid var(--field-border)", padding: "24px 28px", marginBottom: 16, boxShadow: "var(--field-shadow-lg)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
             <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--field-info-bg)", border: "2px solid var(--field-info-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>✓</div>
             <div>
@@ -71,7 +71,7 @@ function ComparisonResultsView({ project, projectReports, savedVisit, onNewVisit
         </div>
 
         {/* Comparison by WP */}
-        <div data-testid="comparison-table" style={{ background: "white", borderRadius: 14, border: "1px solid var(--field-border)", padding: "22px 24px", marginBottom: 14 }}>
+        <div data-testid="comparison-table" style={{ background: "var(--field-bg-card)", borderRadius: 14, border: "1px solid var(--field-border)", padding: "22px 24px", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, fontSize: 15, color: "var(--field-text-heading)", marginBottom: 4 }}>Comparison by Work Package</div>
           <div style={{ fontSize: 12, color: "var(--field-text-muted)", marginBottom: 18 }}>
             {refRep
@@ -100,7 +100,7 @@ function ComparisonResultsView({ project, projectReports, savedVisit, onNewVisit
                       ))}
                     </div>
                     {tasks.map(({ taskName, pmStatus, pmProgress, gcStatus, gcProgress, result: r }) => (
-                      <div key={taskName} style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px 110px", gap: 8, padding: "8px 10px", borderRadius: 8, background: r?.bg || "white", border: `1px solid ${r?.border || "var(--field-bg-subtle)"}`, marginBottom: 3, alignItems: "center" }}>
+                      <div key={taskName} style={{ display: "grid", gridTemplateColumns: "1fr 130px 130px 110px", gap: 8, padding: "8px 10px", borderRadius: 8, background: r?.bg || "var(--field-bg-card)", border: `1px solid ${r?.border || "var(--field-bg-subtle)"}`, marginBottom: 3, alignItems: "center" }}>
                         <div style={{ fontSize: 12, color: "var(--field-text-body)" }}>{taskName}</div>
                         <div style={{ fontSize: 12 }}>
                           <StatusPill status={gcStatus} />
@@ -148,7 +148,7 @@ function ComparisonResultsView({ project, projectReports, savedVisit, onNewVisit
         </div>
 
         {savedVisit.observations && (
-          <div style={{ background: "white", borderRadius: 14, border: "1px solid var(--field-border)", padding: "20px 22px", marginBottom: 14 }}>
+          <div style={{ background: "var(--field-bg-card)", borderRadius: 14, border: "1px solid var(--field-border)", padding: "20px 22px", marginBottom: 14 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>PM Observations</div>
             <div style={{ fontSize: 13, color: "var(--field-text-body)", lineHeight: 1.65, whiteSpace: "pre-wrap", background: "var(--field-bg-faint-alt)", borderRadius: 8, padding: "12px 16px" }}>{savedVisit.observations}</div>
           </div>
@@ -159,11 +159,11 @@ function ComparisonResultsView({ project, projectReports, savedVisit, onNewVisit
 
         <div style={{ display: "flex", gap: 12 }}>
           <button type="button" onClick={onNewVisit}
-            style={{ flex: 1, padding: "14px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, var(--field-accent-sitevisit-2) 100%)`, color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            style={{ flex: 1, padding: "14px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, var(--field-accent-sitevisit-2) 100%)`, color: "var(--field-text-on-accent)", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
             New Site Visit
           </button>
           <button type="button" onClick={() => window.history.back()}
-            style={{ padding: "14px 28px", borderRadius: 12, border: "1px solid var(--field-border-strong)", background: "white", color: "var(--field-text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            style={{ padding: "14px 28px", borderRadius: 12, border: "1px solid var(--field-border-strong)", background: "var(--field-bg-card)", color: "var(--field-text-secondary)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
             Back
           </button>
         </div>

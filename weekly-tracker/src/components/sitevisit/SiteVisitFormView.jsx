@@ -31,7 +31,7 @@ function SiteVisitFormView({
         <SiteVisitDraftRecovery result={draftCandidate} project={project} onContinue={onContinueDraft} onDiscard={onDiscardDraft} />
 
         {/* Header card */}
-        <div style={{ background: "white", borderRadius: 16, border: "1px solid var(--field-border)", padding: "24px 28px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+        <div style={{ background: "var(--field-bg-card)", borderRadius: 16, border: "1px solid var(--field-border)", padding: "24px 28px", marginBottom: 16, boxShadow: "var(--field-shadow-lg)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: ACCENT, marginBottom: 6 }}>PM Site Visit Report</div>
@@ -87,7 +87,7 @@ function SiteVisitFormView({
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Visit Date</div>
               <input type="date" value={form.visitDate} onChange={(e) => set("visitDate", e.target.value)}
-                style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 14, color: "var(--field-text-heading)", background: "white", outline: "none", width: "100%", boxSizing: "border-box" }} />
+                style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 14, color: "var(--field-text-heading)", background: "var(--field-bg-card)", outline: "none", width: "100%", boxSizing: "border-box" }} />
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Compare Against GC Report</div>
@@ -97,7 +97,7 @@ function SiteVisitFormView({
                 </div>
               ) : (
                 <select value={form.referenceReportId} onChange={(e) => handleReferenceChange(e.target.value)}
-                  style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 13, color: "var(--field-text-heading)", background: "white", outline: "none", width: "100%", cursor: "pointer" }}>
+                  style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 13, color: "var(--field-text-heading)", background: "var(--field-bg-card)", outline: "none", width: "100%", cursor: "pointer" }}>
                   <option value="">— No comparison —</option>
                   {projectReports.map((r) => (
                     <option key={r.id} value={String(r.id)}>
@@ -114,8 +114,8 @@ function SiteVisitFormView({
               Comparing against <strong>{referenceReport.reportingDate || new Date(referenceReport.submittedAt).toLocaleDateString("en-GB")}</strong>
               {" · "}Schedule: <strong>{referenceReport.projectScheduleStatus || "—"}</strong>
               {referenceReport.workPackageStatuses
-                ? <span style={{ marginLeft: 8, padding: "1px 6px", background: "var(--field-accent-sitevisit)", color: "white", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>WP Format</span>
-                : <span style={{ marginLeft: 8, padding: "1px 6px", background: "var(--field-text-muted)", color: "white", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>Legacy Format</span>
+                ? <span style={{ marginLeft: 8, padding: "1px 6px", background: "var(--field-accent-sitevisit)", color: "var(--field-text-on-accent)", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>WP Format</span>
+                : <span style={{ marginLeft: 8, padding: "1px 6px", background: "var(--field-text-muted)", color: "var(--field-text-on-accent)", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>Legacy Format</span>
               }
             </div>
           )}
@@ -165,7 +165,7 @@ function SiteVisitFormView({
                     onClick={() => set("pmScheduleAssessment", label)} style={{
                     padding: "9px 24px", borderRadius: 10,
                     border: `2px solid ${sel ? border : "var(--field-border)"}`,
-                    background: sel ? bg : "white",
+                    background: sel ? bg : "var(--field-bg-card)",
                     color: sel ? color : "var(--field-text-muted)",
                     fontSize: 13, fontWeight: sel ? 700 : 400, cursor: "pointer",
                   }}>{label}</button>
@@ -211,11 +211,11 @@ function SiteVisitFormView({
               style={{
                 width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
                 border: `2px solid ${form.declarationConfirmed ? ACCENT : "var(--field-border-strong)"}`,
-                background: form.declarationConfirmed ? ACCENT : "white",
+                background: form.declarationConfirmed ? ACCENT : "var(--field-bg-card)",
                 display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
               }}
             >
-              {form.declarationConfirmed && <span style={{ color: "white", fontSize: 13, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+              {form.declarationConfirmed && <span style={{ color: "var(--field-text-on-accent)", fontSize: 13, fontWeight: 800, lineHeight: 1 }}>✓</span>}
             </div>
             <span style={{ fontSize: 13, color: "var(--field-text-body)", lineHeight: 1.6, fontWeight: 500 }}>
               I confirm that the observations recorded reflect the actual site status as witnessed during this visit.
@@ -229,7 +229,7 @@ function SiteVisitFormView({
         <div className="field-form-sticky-submit-spacer" />
         <div className="field-form-sticky-submit">
           <button type="button" data-testid="save-site-visit-report" onClick={onSubmit} disabled={submitting || submitDisabled} aria-busy={submitting}
-            style={{ width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, var(--field-accent-sitevisit-2) 100%)`, color: "white", fontSize: 16, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.65 : 1, letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(8,145,178,0.35)" }}>
+            style={{ width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, var(--field-accent-sitevisit-2) 100%)`, color: "var(--field-text-on-accent)", fontSize: 16, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.65 : 1, letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(8,145,178,0.35)" }}>
             {submitting ? "Submitting site visit…" : "Submit Site Visit Report"}
           </button>
         </div>

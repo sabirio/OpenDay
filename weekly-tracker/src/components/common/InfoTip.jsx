@@ -53,12 +53,12 @@ export default function InfoTip({ topic, breakdown, pts, maxPts }) {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 200,
-            background: 'var(--bg-surface, #1a1a1a)',
+            background: 'var(--bg-surface)',
             border: '1px solid var(--border)',
             borderRadius: 10,
             padding: '12px 14px',
             width: 248,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+            boxShadow: 'var(--shadow-lg)',
             pointerEvents: 'auto',
           }}
         >

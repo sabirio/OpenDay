@@ -61,7 +61,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
                   position: 'relative',
                   padding: '8px 9px', minHeight: 44, borderRadius: 6, fontSize: 11,
                   border: isPM ? `1.5px solid ${opt.border}` : isGC ? `1px solid ${opt.border}` : '1px solid var(--field-border)',
-                  background: isPM ? opt.bg : isGC ? opt.bg + '80' : 'white',
+                  background: isPM ? opt.bg : isGC ? opt.bg + '80' : 'var(--field-bg-card)',
                   color: isPM ? opt.color : isGC ? opt.color : 'var(--field-text-muted)',
                   fontWeight: isPM ? 700 : 400,
                   cursor: 'pointer', whiteSpace: 'nowrap', outline: 'none',
@@ -71,7 +71,7 @@ function GanttPMTaskRow({ task, pmEntry, onChange }) {
                   <span style={{
                     position: 'absolute', top: -6, right: -4,
                     fontSize: 8, fontWeight: 800, lineHeight: 1.2,
-                    background: ACCENT, color: 'white',
+                    background: ACCENT, color: 'var(--field-text-on-accent)',
                     padding: '1px 3px', borderRadius: 3,
                     letterSpacing: '0.02em', pointerEvents: 'none',
                   }}>GC</span>

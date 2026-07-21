@@ -75,7 +75,7 @@ export function comparisonResult(pmStatus, gcStatus) {
   if (!pmStatus && !gcStatus) return null;
   // Either side marked N/A — exclude from comparison metrics entirely
   if (pmStatus === "Not Applicable" || gcStatus === "Not Applicable") return null;
-  if (!pmStatus) return { type: "not-assessed", badge: "Not assessed", color: "var(--field-text-label)", bg: "white",    border: "var(--field-bg-subtle)" };
+  if (!pmStatus) return { type: "not-assessed", badge: "Not assessed", color: "var(--field-text-label)", bg: "var(--field-bg-card)",    border: "var(--field-bg-subtle)" };
   if (!gcStatus) return { type: "no-gc",        badge: "No GC data",   color: "var(--field-text-secondary)",  bg: "var(--field-bg-faint-alt)", border: "var(--field-border)" };
   const cmp = compareWPTaskStatus(pmStatus, gcStatus); // 'match' | 'pm-higher' | 'gc-higher' — pmStatus/gcStatus already guaranteed truthy above
   if (cmp === "match")     return { type: "match",       badge: "✓ Match",       color: "var(--field-success-fg-dark)", bg: "var(--field-success-bg)", border: "var(--field-success-border)" };
