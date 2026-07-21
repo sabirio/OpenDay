@@ -1,20 +1,71 @@
-/* Snag List Mobile Field Mode — the dedicated "PLAN | LIST | ADD" shell
-   used by SnagFieldShell.jsx and its subviews. Only rendered below the
-   760px breakpoint shared with src/styles/snags.css and src/styles/plans.css
-   (see src/hooks/shared/useViewport.js FIELD_MODE_BREAKPOINT). Desktop
-   SnagListPage/PlanViewerPage markup is untouched by this file. */
-
+/* Field Snag List — a standalone field workflow rendered as a top-level
+   route outside <Layout> (see /field-snag/:projectId in App.jsx), the same
+   way /site-visit/:projectId renders SiteVisitReport with no sidebar/app
+   chrome. The whole shell below picks up Site Visit's fixed, theme-
+   independent light palette (the field- prefixed tokens in
+   design-system.css) by overriding the generic background, text, accent and
+   status color variables once here — every existing snag-field, plan and
+   snag rule inside this subtree already reads those generic variables, so
+   this is the only place the "white field workspace" look needs declaring. */
 .snag-field-shell {
+  --bg-base: var(--field-bg-snag);
+  --bg-surface: var(--field-bg-card);
+  --bg-elevated: var(--field-bg-card);
+  --bg-input: var(--field-bg-subtle);
+  --border: var(--field-border);
+  --border-strong: var(--field-border-strong);
+  --text-primary: var(--field-text-heading);
+  --text-secondary: var(--field-text-body);
+  --text-muted: var(--field-text-muted);
+  --accent: var(--field-accent-snag);
+  --accent-subtle: var(--field-accent-snag-subtle);
+  --status-alert: var(--field-danger-fg);
+  --status-alert-bg: var(--field-danger-bg);
+  --status-done: var(--field-success-fg);
+  --status-done-bg: var(--field-success-bg);
+  --status-warn: var(--field-warning-fg);
+  --status-warn-bg: var(--field-warning-bg);
+
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 24px);
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  min-height: 100vh;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  padding: 20px 20px calc(72px + env(safe-area-inset-bottom));
 }
 
-.snag-field-header { padding: 4px 0 10px; }
-.snag-field-header h1 { margin: 4px 0; font-size: 1.4rem; }
-.snag-field-header p { margin: 0; color: var(--text-muted); font-size: .8125rem; }
-.snag-field-body { flex: 1; min-width: 0; }
+.snag-field-back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+  font-size: .8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.snag-field-back-link:hover { color: var(--accent); }
+
+.snag-field-back-link,
+.snag-field-header,
+.snag-field-body { width: 100%; max-width: 680px; margin-left: auto; margin-right: auto; }
+.snag-field-header { padding: 0 0 14px; }
+.snag-field-header-card {
+  background: var(--field-bg-card);
+  border: 1px solid var(--field-border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: var(--field-shadow-lg);
+}
+.snag-field-eyebrow {
+  font-size: .625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--field-accent-snag);
+  margin-bottom: 6px;
+}
+.snag-field-header h1 { margin: 0; font-size: 1.75rem; font-weight: 800; color: var(--field-text-heading); line-height: 1.1; }
+.snag-field-header p { margin: 4px 0 0; color: var(--field-text-secondary); font-size: .875rem; }
+.snag-field-body { flex: 1; min-width: 0; padding-top: 16px; }
 
 /* ── Bottom tab bar (Plan | Add | List) ─────────────────────────────── */
 .snag-field-tabbar {
@@ -209,15 +260,4 @@
 
 @media (prefers-reduced-motion: reduce) {
   .snag-field-shell * { scroll-behavior: auto !important; transition-duration: .01ms !important; }
-}
-
-/* Explicit Field Snag List route remains field-oriented at every width. */
-@media (min-width: 641px) {
-  .snag-field-tabbar,
-  .snag-field-capture-confirm { left: 200px; }
-}
-
-@media (min-width: 901px) {
-  .snag-field-tabbar,
-  .snag-field-capture-confirm { left: 216px; }
 }

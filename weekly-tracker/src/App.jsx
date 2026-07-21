@@ -32,6 +32,8 @@ const ContractorSelect = lazy(() => import("./pages/ContractorSelect"));
 const SiteVisitSelect  = lazy(() => import("./pages/SiteVisitSelect"));
 const SnagListPage     = lazy(() => import("./pages/snags/SnagListPage"));
 const SnagFieldPage    = lazy(() => import("./pages/snags/SnagFieldPage"));
+const FieldSnagSelect  = lazy(() => import("./pages/snags/FieldSnagSelect"));
+const LegacyFieldSnagRedirect = lazy(() => import("./pages/snags/LegacyFieldSnagRedirect"));
 const SnagCreatePage   = lazy(() => import("./pages/snags/SnagCreatePage"));
 const SnagDetailPage   = lazy(() => import("./pages/snags/SnagDetailPage"));
 const SnagProjectSelectPage = lazy(() => import("./pages/snags/SnagProjectSelectPage"));
@@ -354,6 +356,19 @@ function App() {
           }
         />
 
+        {/* Canonical Field Snag workspace — a top-level route outside
+            <Layout>, same as /site-visit/:projectId, so it renders the
+            white field-workspace shell instead of the normal app chrome
+            (sidebar/header). */}
+        <Route
+          path="/field-snag/:projectId"
+          element={
+            <ProtectedRoute resource="snags">
+              <SnagFieldPage projects={projects} />
+            </ProtectedRoute>
+          }
+        />
+
         {/* ── Layout-wrapped protected routes ────────────────────── */}
         <Route
           path="/*"
@@ -390,8 +405,12 @@ function App() {
                     }
                   />
                   <Route path="/snags" element={<ProtectedRoute resource="snags"><SnagProjectSelectPage projects={projects}/></ProtectedRoute>} />
+                  <Route path="/field-snag" element={<ProtectedRoute resource="snags"><FieldSnagSelect projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/snags/field" element={<ProtectedRoute resource="snags"><SnagFieldPage projects={projects}/></ProtectedRoute>} />
+                  {/* Legacy path — the canonical Field Snag workspace now lives at
+                      /field-snag/:projectId (a top-level route outside <Layout>,
+                      see above). This keeps old deep links working. */}
+                  <Route path="/projects/:projectId/snags/field" element={<ProtectedRoute resource="snags"><LegacyFieldSnagRedirect/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/new" element={<ProtectedRoute resource="snags"><SnagCreatePage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagDetailPage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans" element={<ProtectedRoute resource="snags"><PlanManagementPage/></ProtectedRoute>} />

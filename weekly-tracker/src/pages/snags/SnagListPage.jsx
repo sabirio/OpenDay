@@ -32,7 +32,7 @@ export default function SnagListPage({ projects = [] }) {
           <h1>Site Snag</h1>
           <p>{project?.storeCode || `Project ${projectId}`} · {workspace.items.length} Observations</p>
         </div>
-        {workspace.model.canCreate ? <Link className="btn btn-primary snag-primary-action" to={`/projects/${projectId}/snags/field`}>Open Field Snag List</Link> : null}
+        {workspace.model.canCreate ? <Link className="btn btn-primary snag-primary-action" to={`/field-snag/${projectId}`}>Open Field Snag List</Link> : null}
       </header>
 
       <nav className="site-snag-tabs" aria-label="Site Snag sections">

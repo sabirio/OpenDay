@@ -28,7 +28,7 @@ export default function SnagFieldPlanView({ projectId, canCreate, autoStartCaptu
   const canvasRef = useRef(null);
   const pins = usePlanPins(projectId, plan?.id, page);
   const command = usePlanCommand(() => pins.reload());
-  const fieldReturn = `/projects/${projectId}/snags/field`;
+  const fieldReturn = `/field-snag/${projectId}`;
   const capture = useCaptureCommand(result => navigate(`/projects/${projectId}/snags/${result.snag.id}?capture=1`, { state: { returnTo: fieldReturn } }));
   const canPlace = canCreate && ['Admin', 'PM'].includes(role);
   const placement = usePlanPlacement({ projectId, planId: plan?.id, page, targetSnagId: null, targetVersion: null, command, navigate });

@@ -27,10 +27,10 @@ function planReturnUrl(projectId, snag) {
 }
 
 // `captureReturn` may come from a bare path with no query string (e.g. the
-// Field Snag List's `/projects/:id/snags/field` returnTo) as well as one
-// that already has one (`?placement=1&page=1`) — always appending `&` broke
-// the bare-path case into `.../field&created=<id>`, which React Router
-// then tried to match against `:snagId` instead of the intended route.
+// Field Snag List's `/field-snag/:id` returnTo) as well as one that already
+// has one (`?placement=1&page=1`) — always appending `&` broke the bare-path
+// case into `.../field-snag/<id>&created=<id>`, which React Router then
+// tried to match against `:snagId` instead of the intended route.
 function withCreatedParam(url, snagIdValue) {
   return `${url}${url.includes('?') ? '&' : '?'}created=${snagIdValue}`;
 }
@@ -83,7 +83,7 @@ export default function SnagDetailPage() {
   // Mobile Field Mode has no desktop plan-viewer route to return to — send
   // the PM back into the same field shell (defaults to Plan Mode) instead.
   const contextualReturn = routerLocation.state?.returnTo;
-  const isFieldReturn = Boolean(contextualReturn?.includes('/snags/field'));
+  const isFieldReturn = Boolean(contextualReturn?.includes('/field-snag/'));
   const captureReturn = query.get('capture') === '1' ? (contextualReturn || drawingReturn) : false;
   const detailReturn = contextualReturn || `/projects/${projectId}/snags?view=observations`;
   const selectedTrade = catalog.trades.find(item => item.id === (captureForm.tradeId || snag.tradeId));

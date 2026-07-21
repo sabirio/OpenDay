@@ -13,7 +13,11 @@ import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
 // correctly activate "Snag List" instead of "Portfolio".
 function isNavItemActive(item, pathname) {
   if (item.to === '/') return pathname === '/';
-  const isProjectScopedSnagOrPlan = /^\/projects\/[^/]+\/(snags|plans)(\/|$)/.test(pathname);
+  // The legacy /projects/:id/snags/field path is excluded here — it's a
+  // redirect-only compatibility route to /field-snag/:id (Field Snag
+  // List's own nav item), not part of Site Snag's management workspace.
+  const isProjectScopedSnagOrPlan = /^\/projects\/[^/]+\/(snags|plans)(\/|$)/.test(pathname)
+    && !/^\/projects\/[^/]+\/snags\/field(\/|$)/.test(pathname);
   if (item.to === '/projects') return pathname.startsWith('/projects') && !isProjectScopedSnagOrPlan;
   if (item.to === '/snags') return pathname === '/snags' || isProjectScopedSnagOrPlan;
   return pathname === item.to || pathname.startsWith(`${item.to}/`);

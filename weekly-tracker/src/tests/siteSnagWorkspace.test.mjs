@@ -34,10 +34,15 @@ const fieldShell = read('../components/snags/mobile/SnagFieldShell.jsx');
 const sitePlan = read('../components/snags/site/SiteSnagPlanView.jsx');
 const preview = read('../components/snags/site/SiteSnagPinPreview.jsx');
 
-check('Sidebar defines expandable Site Works with Site Visit and Site Snag children', permissions.includes("label: 'Site Works'") && permissions.includes("label: 'Site Visit'") && permissions.includes("label: 'Site Snag'") && sidebar.includes('aria-expanded={expanded}'));
+// Transitional phase (see fieldSnagStandalone.test.mjs for the full
+// standalone-Field-Snag-workflow contract): Site Snag moved out of Site
+// Works to a standalone top-level item; Site Works now groups the two
+// field-operation entry points (Site Visit + Field Snag List).
+const siteWorksBlock = (permissions.match(/id: 'site-works'[\s\S]*?\]/) || [''])[0];
+check('Sidebar defines expandable Site Works with Site Visit and Field Snag List children', siteWorksBlock.includes('Site Visit') && siteWorksBlock.includes('Field Snag List') && sidebar.includes('aria-expanded={expanded}'));
+check('Site Snag is a standalone top-level sidebar item, not nested in Site Works', permissions.includes("label: 'Site Snag'") && !siteWorksBlock.includes('Site Snag'));
 check('active Site Works child opens and marks its group active', sidebar.includes('toggleState.pathname === pathname ? toggleState.expanded : childActive') && sidebar.includes("sidebar-nav-group${childActive ? ' active' : ''}"));
-check('Field Snag List is not a permanent sidebar child', !permissions.includes("label: 'Field Snag List'"));
-check('explicit project-scoped Field Snag route is registered before snagId detail', app.indexOf('/projects/:projectId/snags/field') > -1 && app.indexOf('/projects/:projectId/snags/field') < app.indexOf('/projects/:projectId/snags/:snagId'));
+check('legacy project-scoped Field Snag route still exists as a compatibility redirect', app.indexOf('/projects/:projectId/snags/field') > -1 && app.indexOf('/projects/:projectId/snags/field') < app.indexOf('/projects/:projectId/snags/:snagId'));
 check('Site Snag exposes Overview, Plan and Observations', ['Overview', 'Plan', 'Observations'].every((label) => sitePage.includes(`label: '${label}'`)));
 check('Site Snag promotes only Open Field Snag List for capture', sitePage.includes('Open Field Snag List') && !sitePage.includes('Add Observation') && !sitePage.includes('CaptureSetup'));
 check('viewport no longer selects Site Snag vs Field Snag List', !sitePage.includes('useIsMobile') && !sitePage.includes('SnagFieldShell') && fieldPage.includes('<SnagFieldShell'));

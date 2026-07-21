@@ -62,7 +62,7 @@ const snagListPage = read('../pages/snags/SnagListPage.jsx');
 const snagFieldPage = read('../pages/snags/SnagFieldPage.jsx');
 const app = read('../App.jsx');
 check('Site Snag management shell remains the normal project route', snagListPage.includes('site-snag-page') && snagListPage.includes('Site Snag'));
-check('Field Snag List has an explicit project-scoped route', app.includes('/projects/:projectId/snags/field') && snagFieldPage.includes('<SnagFieldShell'));
+check('Field Snag List has a canonical standalone route (see fieldSnagStandalone.test.mjs for full routing contract)', app.includes('/field-snag/:projectId') && snagFieldPage.includes('<SnagFieldShell'));
 check('viewport no longer switches Site Snag into Field Snag List', !snagListPage.includes('useIsMobile') && !snagListPage.includes('<SnagFieldShell'));
 
 // ── Trade -> preferred stakeholder preselection wired into the shared detail page ──

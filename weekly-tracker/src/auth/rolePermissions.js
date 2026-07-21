@@ -33,12 +33,13 @@ export const NAV_ITEMS = [
   { to: '/',                   label: 'Project Dashboard', resource: 'dashboard'      },
   { to: '/projects',           label: 'Portfolio',        resource: 'projects'       },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
+  { to: '/snags',              label: 'Site Snag',        resource: 'snags'          },
   {
     id: 'site-works',
     label: 'Site Works',
     children: [
       { to: '/site-visit-select', label: 'Site Visit', resource: 'site_visit' },
-      { to: '/snags', label: 'Site Snag', resource: 'snags' },
+      { to: '/field-snag', label: 'Field Snag List', resource: 'snags' },
     ],
   },
   { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine'    },

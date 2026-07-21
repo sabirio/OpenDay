@@ -27,11 +27,15 @@ export default function SnagFieldShell({ projectId, project, status, reload, mod
 
   return (
     <div className="snag-field-shell">
+      <Link className="snag-field-back-link" to="/field-snag">← Field Snag List</Link>
       <header className="snag-field-header">
-        <div>
-          <Link className="snag-back" to={`/projects/${projectId}/snags`}>Back to Site Snag</Link>
-          <h1>Field Snag List</h1>
-          <p>{project?.storeCode || `Project ${projectId}`} · {model.total} items</p>
+        <div className="snag-field-header-card">
+          <div className="snag-field-eyebrow">Field Snag List</div>
+          <h1>{project?.storeCode || `Project ${projectId}`}</h1>
+          <p>
+            {[project?.shoppingMallName, project?.city].filter(Boolean).join(' · ')}
+            {model.total ? ` · ${model.total} Observation${model.total === 1 ? '' : 's'}` : ''}
+          </p>
         </div>
       </header>
 
