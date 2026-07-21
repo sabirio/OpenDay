@@ -28,7 +28,11 @@ export function computeRiskRows(baseRows, projects, reports, siteVisits, useSCur
   return baseRows.map(base => {
     const { project, latestReport, progress, projSiteVisits, sorted, riskScore, contScore } = base;
 
-    const schedDev       = computeScheduleDeviation(project, progress);
+    // Engine-audit fix (2026-07-16): base.calculatedAt is the single
+    // reference-time for this whole row (already threaded to Monte Carlo's
+    // `asOf` below) — schedDev must use the same instant, not silently
+    // default to a fresh `new Date()` at call time.
+    const schedDev       = computeScheduleDeviation(project, progress, base.calculatedAt);
     const trend          = computeTrend(sorted);
     const escalations    = computeEscalations(sorted, projSiteVisits);
     const dims           = computeDimensionRisk(project, latestReport, riskScore, schedDev, contScore, projSiteVisits);
