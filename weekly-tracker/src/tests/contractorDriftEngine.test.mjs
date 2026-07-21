@@ -39,7 +39,7 @@ export async function resolve(specifier, context, nextResolve) {
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
 const { computeDriftTimeline, computeDriftPattern, computeContractorDriftProfile,
-        computeBiasEwma, computeAdjustedProgress, computeDriftRiskFactor,
+        computeBiasEwma, computeAdjustedProgress, computeDriftRiskFactor, computeDriftConfidenceFactor,
         formatDriftPct, formatAbsDriftPct, driftMagnitude, DRIFT_SIGNIFICANCE_THRESHOLD } =
   await import('../engines/contractorDriftEngine.js');
 
@@ -313,6 +313,16 @@ check('E2: sampleCount=2 (<3) → unchanged', computeAdjustedProgress(70, 0.2, 2
 
 check('E6: clamps to 0 floor', computeAdjustedProgress(5, 0.5, 5) === 0);
 check('E7: clamps to 100 ceiling (negative bias = understatement)', computeAdjustedProgress(98, -0.5, 5) === 100);
+
+// ── E2) computeDriftConfidenceFactor — engine-audit fix (2026-07-16) ───────────
+// Single shared formula now backing both computeAdjustedProgress() (internal
+// use) and computeContractorDriftProfile()'s own returned confidenceFactor
+// field — previously two independent copies of Math.min(1, sampleCount/5).
+console.log('\nE2) computeDriftConfidenceFactor — shared formula');
+check('n=0 → 0',           computeDriftConfidenceFactor(0)  === 0);
+check('n=3 → 0.6',         computeDriftConfidenceFactor(3)  === 0.6);
+check('n=5 → 1 (full)',    computeDriftConfidenceFactor(5)  === 1);
+check('n=10 → capped at 1', computeDriftConfidenceFactor(10) === 1);
 
 // ── F) computeDriftRiskFactor ────────────────────────────────────────────────────
 console.log('\nF) computeDriftRiskFactor');

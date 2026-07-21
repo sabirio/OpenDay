@@ -149,6 +149,21 @@ export function computeBiasEwma(driftTimeline, alpha = 0.3) {
 }
 
 /**
+ * How much weight the bias estimate should carry, ramping linearly from 0
+ * to full weight as more site-visit samples accumulate (full weight at 5+).
+ * Engine-audit fix (2026-07-16): single shared source of truth — this exact
+ * formula previously lived independently in computeAdjustedProgress() and
+ * computeContractorDriftProfile(), risking silent divergence if one were
+ * ever tuned without the other (the recurring bug class this project has
+ * hit before — see F-02/F-01 in the July audit).
+ * @param {number} sampleCount
+ * @returns {number} 0-1
+ */
+export function computeDriftConfidenceFactor(sampleCount) {
+  return Math.min(1, sampleCount / 5);
+}
+
+/**
  * Apply a contractor's known bias to one reported progress value, for
  * forecasting only (Monte Carlo / SPI alternate series) — never for the
  * official reported number itself.
@@ -164,7 +179,7 @@ export function computeBiasEwma(driftTimeline, alpha = 0.3) {
  */
 export function computeAdjustedProgress(reportedProgress, biasEwma, sampleCount) {
   if (sampleCount < 3) return reportedProgress;
-  const confidenceFactor = Math.min(1, sampleCount / 5);
+  const confidenceFactor = computeDriftConfidenceFactor(sampleCount);
   const adjusted = reportedProgress - (biasEwma * 100) * confidenceFactor;
   return Math.round(Math.max(0, Math.min(100, adjusted)) * 10) / 10;
 }
@@ -248,7 +263,7 @@ export function computeContractorDriftProfile(projects, reports, siteVisits, con
   // in whatever order contractorProjects happened to be in, not date order.
   const chronological = [...allTimelines].sort((a, b) => new Date(a.date) - new Date(b.date));
   const { biasEwma, sampleCount } = computeBiasEwma(chronological);
-  const confidenceFactor = Math.min(1, sampleCount / 5);
+  const confidenceFactor = computeDriftConfidenceFactor(sampleCount);
   const reliable = sampleCount >= 3;
 
   return {
