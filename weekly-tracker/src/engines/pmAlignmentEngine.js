@@ -109,6 +109,40 @@ function computePmAlignmentItemsWP(gcReport, pmVisit) {
   return items;
 }
 
+// ─── Gantt-format site visit alignment (site_visit_wps) ──────────────────────
+
+/**
+ * Gantt-scheduled site visits persist one self-contained row per WP
+ * (site_visit_wps: gc_status/observed_status both live on the row, captured
+ * at visit time — no per-task decomposition, since Gantt WPs are already the
+ * atomic unit). Engine-audit fix (2026-07-16): this shape was previously
+ * unhandled by computePmAlignmentItems at all — computePmAlignmentItemsWP
+ * only reads the legacy pmVisit.pmWorkPackageStatuses field, which Gantt
+ * visits never populate (see siteVisitService.js, which maps rows to
+ * `visit.wps`) — so every risk factor and escalation built on top of this
+ * function (PM Site Visit mismatch / Hidden risk / Severity gap;
+ * escalationEngine's overstatement escalation) could never fire for the
+ * app's actual primary site-visit flow.
+ * @param {Record<string, any>} pmVisit
+ * @returns {AlignmentItem[]}
+ */
+function computePmAlignmentItemsGantt(pmVisit) {
+  const items = [];
+
+  for (const w of pmVisit.wps || []) {
+    const gcS = w.gc_status || null;
+    const pmS = w.observed_status || null;
+
+    // Only compare if PM has actually observed this WP.
+    if (!pmS) continue;
+
+    const item = buildAlignmentItem(w.wp_id, gcS, pmS, w.wp_id, null);
+    if (item) items.push(item);
+  }
+
+  return items;
+}
+
 // ─── Legacy column-based format alignment ────────────────────────────────────
 
 /**
@@ -156,6 +190,13 @@ function computePmAlignmentItemsLegacy(gcReport, pmVisit) {
  */
 export function computePmAlignmentItems(gcReport, pmVisit) {
   if (!gcReport || !pmVisit) return [];
+
+  // Gantt-format site visit — self-contained site_visit_wps rows, checked
+  // first since it's the app's actual primary flow today (see
+  // computePmAlignmentItemsGantt above for why this needs its own branch).
+  if (Array.isArray(pmVisit.wps) && pmVisit.wps.length > 0) {
+    return computePmAlignmentItemsGantt(pmVisit);
+  }
 
   // New format: workPackageStatuses on GC + pmWorkPackageStatuses on PM visit
   const useNewFormat =

@@ -243,6 +243,38 @@ console.log('\nB) Format auto-detect — WP path vs legacy path');
   check('B4: item.name === CONS_KEYS[0]',        items[0]?.name === CONS_KEYS[0]);
 }
 
+// B5-B7: Gantt-format site visit (site_visit_wps rows on pmVisit.wps) —
+// engine-audit regression (2026-07-16). This is the app's actual primary
+// site-visit flow and was previously completely unhandled: computePmAlignmentItems
+// would fall through to the legacy column path and find nothing, since
+// Gantt visits populate neither workPackageStatuses/pmWorkPackageStatuses
+// nor the legacy *Status columns.
+{
+  const gc = {}; // Gantt branch doesn't read gcReport — gc/observed status live on the wps row itself
+  const pmGantt = { wps: [{ wp_id: 'demolition', gc_status: 'Completed', observed_status: 'In Progress' }] };
+  const items = computePmAlignmentItems(gc, pmGantt);
+  check('B5: Gantt-format wps → item produced',           items.length === 1);
+  check('B5: Gantt-format → diff=0.5, Overstatement',      items[0]?.mismatchType === 'Overstatement');
+  check('B5: Gantt-format → overstate=true',               items[0]?.overstate === true);
+  check('B5: Gantt-format → wpId populated, taskName null', items[0]?.wpId === 'demolition' && items[0]?.taskName === null);
+}
+{
+  // B6: row with no observed_status (PM hasn't assessed this WP yet) → skipped
+  const pmGantt = { wps: [{ wp_id: 'demolition', gc_status: 'Completed', observed_status: null }] };
+  check('B6: Gantt-format WP not observed by PM → skipped → items=[]',
+    computePmAlignmentItems({}, pmGantt).length === 0);
+}
+{
+  // B7: wps takes priority over pmWorkPackageStatuses if both were somehow present
+  // (Gantt is the app's real format — checked first by design, see pmAlignmentEngine.js).
+  const pmBoth = {
+    wps: [{ wp_id: 'demolition', gc_status: 'Completed', observed_status: 'In Progress' }],
+    pmWorkPackageStatuses: { demolition: { 'Demolition works': { observedStatus: 'Not Started' } } },
+  };
+  const items = computePmAlignmentItems({ workPackageStatuses: {} }, pmBoth);
+  check('B7: Gantt wps branch takes priority when both shapes are present', items[0]?.taskName === null);
+}
+
 // ── C) computeConfidenceLevel ──────────────────────────────────────────────────
 // Points breakdown (max 10, P2.3 — was max 8 before photo evidence was added):
 //   reportCount ≥8→+3, ≥4→+2, ≥1→+1, else 0
