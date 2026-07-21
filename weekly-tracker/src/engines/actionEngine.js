@@ -1,4 +1,5 @@
 import { daysSince as daysSinceFn, daysUntil } from '../utils/reportUtils';
+import { PM_MISMATCH_FACTOR_NAMES } from './riskEngine.js';
 
 export function computeRecommendedActions(riskScore, contScore, schedDev, latestReport, projSiteVisits, project) {
   const actions = [];
@@ -20,7 +21,7 @@ export function computeRecommendedActions(riskScore, contScore, schedDev, latest
   if (daysSince > 14)
     actions.push({ priority: "HIGH", action: "Request overdue weekly report immediately", reason: `No report submitted for ${daysSince} days` });
 
-  if (riskScore.factors.some(f => f.name === "PM Site Visit mismatch" || f.name === "Hidden risk (PM vs GC)"))
+  if (riskScore.factors.some(f => PM_MISMATCH_FACTOR_NAMES.has(f.name)))
     actions.push({ priority: "HIGH", action: "Joint PM-contractor site walkthrough to align on progress status", reason: "PM site visit found status discrepancies" });
 
   if (dTo !== null && dTo >= 0 && dTo < 30)

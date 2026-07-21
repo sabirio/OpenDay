@@ -8,8 +8,9 @@
 //
 // TODO (later batches — need projReports+siteVisits+contScore fixtures):
 //   - computeProjectRiskScore
-//   - computeDimensionRisk
 //   - computeWeeklyEvolution
+// computeDimensionRisk: only its PM_MISMATCH_FACTOR_NAMES branch is covered
+// below (engine-audit regression, 2026-07-16) — not exhaustive.
 
 import { register } from 'node:module';
 
@@ -24,7 +25,7 @@ export async function resolve(specifier, context, nextResolve) {
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
 // Dynamic import AFTER loader is registered — applies the hook above.
-const { getRiskLevel, computeScheduleDeviation, computeTrend } =
+const { getRiskLevel, computeScheduleDeviation, computeTrend, computeDimensionRisk, PM_MISMATCH_FACTOR_NAMES } =
   await import('../engines/riskEngine.js');
 
 let pass = 0, fail = 0;
@@ -270,6 +271,30 @@ console.log('\nE) computeProjectRiskScore — Opening not achievable factor (A3)
   const noReadinessArg = computeProjectRiskScore(project, [minimalReport], 60, []);
   const noFactorEither = (noReadinessArg.factors || []).some(f => f.name === 'Opening not achievable');
   check('E5: omitting readiness entirely is safe (defaults to null, no crash, no factor)', !noFactorEither);
+}
+
+// ── F) computeDimensionRisk — PM Alignment via PM_MISMATCH_FACTOR_NAMES ────────
+// Engine-audit regression (2026-07-16): computeDimensionRisk's "PM Alignment"
+// bump only checked 2 of the 3 real factor names computeProjectRiskScore can
+// push, so a project whose ONLY PM-mismatch factor was "Severity gap (PM vs
+// GC)" showed "LOW" PM Alignment on RiskDashboard's dimension matrix despite
+// riskScore.rootCause correctly attributing points to PM Alignment.
+
+console.log('\nF) computeDimensionRisk — PM Alignment dimension via PM_MISMATCH_FACTOR_NAMES');
+{
+  const project = {};
+  const latestReport = {};
+  const projSiteVisits = [{ id: 'visit-1' }]; // only needs length > 0 to enter the branch
+
+  for (const name of PM_MISMATCH_FACTOR_NAMES) {
+    const riskScore = { score: 30, factors: [{ name, pts: 5, value: 'test' }] };
+    const dims = computeDimensionRisk(project, latestReport, riskScore, null, null, projSiteVisits);
+    check(`"${name}" alone bumps PM Alignment above LOW`, dims['PM Alignment'] !== 'LOW');
+  }
+
+  const noMismatch = { score: 0, factors: [{ name: 'Report staleness', pts: 5, value: 'test' }] };
+  const dimsNoMismatch = computeDimensionRisk(project, latestReport, noMismatch, null, null, projSiteVisits);
+  check('an unrelated factor does not bump PM Alignment', dimsNoMismatch['PM Alignment'] === 'LOW');
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

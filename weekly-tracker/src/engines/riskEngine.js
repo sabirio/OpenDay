@@ -11,6 +11,21 @@ import { sortReasons } from "../utils/reasonUtils";
 // Re-export config constants so all existing imports from riskEngine keep working.
 export { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER };
 
+// Every risk-factor name computeProjectRiskScore can push whose root cause is
+// a PM-vs-GC site-visit mismatch (see FACTOR_CATS' "PM Alignment" group
+// below). Single exported source of truth so every consumer that asks "does
+// this project have a PM/GC mismatch factor" — computeDimensionRisk here,
+// portfolioRiskEngine.js's pmMismatch KPI, actionEngine.js's recommended
+// actions — stays in sync with every factor name the scorer can actually
+// emit. Engine-audit fix (2026-07-16): "Severity gap (PM vs GC)" was missing
+// from all three consumers' own hardcoded OR-checks, silently undercounting
+// a real PM/GC discrepancy everywhere except riskScore.rootCause itself.
+export const PM_MISMATCH_FACTOR_NAMES = new Set([
+  "PM Site Visit mismatch",
+  "Hidden risk (PM vs GC)",
+  "Severity gap (PM vs GC)",
+]);
+
 // ── Reason helpers ────────────────────────────────────────────────────────────
 
 const FACTOR_SOURCE = {
@@ -455,7 +470,7 @@ export function computeDimensionRisk(project, latestReport, riskScore, schedDev,
   else if (reportAge > 14) bump("Reporting", "MEDIUM");
 
   if (projSiteVisits && projSiteVisits.length > 0) {
-    const mismatchFactor = riskScore.factors.find(f => f.name === "PM Site Visit mismatch" || f.name === "Hidden risk (PM vs GC)");
+    const mismatchFactor = riskScore.factors.find(f => PM_MISMATCH_FACTOR_NAMES.has(f.name));
     if (mismatchFactor) {
       if (mismatchFactor.pts >= 8)      bump("PM Alignment", "CRITICAL");
       else if (mismatchFactor.pts >= 5) bump("PM Alignment", "HIGH");

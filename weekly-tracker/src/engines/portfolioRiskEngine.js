@@ -1,6 +1,8 @@
 // Pure risk-aggregation helpers for the Risk Dashboard.
 // Each function is stateless: in → out, nothing stored.
 
+import { PM_MISMATCH_FACTOR_NAMES } from './riskEngine.js';
+
 /**
  * Risk-level breakdown + health/score summary for Risk Dashboard header.
  * @param {Array} allRows - RiskDashboard allRows (each with riskScore, health, project)
@@ -14,7 +16,7 @@ export function computeRiskSummaryStats(allRows) {
     r.daysToOpening !== null && r.daysToOpening >= 0 && r.daysToOpening < 30
   ).length;
   const pmMismatch = allRows.filter(r =>
-    r.riskScore.factors.some(f => f.name === "PM Site Visit mismatch" || f.name === "Hidden risk (PM vs GC)")
+    r.riskScore.factors.some(f => PM_MISMATCH_FACTOR_NAMES.has(f.name))
   ).length;
   return { ...c, avgScore, avgHealth, opening30, pmMismatch };
 }
