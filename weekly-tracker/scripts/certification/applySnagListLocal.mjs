@@ -30,7 +30,12 @@ assertLocalTarget({
 
 for (const [file, expectedHash] of migrations) {
   const migrationPath = path.join(migrationsDir, file);
-  const actualHash = createHash('sha256').update(readFileSync(migrationPath)).digest('hex');
+  // Manifest hashes bind the canonical Git blobs (LF). Windows checkouts may
+  // materialize text files with CRLF, which is SQL-equivalent but bytewise
+  // different. Normalize only line endings before verification so content
+  // changes still fail closed on every platform.
+  const canonicalBytes = Buffer.from(readFileSync(migrationPath, 'utf8').replace(/\r\n/g, '\n'));
+  const actualHash = createHash('sha256').update(canonicalBytes).digest('hex');
   if (actualHash !== expectedHash) {
     throw new Error(`REFUSING LOCAL SNAG DEPLOY: hash mismatch for ${file}`);
   }

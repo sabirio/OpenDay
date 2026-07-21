@@ -61,6 +61,7 @@ check('cert reset script is explicitly local destructive workflow', packageJson.
 check('UI certification reset keeps the Snag extension explicit', packageJson.scripts['cert:reset:ui'] === 'npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/seed-test-users.mjs');
 check('local Snag extension uses the canonical local guard before psql', snagLocal.indexOf('assertLocalTarget') < snagLocal.indexOf("execFileSync('psql'"));
 check('local Snag extension pins and verifies the approved 030-035 batch', ['030_snag_list_foundation.sql', '031_snag_reassignment_semantics.sql', '032_snag_project_contractors_rpc.sql', '033_snag_private_plan_pinning.sql', '034_snag_secure_evidence_lifecycle.sql', '035_snag_canonical_field_capture.sql'].every(file => snagLocal.includes(file)) && /createHash\('sha256'\)/.test(snagLocal));
+check('local Snag hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(snagLocal));
 check('fixture password supports LOCAL_FIXTURE_PASSWORD with safe local fallback', /LOCAL_FIXTURE_PASSWORD/.test(fixturePassword) && /DEFAULT_LOCAL_FIXTURE_PASSWORD/.test(fixturePassword));
 check('cert fixtures synchronize password for existing Auth users', /updateUserById\(existing\.id/.test(fixtures) && /password:\s*PASSWORD/.test(fixtures));
 check('cert fixture password regression script exists', /verifyFixturePasswordPersistence\.mjs/.test(packageJson.scripts['cert:verify-fixture-password']));
