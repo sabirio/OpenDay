@@ -7,6 +7,12 @@ const list = read('../pages/snags/SnagListPage.jsx');
 const observations = read('../components/snags/site/SiteSnagObservations.jsx');
 const create = read('../pages/snags/SnagCreatePage.jsx');
 const management = read('../pages/plans/PlanManagementPage.jsx');
+// Simplified Observation editor (refactor 2026-07-22): publish/duplicate/
+// archive are lifecycle-management actions, not capture/edit actions — they
+// were removed from this page's UI. The commands themselves are untouched;
+// the canonical migration is the source of truth that the server-side
+// capability still exists.
+const canonicalMigration = read('../migrations/035_snag_canonical_field_capture.sql');
 // The long-press/crosshair placement state machine (450ms press timer) was
 // extracted into usePlanPlacement (src/hooks/plans/usePlanController.js) so
 // Mobile Field Mode's Plan tab can reuse it instead of forking a second
@@ -25,10 +31,12 @@ check('the desktop viewer wires up the shared placement hook rather than its own
 check('keyboard placement remains available', /event\.key==='Enter'/.test(viewer));
 check('UI terminology is Observation while technical routes remain stable', /Observation/.test(viewer) && /Observations/.test(list) && /snags/.test(list));
 check('Done remains captured and does not publish', /Done - keep Captured/.test(detail) && /completeCapture/.test(detail));
-check('publish is an explicit separate action', /publishObservation/.test(detail) && /Publish Observation/.test(detail));
+check('publish remains an explicit, separate server-side capability', /publishObservation/.test(canonicalMigration));
+check('publish is no longer offered from the simplified Observation editor', !/Publish Observation/.test(detail) && !/publishObservation/.test(detail));
 check('batch publish has explicit selection', /Publish selected/.test(observations) && /type="checkbox"/.test(observations));
 check('trade and stakeholder are explicit selections', /Building trade/.test(detail) && /Responsible stakeholder/.test(detail));
-check('duplicate and archive are explicit audited actions', /duplicateObservation/.test(detail) && /archiveObservation/.test(detail));
+check('duplicate and archive remain explicit, audited server-side capabilities', /duplicateObservation/.test(canonicalMigration) && /archiveObservation/.test(canonicalMigration));
+check('duplicate/archive are no longer offered from the simplified Observation editor', !/duplicateObservation/.test(detail) && !/archiveObservation/.test(detail));
 check('full form returns to same drawing revision and page', /planReturn/.test(create) && /placement=1&page=/.test(create) && /created=\$\{result\.snag\.id\}/.test(create));
 check('captured detail Done returns to drawing context', /captureReturn/.test(detail) && /Back to drawing/.test(detail) && /withCreatedParam\(captureReturn, snag\.id\)/.test(detail));
 check('created-param helper is bare-path safe (no `?` in the return context does not break the route)', /url\.includes\('\?'\)/.test(detail));

@@ -347,16 +347,13 @@ body {
 }
 .observation-capture-card>div { margin-bottom: 14px; }
 .observation-capture-card form { display: flex; flex-direction: column; gap: 12px; }
+.observation-capture-card>.btn { margin-top: 4px; width: 100%; justify-content: center; }
 .trade-selection { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: .8125rem; }
 .trade-selection span { width: 14px; height: 14px; border-radius: 50%; background: var(--trade-color); border: 1px solid var(--border-strong); }
 .publication-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 10px; border-radius: var(--radius-full); font-size: .75rem; font-weight: 700; }
 .publication-badge.is-captured { background: var(--accent-subtle); color: var(--accent); }
 .publication-badge.is-published { background: var(--accent-subtle); color: var(--status-done); }
 .publication-badge.is-archived { background: var(--bg-elevated); color: var(--text-muted); }
-.snag-comments { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
-.snag-comments li { padding: 10px 12px; background: var(--bg-elevated); border-radius: var(--radius-sm); }
-.snag-comments small { color: var(--text-muted); }
-.snag-comment-form { display: flex; flex-direction: column; gap: 8px; }
 .capture-setup { margin-bottom: 14px; background: var(--bg-surface); border-radius: var(--radius-md); }
 .capture-setup summary { cursor: pointer; padding: 12px 14px; font-weight: 700; }
 .capture-setup-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; padding: 0 14px 14px; }
