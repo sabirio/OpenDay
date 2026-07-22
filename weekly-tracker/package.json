@@ -29,6 +29,7 @@
     "test:certification": "npm run cert:reset && npm run test:db && npm run test:rls && npm run test:storage"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.106.2",
     "pdfjs-dist": "^6.1.200",
     "react": "^19.2.6",
