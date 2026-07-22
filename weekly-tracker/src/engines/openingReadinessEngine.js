@@ -172,6 +172,18 @@ export function shortfallDays(slack) {
 /**
  * Compute opening readiness from latest cumulative WP statuses.
  *
+ * Readiness vs Risk (Risk Engine v2, 2026-07-22): this engine answers "what
+ * still needs to happen before opening, and is there still enough time?" —
+ * NOT "is this project currently deviating from plan?" (that's riskEngine.js).
+ * `criticalBlockers`/`softBlockers`/`blockerCount` are an INVENTORY of
+ * mandatory incomplete work — a work package being NOT_STARTED belongs there
+ * unconditionally, long before it's due. `status` is the one field that
+ * answers the risk-flavored question ("is the opening date itself at risk"),
+ * and it is deliberately driven by `verdict`/`slack` (the CPM-style
+ * longest-path close-out time vs. days actually remaining) rather than raw
+ * blocker count — a project with 30 remaining mandatory items and 300 days
+ * of comfortable slack is 'Ready', not 'Critical'.
+ *
  * @param {object|null}  wpCumulativeStatuses  - merged workPackageStatuses object
  * @param {string|null}  targetOpeningDate     - ISO date string
  * @param {string[]|null} [scopeWPIds]         - project's active WP ids (getScopeWPIds output);
@@ -215,29 +227,39 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate,
   const { requiredDays, criticalChain } = computeCriticalChain(blockerRecords, scopeWPIds, allWpIds, dependencyRules);
   const { slack, verdict } = computeVerdict(daysToOpening, requiredDays);
 
-  // Determine status (unchanged thresholds from before A2 — only the blocker
-  // list feeding them is now more complete, per the isBlocking() fix above).
+  // Risk Engine v2 (2026-07-22): status answers "is the opening date at
+  // risk?" — a SCHEDULE-FEASIBILITY question — not "how many mandatory items
+  // are still incomplete?". The previous version conflated the two: any
+  // nonzero blocker count (near-universal on a freshly-started project, since
+  // isBlocking() correctly counts never-reported work as incomplete) plus a
+  // same day-to-opening threshold auto-escalated to 'Critical'/'At Risk'
+  // regardless of whether there was still ample time to close them out. That
+  // produced "Opening date at risk — Critical" on healthy, on-track projects
+  // the day their first report was submitted.
+  //
+  // `verdict` (computed above, same call) already answers the feasibility
+  // question correctly: it's the CPM-style longest-path close-out time
+  // against the days actually remaining. Driving status from verdict instead
+  // of raw blocker-count reuses that existing, trustworthy signal rather than
+  // inventing a new one — READY_TRACK (comfortable slack) reads as 'Ready'
+  // even with many blockers still open; only TIGHT/NOT_ACHIEVABLE (genuinely
+  // shrinking or exhausted runway) escalate to 'At Risk'/'Critical'.
+  //
+  // criticalBlockers/softBlockers remain exactly as before — an inventory of
+  // what's still required before opening (Opening Readiness's own job), not
+  // a risk signal. A mandatory item may be REMAINING without being AT_RISK.
   let status;
 
   if (daysToOpening === null) {
     status = 'No Date';
   } else if (daysToOpening < 0) {
     status = 'Overdue';
-  } else if (criticalBlockers.length > 0 && daysToOpening < 60) {
+  } else if (verdict === 'NOT_ACHIEVABLE') {
     status = 'Critical';
-  } else if ((criticalBlockers.length > 0 || softBlockers.length > 2) && daysToOpening < 90) {
+  } else if (verdict === 'TIGHT') {
     status = 'At Risk';
-  } else if (criticalBlockers.length > 0 || softBlockers.length > 0) {
-    // Blockers exist but opening is far enough away — still flag At Risk
-    status = daysToOpening < 120 ? 'At Risk' : 'Ready';
   } else {
     status = 'Ready';
-  }
-
-  // Running out of runway is definitionally critical, regardless of where the
-  // day-threshold heuristics above land.
-  if (verdict === 'NOT_ACHIEVABLE' && status !== 'Overdue') {
-    status = 'Critical';
   }
 
   const reasons = [];
@@ -250,19 +272,22 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate,
     reasons.push({ type: 'critical', text: `Not achievable — needs ~${roundUpDays(requiredDays)}d to close remaining blockers, only ${daysToOpening}d left (short by ${shortfallDays(slack)}d)`, source: 'schedule' });
   } else if (verdict === 'TIGHT') {
     reasons.push({ type: 'warning', text: `Tight — needs ~${roundUpDays(requiredDays)}d to close remaining blockers, ${daysToOpening}d left`, source: 'schedule' });
-  } else if (status === 'Critical') {
-    reasons.push({ type: 'critical', text: `Critical opening: ${daysToOpening}d remaining`, source: 'schedule' });
-  } else if (status === 'At Risk') {
-    reasons.push({ type: 'warning', text: `Opening date at risk — ${daysToOpening}d remaining`, source: 'schedule' });
   } else {
     reasons.push({ type: 'positive', text: `Opening on track — ${daysToOpening}d remaining`, source: 'schedule' });
   }
 
+  // Per-blocker reason entries describe REMAINING work, not current risk —
+  // only tagged as an adverse (critical/warning) signal when the overall
+  // status already reflects a genuine schedule threat (At Risk/Critical/
+  // Overdue). On a healthy 'Ready' project, remaining blockers are neutral
+  // "still to do" facts, matching Opening Readiness's own job of answering
+  // "what remains" rather than "what's at risk".
+  const blockerIsUrgent = status !== 'Ready' && status !== 'No Date';
   for (const b of criticalBlockers) {
-    reasons.push({ type: 'critical', text: `Blocker: ${b.task} (${b.status})`, source: 'blocker' });
+    reasons.push({ type: blockerIsUrgent ? 'critical' : 'neutral', text: `Remaining: ${b.task} (${b.status})`, source: 'blocker' });
   }
   for (const b of softBlockers) {
-    reasons.push({ type: 'warning', text: `Soft blocker: ${b.task} (${b.status})`, source: 'blocker' });
+    reasons.push({ type: blockerIsUrgent ? 'warning' : 'neutral', text: `Remaining (soft): ${b.task} (${b.status})`, source: 'blocker' });
   }
   if (criticalBlockers.length === 0 && softBlockers.length === 0 && status !== 'No Date') {
     reasons.push({ type: 'positive', text: 'No critical path blockers', source: 'blocker' });
