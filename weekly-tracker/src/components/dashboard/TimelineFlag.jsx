@@ -53,9 +53,14 @@ export default function TimelineFlag({ opening }) {
               <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatDate(opening.targetDate)}</span>
             </div>
             {opening.blockerCount > 0 && (
+              // Requirements remaining is inventory ("what's left before
+              // opening"), not a risk signal — a healthy, on-track project
+              // can easily have dozens of these. Only color it as a warning
+              // when `status` itself already reflects a real schedule threat
+              // (the verdict-driven field below, not blocker count alone).
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Active blockers</span>
-                <span style={{ color: 'var(--status-alert)', fontWeight: 700 }}>{opening.blockerCount}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Requirements remaining</span>
+                <span style={{ color: opening.status === 'Ready' || opening.status === 'No Date' ? 'var(--text-primary)' : 'var(--status-alert)', fontWeight: 700 }}>{opening.blockerCount}</span>
               </div>
             )}
           </div>
