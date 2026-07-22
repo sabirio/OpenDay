@@ -2894,7 +2894,7 @@ button.weekly-phase-row {
 .site-visit-filters button, .site-visit-nav-actions button, .site-visit-review button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--field-border-strong); border-radius: 8px; background: var(--field-bg-card); color: var(--field-text-body); text-transform: capitalize; }
 .site-visit-filters button[aria-pressed="true"] { border-color: var(--field-accent-sitevisit); background: var(--field-info-bg); color: var(--field-info-fg-dark); font-weight: 700; }
 .site-visit-current-item { min-width: 0; padding: 12px 0; }
-.site-visit-group-label { margin-bottom: 5px; color: var(--field-text-label); font-size: .75rem; font-weight: 700; overflow-wrap: anywhere; }
+.site-visit-task-list { min-width: 0; padding-top: 4px; }
 .site-visit-nav-actions, .site-visit-review div { display: flex; justify-content: space-between; gap: 10px; }
 .site-visit-nav-actions button { min-width: 110px; }
 .site-visit-nav-actions button:disabled { opacity: .45; }

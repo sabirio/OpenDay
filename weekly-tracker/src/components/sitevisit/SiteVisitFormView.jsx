@@ -127,7 +127,7 @@ function SiteVisitFormView({
             <div style={{ textAlign: 'center', padding: '20px', color: 'var(--field-text-muted)', fontSize: 13 }}>Loading schedule…</div>
           </FormSection>
         ) : ganttTasks.length > 0 ? (
-          <SiteVisitTaskNavigator tasks={filteredTasks} allTasks={ganttTasks} navigation={navigation} filter={activeFilter} counts={reviewCounts} onFilter={onFilter} onNavigate={onNavigate} pmWpObservations={pmWpObservations} updatePMObservation={updatePMObservation} />
+          <SiteVisitTaskNavigator tasks={filteredTasks} allTasks={ganttTasks} navigation={navigation} filter={activeFilter} counts={reviewCounts} onFilter={onFilter} onNavigate={onNavigate} pmWpObservations={pmWpObservations} updatePMObservation={updatePMObservation} projectId={projectId} />
         ) : (
           WORK_PACKAGES.map((wp) => (
             <FormSection key={wp.id} title={wp.name} accentColor="var(--field-accent-orange-fg)">

@@ -28,7 +28,15 @@ const suppressions = walk(srcRoot)
 // suppression already reviewed/accepted for auth/AuthContext.jsx's `useAuth`
 // (a context+hook pair in one file is the standard React pattern this rule
 // otherwise flags).
-check('suppression inventory is exactly the reviewed 21 entries', suppressions.length === 21);
+//
+// Site Visit phase-collapse UX (2026-07-22): 22nd entry is
+// components/sitevisit/SiteVisitPhaseSection.jsx's auto-collapse effect,
+// using the exact same react-hooks/exhaustive-deps suppression already
+// reviewed/accepted for components/contractor/GanttWPSection.jsx's
+// PhaseSection (identical pattern: intentionally react only to `allComplete`
+// changing, not to `open`/`toggle`, so manually re-opening a completed phase
+// doesn't immediately re-trigger the auto-close).
+check('suppression inventory is exactly the reviewed 22 entries', suppressions.length === 22);
 check('every suppression is a single-line exception', suppressions.every(row => /eslint-disable-(?:next-line|line)|@ts-(?:ignore|expect-error)/.test(row.text)));
 check('no blanket eslint-disable exists', suppressions.every(row => !/^\/\/\s*eslint-disable\s*$/.test(row.text)));
 
