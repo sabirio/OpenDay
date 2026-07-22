@@ -13,6 +13,12 @@
   --bg-elevated:       oklch(0.3085 0.0035 106.6039);
   --bg-input:          oklch(0.3085 0.0035 106.6039);
 
+  /* Theme consolidation (2026-07-22): app shell sidebar recessed one notch
+     from --bg-base, same direction/magnitude as --bg-elevated steps up —
+     gives the sidebar a slight, warm-neutral shell identity distinct from
+     the page canvas without diverging into its own color system. */
+  --bg-sidebar:        oklch(0.2337 0.0036 106.6427);
+
   /* Borders */
   --border:            oklch(0.3618 0.0101 106.8928);
   --border-strong:     oklch(0.4336 0.0113 100.2195);
@@ -234,6 +240,7 @@
   --bg-surface:        oklch(0.9818 0.0054 95.0986);
   --bg-elevated:       oklch(1.0000 0 0);
   --bg-input:          oklch(1.0000 0 0);
+  --bg-sidebar:        oklch(0.9530 0.0060 95.0986);
 
 --border:            oklch(0.8847 0.0069 97.3627);
   --border-strong:     oklch(0.7621 0.0156 98.3528);

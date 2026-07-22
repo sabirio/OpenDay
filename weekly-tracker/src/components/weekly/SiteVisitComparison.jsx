@@ -101,7 +101,7 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
                           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 7 }}>{phase}</div>
                           <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: 8, overflow: 'hidden' }}>
                             <thead>
-                              <tr style={{ background: 'rgba(0,0,0,0.15)' }}>
+                              <tr style={{ background: 'var(--overlay-dim)' }}>
                                 {cols.map((h, ci) => (
                                   <th key={h} style={{ textAlign: ci === 3 ? 'right' : 'left', padding: '7px 12px', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, borderBottom: '1px solid var(--border)' }}>{h}</th>
                                 ))}

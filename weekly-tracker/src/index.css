@@ -37,8 +37,8 @@ body {
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sidebar {
   width: 216px;
-  background: #121214;
-  border-right: 0;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
   padding: 20px 12px;
   position: sticky;
   top: 0;
@@ -86,11 +86,11 @@ body {
   display: block;
 }
 .sidebar a:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--bg-elevated);
   color: var(--text-primary);
 }
 .sidebar a.active {
-  background: rgba(237, 122, 67, 0.14);
+  background: var(--accent-subtle);
   color: var(--accent);
   font-weight: 600;
   border-left: none;
@@ -122,7 +122,7 @@ body {
 .sidebar-nav-group-toggle:hover,
 .sidebar-nav-group-toggle:focus-visible,
 .sidebar-nav-group.active > .sidebar-nav-group-toggle {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--bg-elevated);
   color: var(--text-primary);
 }
 
@@ -728,14 +728,10 @@ body {
   color: var(--text-primary);
 }
 
-.main-content:has(.weekly-reports-surface) {
-  background: #121214;
-}
-
 .weekly-page-title {
   margin-bottom: -18px;
   padding: 20px 22px 8px;
-  background: #19191d;
+  background: var(--bg-surface-alpha);
   border-radius: 12px 12px 0 0;
 }
 
@@ -746,16 +742,15 @@ body {
 
 .weekly-page-title p {
   max-width: 720px;
-  color: color-mix(in srgb, var(--text-muted) 86%, white 14%);
+  color: var(--text-secondary);
 }
 
 .weekly-reports-toolbar {
   align-items: end;
   padding: 12px 22px 16px;
-  background: #19191d;
+  background: var(--bg-surface-alpha);
   border: 0;
   border-radius: 0 0 12px 12px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
   position: sticky;
   top: 0;
   z-index: 40;
@@ -773,13 +768,13 @@ body {
 }
 
 .weekly-reports-toolbar .dashboard-filter-group label {
-  color: color-mix(in srgb, var(--text-muted) 78%, white 22%);
+  color: var(--text-secondary);
 }
 
 .weekly-reports-toolbar .dashboard-filter-group select {
   min-height: 36px;
-  background: #202024;
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--bg-input);
+  border-color: var(--border);
 }
 
 .weekly-toolbar-actions {
@@ -792,7 +787,7 @@ body {
 .weekly-gantt-button {
   min-height: 36px;
   padding: 7px 13px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: transparent;
   color: var(--text-secondary);
@@ -805,8 +800,8 @@ body {
 
 .weekly-gantt-button:hover,
 .weekly-gantt-button:focus-visible {
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(255, 255, 255, 0.23);
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
   color: var(--text-primary);
   outline: none;
 }
@@ -820,7 +815,7 @@ body {
 .weekly-control-status {
   flex-basis: 100%;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.075);
+  border-top: 1px solid var(--border);
   color: var(--text-secondary);
   font-size: 0.8125rem;
 }
@@ -844,10 +839,9 @@ body {
 .weekly-project-context {
   position: relative;
   padding: 22px;
-  background: #18181c;
+  background: var(--bg-surface-alpha);
   border: 0;
   border-radius: var(--radius-lg);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.16);
 }
 
 .weekly-project-status {
@@ -876,7 +870,7 @@ body {
 }
 
 .weekly-project-meta-dot {
-  color: rgba(255, 255, 255, 0.22);
+  color: var(--text-muted);
 }
 
 .weekly-section-kicker {
@@ -938,13 +932,13 @@ body {
   padding: 10px 12px;
   border-radius: var(--radius-md);
   border: 0;
-  background: #202024;
+  background: var(--bg-elevated);
 }
 
 .weekly-truth-group-progress .weekly-truth-cell {
   min-height: 88px;
   padding: 13px 14px;
-  background: #232327;
+  background: var(--bg-elevated);
 }
 
 .weekly-truth-label {
@@ -982,7 +976,7 @@ body {
 .weekly-truth-cell.tone-accent .weekly-truth-value { color: var(--accent); }
 .weekly-truth-cell.tone-quiet .weekly-truth-value,
 .weekly-truth-cell.tone-quiet .weekly-truth-sub {
-  color: color-mix(in srgb, var(--text-muted) 72%, #777 28%);
+  color: var(--text-muted);
 }
 
 .weekly-console-tabs {
@@ -991,7 +985,7 @@ body {
   overflow-x: auto;
   padding: 0 2px;
   border: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.085);
+  border-bottom: 1px solid var(--border);
   border-radius: 0;
   background: transparent;
 }
@@ -1049,8 +1043,7 @@ body {
   padding: 18px;
   border: 0;
   border-radius: var(--radius-lg);
-  background: #18181c;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+  background: var(--bg-surface-alpha);
 }
 
 .weekly-action-panel h2 {
@@ -1071,7 +1064,7 @@ body {
   padding: 10px 12px;
   border: 0;
   border-radius: var(--radius-md);
-  background: #202024;
+  background: var(--bg-elevated);
 }
 
 .weekly-action-label {
@@ -1119,13 +1112,12 @@ body {
 .weekly-phase-board {
   margin-bottom: 0;
   border: 0;
-  background: #18181c;
+  background: var(--bg-surface-alpha);
 }
 
 .weekly-compact-trend {
   padding: 18px;
   border-radius: var(--radius-lg);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
 .weekly-compact-trend.is-empty {
@@ -1175,7 +1167,7 @@ body {
   padding: 12px;
   border: 0;
   border-radius: var(--radius-md);
-  background: #202024;
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   text-align: left;
   font: inherit;
@@ -1196,11 +1188,11 @@ button.weekly-phase-row {
   height: 100%;
   min-height: 72px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.13);
+  background: var(--border-strong);
 }
 
 .weekly-phase-marker.status-done {
-  background: color-mix(in srgb, var(--status-done) 72%, #8e9690 28%);
+  background: var(--status-done);
 }
 
 .weekly-phase-marker.status-current {
@@ -1210,7 +1202,7 @@ button.weekly-phase-row {
 
 .weekly-phase-marker.status-upcoming,
 .weekly-phase-marker.status-out_of_scope {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border);
 }
 
 .weekly-phase-title {
@@ -1259,7 +1251,7 @@ button.weekly-phase-row {
   justify-self: start;
   padding: 4px 8px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--bg-elevated);
   text-transform: capitalize;
   font-weight: 800;
   font-size: 0.6875rem;
@@ -1329,7 +1321,7 @@ button.weekly-phase-row {
 .weekly-why-panel {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border);
 }
 
 .weekly-why-toggle {
@@ -1340,9 +1332,9 @@ button.weekly-phase-row {
   justify-content: space-between;
   gap: 10px;
   padding: 8px 11px;
-  border: 1px solid rgba(255, 255, 255, 0.11);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: #202024;
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 800;
@@ -1351,7 +1343,7 @@ button.weekly-phase-row {
 
 .weekly-why-toggle:hover,
 .weekly-why-toggle:focus-visible {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--border-strong);
   color: var(--text-primary);
   outline: none;
 }
@@ -1369,10 +1361,9 @@ button.weekly-phase-row {
   margin-bottom: 0;
   height: 100%;
   box-sizing: border-box;
-  background: #18181c;
+  background: var(--bg-surface-alpha);
   border: 0;
   border-radius: var(--radius-lg);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
 .weekly-kpi-strip {
@@ -1440,7 +1431,7 @@ button.weekly-phase-row {
 .weekly-progress-chart-card {
   margin-bottom: 0;
   border: 0;
-  background: #18181c;
+  background: var(--bg-surface-alpha);
 }
 
 .weekly-chart-head {
@@ -1491,7 +1482,7 @@ button.weekly-phase-row {
   gap: 16px;
   margin-bottom: 0;
   padding: 20px;
-  background: #18181c;
+  background: var(--bg-surface-alpha);
   border: 0;
   border-radius: var(--radius-lg);
 }
@@ -1504,13 +1495,13 @@ button.weekly-phase-row {
 
 .weekly-comparison-kpis [data-testid="kpi-card"] {
   border: 0;
-  background: #202024;
+  background: var(--bg-elevated);
 }
 
 .weekly-comparison-list {
   margin-bottom: 0;
   border: 0;
-  background: #202024;
+  background: var(--bg-elevated);
 }
 
 .weekly-comparison-empty {
@@ -1519,7 +1510,7 @@ button.weekly-phase-row {
   padding: 40px 24px;
   color: var(--text-secondary);
   border: 0;
-  background: #202024;
+  background: var(--bg-elevated);
 }
 
 .weekly-comparison-empty h3 {
@@ -1754,7 +1745,7 @@ button.weekly-phase-row {
 
 .data-table td { color: var(--text-body); }
 .data-table tbody tr:hover { background: var(--bg-elevated); }
-.data-table tbody tr.row--alert { background: rgba(239, 68, 68, 0.08); }
+.data-table tbody tr.row--alert { background: var(--status-alert-bg); }
 
 
 /* ============================================================
@@ -1808,7 +1799,7 @@ button.weekly-phase-row {
   max-width: 92vw;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal-header {
@@ -1817,7 +1808,7 @@ button.weekly-phase-row {
   align-items: center;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--overlay-dim);
 }
 
 .modal-header h2 {
@@ -2019,7 +2010,7 @@ button.weekly-phase-row {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 .login-header {
@@ -2389,7 +2380,7 @@ button.weekly-phase-row {
   align-items: center;
   padding: 10px;
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--bg-base);
 }
 
 .sidebar-profile-avatar {
@@ -2551,7 +2542,7 @@ button.weekly-phase-row {
   cursor: pointer;
   padding: 7px 10px;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
   font-size: 0.8125rem;
   transition: background 0.15s;
 }
