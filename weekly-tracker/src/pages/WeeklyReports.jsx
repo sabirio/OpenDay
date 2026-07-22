@@ -5,7 +5,7 @@ import { useWeeklyGanttTasks } from "../hooks/useWeeklyGanttTasks";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/shared/Toast.jsx";
 import PrintHeader from "../components/print/PrintHeader";
-import ExportButton from "../components/print/ExportButton";
+import WeeklyReportExportButton from "../components/weekly/WeeklyReportExportButton";
 // TODO wave4: WORK_PACKAGES here is the intentional legacy-report fallback
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
 // report model, gated on Gantt-vs-legacy report shape. Audited
@@ -216,7 +216,20 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           onProjectChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}
           onReportChange={e => setSelectedReportId(e.target.value)}
           onToggleGantt={() => setShowGantt(v => !v)}
-          actions={selectedProject ? <ExportButton label="Export PDF" compact /> : null}
+          actions={selectedProject ? (
+            <WeeklyReportExportButton
+              project={selectedProject}
+              report={selectedReport}
+              prevReport={prevReport}
+              projectReports={projectReports}
+              siteVisits={siteVisits}
+              canonicalResult={selectedRow?.canonical ?? null}
+              activeTemplate={activeTemplate}
+              legacyWorkPackages={WORK_PACKAGES}
+              overallProgress={overallProgress}
+              onError={toast.error}
+            />
+          ) : null}
           statusLine={selectedProject ? (
             <span>
               <strong>{selectedProject.storeCode}</strong>
