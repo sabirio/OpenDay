@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { assertLocalTarget } from '../../scripts/certification/localTargetGuard.mjs';
 
 let pass = 0, fail = 0;
@@ -27,6 +27,7 @@ const f03 = readFileSync(new URL('../../scripts/verify-f03-scope-narrowing.mjs',
 const backfill = readFileSync(new URL('../migrations/backfillProgressHistory.js', import.meta.url), 'utf8');
 const storageDelete = readFileSync(new URL('../../scripts/storage/deleteOrphans.mjs', import.meta.url), 'utf8');
 const contract = JSON.parse(readFileSync(new URL('../../../scripts/contracts/canonical-security-contract.json', import.meta.url), 'utf8'));
+const migrationFiles = readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql'));
 
 console.log('\nlocalCertificationMigrationPath - target and fixture safety');
 check('IPv4 loopback accepted', accepts());
@@ -62,8 +63,30 @@ check('UI certification reset keeps the Snag extension explicit', packageJson.sc
 check('local Snag extension uses the canonical local guard before psql', snagLocal.indexOf('assertLocalTarget') < snagLocal.indexOf("execFileSync('psql'"));
 check('local Snag extension pins and verifies the approved 030-035 batch', ['030_snag_list_foundation.sql', '031_snag_reassignment_semantics.sql', '032_snag_project_contractors_rpc.sql', '033_snag_private_plan_pinning.sql', '034_snag_secure_evidence_lifecycle.sql', '035_snag_canonical_field_capture.sql'].every(file => snagLocal.includes(file)) && /createHash\('sha256'\)/.test(snagLocal));
 check('local Snag hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(snagLocal));
+
+// Structural migration-completeness guard: the fresh-install path is a
+// two-part composition (canonical contract's 000-029 + applySnagListLocal.mjs's
+// separately-approved 030-035 batch) rather than one single list. This proves
+// their UNION still covers every migration file that belongs on the
+// fresh-install path (all files except the contract's own documented
+// excludedHistorical/excludedSkipOnFresh sets) — so a future migration
+// (036+) added to src/migrations/ without being added to EITHER list fails
+// this check immediately, instead of only being discovered by a silently
+// incomplete local reset (as 030-035 was before this fix).
+const excludedHistorical = new Set(contract.canonicalMigrationPath.excludedHistorical.files);
+const excludedSkipOnFresh = new Set(contract.canonicalMigrationPath.excludedSkipOnFresh.files);
+const expectedFreshInstallSet = migrationFiles.filter(f => !excludedHistorical.has(f) && !excludedSkipOnFresh.has(f));
+const snagBatchFiles = [...snagLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles]);
+check('fresh-install migration set is exactly covered by canonical contract (000-029) + approved Snag batch (030-035), no gaps',
+  expectedFreshInstallSet.every(f => coveredSet.has(f)));
+check('fresh-install coverage contains no unexpected extras beyond the expected set',
+  [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
+check('at least one migration beyond 029 is covered (guards against this check being vacuously true)', snagBatchFiles.length >= 6);
+
 check('fixture password supports LOCAL_FIXTURE_PASSWORD with safe local fallback', /LOCAL_FIXTURE_PASSWORD/.test(fixturePassword) && /DEFAULT_LOCAL_FIXTURE_PASSWORD/.test(fixturePassword));
 check('cert fixtures synchronize password for existing Auth users', /updateUserById\(existing\.id/.test(fixtures) && /password:\s*PASSWORD/.test(fixtures));
+check('cert fixtures keep deterministic profile names on repeated resets (handle_new_user() trigger sets an email-prefix name first)', /name = EXCLUDED\.name/.test(fixtures));
 check('cert fixture password regression script exists', /verifyFixturePasswordPersistence\.mjs/.test(packageJson.scripts['cert:verify-fixture-password']));
 check('Playwright guard runs before web server declaration', playwright.indexOf('assertLocalTarget') < playwright.indexOf('webServerCommand'));
 check('Playwright requires fixture preflight before Vite', /playwrightPreflight\.mjs && npm\.cmd run dev/.test(playwright));

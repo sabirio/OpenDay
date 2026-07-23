@@ -93,15 +93,22 @@ async function main() {
     console.log(`  user ${spec.key.padEnd(24)} ${spec.email.padEnd(38)} -> ${id}`);
   }
 
-  // Upsert profiles (auth.users has no profile-creation trigger in the
-  // fresh-path chain — confirmed absent in Stage 2's grep of 000-025).
+  // Upsert profiles. Stage 2's grep of 000-025 found no profile-creation
+  // trigger at the time this was written, but 028_production_security_reconciliation.sql
+  // (part of the current fresh path) later added on_auth_user_created ->
+  // handle_new_user(), which auto-inserts a profiles row (name =
+  // split_part(email, '@', 1), role='Viewer') the moment ensureUser() above
+  // creates the auth user — before this INSERT ever runs. Without
+  // `name = EXCLUDED.name` in the ON CONFLICT SET, that trigger-derived
+  // email-prefix name would silently survive every reset instead of the
+  // deterministic name intended here.
   for (const spec of USERS) {
     const assigned = spec.assigned_projects ?? [];
     psql(`
       INSERT INTO public.profiles (id, name, role, company_id, assigned_projects, email)
       VALUES ('${ids[spec.key]}', '${spec.key}', '${spec.role}', '${spec.company_id}', '{${assigned.join(',')}}', '${spec.email}')
       ON CONFLICT (id) DO UPDATE SET
-        role = EXCLUDED.role, company_id = EXCLUDED.company_id,
+        name = EXCLUDED.name, role = EXCLUDED.role, company_id = EXCLUDED.company_id,
         assigned_projects = EXCLUDED.assigned_projects, email = EXCLUDED.email;
     `);
   }
