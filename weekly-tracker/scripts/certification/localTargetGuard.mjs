@@ -1,6 +1,13 @@
-const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost']);
+// Exported so other local-only guards (e.g. scripts/dev/assertLocalDevTarget.mjs)
+// can classify hosts the same way this file does, without depending on this
+// file's own stricter assertLocalTarget() contract (LOCAL_FIXTURE_MODE=1,
+// exact port pinning, etc.) — that contract exists specifically to gate
+// destructive certification/reset operations behind deliberate opt-in, which
+// is a different, stronger bar than "is this host loopback at all." Purely
+// additive: assertLocalTarget()'s own behavior below is unchanged.
+export const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost']);
 
-function isHostedSupabaseHost(hostname) {
+export function isHostedSupabaseHost(hostname) {
   return hostname.endsWith('.supabase.co') || hostname.endsWith('.supabase.com');
 }
 

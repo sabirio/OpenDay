@@ -21,6 +21,7 @@ scripts/staging/staging-fixture-state.json
 .env
 .env.*
 !.env.example
+!.env.development.local.example
 
 # Prevent accidental commit of archives that may contain secrets
 *.zip
