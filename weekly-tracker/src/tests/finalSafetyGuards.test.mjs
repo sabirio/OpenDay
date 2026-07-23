@@ -36,7 +36,14 @@ const suppressions = walk(srcRoot)
 // PhaseSection (identical pattern: intentionally react only to `allComplete`
 // changing, not to `open`/`toggle`, so manually re-opening a completed phase
 // doesn't immediately re-trigger the auto-close).
-check('suppression inventory is exactly the reviewed 22 entries', suppressions.length === 22);
+//
+// Contractor Workspace / My Work (2026-07-22): 23rd entry is
+// hooks/useContractorWorkspace.js's data-load effect, using the exact same
+// react-hooks/set-state-in-effect suppression already reviewed/accepted for
+// App.jsx's loadProjects() effect (a genuine async network fetch — the
+// textbook legitimate effect use, not a synchronous local-state computation
+// that could be moved to render).
+check('suppression inventory is exactly the reviewed 23 entries', suppressions.length === 23);
 check('every suppression is a single-line exception', suppressions.every(row => /eslint-disable-(?:next-line|line)|@ts-(?:ignore|expect-error)/.test(row.text)));
 check('no blanket eslint-disable exists', suppressions.every(row => !/^\/\/\s*eslint-disable\s*$/.test(row.text)));
 

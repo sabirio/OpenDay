@@ -2311,14 +2311,17 @@ button.weekly-phase-row {
   font-size: 0.8125rem;
   color: var(--text-secondary);
 }
-.contractor-project-detail {
+.contractor-work-status {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.contractor-project-actions {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  gap: 8px;
+  margin-top: 6px;
 }
-.contractor-project-btn { margin-top: 6px; width: 100%; }
+.contractor-project-btn { width: 100%; }
 
 
 /* ============================================================

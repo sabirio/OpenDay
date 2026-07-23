@@ -325,7 +325,7 @@ function App() {
           path="/contractor-select"
           element={
             <ProtectedRoute resource="contractor_report">
-              <ContractorSelect projects={projects} />
+              <ContractorSelect projects={projects} reports={reports} />
             </ProtectedRoute>
           }
         />
