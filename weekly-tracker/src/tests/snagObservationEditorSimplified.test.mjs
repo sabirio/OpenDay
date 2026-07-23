@@ -2,9 +2,17 @@ import { readFileSync } from 'node:fs';
 
 // Product contract for the simplified Observation capture/edit page
 // (refactor 2026-07-22): one primary working card (form + evidence),
-// no management sidebar, no Issue/Comments/History sections. See
+// no management sidebar, no Issue/Comments sections. See
 // PHASE-level task notes in SnagDetailPage.jsx for the architecture
 // rationale — this page is shared by both Site Snag and Field Snag.
+//
+// Amendment (P0 lifecycle-UI fix): History was deliberately brought back
+// on this same page — not as a revival of the old "Available actions"
+// sidebar, but because exposing the existing ASSIGNED -> IN_PROGRESS ->
+// READY_FOR_REVIEW -> CLOSED lifecycle here means a Contractor must be able
+// to see a PM's rejection reason (stored on the same canonical snag_events
+// row the History timeline already renders). Comments remain absent —
+// unchanged from the 2026-07-22 simplification.
 
 let pass = 0, fail = 0;
 const check = (name, value) => value ? (pass++, console.log(`  OK ${name}`)) : (fail++, console.error(`  FAIL ${name}`));
@@ -42,9 +50,10 @@ check('category/discipline/creator/updated metadata dl is gone from this page (s
 check('the Comments list/add-comment form no longer renders', !/<h2>Comments<\/h2>/.test(detail) && !detail.includes('Add to Activity') && !detail.includes('snag-comment-form'));
 check('addComment command wiring/state was removed from this page', !detail.includes("type: 'addComment'") && !detail.includes('setComment'));
 
-// ── 6. History UI is gone, event persistence is not touched ──────────
-check('the History/SnagHistory timeline no longer renders on this page', !detail.includes('SnagHistory') && !detail.includes('events={events}'));
-check('event history recording remains fully intact elsewhere (event log table + append-only trigger untouched)', canonicalMigration.includes('snag_events') || (() => { try { return readFileSync(new URL('../migrations/030_snag_list_foundation.sql', import.meta.url), 'utf8').includes('snag_events'); } catch { return false; } })());
+// ── 6. History now renders again (P0 lifecycle-UI amendment), Comments still doesn't ──
+check('SnagHistory now renders on this page, reusing the existing events already fetched by useSnagDetail (no second fetch/store)', detail.includes('<SnagHistory events={events}'));
+check('Comments UI is still absent (this amendment only restored History, not the full pre-simplification sidebar)', !/<h2>Comments<\/h2>/.test(detail) && !detail.includes('snag-comment-form'));
+check('event history recording remains fully intact and untouched (event log table + append-only trigger)', canonicalMigration.includes('snag_events') || (() => { try { return readFileSync(new URL('../migrations/030_snag_list_foundation.sql', import.meta.url), 'utf8').includes('snag_events'); } catch { return false; } })());
 
 // ── 7. Done stays Captured-only; no implicit publish ─────────────────
 check('Done saves via completeCapture and keeps the label "Done - keep Captured"', detail.includes("type: 'completeCapture'") && detail.includes('Done - keep Captured'));
