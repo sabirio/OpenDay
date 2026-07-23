@@ -13,7 +13,7 @@ export async function resolve(specifier, context, nextResolve) {
 }`;
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
-const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult, calculateWPTaskWeightedProgress, calculateRawWPAverageProgress, calculateGanttPhaseAverageProgress, calculatePhaseAverageProgressWithOverrides, getWPStatusTier, getDefaultProgressForGanttStatus, formatScheduleGapPp, countTasksByStatus } =
+const { buildWeekOverWeekComparison, calculateProgressComparison, calculateProjectProgress, calculateProjectProgressResult, calculateWPTaskWeightedProgress, calculateRawWPAverageProgress, calculateGanttPhaseAverageProgress, calculatePhaseAverageProgressWithOverrides, getWPStatusTier, getDefaultProgressForGanttStatus, formatScheduleGapPp, countTasksByStatus, resolveLegacyTaskEffectiveProgressPct } =
   await import('../engines/progressEngine.js');
 
 const { getCommands } = await import('../engines/commandEngine.js');
@@ -388,6 +388,33 @@ console.log('\ngetDefaultProgressForGanttStatus — pinned against pre-refactor 
   assert('countTasksByStatus counts In Progress', inProgress === 1);
   assert('countTasksByStatus ignores missing entries (task "e")', completed + inProgress === 3);
   assert('countTasksByStatus empty list -> zeros', countTasksByStatus([], {}).completed === 0);
+}
+
+// ── resolveLegacyTaskEffectiveProgressPct — P0 fix: legacy (non-Gantt) WP
+// task effective progress. Same "explicit progress wins, else status score"
+// rule config/workPackages.js's computePackageProgress() already applies at
+// package level, at single-task granularity — used by
+// buildContractorReportSubmission.js's legacy WP-row synthesis so
+// contractor_report_wps.progress_pct isn't unconditionally 0/wrong. ──────────
+console.log('\nresolveLegacyTaskEffectiveProgressPct — legacy WP task effective progress (P0 fix)');
+{
+  assert('Completed with no explicit progress -> 100 (status score)', resolveLegacyTaskEffectiveProgressPct('Completed', 0) === 100);
+  assert('In Progress with no explicit progress -> 50 (status score)', resolveLegacyTaskEffectiveProgressPct('In Progress', 0) === 50);
+  assert('Not Started with no explicit progress -> 0 (status score)', resolveLegacyTaskEffectiveProgressPct('Not Started', 0) === 0);
+  assert('Not Applicable with no explicit progress -> 0 (score is null, coerced to 0 — callers exclude N/A before calling this)', resolveLegacyTaskEffectiveProgressPct('Not Applicable', 0) === 0);
+  assert('unknown/invalid status with no explicit progress -> 0, fails safe, does not throw', resolveLegacyTaskEffectiveProgressPct('garbage-status', 0) === 0);
+  assert('missing status (undefined) -> 0, fails safe', resolveLegacyTaskEffectiveProgressPct(undefined, 0) === 0);
+
+  assert('explicit progress > 0 wins over status score (In Progress + 80 -> 80, not 50)', resolveLegacyTaskEffectiveProgressPct('In Progress', 80) === 80);
+  assert('explicit progress > 0 wins even against Completed (Completed + 30 -> 30, not 100)', resolveLegacyTaskEffectiveProgressPct('Completed', 30) === 30);
+  assert('explicit progress of exactly 0 does NOT win — falls back to the status score (matches computePackageProgress()\'s "entry.progress > 0" rule, not ">= 0")', resolveLegacyTaskEffectiveProgressPct('Completed', 0) === 100);
+  assert('explicit progress undefined does not win, falls back to status score', resolveLegacyTaskEffectiveProgressPct('Completed', undefined) === 100);
+
+  assert('explicit progress above 100 is clamped to 100', resolveLegacyTaskEffectiveProgressPct('In Progress', 150) === 100);
+  assert('explicit negative progress does not win (fails the > 0 gate) and falls back to the status score', resolveLegacyTaskEffectiveProgressPct('In Progress', -20) === 50);
+
+  assert('the same status always yields the same score regardless of call order (no shared mutable state)',
+    resolveLegacyTaskEffectiveProgressPct('Completed', 0) === resolveLegacyTaskEffectiveProgressPct('Completed', 0));
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────

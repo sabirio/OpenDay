@@ -43,7 +43,18 @@ const suppressions = walk(srcRoot)
 // App.jsx's loadProjects() effect (a genuine async network fetch — the
 // textbook legitimate effect use, not a synchronous local-state computation
 // that could be moved to render).
-check('suppression inventory is exactly the reviewed 23 entries', suppressions.length === 23);
+//
+// Contractor Report / Site Visit P0 data-integrity fix (2026-07-23): 24th and
+// 25th entries are core/contractorReport/buildContractorReportSubmission.js
+// and core/contractorReport/adaptContractorReportToLegacy.js's no-restricted-imports
+// suppressions for config/workPackages.js's encodeLegacyWpTaskId/
+// decodeLegacyWpTaskId — the exact same audited legacy-fallback pattern
+// already reviewed/accepted for every other file in
+// architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS (e.g.
+// components/contractor/WorkPackageProgressSection.jsx), gated the same way
+// behind `ganttTasks.length === 0`. Needed so a legacy (non-Gantt) contractor
+// report's WP statuses stop being silently dropped from contractor_report_wps.
+check('suppression inventory is exactly the reviewed 25 entries', suppressions.length === 25);
 check('every suppression is a single-line exception', suppressions.every(row => /eslint-disable-(?:next-line|line)|@ts-(?:ignore|expect-error)/.test(row.text)));
 check('no blanket eslint-disable exists', suppressions.every(row => !/^\/\/\s*eslint-disable\s*$/.test(row.text)));
 

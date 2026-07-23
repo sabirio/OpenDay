@@ -1,10 +1,18 @@
 import { normalizeReport } from '../../services/reportService';
 import { computeWPCumulativeStatuses, computeCumulativeStatuses } from '../../utils/reportUtils';
-import { calculateProjectProgressResult, calculateRawWPAverageProgress } from '../../engines/progressEngine';
+import { calculateProjectProgressResult, calculateRawWPAverageProgress, resolveLegacyTaskEffectiveProgressPct } from '../../engines/progressEngine';
 import { getWPGrouping, isZonedTemplate } from '../projects/grouping/getWPGrouping';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
 import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
 import { ALL_WORK_PACKAGES_V2 } from '../../domains/construction/templates/retailFitoutV2';
+// Audited, intentional legacy-fallback import (P0 data-integrity fix, see
+// AGENTS.md task history) — tracked in
+// src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS. Only used
+// inside the `ganttTasks.length === 0` branch below, mirroring every other
+// legacy-report consumer's gating convention.
+// eslint-disable-next-line no-restricted-imports
+import { encodeLegacyWpTaskId } from '../../config/workPackages';
+import { legacyStatusToDbStatus } from '../../config/statusScores';
 
 /**
  * Pure composition of one contractor report submission: synthesizes
@@ -19,6 +27,37 @@ import { ALL_WORK_PACKAGES_V2 } from '../../domains/construction/templates/retai
  * contractor_reports.overall_progress) — P1.4: never let the raw average
  * silently stand in for cumulative progress.
  */
+// P0 fix: for a project with no Gantt schedule, wpProgressArray was
+// unconditionally [] (see git history), which silently dropped every
+// legacy-form WP status out of contractor_report_wps and left
+// contractor_reports.overall_progress at 0 even though the contractor had
+// reported real statuses — the only surviving copy was the unread
+// progress_history.snapshot.legacy_report JSON blob. This builds the same
+// structured rows the Gantt branch already produces, from the legacy form's
+// own workPackageStatuses, scoped to this report's active packages (the
+// legacy equivalent of "this report's WPs" — mirrors how the Gantt branch is
+// already scoped to the project's active Gantt tasks, not the whole catalog).
+// 'Not Applicable' tasks are skipped — same exclusion comparisonResult()
+// already applies when comparing PM vs GC status.
+function buildLegacyWpProgressArray(workPackageStatuses, currentPackages) {
+  const scopedWpIds = currentPackages?.length ? currentPackages : Object.keys(workPackageStatuses || {});
+  const rows = [];
+  for (const wpId of scopedWpIds) {
+    const tasks = workPackageStatuses?.[wpId];
+    if (!tasks) continue;
+    for (const [taskName, entry] of Object.entries(tasks)) {
+      if (!entry?.status || entry.status === 'Not Applicable') continue;
+      rows.push({
+        wpId: encodeLegacyWpTaskId(wpId, taskName),
+        progress_pct: resolveLegacyTaskEffectiveProgressPct(entry.status, entry.progress),
+        status: legacyStatusToDbStatus(entry.status),
+        comment: entry.comment || '',
+      });
+    }
+  }
+  return rows;
+}
+
 export function buildContractorReportSubmission({
   project, form, photoUrls, prevReport, ganttTasks, ganttWpProgress, reports, currentPhases,
 }) {
@@ -87,7 +126,7 @@ export function buildContractorReportSubmission({
         comment: value.comment ?? "",
       };
     })
-    : [];
+    : buildLegacyWpProgressArray(workPackageStatuses, form.currentPackages);
 
   const contractorRawAverageProgress = calculateRawWPAverageProgress(wpProgressArray, cumulativeProgress);
 
