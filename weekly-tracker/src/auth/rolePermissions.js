@@ -17,7 +17,7 @@ export const PERMISSIONS = {
 };
 
 // Resources only Admin can access (via 'all' wildcard, but useful as documentation)
-export const ADMIN_ONLY_RESOURCES = ['admin_users'];
+export const ADMIN_ONLY_RESOURCES = ['admin_users', 'admin_contractor_workspace'];
 
 // Where each role lands after a successful login
 export const ROLE_REDIRECTS = {
@@ -45,6 +45,13 @@ export const NAV_ITEMS = [
   { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine'    },
   { to: '/weight-audit',       label: 'Weight Audit',     resource: 'weight_audit'   },
   { to: '/admin/users',        label: 'Users',            resource: 'admin_users'    },
+  // Nav-only visibility gate — deliberately a different resource than the
+  // 'contractor_report' one that actually guards /contractor-select's
+  // <ProtectedRoute> in App.jsx. Contractors/PMs keep reaching that route
+  // through their existing entry points unchanged; 'admin_contractor_workspace'
+  // isn't in any non-Admin PERMISSIONS list, so only Admin's 'all' wildcard
+  // lets this sidebar link render (same mechanism as the Users item above).
+  { to: '/contractor-select',  label: 'Contractor Workspace', resource: 'admin_contractor_workspace' },
   // Template Editor (/admin/template-editor) route still exists but is hidden from
   // the nav until its save path (onSave -> templatesApi) is wired. See PROJECT_MEMORY.md.
 ];
