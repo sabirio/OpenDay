@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { loadContractorWorkspaceRows } from '../core/contractorWorkspace/loadContractorWorkspaceRows.js';
+export { CONTRACTOR_WORKSPACE_FILTERS, filterContractorWorkspaceRows, rowNeedsAttention } from '../core/contractorWorkspace/loadContractorWorkspaceRows.js';
 
 const EMPTY_SUMMARY = { projectCount: 0, reportsNeedingActionCount: 0, openObservationsCount: 0, overdueObservationsCount: 0 };
 

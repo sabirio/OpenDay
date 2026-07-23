@@ -88,3 +88,35 @@ export function buildContractorWorkspaceSummary(rows) {
     overdueObservationsCount: summary.overdueObservationsCount + row.overdueSnagCount,
   }), { projectCount: 0, reportsNeedingActionCount: 0, openObservationsCount: 0, overdueObservationsCount: 0 });
 }
+
+export const CONTRACTOR_WORKSPACE_FILTERS = Object.freeze({
+  ALL: 'all',
+  REPORTS: 'reports',
+  OBSERVATIONS: 'observations',
+  OVERDUE: 'overdue',
+});
+
+/**
+ * Filters already-scoped, already-computed rows by the same flags the
+ * summary counts are built from — a project-level filter (does this project
+ * have overdue/actionable work), not a per-observation expansion. Never
+ * re-scopes or re-fetches; operates purely on the rows it's given.
+ * @param {Array} rows - result of computeContractorWorkspaceRows()
+ * @param {string} filter - one of CONTRACTOR_WORKSPACE_FILTERS
+ */
+export function filterContractorWorkspaceRows(rows, filter) {
+  if (filter === CONTRACTOR_WORKSPACE_FILTERS.REPORTS) return rows.filter(row => row.missingReport);
+  if (filter === CONTRACTOR_WORKSPACE_FILTERS.OBSERVATIONS) return rows.filter(row => row.actionableSnagCount > 0);
+  if (filter === CONTRACTOR_WORKSPACE_FILTERS.OVERDUE) return rows.filter(row => row.overdueSnagCount > 0);
+  return rows;
+}
+
+/**
+ * A project "needs attention" if it has any overdue/actionable observation
+ * or a report that requires action — the same flags the sort and the
+ * summary already use, so this can never disagree with either.
+ * @param {object} row
+ */
+export function rowNeedsAttention(row) {
+  return row.missingReport || row.actionableSnagCount > 0;
+}

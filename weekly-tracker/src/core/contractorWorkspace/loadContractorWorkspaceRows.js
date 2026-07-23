@@ -1,5 +1,6 @@
 import { listProjectSnags } from '../../services/snags/snagService.js';
 import { buildContractorWorkspaceSummary, computeContractorWorkspaceRows } from '../../engines/contractorWorkspaceEngine.js';
+export { CONTRACTOR_WORKSPACE_FILTERS, filterContractorWorkspaceRows, rowNeedsAttention } from '../../engines/contractorWorkspaceEngine.js';
 
 function groupReportsByProjectId(reports) {
   const map = {};

@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { buildContractorWorkspaceSummary, computeContractorWorkspaceRows } from './contractorWorkspaceEngine.js';
+import {
+  buildContractorWorkspaceSummary,
+  computeContractorWorkspaceRows,
+  CONTRACTOR_WORKSPACE_FILTERS,
+  filterContractorWorkspaceRows,
+  rowNeedsAttention,
+} from './contractorWorkspaceEngine.js';
 
 let passed = 0;
 const check = (n, f) => { f(); passed++; console.log(`  PASS ${n}`); };
@@ -230,6 +236,162 @@ check('scoping: a project absent from the `projects` array never appears in rows
   assert.equal(summary.reportsNeedingActionCount, 0);
   assert.equal(summary.openObservationsCount, 0);
   assert.equal(summary.overdueObservationsCount, 0);
+});
+
+// ── filterContractorWorkspaceRows ────────────────────────────────────────
+
+check('filter: ALL (Projects) returns every supplied row unchanged', () => {
+  const reports = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }] };
+  const rows = computeContractorWorkspaceRows([projectA, projectB], reports, {}, actor, NOW);
+  assert.deepEqual(filterContractorWorkspaceRows(rows, CONTRACTOR_WORKSPACE_FILTERS.ALL), rows);
+});
+
+check('filter: REPORTS returns only rows whose report needs action', () => {
+  const reports = { 2: [{ projectId: 2, reportingDate: '2026-07-21' }] }; // A missing, B not
+  const rows = computeContractorWorkspaceRows([projectA, projectB], reports, {}, actor, NOW);
+  const filtered = filterContractorWorkspaceRows(rows, CONTRACTOR_WORKSPACE_FILTERS.REPORTS);
+  assert.deepEqual(filtered.map(r => r.project.id), [1]);
+});
+
+check('filter: OBSERVATIONS returns only rows with at least one actionable observation', () => {
+  const reports = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }], 2: [{ projectId: 2, reportingDate: '2026-07-21' }] };
+  const snags = { 2: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED' }] };
+  const rows = computeContractorWorkspaceRows([projectA, projectB], reports, snags, actor, NOW);
+  const filtered = filterContractorWorkspaceRows(rows, CONTRACTOR_WORKSPACE_FILTERS.OBSERVATIONS);
+  assert.deepEqual(filtered.map(r => r.project.id), [2]);
+});
+
+check('filter: OVERDUE returns only rows with at least one overdue actionable observation', () => {
+  const reports = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }], 2: [{ projectId: 2, reportingDate: '2026-07-21' }] };
+  const snags = {
+    1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2026-12-01' }], // actionable, not overdue
+    2: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }], // overdue
+  };
+  const rows = computeContractorWorkspaceRows([projectA, projectB], reports, snags, actor, NOW);
+  const filtered = filterContractorWorkspaceRows(rows, CONTRACTOR_WORKSPACE_FILTERS.OVERDUE);
+  assert.deepEqual(filtered.map(r => r.project.id), [2]);
+});
+
+check('filter: filtering never mutates rows or changes summary counts computed from them', () => {
+  const reports = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }] };
+  const snags = { 1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }] };
+  const rows = computeContractorWorkspaceRows([projectA, projectB], reports, snags, actor, NOW);
+  const summaryBefore = buildContractorWorkspaceSummary(rows);
+  filterContractorWorkspaceRows(rows, CONTRACTOR_WORKSPACE_FILTERS.OVERDUE);
+  const summaryAfter = buildContractorWorkspaceSummary(rows);
+  assert.deepEqual(summaryBefore, summaryAfter);
+});
+
+check('filter: empty rows are safe for every filter value', () => {
+  for (const filter of Object.values(CONTRACTOR_WORKSPACE_FILTERS)) {
+    assert.deepEqual(filterContractorWorkspaceRows([], filter), []);
+  }
+});
+
+check('filter: preserves the existing attention-first ordering of the rows it returns', () => {
+  const snags = {
+    1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }],
+    2: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-06-01' }],
+  };
+  const reports = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }], 2: [{ projectId: 2, reportingDate: '2026-07-21' }] };
+  const rows = computeContractorWorkspaceRows([projectB, projectA], reports, snags, actor, NOW); // both overdue; A opens sooner
+  const filtered = filterContractorWorkspaceRows(rows, CONTRACTOR_WORKSPACE_FILTERS.OVERDUE);
+  assert.deepEqual(filtered.map(r => r.project.id), rows.map(r => r.project.id));
+});
+
+// ── rowNeedsAttention / Needs Attention vs Up to Date classification ────
+
+check('rowNeedsAttention: true when the report is missing', () => {
+  const [row] = computeContractorWorkspaceRows([projectA], {}, {}, actor, NOW);
+  assert.equal(rowNeedsAttention(row), true);
+});
+
+check('rowNeedsAttention: true when there is at least one actionable observation, even with a current report', () => {
+  const reports = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }] };
+  const snags = { 1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED' }] };
+  const [row] = computeContractorWorkspaceRows([projectA], reports, snags, actor, NOW);
+  assert.equal(rowNeedsAttention(row), true);
+});
+
+check('rowNeedsAttention: false for a fully up-to-date project (current report, zero actionable observations)', () => {
+  const reports = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }] };
+  const [row] = computeContractorWorkspaceRows([projectA], reports, {}, actor, NOW);
+  assert.equal(rowNeedsAttention(row), false);
+});
+
+// ── scoping (strengthened): filtering can never surface an unassigned project ─
+
+check('scoping: applying any summary filter to already-scoped rows still cannot surface an unassigned project', () => {
+  const unassignedProjectId = 999;
+  const reports = {
+    1: [{ projectId: 1, reportingDate: '2020-01-01' }],
+    [unassignedProjectId]: [{ projectId: unassignedProjectId, reportingDate: '2020-01-01' }],
+  };
+  const snags = {
+    [unassignedProjectId]: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }],
+  };
+  const rows = computeContractorWorkspaceRows([projectA], reports, snags, actor, NOW); // `projects` excludes 999
+  for (const filter of Object.values(CONTRACTOR_WORKSPACE_FILTERS)) {
+    const filtered = filterContractorWorkspaceRows(rows, filter);
+    assert.equal(filtered.some(r => r.project.id === unassignedProjectId), false);
+  }
+});
+
+// ── Admin selector: resolving a specific contractor's scope ─────────────
+// The real composition path — projects.filter(assignedProjects) followed by
+// computeContractorWorkspaceRows/buildContractorWorkspaceSummary — is the
+// exact same pipeline ContractorSelect.jsx uses for both a real Contractor
+// session and an Admin-selected contractor. Exercising it directly (not a
+// mock) proves two contractors' data can never mix.
+
+check('admin selector: Contractor A (assigned projects 1,2) resolves to rows/summary that never include Contractor B\'s project 3', () => {
+  const contractorA = { id: 'contractor-a', assignedProjects: [1, 2] };
+  const allProjects = [projectA, projectB, { id: 3, targetOpeningDate: '2026-10-01' }];
+  const reports = {
+    1: [{ projectId: 1, reportingDate: '2026-07-21' }],
+    3: [{ projectId: 3, reportingDate: '2020-01-01' }], // Contractor B's project — very overdue
+  };
+  const snags = {
+    3: [{ status: 'ASSIGNED', assigneeId: 'contractor-b', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }],
+  };
+
+  const scopedProjects = allProjects.filter(p => contractorA.assignedProjects.includes(Number(p.id)));
+  const rows = computeContractorWorkspaceRows(scopedProjects, reports, snags, { id: contractorA.id, role: 'Contractor' }, NOW);
+  assert.deepEqual(rows.map(r => r.project.id).sort(), [1, 2]);
+  assert.equal(rows.some(r => r.project.id === 3), false);
+
+  const summary = buildContractorWorkspaceSummary(rows);
+  assert.equal(summary.projectCount, 2);
+  assert.equal(summary.overdueObservationsCount, 0); // project 3's overdue snag must not leak into A's summary
+});
+
+check('admin selector: selecting Contractor B produces only project 3, with its own overdue work correctly counted', () => {
+  const contractorB = { id: 'contractor-b', assignedProjects: [3] };
+  const allProjects = [projectA, projectB, { id: 3, targetOpeningDate: '2026-10-01' }];
+  const reports = { 3: [{ projectId: 3, reportingDate: '2020-01-01' }] };
+  const snags = { 3: [{ status: 'ASSIGNED', assigneeId: 'contractor-b', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }] };
+
+  const scopedProjects = allProjects.filter(p => contractorB.assignedProjects.includes(Number(p.id)));
+  const rows = computeContractorWorkspaceRows(scopedProjects, reports, snags, { id: contractorB.id, role: 'Contractor' }, NOW);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].project.id, 3);
+
+  const summary = buildContractorWorkspaceSummary(rows);
+  assert.equal(summary.projectCount, 1);
+  assert.equal(summary.overdueObservationsCount, 1);
+});
+
+check('admin selector: a contractor with an empty assignedProjects array resolves to a valid empty workspace, not a fallback to all projects', () => {
+  const contractorC = { id: 'contractor-c', assignedProjects: [] };
+  const allProjects = [projectA, projectB];
+  const scopedProjects = allProjects.filter(p => contractorC.assignedProjects.includes(Number(p.id)));
+  assert.equal(scopedProjects.length, 0);
+
+  const rows = computeContractorWorkspaceRows(scopedProjects, {}, {}, { id: contractorC.id, role: 'Contractor' }, NOW);
+  assert.deepEqual(rows, []);
+  assert.deepEqual(buildContractorWorkspaceSummary(rows), {
+    projectCount: 0, reportsNeedingActionCount: 0, openObservationsCount: 0, overdueObservationsCount: 0,
+  });
 });
 
 console.log(`\n-- RESULT: ${passed} passed, 0 failed --`);
