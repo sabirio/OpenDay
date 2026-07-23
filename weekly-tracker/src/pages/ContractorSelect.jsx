@@ -19,6 +19,47 @@ function reportStatusFor(row) {
   return { text: `Last reported ${when}`, tone: 'success' };
 }
 
+function ProjectCard({ row, navigate }) {
+  const { project, actionableSnagCount, overdueSnagCount, ...rest } = row;
+  const reportStatus = reportStatusFor(rest);
+  return (
+    <div className="contractor-project-card">
+      <div className="contractor-project-code">{project.storeCode}</div>
+      <h2 className="contractor-project-name">{project.shoppingMallName}</h2>
+      <div className="contractor-project-meta">
+        <span>Opening: {project.targetOpeningDate || '—'}</span>
+      </div>
+
+      <div className={`contractor-work-status text-${reportStatus.tone}`}>{reportStatus.text}</div>
+      {actionableSnagCount > 0 ? (
+        <div className="contractor-work-status text-warning">
+          {actionableSnagCount} observation{actionableSnagCount === 1 ? '' : 's'}
+          {overdueSnagCount > 0 ? ` • ${overdueSnagCount} overdue` : ''}
+        </div>
+      ) : (
+        <div className="contractor-work-status text-secondary">No actionable observations</div>
+      )}
+
+      <div className="contractor-project-actions">
+        <button
+          type="button"
+          className="btn-primary contractor-project-btn"
+          onClick={() => navigate(`/contractor-report/${project.id}`)}
+        >
+          Submit Report
+        </button>
+        <button
+          type="button"
+          className="btn-ghost contractor-project-btn"
+          onClick={() => navigate(`/field-snag/${project.id}`)}
+        >
+          View Snags{actionableSnagCount > 0 ? ` (${actionableSnagCount})` : ''}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ContractorSelect({ projects = [], reports = [] }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -29,13 +70,21 @@ function ContractorSelect({ projects = [], reports = [] }) {
   // keeps its existing "see everything" bypass for testing; that inconsistency
   // between contractorEmail and assigned_projects elsewhere in the app is
   // known, pre-existing debt and is deliberately not touched here.
+  //
+  // Everything below — workspace rows AND the Operational Summary — is
+  // derived exclusively from this already-scoped list. Nothing downstream
+  // ever re-queries or re-scopes by project; a Contractor structurally
+  // cannot see or infer another project's data because that project's id
+  // never enters this array in the first place.
   const assignedProjects = useMemo(() => {
     if (user?.role === 'Admin') return projects;
     const assignedIds = user?.assignedProjects || [];
     return projects.filter(p => assignedIds.includes(Number(p.id)));
   }, [projects, user]);
 
-  const { status, rows } = useContractorWorkspace(assignedProjects, reports, user?.id, user?.role);
+  const { status, rows, summary } = useContractorWorkspace(assignedProjects, reports, user?.id, user?.role);
+  const needsAttentionRows = rows.filter(row => row.missingReport || row.actionableSnagCount > 0);
+  const upToDateRows = rows.filter(row => !row.missingReport && row.actionableSnagCount === 0);
 
   return (
     <div className="contractor-select-page">
@@ -74,44 +123,50 @@ function ContractorSelect({ projects = [], reports = [] }) {
             <p>Loading your work…</p>
           </div>
         ) : (
-          <div className="contractor-project-grid">
-            {rows.map(({ project, actionableSnagCount, ...row }) => {
-              const reportStatus = reportStatusFor(row);
-              return (
-                <div key={project.id} className="contractor-project-card">
-                  <div className="contractor-project-code">{project.storeCode}</div>
-                  <h2 className="contractor-project-name">{project.shoppingMallName}</h2>
-                  <div className="contractor-project-meta">
-                    <span>Opening: {project.targetOpeningDate || '—'}</span>
-                  </div>
-
-                  <div className={`contractor-work-status text-${reportStatus.tone}`}>{reportStatus.text}</div>
-                  {actionableSnagCount > 0 && (
-                    <div className="contractor-work-status text-warning">
-                      {actionableSnagCount} snag{actionableSnagCount === 1 ? '' : 's'} need your attention
-                    </div>
-                  )}
-
-                  <div className="contractor-project-actions">
-                    <button
-                      type="button"
-                      className="btn-primary contractor-project-btn"
-                      onClick={() => navigate(`/contractor-report/${project.id}`)}
-                    >
-                      Submit Report
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost contractor-project-btn"
-                      onClick={() => navigate(`/field-snag/${project.id}`)}
-                    >
-                      View Snags{actionableSnagCount > 0 ? ` (${actionableSnagCount})` : ''}
-                    </button>
-                  </div>
+          <>
+            <div className="contractor-summary" role="group" aria-label="Work summary">
+              <div className="contractor-summary-tile">
+                <div className="contractor-summary-value">{summary.projectCount}</div>
+                <div className="contractor-summary-label">Projects</div>
+              </div>
+              <div className="contractor-summary-tile">
+                <div className={`contractor-summary-value${summary.reportsNeedingActionCount > 0 ? ' text-error' : ''}`}>
+                  {summary.reportsNeedingActionCount}
                 </div>
-              );
-            })}
-          </div>
+                <div className="contractor-summary-label">Reports needing action</div>
+              </div>
+              <div className="contractor-summary-tile">
+                <div className={`contractor-summary-value${summary.openObservationsCount > 0 ? ' text-warning' : ''}`}>
+                  {summary.openObservationsCount}
+                </div>
+                <div className="contractor-summary-label">Open observations</div>
+              </div>
+              <div className="contractor-summary-tile">
+                <div className={`contractor-summary-value${summary.overdueObservationsCount > 0 ? ' text-error' : ''}`}>
+                  {summary.overdueObservationsCount}
+                </div>
+                <div className="contractor-summary-label">Overdue</div>
+              </div>
+            </div>
+
+            {needsAttentionRows.length > 0 && (
+              <>
+                <h3 className="contractor-section-label">Needs attention</h3>
+                <div className="contractor-project-grid">
+                  {needsAttentionRows.map(row => <ProjectCard key={row.project.id} row={row} navigate={navigate} />)}
+                </div>
+              </>
+            )}
+
+            {upToDateRows.length > 0 && (
+              <>
+                <h3 className="contractor-section-label">Up to date</h3>
+                <div className="contractor-project-grid">
+                  {upToDateRows.map(row => <ProjectCard key={row.project.id} row={row} navigate={navigate} />)}
+                </div>
+              </>
+            )}
+          </>
         )}
       </main>
     </div>

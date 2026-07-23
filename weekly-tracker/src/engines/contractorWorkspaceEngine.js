@@ -1,15 +1,18 @@
 import { daysSince, daysUntil, isMissingReport } from '../utils/reportUtils.js';
 import { getAvailableSnagActions } from '../core/snags/workflow.js';
+import { deriveDueState } from './snagReadModelEngine.js';
 
 // "My Work" for a contractor is deliberately NOT the PM risk/readiness/priority
 // engine (openingReadinessEngine.js / riskEngine.js / actionEngine.js) — those
 // compute PM-facing schedule risk, which is out of scope for what a contractor
 // should see about their own work. This engine only composes contractor-facing
 // facts that already exist: report recency (reportUtils, same functions
-// evaluateProjectState.js uses for missingReport/daysSinceReport) and snag
+// evaluateProjectState.js uses for missingReport/daysSinceReport), snag
 // actionability (core/snags/workflow.js's own getAvailableSnagActions — the
 // single canonical rule for "can this contractor act on this snag right now",
-// already used to gate the Snag Detail page's UI).
+// already used to gate the Snag Detail page's UI), and snag due-state
+// (snagReadModelEngine.js's deriveDueState — the same rule that powers the
+// PM Site Snag overview's "Overdue Observations" metric).
 function latestReportOf(projectReports) {
   const sorted = [...projectReports].sort(
     (a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt)
@@ -17,8 +20,19 @@ function latestReportOf(projectReports) {
   return sorted[sorted.length - 1] || null;
 }
 
-function countActionableSnags(snags, actor) {
-  return snags.filter(snag => getAvailableSnagActions(snag, actor).length > 0).length;
+// Single pass over a project's snags: counts how many are currently
+// actionable by this contractor, and — of those — how many are also
+// OVERDUE per the canonical due-state rule. A closed/cancelled snag is never
+// actionable (getAvailableSnagActions returns []) so it's excluded from both
+// counts automatically; a snag with no dueDate can never be OVERDUE
+// (deriveDueState returns NO_DUE_DATE), so it's never counted as overdue.
+function summarizeSnagsForActor(snags, actor, referenceDate) {
+  return snags.reduce((acc, snag) => {
+    if (getAvailableSnagActions(snag, actor).length === 0) return acc;
+    acc.actionableCount += 1;
+    if (deriveDueState(snag, referenceDate) === 'OVERDUE') acc.overdueCount += 1;
+    return acc;
+  }, { actionableCount: 0, overdueCount: 0 });
 }
 
 /**
@@ -27,8 +41,9 @@ function countActionableSnags(snags, actor) {
  * @param {Object} snagsByProjectId - { [projectId]: Array<snag> }
  * @param {{ id: string, role: string }} actor
  * @param {Date} [referenceDate]
- * @returns {Array} rows sorted by contractor-actionable urgency: overdue/missing
- *   report first, then most actionable snags, then nearest opening date.
+ * @returns {Array} rows sorted by contractor-actionable urgency: projects with
+ *   overdue actionable snags first, then missing/overdue report, then most
+ *   actionable snags, then nearest opening date.
  */
 export function computeContractorWorkspaceRows(projects, reportsByProjectId, snagsByProjectId, actor, referenceDate = new Date()) {
   const rows = projects.map(project => {
@@ -40,15 +55,36 @@ export function computeContractorWorkspaceRows(projects, reportsByProjectId, sna
       ? daysSince(latestReport.reportingDate || latestReport.submittedAt, referenceDate)
       : null;
     const daysToOpening = project.targetOpeningDate ? daysUntil(project.targetOpeningDate, referenceDate) : null;
-    const actionableSnagCount = countActionableSnags(projectSnags, actor);
-    return { project, latestReport, missingReport, daysSinceReport, daysToOpening, actionableSnagCount };
+    const { actionableCount, overdueCount } = summarizeSnagsForActor(projectSnags, actor, referenceDate);
+    return {
+      project, latestReport, missingReport, daysSinceReport, daysToOpening,
+      actionableSnagCount: actionableCount, overdueSnagCount: overdueCount,
+    };
   });
 
   return rows.sort((a, b) => {
+    const aOverdue = a.overdueSnagCount > 0, bOverdue = b.overdueSnagCount > 0;
+    if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
     if (a.missingReport !== b.missingReport) return a.missingReport ? -1 : 1;
     if (a.actionableSnagCount !== b.actionableSnagCount) return b.actionableSnagCount - a.actionableSnagCount;
     const aOpen = a.daysToOpening ?? Infinity;
     const bOpen = b.daysToOpening ?? Infinity;
     return aOpen - bOpen;
   });
+}
+
+/**
+ * Pure projection over already-scoped, already-computed workspace rows — no
+ * I/O, no re-scoping. Must only ever be called with rows already limited to
+ * a contractor's assigned_projects; it has no way to see (and therefore
+ * cannot leak) any other project's data.
+ * @param {Array} rows - result of computeContractorWorkspaceRows()
+ */
+export function buildContractorWorkspaceSummary(rows) {
+  return rows.reduce((summary, row) => ({
+    projectCount: summary.projectCount + 1,
+    reportsNeedingActionCount: summary.reportsNeedingActionCount + (row.missingReport ? 1 : 0),
+    openObservationsCount: summary.openObservationsCount + row.actionableSnagCount,
+    overdueObservationsCount: summary.overdueObservationsCount + row.overdueSnagCount,
+  }), { projectCount: 0, reportsNeedingActionCount: 0, openObservationsCount: 0, overdueObservationsCount: 0 });
 }

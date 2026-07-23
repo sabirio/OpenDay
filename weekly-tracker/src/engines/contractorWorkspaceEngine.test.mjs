@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { computeContractorWorkspaceRows } from './contractorWorkspaceEngine.js';
+import { buildContractorWorkspaceSummary, computeContractorWorkspaceRows } from './contractorWorkspaceEngine.js';
 
 let passed = 0;
 const check = (n, f) => { f(); passed++; console.log(`  PASS ${n}`); };
@@ -117,6 +117,119 @@ check('sort: with no missing report and no snags, nearer opening date sorts firs
 check('projects with no snags/reports entries for their id do not throw', () => {
   const rows = computeContractorWorkspaceRows([projectA, projectB, projectC], {}, {}, actor, NOW);
   assert.equal(rows.length, 3);
+});
+
+// ── overdueSnagCount ────────────────────────────────────────────────────
+
+check('overdue: actionable snag with a past dueDate counts as overdue', () => {
+  const snags = { 1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2026-07-01' }] };
+  const [row] = computeContractorWorkspaceRows([projectA], {}, snags, actor, NOW);
+  assert.equal(row.actionableSnagCount, 1);
+  assert.equal(row.overdueSnagCount, 1);
+});
+
+check('overdue: actionable snag with a future dueDate does not count as overdue', () => {
+  const snags = { 1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2026-12-01' }] };
+  const [row] = computeContractorWorkspaceRows([projectA], {}, snags, actor, NOW);
+  assert.equal(row.actionableSnagCount, 1);
+  assert.equal(row.overdueSnagCount, 0);
+});
+
+check('overdue: actionable snag with no dueDate at all is never overdue', () => {
+  const snags = { 1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: null }] };
+  const [row] = computeContractorWorkspaceRows([projectA], {}, snags, actor, NOW);
+  assert.equal(row.actionableSnagCount, 1);
+  assert.equal(row.overdueSnagCount, 0);
+});
+
+check('overdue: a CLOSED snag with a past dueDate is not actionable and not overdue (canonical workflow excludes it)', () => {
+  const snags = { 1: [{ status: 'CLOSED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }] };
+  const [row] = computeContractorWorkspaceRows([projectA], {}, snags, actor, NOW);
+  assert.equal(row.actionableSnagCount, 0);
+  assert.equal(row.overdueSnagCount, 0);
+});
+
+check('overdue: a past-due snag assigned to a different contractor does not count for this actor', () => {
+  const snags = { 1: [{ status: 'ASSIGNED', assigneeId: 'someone-else', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }] };
+  const [row] = computeContractorWorkspaceRows([projectA], {}, snags, actor, NOW);
+  assert.equal(row.actionableSnagCount, 0);
+  assert.equal(row.overdueSnagCount, 0);
+});
+
+// ── sort: overdue observations now outrank everything else ─────────────
+
+check('sort: a project with an overdue actionable snag sorts before a project with a missing report', () => {
+  // B has no report at all (missing) but no snags; A has a recent report but one overdue snag.
+  const reports = { 2: [] };
+  const snagsA = { 1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }] };
+  const reportsA = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }] };
+  const rows = computeContractorWorkspaceRows([projectB, projectA], { ...reports, ...reportsA }, snagsA, actor, NOW);
+  assert.equal(rows[0].project.id, 1);
+  assert.equal(rows[1].project.id, 2);
+});
+
+// ── buildContractorWorkspaceSummary ──────────────────────────────────────
+
+check('summary: empty rows produce a valid all-zero summary', () => {
+  assert.deepEqual(buildContractorWorkspaceSummary([]), {
+    projectCount: 0, reportsNeedingActionCount: 0, openObservationsCount: 0, overdueObservationsCount: 0,
+  });
+});
+
+check('summary: counts only the rows supplied to it (already-scoped input)', () => {
+  const reports = { 1: [{ projectId: 1, reportingDate: '2026-07-21' }] };
+  const snags = { 1: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }] };
+  const rows = computeContractorWorkspaceRows([projectA], reports, snags, actor, NOW);
+  const summary = buildContractorWorkspaceSummary(rows);
+  assert.equal(summary.projectCount, 1);
+  assert.equal(summary.reportsNeedingActionCount, 0);
+  assert.equal(summary.openObservationsCount, 1);
+  assert.equal(summary.overdueObservationsCount, 1);
+});
+
+check('summary: reports-needing-action reflects the canonical missingReport flag across projects', () => {
+  const reports = { 2: [{ projectId: 2, reportingDate: '2026-07-21' }] }; // A has no report -> missing
+  const rows = computeContractorWorkspaceRows([projectA, projectB], reports, {}, actor, NOW);
+  const summary = buildContractorWorkspaceSummary(rows);
+  assert.equal(summary.projectCount, 2);
+  assert.equal(summary.reportsNeedingActionCount, 1);
+});
+
+check('summary: assigned projects with no actionable work at all -> every metric is zero', () => {
+  const reports = {
+    1: [{ projectId: 1, reportingDate: '2026-07-21' }],
+    2: [{ projectId: 2, reportingDate: '2026-07-21' }],
+    3: [{ projectId: 3, reportingDate: '2026-07-21' }],
+  };
+  const rows = computeContractorWorkspaceRows([projectA, projectB, projectC], reports, {}, actor, NOW);
+  const summary = buildContractorWorkspaceSummary(rows);
+  assert.deepEqual(summary, { projectCount: 3, reportsNeedingActionCount: 0, openObservationsCount: 0, overdueObservationsCount: 0 });
+});
+
+// ── scoping: an unassigned project's data can never leak in ─────────────
+
+check('scoping: a project absent from the `projects` array never appears in rows or summary, even if its reports/snags are present in the raw maps', () => {
+  const unassignedProjectId = 999;
+  const reports = {
+    1: [{ projectId: 1, reportingDate: '2026-07-21' }],
+    [unassignedProjectId]: [{ projectId: unassignedProjectId, reportingDate: '2020-01-01' }], // would be "missing" if it were ever included
+  };
+  const snags = {
+    [unassignedProjectId]: [{ status: 'ASSIGNED', assigneeId: 'contractor-1', publicationState: 'PUBLISHED', dueDate: '2020-01-01' }],
+  };
+  // `projects` is the already-scoped assigned_projects list — it does NOT include unassignedProjectId,
+  // simulating exactly what ContractorSelect.jsx passes in after its own assigned_projects filter.
+  const rows = computeContractorWorkspaceRows([projectA], reports, snags, actor, NOW);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].project.id, 1);
+  assert.equal(rows.some(r => r.project.id === unassignedProjectId), false);
+
+  const summary = buildContractorWorkspaceSummary(rows);
+  assert.equal(summary.projectCount, 1);
+  // The unassigned project's overdue report/snag must not be counted anywhere.
+  assert.equal(summary.reportsNeedingActionCount, 0);
+  assert.equal(summary.openObservationsCount, 0);
+  assert.equal(summary.overdueObservationsCount, 0);
 });
 
 console.log(`\n-- RESULT: ${passed} passed, 0 failed --`);
