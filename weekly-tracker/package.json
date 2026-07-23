@@ -23,6 +23,7 @@
     "cert:reset:local": "node scripts/certification/resetAndDeploy.mjs && node scripts/certification/fixtures.mjs",
     "cert:reset:ui": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/seed-test-users.mjs",
     "cert:verify-fixture-password": "node scripts/certification/verifyFixturePasswordPersistence.mjs",
+    "cert:seed:contractor-workspace": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/contractorWorkspaceFixtures.mjs",
     "test:db": "node scripts/certification/certifyContractorReport.mjs && node scripts/certification/certifySiteVisit.mjs && node scripts/certification/certifyProgressHistory.mjs",
     "test:rls": "node scripts/certification/certifyRls.mjs",
     "test:storage": "node scripts/certification/certifyStorage.mjs",
