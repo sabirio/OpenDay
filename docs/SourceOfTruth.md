@@ -132,11 +132,11 @@ This is functionally identical to `spiEngine.computePlannedPct`. The function sh
 
 | Field | Canonical column | Meaning | Notes |
 |-------|------------------|---------|-------|
-| Location Type | `projects.location_type` | `Mall` or `Street` (v1 application vocabulary only) | **No DB CHECK constraint** — deliberately TEXT NULL so a future evidence-backed value (e.g. Airport) can be added by editing `LOCATION_TYPE_VALUES` in `projectImportFieldMap.js`, never a migration. An unrecognized value is a warning, not a block. |
+| Location Type | `projects.location_type` | `Mall` or `Street` (v1 application vocabulary only) | **No DB CHECK constraint** — deliberately TEXT NULL so a future evidence-backed value (e.g. Airport) can be added in one place, never a migration. An unrecognized value is a warning, not a block. |
 | Shopping Mall | `projects.shopping_mall_name` | Mall name, required when `location_type = 'Mall'` | Must never hold a street address or a generic "project name" — a spreadsheet column literally named "Project Name" is deliberately NOT a recognized alias (Phase 1 field-mapping debt fix, see `projectImportFieldMap.js`). |
 | Street | `projects.street` | Street address, required when `location_type = 'Street'` | Pre-existing column (predates this profile); must be null whenever `location_type = 'Mall'`. |
-| Project Type | `projects.project_type` | What kind of work/project is being performed (New Opening, Rebuilding, ...) | Free text, zero DB constraint. Unrecognized values warn, never block — see `PROJECT_TYPE_VALUES`. |
-| Store Concept | `projects.store_concept` | Retail format/concept (Flagship, Standard, ...) | Free text, no DB enum, no hard-coded brand values. `STORE_CONCEPT_SUGGESTIONS` is a UI-suggestion list only, never validated against. |
+| Project Type | `projects.project_type` | What kind of work/project is being performed (New Opening, Rebuilding, ...) | Free text, zero DB constraint. Unrecognized values warn, never block. |
+| Store Concept | `projects.store_concept` | Retail format/concept (Flagship, Standard, ...) | Free text, no DB enum, no hard-coded brand values. UI-suggestion list only, never validated against. |
 | Total Area | `projects.store_size_sqm` | Total store area (sqm) | Pre-existing column. First live UI input added by Project Information Architecture v1 (`ProjectEditorModal.jsx`'s Areas section) — until then, historical import was its only real writer for most projects. Feeds `ganttEngine`'s size-modifier calculation; also displayed in `ProjectDetailModal.jsx`. |
 | Sales Area | `projects.sales_area_sqm` | Sales floor area (sqm) | **Not the same field as `scope.zoneAreas.sales`.** `scope.zoneAreas` is a V2-template-only, Gantt-zone-weighting input (`computeZoneWeights`/`zonedWeightsEngine.js`), scoped to projects using the zoned Gantt template. `sales_area_sqm` is the template-independent canonical historical/benchmark fact. These two are intentionally NOT reconciled by this migration — doing so would require touching the Gantt weighting engine, which is out of scope. A future task may decide to pre-fill `scope.zoneAreas` from these canonical fields at V2 template setup time. |
 | Back of House Area | `projects.back_of_house_area_sqm` | BOH area (sqm) | Same distinction as Sales Area above, vs. `scope.zoneAreas.boh`. |
@@ -144,8 +144,8 @@ This is functionally identical to `spiEngine.computePlannedPct`. The function sh
 | Actual Construction Completion | `projects.actual_construction_completion_date` | Observed historical fact | **Not the same field as `construction_completion_date`**, which is a CPM/Gantt forecast owned exclusively by `ganttService` (`ganttEngine.calculateKeyDates`, recalculated on every Gantt regeneration). The `actual_` column is a one-time observed fact, never engine-recalculated. |
 | Actual Opening | `projects.actual_opening_date` | Observed historical fact | **Not the same field as `forecast_opening_date`** (CPM forecast) or `target_opening_date` (planned/target). |
 | Target Opening | `projects.target_opening_date` | Planned/target opening date | Pre-existing column, unchanged by this migration — listed here only to disambiguate from the two fields above. |
-| Budget | `projects.budget` (`NUMERIC(14,2)`) | Planned cost | Requires `currency_code` whenever set. Unknown stays NULL, never `0`. |
-| Actual Cost | `projects.actual_cost` (`NUMERIC(14,2)`) | Real cost | Same currency requirement and NULL-not-zero rule as Budget. |
+| Budget | `projects.budget` (`NUMERIC(14,2)`) | Planned project cost | Requires `currency_code` whenever set. Unknown stays NULL, never `0`. Add New Project and Edit Project both expose it. |
+| Actual Cost | `projects.actual_cost` (`NUMERIC(14,2)`) | Real known project cost (not a forecast, estimate, remaining budget, committed cost, or CPI) | Same currency requirement and NULL-not-zero rule as Budget. **Add New Project does not request it** — at creation time the real cost generally doesn't exist yet, and showing the field would invite a fabricated `0`. **Edit Project exposes it** (Project Information Architecture v1 cleanup) so an operational project's actual cost can be recorded through the normal project workflow instead of only via Import. Project Information always displays it (read + write both flow through the one shared `ProjectEditorModal` → `projectService` path — no second financial model). |
 | Currency | `projects.currency_code` | ISO 4217 3-letter code, one per project (v1 scope) | Validated at the application layer against `ISO_4217_CURRENCY_CODES` (`projectImportFieldMap.js`) — a 3-letter regex alone never proves a real currency; an unrecognized-but-well-formed code warns rather than blocks. No FX conversion is implemented anywhere. |
 | General Contractor | `projects.general_contractor` / `projects.contractor_email` | GC company name / contact | Pre-existing columns, sufficient for v1 historical import — a missing OpenDay account never blocks importing a GC name as a historical fact. The richer `project_stakeholders` table remains a separate, project-scoped mechanism, not required here. |
 
@@ -162,3 +162,15 @@ Added to align Add New Project / Portfolio / Project Information around the cano
 - no `location_type` → LOCATION is null (rendered as "—"/"-")
 
 There is no `projects.location` column and none should be added — this is presentation logic only, computed on read exactly like every other derived value in this document, never persisted, never a second source of truth for the mall-name/street-address facts.
+
+---
+
+## Project vocabularies — one canonical shared source
+
+Location Type, Project Type, and Store Concept previously had two literal definitions — one in `core/import/projectImportFieldMap.js` (Import) and a hand-mirrored copy in `config/projectVocabulary.js` (Project UI) — a One Source of Truth violation flagged and removed in the Project Information Architecture v1 cleanup.
+
+**Canonical owner:** `config/projectVocabulary.js` (`PROJECT_TYPE_OPTIONS`, `LOCATION_TYPE_OPTIONS`, `STORE_CONCEPT_SUGGESTIONS`) — a dependency-free config leaf, the same layer several other `core/*` modules already depend on elsewhere in this codebase, which makes it a legal neutral owner: Import depends on it, it depends on nothing project-specific.
+
+`core/import/projectImportFieldMap.js` re-exports the same three arrays under its historic names (`PROJECT_TYPE_VALUES`, `LOCATION_TYPE_VALUES`, `STORE_CONCEPT_SUGGESTIONS`) so every existing Import consumer/test is unaffected. Add/Edit Project and Portfolio's Location Type filter consume the canonical names directly. `src/tests/projectVocabularyArchitecture.test.mjs` proves by reference identity (`===`) that no second literal array exists.
+
+`ISO_4217_CURRENCY_CODES` was not touched by this cleanup (it was never mirrored) and still lives in `projectImportFieldMap.js`; it does not yet include KZT — recorded as existing debt, out of scope for this cleanup.

@@ -109,6 +109,20 @@ test.describe('Portfolio page', () => {
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
   });
 
+  test('Add New Project does not show an Actual Cost input', async ({ page }) => {
+    await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+    await expect(page.locator('input[name="storeCode"]')).toBeVisible();
+    await expect(page.locator('input[name="actualCost"]')).toHaveCount(0);
+  });
+
+  test('Edit Project shows an Actual Cost input', async ({ page }) => {
+    await page.locator('table tbody tr').first().locator('button').first().click();
+    await expect(page.locator('.modal')).toBeVisible();
+    await page.locator('.modal button', { hasText: 'Edit Project' }).click();
+    await expect(page.locator('input[name="storeCode"]')).toBeVisible();
+    await expect(page.locator('input[name="actualCost"]')).toBeVisible();
+  });
+
   test('row "..." actions menu opens with Edit Project and GC Invite', async ({ page }) => {
     const menuBtn = page.locator('table tbody tr').first().getByRole('button', { name: /Actions for/ });
     await menuBtn.click();

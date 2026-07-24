@@ -176,6 +176,14 @@ export default function ProjectEditorModal({
               <Field label="Budget">
                 <input type="number" min="0" name="budget" value={project.budget ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 2500000" />
               </Field>
+              {/* Actual Cost is real known cost — it generally doesn't exist
+                  yet at creation time, so it's edit-only (never shown when
+                  creating a new project, never defaulted to 0). */}
+              {editingProjectId && (
+                <Field label="Actual Cost">
+                  <input type="number" min="0" name="actualCost" value={project.actualCost ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 2430000" />
+                </Field>
+              )}
               <Field label="Currency">
                 <input name="currencyCode" value={project.currencyCode || ""} onChange={onChange} style={inputStyle} placeholder="e.g. USD" maxLength={3} />
               </Field>

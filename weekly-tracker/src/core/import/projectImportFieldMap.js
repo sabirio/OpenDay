@@ -10,26 +10,21 @@
  * migration, no new destination.
  */
 
-// project_type has no DB-level enum/CHECK constraint (verified live: zero
-// CHECK constraints exist on public.projects). The only place a fixed
-// vocabulary is expressed at all today is Projects.jsx's own filter list
-// (`["All", "New Opening", "Rebuilding"]`). Treating unrecognized values as
-// a warning rather than a hard block matches that reality — the current
-// product does not itself enforce a stricter rule.
-export const PROJECT_TYPE_VALUES = Object.freeze(['New Opening', 'Rebuilding']);
-
-// location_type has NO DB CHECK constraint either (frozen design §2/§11:
-// deliberately TEXT NULL, extensible without a migration). Mall/Street are
-// the only v1 application-recognized values; an unrecognized value is a
-// warning (see validateProjectImportRow), never a hard block, so a future
-// evidence-backed value doesn't require touching this list to stop being
-// rejected outright — only to stop warning.
-export const LOCATION_TYPE_VALUES = Object.freeze(['Mall', 'Street']);
-
-// store_concept is deliberately NOT a closed vocabulary (frozen design §9):
-// free text, preserved as-is. This list is UI-suggestion-only, never used to
-// reject or warn on an unrecognized value.
-export const STORE_CONCEPT_SUGGESTIONS = Object.freeze(['Flagship', 'Standard', 'Small', 'Compact']);
+// project_type/location_type have no DB-level enum/CHECK constraint (verified
+// live: zero CHECK constraints exist on public.projects) — these three
+// vocabularies are UI/Import-layer conventions, not database law. Their one
+// literal definition lives in config/projectVocabulary.js (a dependency-free
+// leaf layer legal for both core/import/ and UI code to depend on); this
+// module re-exports under its historic names so every existing Import
+// consumer/test keeps working unchanged (Project Information Architecture v1
+// cleanup — see docs/SourceOfTruth.md). Treating unrecognized values as a
+// warning rather than a hard block (see validateProjectImportRow) matches
+// the product's own lack of a stricter DB-level rule.
+export {
+  PROJECT_TYPE_OPTIONS as PROJECT_TYPE_VALUES,
+  LOCATION_TYPE_OPTIONS as LOCATION_TYPE_VALUES,
+  STORE_CONCEPT_SUGGESTIONS,
+} from '../../config/projectVocabulary.js';
 
 // ISO 4217 allow-list for currency_code validation. A 3-letter regex proves
 // only shape, never that the code is a real currency (frozen design §8) —

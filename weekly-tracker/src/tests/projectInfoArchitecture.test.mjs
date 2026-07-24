@@ -107,6 +107,21 @@ check('budget with currencyCode passes', (() => {
   catch { return false; }
 })());
 
+check('actualCost set without currencyCode throws (same currency requirement as budget)', (() => {
+  try { validateProject({ storeCode: 'X', country: 'KZ', actualCost: 5000 }); return false; }
+  catch (e) { return /Currency is required/.test(e.message); }
+})());
+
+check('negative actualCost throws', (() => {
+  try { validateProject({ storeCode: 'X', country: 'KZ', actualCost: -1, currencyCode: 'KZT' }); return false; }
+  catch (e) { return /cannot be negative/.test(e.message); }
+})());
+
+check('actualCost with currencyCode passes', (() => {
+  try { validateProject({ storeCode: 'X', country: 'KZ', actualCost: 525000, currencyCode: 'KZT' }); return true; }
+  catch { return false; }
+})());
+
 console.log('\nvalidateProject — dates');
 
 check('invalid date string throws', (() => {
@@ -145,6 +160,11 @@ check('salesAreaSqm of 0 is written as 0, not null', toDB({ storeCode: 'X', sale
 check('salesAreaSqm of "" is written as null', toDB({ storeCode: 'X', salesAreaSqm: '' }).sales_area_sqm === null);
 check('budget of 0 is written as 0, not null', toDB({ storeCode: 'X', budget: 0 }).budget === 0);
 check('unset budget is written as null', toDB({ storeCode: 'X' }).budget === null);
+check('actualCost of 0 is written as 0, not null', toDB({ storeCode: 'X', actualCost: 0 }).actual_cost === 0);
+check('unset actualCost is written as null', toDB({ storeCode: 'X' }).actual_cost === null);
+check('clearing actualCost to "" is written as null (intentional clear, not a stale value)',
+  toDB({ storeCode: 'X', actualCost: '' }).actual_cost === null);
+check('a real actualCost value round-trips unchanged', toDB({ storeCode: 'X', actualCost: 525000 }).actual_cost === 525000);
 
 console.log('\ntoDB — forecast fields are never written by a normal save');
 
