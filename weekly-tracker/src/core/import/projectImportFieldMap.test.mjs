@@ -29,6 +29,13 @@ check('required identity/business fields match the frozen design (store_code, co
 check('project type vocabulary matches the existing Projects.jsx filter list', JSON.stringify(PROJECT_TYPE_VALUES) === JSON.stringify(['New Opening', 'Rebuilding']));
 check('location type vocabulary is exactly Mall/Street in v1', JSON.stringify(LOCATION_TYPE_VALUES) === JSON.stringify(['Mall', 'Street']));
 check('the ISO 4217 allow-list contains common retail-construction currencies', ['USD', 'EUR', 'AED', 'GBP'].every(code => ISO_4217_CURRENCY_CODES.includes(code)));
+// Certification finding (Project Exchange v1 cleanup): KZT is a valid stored
+// project currency (projects.currency_code is free TEXT, not FK'd to this
+// list) but was missing from the curated recognition list, so a real
+// Kazakhstan project imported/exported with KZT was flagged as an
+// unrecognized-but-well-formed code. Fixed by adding it, not by weakening
+// the recognition check itself.
+check('KZT is a recognized currency (Project Exchange v1 certification fix)', ISO_4217_CURRENCY_CODES.includes('KZT'));
 check('getFieldDefinition finds a real field', getFieldDefinition('store_size_sqm')?.label === 'Total Area');
 check('getFieldDefinition returns null for an unknown key', getFieldDefinition('made_up_field') === null);
 check('no Category C gaps remain — FUTURE_CANONICAL_FIELDS is empty as of migration 037', FUTURE_CANONICAL_FIELDS.length === 0);

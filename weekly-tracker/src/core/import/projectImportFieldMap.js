@@ -34,8 +34,8 @@ export {
 export const ISO_4217_CURRENCY_CODES = Object.freeze([
   'AED', 'AUD', 'BHD', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK', 'EGP', 'EUR',
   'GBP', 'HKD', 'HUF', 'IDR', 'ILS', 'INR', 'JOD', 'JPY', 'KRW', 'KWD',
-  'MXN', 'MYR', 'NOK', 'NZD', 'OMR', 'PLN', 'QAR', 'RON', 'RUB', 'SAR',
-  'SEK', 'SGD', 'THB', 'TRY', 'TWD', 'USD', 'ZAR',
+  'KZT', 'MXN', 'MYR', 'NOK', 'NZD', 'OMR', 'PLN', 'QAR', 'RON', 'RUB',
+  'SAR', 'SEK', 'SGD', 'THB', 'TRY', 'TWD', 'USD', 'ZAR',
 ]);
 
 function keyify(text) {
