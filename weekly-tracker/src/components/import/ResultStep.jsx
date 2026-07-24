@@ -1,6 +1,7 @@
+import { Link } from 'react-router-dom';
 import { describeCommitOutcome } from '../../hooks/import/useImportWorkflow.js';
 
-export default function ResultStep({ result, resultSummary, onImportAnother }) {
+export default function ResultStep({ result, resultSummary, onImportAnother, onBackToPortfolio }) {
   const notImportedRows = result.rows.filter(row => row.outcome !== 'COMMITTED' && row.outcome !== 'SKIPPED');
 
   return (
@@ -41,7 +42,8 @@ export default function ResultStep({ result, resultSummary, onImportAnother }) {
         </div>
       ) : null}
 
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+        <Link to="/projects" className="btn btn-ghost" onClick={onBackToPortfolio}>Back to Portfolio</Link>
         <button type="button" className="btn btn-primary" onClick={onImportAnother}>Import another file</button>
       </div>
     </div>

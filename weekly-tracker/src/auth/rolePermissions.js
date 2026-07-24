@@ -31,8 +31,12 @@ export const ROLE_REDIRECTS = {
 export const NAV_ITEMS = [
   { to: '/home',               label: 'Home',             resource: 'dashboard'      },
   { to: '/',                   label: 'Project Dashboard', resource: 'dashboard'      },
+  // Import Projects is deliberately NOT a top-level nav item — it's a
+  // Portfolio-owned operation (Projects IA v1), reached via the "Import
+  // Projects" action on the Portfolio page (/projects), not its own product
+  // module. Its canonical route (/projects/import) and permission
+  // ('projects_import') are unchanged; only its sidebar presence moved.
   { to: '/projects',           label: 'Portfolio',        resource: 'projects'       },
-  { to: '/import/projects',    label: 'Import Projects',  resource: 'projects_import' },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
   { to: '/snags',              label: 'Site Snag',        resource: 'snags'          },
   {

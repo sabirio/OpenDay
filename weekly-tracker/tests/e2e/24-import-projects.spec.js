@@ -5,6 +5,12 @@
 // behavior (company_id + store_code) is exercised for real, not a
 // null-company shortcut.
 //
+// Projects IA v1: Import is a Portfolio-owned operation, not a standalone
+// product module — its canonical route is /projects/import (reached via
+// Portfolio's "Import Projects" action), and the old top-level /import/
+// projects URL is now a compatibility redirect only (see the "legacy
+// route" describe block below and docs/SourceOfTruth.md).
+//
 // Every login() call goes through the real browser login form; DB
 // ground-truth checks use a direct psql call (same pattern as
 // scripts/certification/lib.mjs) against CERT_DB_URL, never trusting only
@@ -49,20 +55,65 @@ function psql(sql) {
 test.describe('Import Projects — authorization', () => {
   test('Viewer cannot reach Import Projects', async ({ page }) => {
     await login(page, LOCAL_VIEWER);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await expect(page).toHaveURL(/\/unauthorized/);
   });
 
   test('Contractor cannot reach Import Projects', async ({ page }) => {
     await login(page, LOCAL_CONTRACTOR);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await expect(page).toHaveURL(/\/unauthorized/);
   });
 
   test('PM can reach Import Projects', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await expect(page.getByRole('heading', { name: 'Import Projects' })).toBeVisible();
+  });
+});
+
+test.describe('Import Projects — legacy route compatibility', () => {
+  test('the legacy /import/projects URL redirects to the canonical /projects/import route', async ({ page }) => {
+    await login(page, LOCAL_PM);
+    await page.goto('/import/projects');
+    await expect(page).toHaveURL(/\/projects\/import$/);
+    await expect(page.getByRole('heading', { name: 'Import Projects' })).toBeVisible();
+  });
+
+  test('the legacy route still enforces Import authorization — no route-based permission bypass', async ({ page }) => {
+    await login(page, LOCAL_VIEWER);
+    await page.goto('/import/projects');
+    await expect(page).toHaveURL(/\/unauthorized/);
+  });
+});
+
+test.describe('Import Projects — Back to Portfolio / browser navigation', () => {
+  test('the "Back to Portfolio" header link navigates to /projects', async ({ page }) => {
+    await login(page, LOCAL_PM);
+    await page.goto('/projects/import');
+    await page.getByRole('link', { name: /Back to Portfolio/ }).click();
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page.locator('h1')).toContainText('Portfolio');
+  });
+
+  test('Portfolio -> Import Projects -> browser Back -> Portfolio', async ({ page }) => {
+    await login(page, LOCAL_PM);
+    await page.goto('/projects');
+    await expect(page.locator('h1')).toContainText('Portfolio');
+    await page.getByRole('link', { name: 'Import Projects' }).click();
+    await expect(page).toHaveURL(/\/projects\/import$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page.locator('h1')).toContainText('Portfolio');
+  });
+
+  test('browser refresh on /projects/import reloads the Import workspace (no navigation-only transient state required)', async ({ page }) => {
+    await login(page, LOCAL_PM);
+    await page.goto('/projects/import');
+    await expect(page.getByRole('heading', { name: 'Import Projects' })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Import Projects' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download Excel template' })).toBeVisible();
   });
 });
 
@@ -71,7 +122,7 @@ test.describe('Import Projects — full workflow smoke test', () => {
 
   test('parser failure keeps the user on Upload with a plain-language error', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await page.setInputFiles('input[type="file"]', { name: 'notes.pdf', mimeType: 'application/pdf', buffer: Buffer.from('not a spreadsheet') });
     await expect(page.getByRole('alert')).toContainText('Only Excel (.xlsx) and CSV files are supported.');
     await expect(page.getByRole('heading', { name: 'Import Projects' })).toBeVisible(); // still on the Import page, no crash
@@ -79,7 +130,7 @@ test.describe('Import Projects — full workflow smoke test', () => {
 
   test('valid CSV enters Mapping with alias suggestions applied', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await page.setInputFiles('input[type="file"]', { name: 'historical-projects.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
 
     await expect(page.locator('select[data-header="Store Code"]')).toHaveValue('store_code');
@@ -91,7 +142,7 @@ test.describe('Import Projects — full workflow smoke test', () => {
 
   test('user can change a mapping and continue; unmapped optional columns are allowed', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await page.setInputFiles('input[type="file"]', { name: 'historical-projects.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
 
     // Ignore the Street column entirely — an ignored optional column must not block progression.
@@ -105,7 +156,7 @@ test.describe('Import Projects — full workflow smoke test', () => {
 
   test('missing a required mapping blocks Preview until resolved', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await page.setInputFiles('input[type="file"]', { name: 'historical-projects.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
 
     await page.locator('select[data-header="Country"]').selectOption('');
@@ -119,7 +170,7 @@ test.describe('Import Projects — full workflow smoke test', () => {
 
   test('Preview shows Ready/Already exists/Needs attention/Warnings from the real Phase 1 plan', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await page.setInputFiles('input[type="file"]', { name: 'historical-projects.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
     await page.getByRole('button', { name: /Review \d+ projects/ }).click();
     await expect(page.locator('.import-summary-cards')).toBeVisible();
@@ -147,7 +198,7 @@ test.describe('Import Projects — full workflow smoke test', () => {
 
   test('back to Mapping preserves the parsed file; remapping regenerates the plan', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await page.setInputFiles('input[type="file"]', { name: 'historical-projects.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
     await page.getByRole('button', { name: /Review \d+ projects/ }).click();
     await expect(page.locator('.import-summary-cards')).toBeVisible();
@@ -165,7 +216,7 @@ test.describe('Import Projects — full workflow smoke test', () => {
 
   test('commit imports only Ready rows; double-click cannot duplicate; result overrides preview assumptions', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await page.setInputFiles('input[type="file"]', { name: 'historical-projects.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
     await page.getByRole('button', { name: /Review \d+ projects/ }).click();
     await expect(page.locator('.import-summary-cards')).toBeVisible();
@@ -206,13 +257,13 @@ test.describe('Import Projects — full workflow smoke test', () => {
 test.describe('Import Projects — Download Excel Template', () => {
   test('Download Excel template button is visible near the upload step', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
     await expect(page.getByRole('button', { name: 'Download Excel template' })).toBeVisible();
   });
 
   test('clicking Download Excel template downloads a real .xlsx workbook with the canonical headers and zero data rows', async ({ page }) => {
     await login(page, LOCAL_PM);
-    await page.goto('/import/projects');
+    await page.goto('/projects/import');
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
@@ -238,12 +289,83 @@ test.describe('Import Projects — Download Excel Template', () => {
   });
 });
 
+test.describe('Import Projects — Projects IA v1 end-to-end (Portfolio -> Import -> Result -> Back to Portfolio -> Export)', () => {
+  test('Portfolio -> Import Projects -> Download Template -> fill -> Upload -> auto-map -> Preview -> Import -> Result -> Back to Portfolio -> project visible -> Export Projects contains it', async ({ page }) => {
+    const storeCode = `E2E-IA-${RUN_ID}`;
+
+    await login(page, LOCAL_PM);
+    await page.goto('/projects');
+    await expect(page.locator('h1')).toContainText('Portfolio');
+
+    await page.getByRole('link', { name: 'Import Projects' }).click();
+    await expect(page).toHaveURL(/\/projects\/import$/);
+
+    const [templateDownload] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Download Excel template' }).click(),
+    ]);
+    const templateBytes = readFileSync(await templateDownload.path());
+    const XLSX = await import('xlsx');
+    const templateWb = XLSX.read(templateBytes, { type: 'buffer' });
+    const templateHeaders = XLSX.utils.sheet_to_json(templateWb.Sheets['Projects'], { header: 1, defval: null })[0];
+
+    const filledRow = templateHeaders.map(h => {
+      if (h === 'Store Code') return storeCode;
+      if (h === 'Country') return 'Kazakhstan';
+      if (h === 'City') return 'Almaty';
+      if (h === 'Location Type') return 'Street';
+      if (h === 'Street Address') return 'Abay Ave 1';
+      if (h === 'Project Type') return 'New Opening';
+      return null;
+    });
+    const filledSheet = XLSX.utils.aoa_to_sheet([templateHeaders, filledRow]);
+    const filledWb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(filledWb, filledSheet, 'Projects');
+    const filledBytes = XLSX.write(filledWb, { bookType: 'xlsx', type: 'buffer' });
+
+    await page.setInputFiles('input[type="file"]', { name: 'filled-template.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: filledBytes });
+
+    // Zero manual remapping.
+    await expect(page.locator('select[data-header="Store Code"]')).toHaveValue('store_code');
+    await expect(page.locator('select[data-header="Location Type"]')).toHaveValue('location_type');
+
+    await page.getByRole('button', { name: /Review \d+ projects/ }).click();
+    await expect(page.locator('.import-summary-cards')).toBeVisible();
+    const readyCount = Number(await page.locator('.import-summary-card--success .value').innerText());
+    expect(readyCount).toBe(1);
+
+    await page.getByRole('button', { name: new RegExp(`Import ${readyCount} projects`) }).click();
+    await expect(page.getByRole('heading', { name: 'Import complete' })).toBeVisible({ timeout: 20_000 });
+
+    // Result step reviewed, then explicit Back to Portfolio (not an
+    // automatic redirect) — using the Portfolio fetch/query path, not a
+    // manually-injected client-side row.
+    await page.getByRole('link', { name: 'Back to Portfolio', exact: true }).click();
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page.locator('h1')).toContainText('Portfolio');
+
+    await page.getByPlaceholder('Search').fill(storeCode);
+    await expect(page.locator('table tbody tr', { hasText: storeCode })).toBeVisible();
+
+    // Export Projects -> the newly imported project is in the generated workbook.
+    const [exportDownload] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Export Projects' }).click(),
+    ]);
+    const exportBytes = readFileSync(await exportDownload.path());
+    const exportWb = XLSX.read(exportBytes, { type: 'buffer' });
+    const exportTable = XLSX.utils.sheet_to_json(exportWb.Sheets['Projects'], { header: 1, defval: null });
+    const storeCodeColumn = exportTable[0].indexOf('Store Code');
+    expect(exportTable.slice(1).some(row => row[storeCodeColumn] === storeCode)).toBe(true);
+  });
+});
+
 test.describe('Import Projects — responsive', () => {
   for (const vp of [{ width: 320, height: 640 }, { width: 375, height: 667 }, { width: 412, height: 915 }]) {
     test(`no horizontal overflow at ${vp.width}x${vp.height}, primary CTA reachable`, async ({ page }) => {
       await page.setViewportSize(vp);
       await login(page, LOCAL_PM);
-      await page.goto('/import/projects');
+      await page.goto('/projects/import');
       await page.setInputFiles('input[type="file"]', { name: 'historical-projects.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV) });
       await page.getByRole('button', { name: /Review \d+ projects/ }).click();
       await expect(page.locator('.import-summary-cards')).toBeVisible();

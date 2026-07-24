@@ -1,4 +1,7 @@
 ﻿import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { canAccessResource } from "../hooks/usePermission";
 import { generateAndSaveGantt, regenerateGantt } from "../hooks/useGanttOrchestration";
 import {
   getProjectById,
@@ -63,6 +66,8 @@ const inputStyle = {
 
 function Projects({ projects, onSaveProject, onDeleteProject }) {
   const toast = useToast();
+  const { role } = useAuth();
+  const canImportProjects = canAccessResource(role, 'projects_import');
   const [showForm, setShowForm] = useState(false);
   const [newProject, setNewProject] = useState(emptyProject);
   const [editingProjectId, setEditingProjectId] = useState(null);
@@ -280,14 +285,19 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           <h1>Portfolio</h1>
           <p>Manage projects and generate contractor report links.</p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <ExportProjectsButton projects={filteredProjects} onError={(msg) => toast.error(msg)} />
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
             className="primary-button"
             onClick={() => { setNewProject(emptyProject); originalProjectRef.current = emptyProject; setEditingProjectId(null); setShowForm(true); }}
           >
             Add New Project
           </button>
+          {canImportProjects && (
+            <Link to="/projects/import" className="secondary-button">
+              Import Projects
+            </Link>
+          )}
+          <ExportProjectsButton projects={filteredProjects} onError={(msg) => toast.error(msg)} />
         </div>
       </div>
 

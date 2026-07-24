@@ -31,6 +31,28 @@ test.describe('Portfolio page', () => {
     expect(headText).not.toContain('GC Access');
   });
 
+  test('Portfolio actions render in order: Add New Project, Import Projects, Export Projects', async ({ page }) => {
+    // Projects IA v1: Add/Import/Export are the three project-lifecycle
+    // entry actions living together on Portfolio (not a separate Import
+    // product module) — "create one, create many, extract data" order.
+    const header = page.locator('.page-header');
+    const actionsText = await header.textContent();
+    const addIndex = actionsText.indexOf('Add New Project');
+    const importIndex = actionsText.indexOf('Import Projects');
+    const exportIndex = actionsText.indexOf('Export Projects');
+    expect(addIndex).toBeGreaterThan(-1);
+    expect(importIndex).toBeGreaterThan(-1);
+    expect(exportIndex).toBeGreaterThan(-1);
+    expect(addIndex).toBeLessThan(importIndex);
+    expect(importIndex).toBeLessThan(exportIndex);
+  });
+
+  test('Import Projects action navigates to the canonical /projects/import route', async ({ page }) => {
+    await page.getByRole('link', { name: 'Import Projects' }).click();
+    await expect(page).toHaveURL(/\/projects\/import$/);
+    await expect(page.getByRole('heading', { name: 'Import Projects' })).toBeVisible();
+  });
+
   test('opens new project form via Add New Project button', async ({ page }) => {
     await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
     // Form should appear with Store Code field
@@ -220,4 +242,22 @@ test.describe('Portfolio page', () => {
     const table = XLSX.utils.sheet_to_json(workbook.Sheets['Projects'], { header: 1, defval: null });
     expect(table.length - 1).toBe(filteredCount); // header row + exactly the filtered rows, not the full unfiltered set
   });
+});
+
+test.describe('Portfolio page — mobile', () => {
+  for (const vp of [{ width: 320, height: 640 }, { width: 375, height: 667 }, { width: 412, height: 915 }]) {
+    test(`the three Portfolio actions (Add/Import/Export) remain usable at ${vp.width}px with no page overflow`, async ({ page }) => {
+      await page.setViewportSize(vp);
+      await login(page, CREDENTIALS.admin);
+      await page.goto('/projects');
+      await expect(page.locator('h1')).toContainText('Portfolio');
+
+      await expect(page.getByRole('button', { name: 'Add New Project' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Import Projects' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Export Projects' })).toBeVisible();
+
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `page scrollWidth exceeds clientWidth by ${overflow}px at ${vp.width}px`).toBeLessThanOrEqual(1);
+    });
+  }
 });

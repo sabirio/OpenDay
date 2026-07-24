@@ -41,6 +41,7 @@ const SnagProjectSelectPage = lazy(() => import("./pages/snags/SnagProjectSelect
 const PlanManagementPage = lazy(() => import("./pages/plans/PlanManagementPage"));
 const PlanViewerPage = lazy(() => import("./pages/plans/PlanViewerPage"));
 const ImportProjectsPage = lazy(() => import("./pages/import/ImportProjectsPage"));
+const LegacyImportProjectsRedirect = lazy(() => import("./pages/import/LegacyImportProjectsRedirect"));
 
 const CONSTRUCTION_TEMPLATE = {
   phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
@@ -406,7 +407,16 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="/import/projects" element={<ProtectedRoute resource="projects_import"><ImportProjectsPage/></ProtectedRoute>} />
+                  {/* Import is a Portfolio-owned operation (Projects IA v1) — its
+                      canonical route lives under /projects; the old top-level
+                      /import/projects URL redirects here so existing deep
+                      links/bookmarks keep working (see the legacy route below). */}
+                  <Route path="/projects/import" element={<ProtectedRoute resource="projects_import"><ImportProjectsPage onProjectsChanged={loadProjects}/></ProtectedRoute>} />
+                  {/* Legacy path — protected the same as the canonical route so a
+                      forged/unauthorized direct hit is rejected before any
+                      redirect happens (no route-based permission bypass),
+                      matching the /projects/:projectId/snags/field precedent below. */}
+                  <Route path="/import/projects" element={<ProtectedRoute resource="projects_import"><LegacyImportProjectsRedirect/></ProtectedRoute>} />
                   <Route path="/snags" element={<ProtectedRoute resource="snags"><SnagProjectSelectPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/field-snag" element={<ProtectedRoute resource="snags"><FieldSnagSelect projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />

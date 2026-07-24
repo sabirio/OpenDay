@@ -211,3 +211,23 @@ Closes the one round-trip gap found during Project Exchange v1 certification: `c
 These two are never to be confused despite the similar names — `construction_end_date` is a plan; `construction_completion_date` is the schedule engine's own prediction.
 
 **Validation severity (deliberate, matches existing precedent):** `construction_end_date < construction_start_date` is a **WARNING** (`PLANNED_END_BEFORE_START`), not a BLOCK — the exact same severity already given to the sibling planned-date relationship (`target_opening_date` before `construction_start_date`, `OPENING_BEFORE_START`). Planned dates are estimates subject to revision; only **ACTUAL** (observed) date orderings are hard business impossibilities and are BLOCK-level both in `validateProjectImportRow.js` and in the RPC's own integrity floor. Consistently, migration 040 does **not** add a `construction_end_date` ordering check to the server-side integrity floor — a forged direct-RPC row with an invalid planned chronology still commits, persisted exactly as submitted (certified by `IMP-22` in `scripts/certification/certifyImportPhase2.mjs`), matching `target_opening_date`'s existing, unchanged behavior. This is a documented design choice, not an oversight.
+
+---
+
+## Projects IA v1 — Import is a Portfolio-owned operation, not a standalone product module
+
+Portfolio owns the Project-lifecycle entry actions:
+
+```
+Portfolio (/projects)
+├── Add New Project    (create one)
+├── Import Projects    (create many, from spreadsheet)
+├── Export Projects    (extract data)
+└── Project → Project Information
+```
+
+**Canonical route:** `/projects/import` (was `/import/projects`). The old URL is a compatibility redirect only (`LegacyImportProjectsRedirect`, `<Navigate replace>`, mirrors the existing `pages/snags/LegacyFieldSnagRedirect.jsx` pattern) — both routes enforce the same `projects_import` permission via `<ProtectedRoute>` before any redirect happens, so there is no route-based permission bypass. There is exactly one Import implementation (`ImportProjectsPage` + `useImportWorkflow` + the Upload/Map/Preview/Result steps); the route move changed navigation and product ownership only, not the certified Import workflow itself, which is unchanged.
+
+**Navigation:** "Import Projects" is no longer a top-level sidebar item (it was a peer of "Portfolio" before this patch — that implied it was its own product module, which contradicted the "capture once" mental model of a user who thinks "I manage Projects, then add/import/export"). It is reached only via the "Import Projects" action on Portfolio, gated by the same `projects_import` permission Portfolio already had access to check.
+
+**Returning to Portfolio after Import:** the Result step's (and the workspace header's) "Back to Portfolio" both call the same `loadProjects()` App.jsx already uses on login before navigating to `/projects` — Import can create many projects in one commit, so refetching is simpler and more correct than reconstructing full canonical rows from the RPC's bounded per-row outcome summary just to splice them into client state. No manual client-side row injection.
