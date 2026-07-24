@@ -231,3 +231,56 @@ Portfolio (/projects)
 **Navigation:** "Import Projects" is no longer a top-level sidebar item (it was a peer of "Portfolio" before this patch — that implied it was its own product module, which contradicted the "capture once" mental model of a user who thinks "I manage Projects, then add/import/export"). It is reached only via the "Import Projects" action on Portfolio, gated by the same `projects_import` permission Portfolio already had access to check.
 
 **Returning to Portfolio after Import:** the Result step's (and the workspace header's) "Back to Portfolio" both call the same `loadProjects()` App.jsx already uses on login before navigating to `/projects` — Import can create many projects in one commit, so refetching is simpler and more correct than reconstructing full canonical rows from the RPC's bounded per-row outcome summary just to splice them into client state. No manual client-side row injection.
+
+---
+
+# Historical Data Foundation v1
+
+```
+Live OpenDay Projects
++
+Imported Historical Projects
+        ↓
+Canonical projects
+        ↓
+Historical Data Foundation
+        ↓
+future analytical engines (Benchmark, Cost/Schedule/Contractor Intelligence, Forecasting, AI)
+```
+
+**One canonical builder, no duplicate historical model.** `src/engines/historyEngine.js` exports `buildHistoricalProjectFacts(project)` — a pure projection over the exact same canonical project object `projectService.fromDB()` already produces. There is no `historical_projects` table, no `is_historical` column, and no second "imported vs. live" code path: a live OpenDay project and a project created by Import are the identical canonical shape, so the same builder produces valid Historical Project Facts for both (`historyEngine.test.mjs` certifies this with both an imported-shaped and a live-in-progress fixture). `src/engines/portfolioHistoryEngine.js` (mirrors the existing `riskEngine.js`/`portfolioRiskEngine.js` split) aggregates many projects' facts into a dataset and a data-coverage summary.
+
+**No historical DB duplication.** No migration was added for this task (chain still ends at 040) — v1 calculates from canonical project facts already in `public.projects` at read time; nothing is persisted. Analytics operate only on whatever canonical projects the caller already legitimately has (existing company/RLS/project-access semantics) — this layer never queries Supabase itself.
+
+**Per-dimension eligibility, not one global flag.** A project is not globally "historical = yes/no" — a project may be valid evidence for cost-per-m² analysis while having no actual construction dates at all. `buildHistoricalProjectFacts(project).eligibility` exposes seven independent booleans: `plannedSchedule`, `actualSchedule`, `openingPerformance`, `costPerTotalSqm`, `costPerSalesSqm`, `costVariance`, `contractorAttribution`. A later Benchmark Engine must check the relevant dimension(s) for its own analysis, never assume a project that's eligible for one dimension is eligible for all.
+
+**Derived metrics (v1, never persisted):**
+
+| Group | Metric | Formula |
+|---|---|---|
+| Planned schedule | `plannedConstructionDays` | `constructionEnd − constructionStart` (null if chronology invalid) |
+| | `plannedPreOpeningDays` | `targetOpening − constructionEnd` (null if chronology invalid) |
+| Actual schedule | `actualConstructionDays` | `actualConstructionCompletion − actualConstructionStart` (null if chronology invalid) |
+| | `actualPreOpeningDays` | `actualOpening − actualConstructionCompletion` (null if chronology invalid) |
+| Schedule variance (sign meaningful — never "delay"-labeled; early is legitimate) | `constructionStartVarianceDays` | `actualConstructionStart − constructionStart` |
+| | `constructionCompletionVarianceDays` | `actualConstructionCompletion − constructionEnd` |
+| | `openingVarianceDays` | `actualOpening − targetOpening` |
+| Financial | `costVarianceAmount` | `actualCost − budget` |
+| | `costVariancePercent` | `(actualCost − budget) / budget × 100` (null when budget is 0 — never divides by zero) |
+| | `actualCostPerTotalSqm` / `actualCostPerSalesSqm` | `actualCost / totalArea` / `actualCost / salesArea` |
+| | `budgetPerTotalSqm` / `budgetPerSalesSqm` | `budget / totalArea` / `budget / salesArea` |
+| Area | `salesAreaRatio` / `backOfHouseAreaRatio` | `salesArea / totalArea` / `backOfHouseArea / totalArea` (0–1, not a percentage) |
+
+All calendar-day differences reuse the existing `diffDays` from `engines/ganttLayout.js` (already the canonical, UTC-safe day-difference formula used by GanttChart's own drag-resize) rather than a new duplicate implementation.
+
+**Forecast fields are never historical truth.** `construction_completion_date`/`forecast_opening_date` (engine-owned CPM outputs, recalculated on every Gantt regeneration) are never read by `historyEngine.js` — actual performance uses only `actual_construction_completion_date`/`actual_opening_date`. Enforced by a dedicated architecture-guard check (`historyArchitectureGuard.test.mjs`) that fails if either forecast field is ever accessed as a property.
+
+**Unknown ≠ zero.** A metric is `null` only when its required input is missing/unparseable — never when a genuine `0` is measured (e.g. `actualCost = 0` still yields `actualCostPerTotalSqm = 0`, not `null`). Division-by-zero-shaped inputs (e.g. `store_size_sqm = 0`) also yield `null`, never `Infinity`/`NaN`.
+
+**Data quality issues (v1, minimal).** `buildHistoricalProjectFacts(project).qualityIssues` is a small deterministic array (`{code, field, message}`) flagging only analytical contradictions that would corrupt a derived metric — `PLANNED_END_BEFORE_START`, `PLANNED_OPENING_BEFORE_CONSTRUCTION_END`, `ACTUAL_COMPLETION_BEFORE_START`, `ACTUAL_OPENING_BEFORE_COMPLETION`, `SALES_AREA_EXCEEDS_TOTAL`, `NEGATIVE_AREA`, `NEGATIVE_MONEY`, `MONEY_WITHOUT_CURRENCY`. Missing optional data is never itself a quality issue — only internally-inconsistent *present* values are. The raw canonical dates/values are never rewritten; a quality issue only suppresses the specific derived metric(s) it would corrupt.
+
+**Currency — no FX, ever.** Every financial metric stays denominated in the project's own `currencyCode`; `500 USD/m²` and `250000 KZT/m²` are never averaged or converted. `costPerTotalSqm`/`costPerSalesSqm`/`costVariance` eligibility all require a known `currencyCode` (a cost-per-sqm value computed without a known currency is still returned as a number by the metric itself, but is *not* eligible — eligibility signals analytical comparability, not mere numeric presence). `portfolioHistoryEngine.buildHistoricalDataCoverage()` may report `eligibleCostProjectsByCurrency` (counts per currency code) but never a cross-currency value. FX conversion is out of scope until a future Benchmark Engine explicitly requires currency-compatible cohorts.
+
+**Contractor attribution ≠ contractor scoring.** `eligibility.contractorAttribution` only says whether `general_contractor` is known/non-empty — it is not a score, rank, or quality judgment. Contractor Performance (a future engine) owns that.
+
+**No benchmarking, no forecasting, no AI in this layer.** No averages, medians, percentiles, rankings, or outlier detection are computed here — this is Data Coverage (counts only), not Benchmark Engine. Those consume this same dataset later.
