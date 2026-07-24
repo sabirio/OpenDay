@@ -1,8 +1,13 @@
-// Import Foundation v1 Phase 2 security + integrity certification (IMP-01..IMP-14).
+// Import Foundation v1 Phase 2 security + integrity certification (IMP-01..IMP-33).
 // Every call here hits the REAL commit_project_import_batch RPC through a REAL
 // authenticated client (never the service-role key for the "acting" calls),
 // then verifies actual persisted state via direct psql ground truth — the
 // same pattern as certifySnagLifecycleSecurity.mjs.
+//
+// IMP-15 onward (added by migration 039, integrity hardening): forged direct
+// RPC attacks that bypass Phase 1 entirely (constructed by hand here, never
+// via planProjectImport), a real concurrent-duplicate-creation race, and the
+// proven (company_id, store_code) cross-company identity scope.
 // Run: node scripts/certification/certifyImportPhase2.mjs
 
 import { randomUUID } from 'node:crypto';
@@ -17,7 +22,7 @@ const { planProjectImport } = await import(pathToFileURL(path.join(__dirname, '.
 await requireCertificationEnvironment();
 
 const PASSWORD = getLocalFixturePassword();
-const r = makeReporter('Import Foundation v1 Phase 2 certification (IMP-01..IMP-14)');
+const r = makeReporter('Import Foundation v1 Phase 2 certification (IMP-01..IMP-33)');
 
 const HEADERS = ['Store Code', 'Mall', 'Country', 'City', 'Location Type', 'Project Type'];
 const MAPPING = {
@@ -37,6 +42,25 @@ async function commit(client, { companyId, planRows, clientRequestId, sourceFile
     p_source_filename: sourceFilename,
     p_mapping_snapshot: MAPPING,
   });
+}
+
+// A hand-built, otherwise-fully-valid CREATE row for the forged-RPC section
+// below — deliberately constructed WITHOUT going through planProjectImport,
+// simulating a caller that bypasses Phase 1 entirely and talks to the RPC
+// directly. `errors: []` and `action: 'CREATE'` are exactly what a genuine
+// Phase 1 CREATE row would also look like, so these scenarios only exercise
+// the migration-039 integrity floor, never the pre-existing action/error
+// consistency check (already covered by IMP-09/IMP-10).
+function forgedCreateRow(storeCode, overrides = {}) {
+  const normalized = {
+    store_code: storeCode, country: 'Kazakhstan', city: 'Almaty', location_type: 'Mall',
+    shopping_mall_name: 'Hardening Test Mall', project_type: 'New Opening',
+    ...overrides,
+  };
+  for (const key of Object.keys(normalized)) {
+    if (normalized[key] === undefined) delete normalized[key];
+  }
+  return [{ sourceRow: 2, action: 'CREATE', normalized, errors: [], warnings: [] }];
 }
 
 async function main() {
@@ -183,6 +207,94 @@ async function main() {
   r.check('zero project_gantt_tasks (no fabricated schedule)', countRows('project_gantt_tasks', `project_id=${importedProjectId}`) === 0);
   r.check('gantt_generated_at is null (Gantt was never generated for this historical project)',
     psql(`SELECT COALESCE(gantt_generated_at::text, 'NULL') FROM projects WHERE id=${importedProjectId};`) === 'NULL');
+
+  // ── IMP-15: forged direct RPC input — server-side integrity floor (migration 039) ──
+  // Every scenario below is an otherwise-valid CREATE row (action='CREATE',
+  // errors=[]) hand-built to bypass Phase 1 entirely, each violating exactly
+  // one critical persistence invariant. For each: the RPC call itself must
+  // succeed (rejection is a per-row outcome, not a request failure), the row
+  // outcome must be REJECTED_INTEGRITY_FLOOR, and — verified independently
+  // via direct psql, never trusted from the RPC's own response — zero
+  // project rows must exist for that store_code.
+  r.section('IMP-15: server-side integrity floor rejects forged CREATE rows that bypass Phase 1 (17 scenarios)');
+  const forgedScenarios = [
+    ['IMP-FLOOR-01', 'missing country', { country: undefined }],
+    ['IMP-FLOOR-02', 'missing city', { city: undefined }],
+    ['IMP-FLOOR-03', 'missing project_type', { project_type: undefined }],
+    ['IMP-FLOOR-04', 'unsupported location_type', { location_type: 'Airport' }],
+    ['IMP-FLOOR-05', 'Mall without mall name', { location_type: 'Mall', shopping_mall_name: undefined }],
+    ['IMP-FLOOR-06', 'Street with mall name', { location_type: 'Street', street: '123 Main St', shopping_mall_name: 'Should Not Be Here' }],
+    ['IMP-FLOOR-07', 'Street without street address', { location_type: 'Street', shopping_mall_name: undefined }],
+    ['IMP-FLOOR-08', 'negative total area', { store_size_sqm: -100 }],
+    ['IMP-FLOOR-09', 'negative sales area', { sales_area_sqm: -1 }],
+    ['IMP-FLOOR-10', 'negative BOH area', { back_of_house_area_sqm: -1 }],
+    ['IMP-FLOOR-11', 'sales area > total area', { store_size_sqm: 100, sales_area_sqm: 200 }],
+    ['IMP-FLOOR-12', 'actual completion before actual start', { actual_construction_start_date: '2024-06-01', actual_construction_completion_date: '2024-01-01' }],
+    ['IMP-FLOOR-13', 'actual opening before actual start', { actual_construction_start_date: '2024-06-01', actual_opening_date: '2024-01-01' }],
+    ['IMP-FLOOR-14', 'negative budget', { budget: -1, currency_code: 'USD' }],
+    ['IMP-FLOOR-15', 'negative actual_cost', { actual_cost: -1, currency_code: 'USD' }],
+    ['IMP-FLOOR-16', 'budget without currency', { budget: 500000 }],
+    ['IMP-FLOOR-17', 'actual_cost without currency', { actual_cost: 500000 }],
+  ];
+  for (const [storeCode, label, overrides] of forgedScenarios) {
+    const row = forgedCreateRow(storeCode, overrides);
+    const { data, error } = await commit(adminA, { companyId: 'company-a', planRows: row, clientRequestId: randomUUID() });
+    r.check(`[${label}] RPC call succeeds (rejection is a per-row outcome, not a request failure)`, !error, JSON.stringify(error));
+    r.check(`[${label}] row outcome is REJECTED_INTEGRITY_FLOOR`, data?.rows?.[0]?.outcome === 'REJECTED_INTEGRITY_FLOOR', JSON.stringify(data?.rows?.[0]));
+    r.check(`[${label}] zero project rows created (ground truth, not trusted from the RPC response)`, countRows('projects', `store_code='${storeCode}'`) === 0);
+  }
+  const { data: floorControl } = await commit(adminA, { companyId: 'company-a', planRows: forgedCreateRow('IMP-FLOOR-CONTROL'), clientRequestId: randomUUID() });
+  r.check('a genuinely valid forged-shape row (no violation) still commits — the floor rejects only real violations, not the bypass itself',
+    floorControl?.rows?.[0]?.outcome === 'COMMITTED', JSON.stringify(floorControl?.rows?.[0]));
+
+  // ── IMP-16: import_jobs audit correctness for a rejected batch ──
+  r.section('IMP-16: import_jobs never claims a rejected row was committed');
+  const auditRow = forgedCreateRow('IMP-AUDIT-1', { budget: -1, currency_code: 'USD' });
+  const { data: imp16 } = await commit(adminA, { companyId: 'company-a', planRows: auditRow, clientRequestId: randomUUID() });
+  r.check('RPC summary reports zero committed', imp16.summary.committed === 0);
+  r.check('per-row projectId is absent for the rejected row', imp16.rows[0].projectId == null);
+  r.check('import_jobs.committed_count matches (ground truth, not just the RPC response)',
+    psql(`SELECT committed_count FROM import_jobs WHERE id=${imp16.importJobId};`) === '0');
+  r.check('no project row exists for the rejected store_code', countRows('projects', `store_code='IMP-AUDIT-1'`) === 0);
+
+  // ── IMP-17: concurrent duplicate creation — real parallel race, not sequential calls ──
+  r.section('IMP-17: N truly concurrent CREATE attempts for the same identity produce exactly one canonical project');
+  const raceStoreCode = 'IMP-RACE-1';
+  const raceAttempts = 6; // repeated to make the race meaningful rather than accidentally sequential
+  const racePromises = Array.from({ length: raceAttempts }, () =>
+    commit(adminA, { companyId: 'company-a', planRows: forgedCreateRow(raceStoreCode), clientRequestId: randomUUID() }),
+  );
+  const raceResults = await Promise.all(racePromises); // fired together, not awaited one at a time
+  const raceOutcomes = raceResults.map(({ data, error }) => error ? `ERROR:${error.message}` : data.rows[0].outcome);
+  const committedCount = raceOutcomes.filter(outcome => outcome === 'COMMITTED').length;
+  const conflictCount = raceOutcomes.filter(outcome => outcome === 'CONFLICT').length;
+  r.check(`exactly one of ${raceAttempts} concurrent attempts committed (outcomes: ${raceOutcomes.join(', ')})`, committedCount === 1);
+  r.check(`the remaining ${raceAttempts - 1} attempts are CONFLICT, never a second COMMITTED`, conflictCount === raceAttempts - 1);
+  r.check('ground truth: exactly one project row exists for the raced identity', countRows('projects', `store_code='${raceStoreCode}' AND company_id='company-a'`) === 1);
+
+  // ── IMP-18: idempotency and concurrency coexist correctly ──
+  r.section('IMP-18: same client_request_id retried concurrently still yields exactly one project (idempotency survives concurrency)');
+  const idemRaceStoreCode = 'IMP-IDEM-RACE-1';
+  const sharedRequestId = randomUUID();
+  const idemRaceResults = await Promise.all([
+    commit(adminA, { companyId: 'company-a', planRows: forgedCreateRow(idemRaceStoreCode), clientRequestId: sharedRequestId }),
+    commit(adminA, { companyId: 'company-a', planRows: forgedCreateRow(idemRaceStoreCode), clientRequestId: sharedRequestId }),
+  ]);
+  r.check('both concurrent calls with the same client_request_id succeed without error', idemRaceResults.every(({ error }) => !error), JSON.stringify(idemRaceResults.map(res => res.error)));
+  r.check('exactly one of the two is the real commit and one is the idempotent replay', idemRaceResults.filter(({ data }) => data.idempotentReplay === false).length === 1);
+  r.check('ground truth: exactly one project row exists, not two', countRows('projects', `store_code='${idemRaceStoreCode}'`) === 1);
+
+  // ── IMP-19: cross-company identity — proven scope is (company_id, store_code), not global ──
+  r.section('IMP-19: the same store_code in two different companies coexists (identity is company-scoped, not global)');
+  const adminB = await signInAs('admin-b@cert.local', PASSWORD);
+  const crossStoreCode = 'IMP-CROSS-1';
+  const { data: crossA } = await commit(adminA, { companyId: 'company-a', planRows: forgedCreateRow(crossStoreCode), clientRequestId: randomUUID() });
+  const { data: crossB } = await commit(adminB, { companyId: 'company-b', planRows: forgedCreateRow(crossStoreCode), clientRequestId: randomUUID() });
+  r.check('company-a commit succeeds', crossA.rows[0].outcome === 'COMMITTED', JSON.stringify(crossA.rows[0]));
+  r.check('company-b commit for the SAME store_code also succeeds (different company scope)', crossB.rows[0].outcome === 'COMMITTED', JSON.stringify(crossB.rows[0]));
+  r.check('exactly one project row exists in company-a for this store_code', countRows('projects', `store_code='${crossStoreCode}' AND company_id='company-a'`) === 1);
+  r.check('exactly one project row exists in company-b for this store_code', countRows('projects', `store_code='${crossStoreCode}' AND company_id='company-b'`) === 1);
+  r.check('the two rows are genuinely different projects', crossA.rows[0].projectId !== crossB.rows[0].projectId);
 
   const summary = r.summary();
   process.exitCode = summary.fail === 0 ? 0 : 1;
