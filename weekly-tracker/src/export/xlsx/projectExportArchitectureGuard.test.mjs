@@ -77,5 +77,29 @@ check('an empty project list still produces the Projects sheet with the full hea
     return wb.SheetNames.length === 1 && wb.SheetNames[0] === PROJECTS_SHEET_NAME;
   })());
 
+// Project Exchange v1 completion patch (§25) — construction_end_date
+// (Planned Construction End) round-trip guards.
+console.log('\nprojectExportArchitectureGuard - Planned Construction End (construction_end_date) is a first-class Project Exchange catalog member');
+check('construction_end_date is present in IMPORT_FIELD_CATALOG (the one canonical catalog — no second definition anywhere)',
+  IMPORT_FIELD_CATALOG.some(f => f.key === 'construction_end_date'));
+check('exactly one canonical spreadsheet header exists for it: "Planned Construction End"',
+  IMPORT_FIELD_CATALOG.filter(f => f.key === 'construction_end_date').length === 1
+  && IMPORT_FIELD_CATALOG.find(f => f.key === 'construction_end_date').label === 'Planned Construction End');
+check('Project Export inherits it automatically from the catalog (no separate export-side declaration)',
+  PROJECT_EXPORT_HEADERS.includes('Planned Construction End'));
+check('the Blank Template (buildProjectWorkbook([])) inherits it too — same generator, same catalog',
+  (() => {
+    const wb = buildProjectWorkbook([]);
+    const headerRow = Object.values(wb.Sheets[PROJECTS_SHEET_NAME])
+      .filter(cell => cell && typeof cell === 'object' && 'v' in cell)
+      .map(cell => cell.v);
+    return headerRow.includes('Planned Construction End');
+  })());
+check('construction_end_date is never confused with the engine-owned forecast field construction_completion_date (distinct keys, distinct labels)',
+  IMPORT_FIELD_CATALOG.find(f => f.key === 'construction_end_date').label !== 'Planned Construction Completion'
+  && !IMPORT_FIELD_CATALOG.some(f => f.key === 'construction_completion_date'));
+check('Status and Project Manager remain excluded from the exchange catalog (this patch adds only construction_end_date)',
+  !IMPORT_FIELD_CATALOG.some(f => f.key === 'project_status') && !IMPORT_FIELD_CATALOG.some(f => f.key === 'project_manager'));
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

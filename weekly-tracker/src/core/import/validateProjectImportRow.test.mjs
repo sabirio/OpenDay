@@ -62,6 +62,25 @@ check('opening before start is a WARNING, not a blocking error (planned dates on
     return result.valid === true && result.warnings.some(w => w.code === 'OPENING_BEFORE_START');
   })());
 
+// Project Exchange v1 completion patch — Planned Construction End's
+// invalid-chronology proof (task §15): construction_end_date before
+// construction_start_date is a WARNING at the same severity as the sibling
+// planned-date check above (target_opening_date), never a BLOCK — planned
+// dates are estimates subject to revision; only ACTUAL/observed dates are
+// hard business impossibilities (see the actual-date rules below).
+check('construction end before construction start is a WARNING, not a blocking error, and the row still resolves valid/CREATE-eligible',
+  (() => {
+    const result = validateProjectImportRow({ ...validRow, construction_start_date: '2026-11-15', construction_end_date: '2026-08-01' });
+    return result.valid === true && result.warnings.some(w => w.code === 'PLANNED_END_BEFORE_START' && w.field === 'construction_end_date');
+  })());
+check('construction end on/after construction start produces no warning', (() => {
+  const result = validateProjectImportRow({ ...validRow, construction_start_date: '2026-08-01', construction_end_date: '2026-11-15' });
+  return !result.warnings.some(w => w.code === 'PLANNED_END_BEFORE_START');
+})());
+check('a malformed construction_end_date blocks with INVALID_DATE (same treatment as every other date field)',
+  validateProjectImportRow({ ...validRow, construction_end_date: 'sometime next year' }).errors.some(e => e.code === 'INVALID_DATE' && e.field === 'construction_end_date'));
+check('an omitted construction_end_date never blocks', validateProjectImportRow({ ...validRow, construction_end_date: '' }).valid === true);
+
 console.log('\nvalidateProjectImportRow - actual date rules (frozen design §6/§7; never reuses forecast-owned columns)');
 check('actual completion before actual start blocks', validateProjectImportRow({ ...validRow, actual_construction_start_date: '2024-06-01', actual_construction_completion_date: '2024-01-01' }).errors.some(e => e.code === 'ACTUAL_COMPLETION_BEFORE_START'));
 check('actual opening before actual construction start blocks', validateProjectImportRow({ ...validRow, actual_construction_start_date: '2024-06-01', actual_opening_date: '2024-01-01' }).errors.some(e => e.code === 'ACTUAL_OPENING_BEFORE_START'));

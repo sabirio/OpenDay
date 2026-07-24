@@ -10,7 +10,7 @@ const MALL_PROJECT = {
   locationType: 'Mall', shoppingMallName: 'MEGA Alma-Ata', street: null,
   projectType: 'Rebuilding', storeConcept: 'Flagship',
   storeSizeSqm: 1250, salesAreaSqm: 900, backOfHouseAreaSqm: 350,
-  constructionStartDate: '2026-01-05', targetOpeningDate: '2026-12-01',
+  constructionStartDate: '2026-08-01', constructionEndDate: '2026-11-15', targetOpeningDate: '2026-11-21',
   actualConstructionStartDate: '2026-01-10', actualConstructionCompletionDate: '2026-11-15', actualOpeningDate: '2026-11-21',
   budget: 500000, actualCost: 525000, currencyCode: 'KZT',
   generalContractor: 'Acme Build', contractorEmail: 'gc@acme.test',
@@ -30,8 +30,16 @@ ok('Mall row places values under the correct columns', () => {
   assert.equal(byHeader['Budget'], 500000);
   assert.equal(byHeader['Actual Cost'], 525000);
   assert.equal(byHeader['Currency'], 'KZT');
-  assert.equal(byHeader['Planned Start'], '2026-01-05');
-  assert.equal(byHeader['Planned Opening'], '2026-12-01');
+  assert.equal(byHeader['Planned Start'], '2026-08-01');
+  assert.equal(byHeader['Planned Construction End'], '2026-11-15');
+  assert.equal(byHeader['Planned Opening'], '2026-11-21');
+});
+
+ok('"Planned Construction End" is the one canonical header for construction_end_date, distinct from forecast fields', () => {
+  assert.ok(PROJECT_EXPORT_HEADERS.includes('Planned Construction End'));
+  assert.equal(PROJECT_EXPORT_HEADERS.filter(h => /construction end/i.test(h)).length, 1);
+  assert.equal(PROJECT_EXPORT_HEADERS.includes('Completion'), false);
+  assert.equal(PROJECT_EXPORT_HEADERS.includes('Forecast Completion'), false);
 });
 
 ok('Street row has Shopping Mall Name blank, Street Address filled', () => {

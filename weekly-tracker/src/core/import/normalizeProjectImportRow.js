@@ -199,7 +199,7 @@ export function normalizeProjectImportRow(mappedRow) {
   normalized.project_type = projectType.value;
 
   for (const dateField of [
-    'construction_start_date', 'target_opening_date',
+    'construction_start_date', 'construction_end_date', 'target_opening_date',
     'actual_construction_start_date', 'actual_construction_completion_date', 'actual_opening_date',
   ]) {
     const note = normalizeDate(row[dateField]);

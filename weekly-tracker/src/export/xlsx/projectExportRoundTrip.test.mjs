@@ -25,7 +25,7 @@ const MALL_PROJECT = {
   locationType: 'Mall', shoppingMallName: 'MEGA Alma-Ata', street: null,
   projectType: 'Rebuilding', storeConcept: 'Flagship',
   storeSizeSqm: 1250, salesAreaSqm: 900, backOfHouseAreaSqm: 350,
-  constructionStartDate: '2026-01-05', targetOpeningDate: '2026-12-01',
+  constructionStartDate: '2026-08-01', constructionEndDate: '2026-11-15', targetOpeningDate: '2026-11-21',
   actualConstructionStartDate: '2026-01-10', actualConstructionCompletionDate: '2026-11-15', actualOpeningDate: '2026-11-21',
   budget: 500000, actualCost: 525000, currencyCode: 'KZT',
   generalContractor: 'Acme Build', contractorEmail: 'gc@acme.test',
@@ -36,7 +36,7 @@ const STREET_PROJECT = {
   locationType: 'Street', shoppingMallName: null, street: 'Abay Ave 42',
   projectType: 'New Opening', storeConcept: 'Standard',
   storeSizeSqm: 600, salesAreaSqm: 450, backOfHouseAreaSqm: 150,
-  constructionStartDate: '2026-03-01', targetOpeningDate: '2026-09-15',
+  constructionStartDate: '2026-03-01', constructionEndDate: '2026-08-01', targetOpeningDate: '2026-09-15',
   actualConstructionStartDate: null, actualConstructionCompletionDate: null, actualOpeningDate: null,
   budget: null, actualCost: null, currencyCode: null,
   generalContractor: null, contractorEmail: null,
@@ -73,7 +73,16 @@ console.log('\nExport -> Import round-trip: normalized values match source facts
   check('Mall row: sales_area_sqm matches', mallRow.normalized.sales_area_sqm === MALL_PROJECT.salesAreaSqm);
   check('Mall row: back_of_house_area_sqm matches', mallRow.normalized.back_of_house_area_sqm === MALL_PROJECT.backOfHouseAreaSqm);
   check('Mall row: construction_start_date matches', mallRow.normalized.construction_start_date === MALL_PROJECT.constructionStartDate);
+  check('Mall row: construction_end_date (Planned Construction End) matches', mallRow.normalized.construction_end_date === MALL_PROJECT.constructionEndDate);
   check('Mall row: target_opening_date matches', mallRow.normalized.target_opening_date === MALL_PROJECT.targetOpeningDate);
+  // §12/§26: all three planned dates preserved exactly, in the same batch,
+  // with no date swapped between fields.
+  check('all three planned dates preserved exactly: Start=2026-08-01, End=2026-11-15, Opening=2026-11-21',
+    mallRow.normalized.construction_start_date === '2026-08-01'
+    && mallRow.normalized.construction_end_date === '2026-11-15'
+    && mallRow.normalized.target_opening_date === '2026-11-21');
+  check('construction_end_date is not contaminated by/confused with a forecast field (no such key exists on the normalized row)',
+    !('construction_completion_date' in mallRow.normalized) && !('forecast_opening_date' in mallRow.normalized));
   check('Mall row: actual_construction_start_date matches', mallRow.normalized.actual_construction_start_date === MALL_PROJECT.actualConstructionStartDate);
   check('Mall row: actual_construction_completion_date matches', mallRow.normalized.actual_construction_completion_date === MALL_PROJECT.actualConstructionCompletionDate);
   check('Mall row: actual_opening_date matches', mallRow.normalized.actual_opening_date === MALL_PROJECT.actualOpeningDate);

@@ -296,6 +296,49 @@ async function main() {
   r.check('exactly one project row exists in company-b for this store_code', countRows('projects', `store_code='${crossStoreCode}' AND company_id='company-b'`) === 1);
   r.check('the two rows are genuinely different projects', crossA.rows[0].projectId !== crossB.rows[0].projectId);
 
+  // ── IMP-20: Project Exchange v1 completion patch (migration 040) — the
+  // trusted commit RPC now persists Planned Construction End (construction_
+  // end_date), closing the Export -> Excel -> Import round-trip gap. ──
+  r.section('IMP-20: commit_project_import_batch persists construction_end_date (Planned Construction End)');
+  const plannedDatesRow = forgedCreateRow('IMP-PLANNED-END-1', {
+    construction_start_date: '2026-08-01',
+    construction_end_date: '2026-11-15',
+    target_opening_date: '2026-11-21',
+  });
+  const { data: imp20, error: imp20Err } = await commit(adminA, { companyId: 'company-a', planRows: plannedDatesRow, clientRequestId: randomUUID() });
+  r.check('accepted', !imp20Err, JSON.stringify(imp20Err));
+  r.check('row committed', imp20?.rows?.[0]?.outcome === 'COMMITTED', JSON.stringify(imp20?.rows?.[0]));
+  r.check('all three planned dates persisted exactly, ground truth (not trusted from the RPC response)',
+    psql(`SELECT construction_start_date, construction_end_date, target_opening_date FROM projects WHERE store_code='IMP-PLANNED-END-1';`)
+      === '2026-08-01|2026-11-15|2026-11-21');
+
+  // ── IMP-21: a blank construction_end_date persists as NULL, never a
+  // fabricated date (unknown ≠ zero, extended to planned dates too). ──
+  r.section('IMP-21: an absent construction_end_date persists as NULL, not a fabricated date');
+  const noEndDateRow = forgedCreateRow('IMP-PLANNED-END-BLANK-1', { construction_start_date: '2026-08-01' });
+  const { data: imp21 } = await commit(adminA, { companyId: 'company-a', planRows: noEndDateRow, clientRequestId: randomUUID() });
+  r.check('row committed', imp21?.rows?.[0]?.outcome === 'COMMITTED', JSON.stringify(imp21?.rows?.[0]));
+  r.check('construction_end_date is NULL, not 1970-01-01/0/today (ground truth)',
+    psql(`SELECT COALESCE(construction_end_date::text, 'NULL') FROM projects WHERE store_code='IMP-PLANNED-END-BLANK-1';`) === 'NULL');
+
+  // ── IMP-22: an invalid planned chronology (construction_end_date before
+  // construction_start_date), forged directly at the RPC, still commits —
+  // by design, matching the pre-existing target_opening_date precedent.
+  // Planned dates are estimates, not observed facts; only ACTUAL date
+  // orderings are floor-checked (see IMP-15's actual-date scenarios and
+  // migration 040's header comment). This proves the ACTUAL chosen
+  // behavior rather than assuming BLOCK. ──
+  r.section('IMP-22: a forged invalid planned chronology (end before start) still commits — consistent with the existing target_opening_date precedent, not floor-checked');
+  const invalidChronologyRow = forgedCreateRow('IMP-PLANNED-END-INVALID-1', {
+    construction_start_date: '2026-11-15',
+    construction_end_date: '2026-08-01',
+  });
+  const { data: imp22, error: imp22Err } = await commit(adminA, { companyId: 'company-a', planRows: invalidChronologyRow, clientRequestId: randomUUID() });
+  r.check('the RPC call succeeds (not rejected server-side — this is a deliberate, documented design choice, not an oversight)', !imp22Err, JSON.stringify(imp22Err));
+  r.check('the row commits (server integrity floor only guards ACTUAL/observed date impossibilities, not PLANNED estimates)', imp22?.rows?.[0]?.outcome === 'COMMITTED', JSON.stringify(imp22?.rows?.[0]));
+  r.check('the invalid chronology is persisted exactly as submitted, ground truth (proves the actual behavior, not assumed)',
+    psql(`SELECT construction_start_date, construction_end_date FROM projects WHERE store_code='IMP-PLANNED-END-INVALID-1';`) === '2026-11-15|2026-08-01');
+
   const summary = r.summary();
   process.exitCode = summary.fail === 0 ? 0 : 1;
 }

@@ -15,7 +15,7 @@ function check(label, condition) {
 const CANONICAL_KEYS = [
   'store_code', 'shopping_mall_name', 'country', 'city', 'location_type', 'street',
   'store_size_sqm', 'sales_area_sqm', 'back_of_house_area_sqm', 'project_type', 'store_concept',
-  'construction_start_date', 'target_opening_date', 'actual_construction_start_date',
+  'construction_start_date', 'construction_end_date', 'target_opening_date', 'actual_construction_start_date',
   'actual_construction_completion_date', 'actual_opening_date', 'budget', 'actual_cost', 'currency_code',
   'general_contractor', 'contractor_email',
 ];
@@ -57,6 +57,11 @@ check('"m2" suggests store_size_sqm', suggestColumnMapping(['m2'])[0].suggestedF
 check('"Store Area" suggests store_size_sqm', suggestColumnMapping(['Store Area'])[0].suggestedField === 'store_size_sqm');
 check('"Planned Opening" suggests target_opening_date', suggestColumnMapping(['Planned Opening'])[0].suggestedField === 'target_opening_date');
 check('"Opening Target" suggests target_opening_date', suggestColumnMapping(['Opening Target'])[0].suggestedField === 'target_opening_date');
+// Project Exchange v1 completion patch: Planned Construction End round-trip.
+check('"Planned Construction End" (the generated canonical header) suggests construction_end_date', suggestColumnMapping(['Planned Construction End'])[0].suggestedField === 'construction_end_date');
+check('"Construction End" suggests construction_end_date', suggestColumnMapping(['Construction End'])[0].suggestedField === 'construction_end_date');
+check('"Planned End" suggests construction_end_date', suggestColumnMapping(['Planned End'])[0].suggestedField === 'construction_end_date');
+check('construction_end_date is never confused with the engine-owned forecast field ("Forecast Completion" remains unmapped)', suggestColumnMapping(['Forecast Completion'])[0].suggestedField === null);
 check('"GC" suggests general_contractor', suggestColumnMapping(['GC'])[0].suggestedField === 'general_contractor');
 check('"Location Type" suggests location_type', suggestColumnMapping(['Location Type'])[0].suggestedField === 'location_type');
 check('"Street Address" suggests street', suggestColumnMapping(['Street Address'])[0].suggestedField === 'street');

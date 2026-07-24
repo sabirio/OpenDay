@@ -190,9 +190,24 @@ Project Export (Portfolio → "Export Projects") and the Blank Import Template (
 - **`construction_completion_date` / `forecast_opening_date` / `gantt_*`** — engine-owned forecasts (`ganttEngine.calculateKeyDates`), never editable Import/Export facts, exactly as already documented above.
 - **`project_status`** — Import v1 has never written this column; adding it to the exchange catalog without matching Import support would create an Export column that silently fails to round-trip. Excluded pending an explicit future decision to make it Import-writable.
 - **`project_manager`** (and the other stakeholder-manager columns) — no stable, human-readable, Import-safe identity contract exists yet (a spreadsheet name string isn't a safe assignment mechanism to an OpenDay user account). Excluded from v1; `general_contractor`/`contractor_email` remain included since they were already plain historical text fields in the frozen catalog, not user-account assignments.
-- **`construction_end_date`** — exists in live project editing (`ProjectEditorModal`'s Planned Dates) but was **never added to Import's catalog or to migration 038's commit RPC INSERT column list** — a pre-existing gap discovered during this task's audit, not introduced by it. Adding true round-trip support would require a migration to the commit RPC, which is out of scope here (no new migration was needed or added for Project Exchange v1). Recorded as debt for a future, explicitly-scoped Import/Export enhancement.
 - Every internal id (`id`, `company_id`, `template_id`, `created_by`, ...) — never exported, never expected in an uploaded file.
 
 **Financial/date serialization:** Budget/Actual Cost export as bare numeric cells with Currency as its own column (`500000` / `KZT`, never a formatted `"500,000 KZT"` string) — Import already required this shape. Dates export as deterministic `YYYY-MM-DD` strings, matching Import's own unambiguous-date rule exactly. Null/unknown values export as blank cells, never a fabricated `0`/`"N/A"`/`"Unknown"`.
 
 **Security/scope:** Export reads whatever `projectService.getAll()` (RLS-scoped, no client-side company filter needed) already returned to the page — it cannot broaden visibility, since it never queries anything itself; it only serializes rows the page already legitimately has. Pure read/download: no `projects`/`import_jobs`/report/Gantt row is ever written by generating or downloading a workbook.
+
+---
+
+## Project Exchange v1 completion patch — Planned Construction End (`construction_end_date`)
+
+Closes the one round-trip gap found during Project Exchange v1 certification: `construction_end_date` already existed in the schema (migration 037) and in live Add/Edit Project, but Import's commit RPC never wrote it, so Export → Excel → Import into a fresh project silently dropped it. Migration 040 (`CREATE OR REPLACE` on `commit_project_import_batch`, same pattern as 039 — 037/038/039 are not edited) adds `construction_end_date` to the trusted INSERT, closing the gap. No schema change, no new table, no new column (the column already existed).
+
+**Canonical header:** `Planned Construction End` — the one and only spreadsheet header for this field, added once to `IMPORT_FIELD_CATALOG`; Import mapping, Project Export, and the Blank Template all inherit it automatically from that single addition (no separate declaration anywhere).
+
+**PLANNED vs FORECAST — the distinction this patch depends on:**
+- `projects.construction_end_date` = **PLANNED** construction end. A user/project fact, entered and edited exactly like `construction_start_date` and `target_opening_date` (same table, same UI section, same Import catalog). Part of Project Exchange v1.
+- `projects.construction_completion_date` = **FORECAST**, engine-owned. Computed exclusively by `ganttEngine.calculateKeyDates`, recalculated on every Gantt regeneration. Never editable, never part of Import/Export, unaffected by this patch.
+
+These two are never to be confused despite the similar names — `construction_end_date` is a plan; `construction_completion_date` is the schedule engine's own prediction.
+
+**Validation severity (deliberate, matches existing precedent):** `construction_end_date < construction_start_date` is a **WARNING** (`PLANNED_END_BEFORE_START`), not a BLOCK — the exact same severity already given to the sibling planned-date relationship (`target_opening_date` before `construction_start_date`, `OPENING_BEFORE_START`). Planned dates are estimates subject to revision; only **ACTUAL** (observed) date orderings are hard business impossibilities and are BLOCK-level both in `validateProjectImportRow.js` and in the RPC's own integrity floor. Consistently, migration 040 does **not** add a `construction_end_date` ordering check to the server-side integrity floor — a forged direct-RPC row with an invalid planned chronology still commits, persisted exactly as submitted (certified by `IMP-22` in `scripts/certification/certifyImportPhase2.mjs`), matching `target_opening_date`'s existing, unchanged behavior. This is a documented design choice, not an oversight.

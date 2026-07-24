@@ -89,6 +89,7 @@ const composed = normalizeProjectImportRow({
   store_code: '  kz001  ', shopping_mall_name: '  Mega Center  ', country: 'UAE', city: 'Dubai',
   location_type: 'mall', store_size_sqm: '1 250 m²', sales_area_sqm: '900', back_of_house_area_sqm: '350',
   project_type: 'new opening', store_concept: '  Flagship  ', construction_start_date: '2024-01-15',
+  construction_end_date: '2024-10-15',
   target_opening_date: '15 November 2024', actual_construction_start_date: '2024-01-20',
   actual_construction_completion_date: '2024-10-01', actual_opening_date: '2024-11-05',
   budget: '2,500,000', actual_cost: '2 650 000', currency_code: 'aed',
@@ -105,6 +106,7 @@ check('a fully dirty realistic row normalizes every field correctly in one pass'
   && composed.normalized.project_type === 'New Opening'
   && composed.normalized.store_concept === 'Flagship'
   && composed.normalized.construction_start_date === '2024-01-15'
+  && composed.normalized.construction_end_date === '2024-10-15'
   && composed.normalized.target_opening_date === '2024-11-15'
   && composed.normalized.actual_construction_start_date === '2024-01-20'
   && composed.normalized.actual_construction_completion_date === '2024-10-01'
@@ -115,6 +117,19 @@ check('a fully dirty realistic row normalizes every field correctly in one pass'
   && composed.normalized.general_contractor === 'ACME Co'
   && composed.normalized.contractor_email === 'pm@acme.example');
 check('field-level notes are returned alongside the normalized row for the validator to read', composed.fieldNotes.store_size_sqm.ok === true && composed.fieldNotes.project_type.recognized === true && composed.fieldNotes.currency_code.recognized === true);
+
+console.log('\nnormalizeProjectImportRow - construction_end_date (Planned Construction End) uses the same canonical date normalization as every other date field');
+check('blank construction_end_date normalizes to null, not a fabricated date',
+  normalizeProjectImportRow({ store_code: 'X', construction_end_date: '' }).normalized.construction_end_date === null);
+check('absent construction_end_date normalizes to null',
+  normalizeProjectImportRow({ store_code: 'X' }).normalized.construction_end_date === null);
+check('an invalid construction_end_date produces the same INVALID_DATE note as any other date field',
+  normalizeProjectImportRow({ store_code: 'X', construction_end_date: 'not a date' }).fieldNotes.construction_end_date.ok === false
+  && normalizeProjectImportRow({ store_code: 'X', construction_end_date: 'not a date' }).fieldNotes.construction_end_date.reason === 'INVALID_DATE');
+check('an ambiguous numeric construction_end_date is rejected, never guessed',
+  normalizeProjectImportRow({ store_code: 'X', construction_end_date: '03/04/2025' }).fieldNotes.construction_end_date.reason === 'AMBIGUOUS_DATE');
+check('a valid ISO construction_end_date normalizes unchanged',
+  normalizeProjectImportRow({ store_code: 'X', construction_end_date: '2026-11-15' }).normalized.construction_end_date === '2026-11-15');
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -144,6 +144,19 @@ export const IMPORT_FIELD_CATALOG = Object.freeze([
     aliases: ['construction start', 'planned start', 'start date', 'construction start date'],
   },
   {
+    // PLANNED construction end — distinct from construction_completion_date,
+    // which is an engine-owned CPM forecast (ganttEngine.calculateKeyDates,
+    // recalculated on every Gantt regeneration) and is never part of this
+    // catalog. "Planned Construction End" is deliberately unambiguous, never
+    // "Completion"/"End"/"Forecast Completion" (Project Exchange v1
+    // completion patch).
+    key: 'construction_end_date',
+    label: 'Planned Construction End',
+    required: false,
+    type: 'date',
+    aliases: ['construction end', 'planned construction end', 'planned end', 'end date', 'construction end date'],
+  },
+  {
     key: 'target_opening_date',
     label: 'Planned Opening',
     required: false,

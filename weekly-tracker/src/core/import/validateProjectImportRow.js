@@ -15,7 +15,7 @@ import { computeAreaSumMismatch } from '../../engines/importPlanSummaryEngine.js
 
 const AREA_FIELDS = ['sales_area_sqm', 'back_of_house_area_sqm'];
 const ACTUAL_DATE_FIELDS = ['actual_construction_start_date', 'actual_construction_completion_date', 'actual_opening_date'];
-const ALL_DATE_FIELDS = ['construction_start_date', 'target_opening_date', ...ACTUAL_DATE_FIELDS];
+const ALL_DATE_FIELDS = ['construction_start_date', 'construction_end_date', 'target_opening_date', ...ACTUAL_DATE_FIELDS];
 const CURRENCY_FORMAT_RE = /^[A-Z]{3}$/;
 
 function supplied(row, field) {
@@ -120,6 +120,19 @@ export function validateProjectImportRow(mappedRow) {
   // Only compared because both fields are already normalized above — no
   // reuse of forecast-owned columns (construction_completion_date /
   // forecast_opening_date), which this validator never touches.
+  if (normalized.construction_start_date && normalized.construction_end_date
+    && normalized.construction_end_date < normalized.construction_start_date) {
+    // WARNING, not BLOCK — same severity as the sibling planned-date check
+    // immediately below (target_opening_date vs construction_start_date).
+    // Planned dates are estimates subject to revision; only ACTUAL/observed
+    // date orderings (below) are hard business impossibilities.
+    warnings.push({
+      field: 'construction_end_date',
+      code: 'PLANNED_END_BEFORE_START',
+      message: 'Planned construction end date is before planned construction start date.',
+    });
+  }
+
   if (normalized.construction_start_date && normalized.target_opening_date
     && normalized.target_opening_date < normalized.construction_start_date) {
     warnings.push({

@@ -15,12 +15,10 @@
  * "Project Exchange v1" for the full reasoning):
  *   - Portfolio's derived LOCATION (presentation-only, never a stored field)
  *   - construction_completion_date / forecast_opening_date / gantt_* (engine
- *     -owned forecasts, never editable Project Exchange facts)
+ *     -owned forecasts, never editable Project Exchange facts — NOT to be
+ *     confused with construction_end_date, the PLANNED construction end,
+ *     which IS part of this catalog)
  *   - project_status, project_manager (not currently Import-writable)
- *   - construction_end_date (exists in live editing, but migration 038's
- *     commit RPC never writes it — adding it to the exchange catalog without
- *     a matching RPC change would silently drop the value on CREATE; out of
- *     scope for this task per its "no new migration" constraint)
  *   - every internal id (project id, company_id, template_id, created_by, ...)
  */
 import { IMPORT_FIELD_CATALOG } from '../../core/import/projectImportFieldMap.js';
