@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { CREDENTIALS, login, logout } from './helpers.js';
 
 const UNIQUE_CODE = `TEST-${Date.now()}`;
+const UNIQUE_STREET_CODE = `TEST-ST-${Date.now()}`;
 
 test.describe('Portfolio page', () => {
   test.beforeEach(async ({ page }) => {
@@ -16,11 +17,17 @@ test.describe('Portfolio page', () => {
     await logout(page);
   });
 
-  test('loads project list and shows table headers', async ({ page }) => {
-    await expect(page.locator('table thead')).toContainText('Store Code');
-    await expect(page.locator('table thead')).toContainText('Mall');
-    await expect(page.locator('table thead')).toContainText('Status');
-    await expect(page.locator('table thead')).toContainText('GC Access');
+  test('loads project list and shows the frozen v1 column set', async ({ page }) => {
+    // Project Information Architecture v1 §3 — exact final column order.
+    // Project Manager / Start Date / End Date / Mall / GC Access / Edit are
+    // no longer primary Portfolio columns (data/actions still reachable via
+    // Store Code and the row's "..." menu, just not as permanent columns).
+    const headText = await page.locator('table thead').textContent();
+    for (const col of ['Store Code', 'Country', 'City', 'Location Type', 'Location', 'Type', 'Concept', 'Target Opening', 'Status']) {
+      expect(headText).toContain(col);
+    }
+    expect(headText).not.toContain('Project Manager');
+    expect(headText).not.toContain('GC Access');
   });
 
   test('opens new project form via Add New Project button', async ({ page }) => {
@@ -29,31 +36,69 @@ test.describe('Portfolio page', () => {
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
   });
 
-  test('creates a new project and it appears in the table', async ({ page }) => {
+  test('creates a new Mall project and Portfolio shows Location Type + Location correctly', async ({ page }) => {
     await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
 
     await page.locator('input[name="storeCode"]').fill(UNIQUE_CODE);
-    await page.locator('input[name="shoppingMallName"]').fill('Playwright Test Mall');
-    await page.locator('input[name="city"]').fill('Testville');
     await page.locator('input[name="country"]').fill('Testland');
+    await page.locator('input[name="city"]').fill('Testville');
 
-    // Save
+    // Location Type toggle (not a <select>) — click the "Mall" option button.
+    await page.getByRole('button', { name: 'Mall', exact: true }).click();
+    await page.locator('input[name="shoppingMallName"]').fill('Playwright Test Mall');
+
     await page.locator('button.primary-button', { hasText: 'Create Project' }).click();
 
-    // Wait for form to close and table to update
     await expect(page.locator('input[name="storeCode"]')).not.toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('table')).toContainText(UNIQUE_CODE, { timeout: 15_000 });
+
+    const row = page.locator('table tbody tr', { hasText: UNIQUE_CODE });
+    await expect(row).toContainText('Mall', { timeout: 15_000 });
+    await expect(row).toContainText('Playwright Test Mall');
   });
 
-  test('opens project detail view by clicking store code', async ({ page }) => {
-    // Click the first project store code button in the table
+  test('creates a new Street project and Portfolio shows Street Address as Location, not Mall', async ({ page }) => {
+    await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+
+    await page.locator('input[name="storeCode"]').fill(UNIQUE_STREET_CODE);
+    await page.locator('input[name="country"]').fill('Testland');
+    await page.locator('input[name="city"]').fill('Testville');
+
+    await page.getByRole('button', { name: 'Street', exact: true }).click();
+    await page.locator('input[name="street"]').fill('Test Ave 1');
+
+    await page.locator('button.primary-button', { hasText: 'Create Project' }).click();
+
+    await expect(page.locator('input[name="storeCode"]')).not.toBeVisible({ timeout: 15_000 });
+
+    const row = page.locator('table tbody tr', { hasText: UNIQUE_STREET_CODE });
+    await expect(row).toContainText('Street', { timeout: 15_000 });
+    await expect(row).toContainText('Test Ave 1');
+  });
+
+  test('switching Location Type from Mall to Street clears the stale mall name field', async ({ page }) => {
+    await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+
+    await page.getByRole('button', { name: 'Mall', exact: true }).click();
+    await page.locator('input[name="shoppingMallName"]').fill('Should Be Cleared');
+
+    await page.getByRole('button', { name: 'Street', exact: true }).click();
+    await expect(page.locator('input[name="shoppingMallName"]')).not.toBeVisible();
+    await expect(page.locator('input[name="street"]')).toHaveValue('');
+  });
+
+  test('opens project detail view by clicking store code and shows Project Information sections', async ({ page }) => {
     const firstCode = page.locator('table tbody tr').first().locator('button').first();
     const codeName = await firstCode.textContent();
     await firstCode.click();
 
-    // Modal/detail view should open
-    await expect(page.locator('.modal')).toBeVisible({ timeout: 8_000 });
-    await expect(page.locator('.modal')).toContainText(codeName.trim());
+    const modal = page.locator('.modal');
+    await expect(modal).toBeVisible({ timeout: 8_000 });
+    await expect(modal).toContainText(codeName.trim());
+    await expect(modal).toContainText('Identity & Location');
+    await expect(modal).toContainText('Classification');
+    await expect(modal).toContainText('Areas');
+    await expect(modal).toContainText('Planned Dates');
+    await expect(modal).toContainText('Financial');
   });
 
   test('opens edit form from project detail modal', async ({ page }) => {
@@ -64,13 +109,21 @@ test.describe('Portfolio page', () => {
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
   });
 
-  test('GC Invite button opens invite modal', async ({ page }) => {
-    // Find first GC Invite / ✓ GC Invited button
-    const gcBtn = page.locator('table tbody button.text-button').filter({ hasText: /GC Invite|GC Invited/ }).first();
-    await expect(gcBtn).toBeVisible();
-    await gcBtn.click();
+  test('row "..." actions menu opens with Edit Project and GC Invite', async ({ page }) => {
+    const menuBtn = page.locator('table tbody tr').first().getByRole('button', { name: /Actions for/ });
+    await menuBtn.click();
 
-    // Modal with email input should appear
+    const menu = page.locator('[role="menu"]');
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Edit Project' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: /GC Invite|GC Invited/ })).toBeVisible();
+  });
+
+  test('GC Invite menu item opens invite modal', async ({ page }) => {
+    const menuBtn = page.locator('table tbody tr').first().getByRole('button', { name: /Actions for/ });
+    await menuBtn.click();
+    await page.locator('[role="menu"]').getByRole('menuitem', { name: /GC Invite|GC Invited/ }).click();
+
     await expect(page.locator('.modal')).toBeVisible();
     await expect(page.locator('.modal input[type="email"], .modal input[placeholder*="email" i], .modal input[placeholder*="@"]')).toBeVisible();
   });
@@ -90,5 +143,20 @@ test.describe('Portfolio page', () => {
 
     // Should see only rows matching that code
     await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 5_000 });
+  });
+
+  test('Location Type filter narrows the project list to Mall projects only', async ({ page }) => {
+    const rowCount = await page.locator('table tbody tr').count();
+    test.skip(rowCount < 1, 'Need at least 1 project to test filter');
+
+    // The Location Type <select> is the one whose options include "Mall"/"Street".
+    const locationTypeSelect = page.locator('select').filter({ has: page.locator('option[value="Mall"]') });
+    await locationTypeSelect.selectOption('Mall');
+
+    const rows = page.locator('table tbody tr');
+    const count = await rows.count();
+    for (let i = 0; i < count; i++) {
+      await expect(rows.nth(i)).toContainText('Mall');
+    }
   });
 });

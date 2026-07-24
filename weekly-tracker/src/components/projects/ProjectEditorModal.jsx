@@ -1,6 +1,7 @@
 import { Field, FieldRow, FormSection } from "./ProjectFormParts";
 import ConflictWarning from "../ConflictWarning";
 import { TEMPLATES } from "../../config/projectTemplates";
+import { PROJECT_TYPE_OPTIONS, LOCATION_TYPE_OPTIONS, STORE_CONCEPT_SUGGESTIONS } from "../../config/projectVocabulary";
 import { V2_TEMPLATE_TYPE } from "../../domains/construction/templates/retailFitoutV2";
 import { clamp } from "../../hooks/useChartMathPresentation";
 import Modal from "../shared/Modal";
@@ -67,30 +68,63 @@ export default function ProjectEditorModal({
             />
           </div>
 
-          <FormSection title="Address" accentColor="var(--accent)">
+          <FormSection title="Identity & Location" accentColor="var(--accent)">
             <FieldRow>
-              <Field label="Shopping Mall">
-                <input name="shoppingMallName" value={project.shoppingMallName} onChange={onChange} style={inputStyle} placeholder="Mall name" />
-              </Field>
-              <Field label="Sales Market">
-                <input name="salesMarket" value={project.salesMarket || ""} onChange={onChange} style={inputStyle} placeholder="e.g. Sweden" />
+              <Field label="Country">
+                <input name="country" value={project.country} onChange={onChange} style={inputStyle} placeholder="Country" />
               </Field>
               <Field label="City">
                 <input name="city" value={project.city} onChange={onChange} style={inputStyle} placeholder="City" />
               </Field>
+              <Field label="Sales Market">
+                <input name="salesMarket" value={project.salesMarket || ""} onChange={onChange} style={inputStyle} placeholder="e.g. Sweden" />
+              </Field>
               <Field label="State / Region">
                 <input name="state" value={project.state || ""} onChange={onChange} style={inputStyle} placeholder="State or region" />
               </Field>
-              <Field label="Street">
-                <input name="street" value={project.street || ""} onChange={onChange} style={inputStyle} placeholder="Street address" />
-              </Field>
-              <Field label="Country">
-                <input name="country" value={project.country} onChange={onChange} style={inputStyle} placeholder="Country" />
-              </Field>
             </FieldRow>
+
+            <div style={{ marginTop: 14 }}>
+              <Field label="Location Type">
+                <div style={{ display: "flex", gap: 8 }}>
+                  {LOCATION_TYPE_OPTIONS.map((opt) => (
+                    <button key={opt} type="button"
+                      onClick={() => onProjectPatch((p) => ({
+                        ...p,
+                        locationType: opt,
+                        // Clear the field that no longer applies immediately —
+                        // toDB() also enforces this defensively at save time,
+                        // but doing it here too means the user never sees a
+                        // stale value from a prior selection lingering.
+                        ...(opt === "Mall" ? { street: "" } : { shoppingMallName: "" }),
+                      }))}
+                      style={{
+                        flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease",
+                        border: `1.5px solid ${project.locationType === opt ? "var(--status-done)" : "var(--border)"}`,
+                        background: project.locationType === opt ? "var(--status-done-bg)" : "var(--accent-subtle)",
+                        color: project.locationType === opt ? "var(--status-done)" : "var(--text-muted)",
+                      }}>{opt}</button>
+                  ))}
+                </div>
+              </Field>
+
+              <div style={{ marginTop: 12 }}>
+                {project.locationType === "Mall" ? (
+                  <Field label="Shopping Mall Name">
+                    <input name="shoppingMallName" value={project.shoppingMallName || ""} onChange={onChange} style={inputStyle} placeholder="Mall name" />
+                  </Field>
+                ) : project.locationType === "Street" ? (
+                  <Field label="Street Address">
+                    <input name="street" value={project.street || ""} onChange={onChange} style={inputStyle} placeholder="Street address" />
+                  </Field>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Select a Location Type to enter the mall name or street address.</div>
+                )}
+              </div>
+            </div>
           </FormSection>
 
-          <FormSection title="Dates" accentColor="var(--status-warn)">
+          <FormSection title="Planned Dates" accentColor="var(--status-warn)">
             <FieldRow>
               <Field label="Construction Start Date">
                 <input type="date" name="constructionStartDate" value={project.constructionStartDate} onChange={onChange} style={inputStyle} />
@@ -100,6 +134,50 @@ export default function ProjectEditorModal({
               </Field>
               <Field label="Target Opening Date">
                 <input type="date" name="targetOpeningDate" value={project.targetOpeningDate} onChange={onChange} style={inputStyle} />
+              </Field>
+            </FieldRow>
+          </FormSection>
+
+          {/* Actual dates are observed historical facts (frozen Retail Project
+              Profile v1) — deliberately never reused/confused with the planned
+              fields above or with the engine-owned forecast fields
+              (construction_completion_date/forecast_opening_date), which have
+              no input here at all and remain exclusively ganttService-written. */}
+          <FormSection title="Actual Dates" accentColor="var(--status-done)">
+            <FieldRow>
+              <Field label="Actual Construction Start">
+                <input type="date" name="actualConstructionStartDate" value={project.actualConstructionStartDate || ""} onChange={onChange} style={inputStyle} />
+              </Field>
+              <Field label="Actual Construction Completion">
+                <input type="date" name="actualConstructionCompletionDate" value={project.actualConstructionCompletionDate || ""} onChange={onChange} style={inputStyle} />
+              </Field>
+              <Field label="Actual Opening">
+                <input type="date" name="actualOpeningDate" value={project.actualOpeningDate || ""} onChange={onChange} style={inputStyle} />
+              </Field>
+            </FieldRow>
+          </FormSection>
+
+          <FormSection title="Areas" accentColor="var(--accent)">
+            <FieldRow>
+              <Field label="Total Area (m²)">
+                <input type="number" min="0" name="storeSizeSqm" value={project.storeSizeSqm ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 1250" />
+              </Field>
+              <Field label="Sales Area (m²)">
+                <input type="number" min="0" name="salesAreaSqm" value={project.salesAreaSqm ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 900" />
+              </Field>
+              <Field label="Back of House Area (m²)">
+                <input type="number" min="0" name="backOfHouseAreaSqm" value={project.backOfHouseAreaSqm ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 350" />
+              </Field>
+            </FieldRow>
+          </FormSection>
+
+          <FormSection title="Financial" accentColor="var(--status-warn)">
+            <FieldRow>
+              <Field label="Budget">
+                <input type="number" min="0" name="budget" value={project.budget ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 2500000" />
+              </Field>
+              <Field label="Currency">
+                <input name="currencyCode" value={project.currencyCode || ""} onChange={onChange} style={inputStyle} placeholder="e.g. USD" maxLength={3} />
               </Field>
             </FieldRow>
           </FormSection>
@@ -240,7 +318,7 @@ export default function ProjectEditorModal({
             <FieldRow>
               <Field label="Project Type">
                 <div style={{ display: "flex", gap: 8 }}>
-                  {["New Opening", "Rebuilding"].map((opt) => (
+                  {PROJECT_TYPE_OPTIONS.map((opt) => (
                     <button key={opt} type="button"
                       onClick={() => onProjectPatch((p) => ({ ...p, projectType: opt }))}
                       style={{
@@ -251,6 +329,22 @@ export default function ProjectEditorModal({
                       }}>{opt}</button>
                   ))}
                 </div>
+              </Field>
+              <Field label="Store Concept">
+                <input
+                  name="storeConcept"
+                  list="store-concept-suggestions"
+                  value={project.storeConcept || ""}
+                  onChange={onChange}
+                  style={inputStyle}
+                  placeholder="e.g. Flagship"
+                />
+                {/* Suggestions only — free text, no enum, matches the frozen
+                    Retail Project Profile decision (store_concept is a plain
+                    TEXT column with zero DB-level enforcement). */}
+                <datalist id="store-concept-suggestions">
+                  {STORE_CONCEPT_SUGGESTIONS.map((opt) => <option key={opt} value={opt} />)}
+                </datalist>
               </Field>
               <Field label="Project Status">
                 <div style={{ display: "flex", gap: 8 }}>

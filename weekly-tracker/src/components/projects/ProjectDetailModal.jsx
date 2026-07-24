@@ -3,6 +3,7 @@ import { TEMPLATES } from "../../config/projectTemplates";
 import { getOpeningColor } from "../../config/thresholds";
 import { formatDate, daysUntil } from "../../utils/reportUtils";
 import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
+import { describeProjectLocation, formatArea, formatMoney } from "../../hooks/useProjectInfoPresentation";
 import { DetailField, FieldRow, FormSection } from "./ProjectFormParts";
 import Modal from "../shared/Modal";
 import { useToast } from "../shared/Toast.jsx";
@@ -16,6 +17,8 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
   const openingColor = getOpeningColor(daysLeft);
+  const location = describeProjectLocation(project);
+  const hasForecast = project.constructionCompletionDate || project.forecastOpeningDate;
 
   const stakeholders = [
     { label: "Project Manager", value: project.projectManager },
@@ -33,7 +36,7 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div>
               <div id="project-detail-title" style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{project.storeCode || "-"}</div>
-              <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 3 }}>{project.shoppingMallName}{project.city ? ` · ${project.city}` : ""}</div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 3 }}>{location.value}{project.city ? ` · ${project.city}` : ""}</div>
             </div>
             <span style={{
               padding: "3px 12px", borderRadius: 12, fontSize: 12, fontWeight: 700,
@@ -53,18 +56,33 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
         </div>
 
         <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 72px)", padding: "20px 24px" }}>
-          <FormSection title="Address" accentColor="var(--accent)">
+          <FormSection title="Identity & Location" accentColor="var(--accent)">
             <FieldRow>
-              <DetailField label="Shopping Mall" value={project.shoppingMallName} />
-              <DetailField label="Sales Market" value={project.salesMarket} />
-              <DetailField label="City" value={project.city} />
-              <DetailField label="State / Region" value={project.state} />
-              <DetailField label="Street" value={project.street} />
               <DetailField label="Country" value={project.country} />
+              <DetailField label="City" value={project.city} />
+              <DetailField label="Location Type" value={location.locationType} />
+              <DetailField label={location.fieldLabel || "Location"} value={location.value} />
+              <DetailField label="Sales Market" value={project.salesMarket} />
+              <DetailField label="State / Region" value={project.state} />
             </FieldRow>
           </FormSection>
 
-          <FormSection title="Dates" accentColor="var(--status-warn)">
+          <FormSection title="Classification" accentColor="var(--accent)">
+            <FieldRow>
+              <DetailField label="Project Type" value={project.projectType} />
+              <DetailField label="Store Concept" value={project.storeConcept} />
+            </FieldRow>
+          </FormSection>
+
+          <FormSection title="Areas" accentColor="var(--accent)">
+            <FieldRow>
+              <DetailField label="Total Area" value={formatArea(project.storeSizeSqm)} />
+              <DetailField label="Sales Area" value={formatArea(project.salesAreaSqm)} />
+              <DetailField label="Back of House Area" value={formatArea(project.backOfHouseAreaSqm)} />
+            </FieldRow>
+          </FormSection>
+
+          <FormSection title="Planned Dates" accentColor="var(--status-warn)">
             <FieldRow>
               <DetailField label="Construction Start" value={project.constructionStartDate} />
               <DetailField label="Construction End" value={project.constructionEndDate} />
@@ -81,6 +99,32 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
                   </div>
                 ) : <div style={{ fontSize: 13, color: "var(--text-muted)" }}>-</div>}
               </div>
+            </FieldRow>
+          </FormSection>
+
+          {(project.actualConstructionStartDate || project.actualConstructionCompletionDate || project.actualOpeningDate) && (
+            <FormSection title="Actual Dates" accentColor="var(--status-done)">
+              <FieldRow>
+                <DetailField label="Construction Start" value={project.actualConstructionStartDate} />
+                <DetailField label="Construction Completion" value={project.actualConstructionCompletionDate} />
+                <DetailField label="Opening" value={project.actualOpeningDate} />
+              </FieldRow>
+            </FormSection>
+          )}
+
+          {hasForecast && (
+            <FormSection title="Forecast Dates (engine-calculated, read only)" accentColor="var(--text-muted)">
+              <FieldRow>
+                <DetailField label="Construction Completion" value={project.constructionCompletionDate} />
+                <DetailField label="Opening" value={project.forecastOpeningDate} />
+              </FieldRow>
+            </FormSection>
+          )}
+
+          <FormSection title="Financial" accentColor="var(--status-warn)">
+            <FieldRow>
+              <DetailField label="Budget" value={formatMoney(project.budget, project.currencyCode)} />
+              <DetailField label="Actual Cost" value={formatMoney(project.actualCost, project.currencyCode)} />
             </FieldRow>
           </FormSection>
 

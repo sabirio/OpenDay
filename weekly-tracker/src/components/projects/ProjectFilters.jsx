@@ -13,6 +13,9 @@ export default function ProjectFilters({
   typeFilter,
   onTypeChange,
   typeOptions,
+  locationTypeFilter,
+  onLocationTypeChange,
+  locationTypeOptions,
   filtersActive,
   onClearFilters,
   filteredCount,
@@ -25,6 +28,7 @@ export default function ProjectFilters({
     { val: countryFilter, set: onCountryChange, opts: countryOptions, placeholder: "All countries" },
     { val: statusFilter, set: onStatusChange, opts: statusOptions, placeholder: "All statuses" },
     { val: typeFilter, set: onTypeChange, opts: typeOptions, placeholder: "All types" },
+    { val: locationTypeFilter, set: onLocationTypeChange, opts: locationTypeOptions, placeholder: "All location types" },
   ];
 
   return (

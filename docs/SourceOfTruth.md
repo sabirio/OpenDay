@@ -137,7 +137,7 @@ This is functionally identical to `spiEngine.computePlannedPct`. The function sh
 | Street | `projects.street` | Street address, required when `location_type = 'Street'` | Pre-existing column (predates this profile); must be null whenever `location_type = 'Mall'`. |
 | Project Type | `projects.project_type` | What kind of work/project is being performed (New Opening, Rebuilding, ...) | Free text, zero DB constraint. Unrecognized values warn, never block — see `PROJECT_TYPE_VALUES`. |
 | Store Concept | `projects.store_concept` | Retail format/concept (Flagship, Standard, ...) | Free text, no DB enum, no hard-coded brand values. `STORE_CONCEPT_SUGGESTIONS` is a UI-suggestion list only, never validated against. |
-| Total Area | `projects.store_size_sqm` | Total store area (sqm) | Pre-existing column. **Has no live UI input as of this migration** — feeds `ganttEngine`'s size-modifier calculation and is display-only in `ProjectDetailModal.jsx`; historical import is its first real writer for most projects. |
+| Total Area | `projects.store_size_sqm` | Total store area (sqm) | Pre-existing column. First live UI input added by Project Information Architecture v1 (`ProjectEditorModal.jsx`'s Areas section) — until then, historical import was its only real writer for most projects. Feeds `ganttEngine`'s size-modifier calculation; also displayed in `ProjectDetailModal.jsx`. |
 | Sales Area | `projects.sales_area_sqm` | Sales floor area (sqm) | **Not the same field as `scope.zoneAreas.sales`.** `scope.zoneAreas` is a V2-template-only, Gantt-zone-weighting input (`computeZoneWeights`/`zonedWeightsEngine.js`), scoped to projects using the zoned Gantt template. `sales_area_sqm` is the template-independent canonical historical/benchmark fact. These two are intentionally NOT reconciled by this migration — doing so would require touching the Gantt weighting engine, which is out of scope. A future task may decide to pre-fill `scope.zoneAreas` from these canonical fields at V2 template setup time. |
 | Back of House Area | `projects.back_of_house_area_sqm` | BOH area (sqm) | Same distinction as Sales Area above, vs. `scope.zoneAreas.boh`. |
 | Actual Construction Start | `projects.actual_construction_start_date` | Observed historical fact | Distinct from `construction_start_date` (planned/target, user-editable) and never reused from any forecast field. |
@@ -150,3 +150,15 @@ This is functionally identical to `spiEngine.computePlannedPct`. The function sh
 | General Contractor | `projects.general_contractor` / `projects.contractor_email` | GC company name / contact | Pre-existing columns, sufficient for v1 historical import — a missing OpenDay account never blocks importing a GC name as a historical fact. The richer `project_stakeholders` table remains a separate, project-scoped mechanism, not required here. |
 
 Import commit path: `core/import/` (pure, Supabase-free) produces a `CREATE`/`SKIP`/`BLOCK` plan per row; `commit_project_import_batch` (migration 038) is the one trusted RPC that writes `CREATE` rows to `public.projects`, re-verifying each identity is still free at write time (stale-plan protection) and never performing UPDATE/MERGE/UPSERT. `public.import_jobs` holds batch-level audit metadata (row counts + a bounded per-row outcome summary), never a duplicate copy of canonical project data.
+
+---
+
+## Project Information Architecture v1 — Portfolio's derived LOCATION is not a stored field
+
+Added to align Add New Project / Portfolio / Project Information around the canonical fields above (no schema change). `location_type`, `shopping_mall_name`, and `street` remain the only stored facts. Portfolio's LOCATION column and `ProjectDetailModal`'s "Identity & Location" section both derive their displayed value from those three columns via one shared helper, `describeProjectLocation` (`core/presentation/projectInfoPresentationModel.js`, re-exported through `hooks/useProjectInfoPresentation.js` per the pages/components-never-import-`core/`-directly architecture rule):
+
+- `location_type = 'Mall'` → LOCATION = `shopping_mall_name`
+- `location_type = 'Street'` → LOCATION = `street`
+- no `location_type` → LOCATION is null (rendered as "—"/"-")
+
+There is no `projects.location` column and none should be added — this is presentation logic only, computed on read exactly like every other derived value in this document, never persisted, never a second source of truth for the mall-name/street-address facts.

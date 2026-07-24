@@ -15,6 +15,7 @@ import ProjectFilters from "../components/projects/ProjectFilters";
 import ProjectTable from "../components/projects/ProjectTable";
 import { useToast } from "../components/shared/Toast.jsx";
 import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
+import { LOCATION_TYPE_OPTIONS } from "../config/projectVocabulary";
 
 const emptyProject = {
   storeCode: "",
@@ -24,9 +25,18 @@ const emptyProject = {
   state: "",
   country: "",
   salesMarket: "",
+  locationType: "",
+  storeConcept: "",
+  salesAreaSqm: "",
+  backOfHouseAreaSqm: "",
   constructionStartDate: "",
   constructionEndDate: "",
   targetOpeningDate: "",
+  actualConstructionStartDate: "",
+  actualConstructionCompletionDate: "",
+  actualOpeningDate: "",
+  budget: "",
+  currencyCode: "",
   projectManager: "",
   securityManager: "",
   itManager: "",
@@ -60,6 +70,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const [statusFilter, setStatusFilter] = useState("All");
   const [countryFilter, setCountryFilter] = useState("All");
   const [salesMarketFilter, setSalesMarketFilter] = useState("All");
+  const [locationTypeFilter, setLocationTypeFilter] = useState("All");
   const [searchQuery, setSearchQuery]     = useState("");
   const [gcModal, setGcModal]                 = useState(null); // project being invited
   const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
@@ -242,9 +253,10 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const statusOptions = ["All", "Active", "Completed"];
   const countryOptions = ["All", ...Array.from(new Set(projects.map((p) => p.country).filter(Boolean))).sort()];
   const salesMarketOptions = ["All", ...Array.from(new Set(projects.map((p) => p.salesMarket).filter(Boolean))).sort()];
+  const locationTypeOptions = ["All", ...LOCATION_TYPE_OPTIONS];
 
-  const filtersActive = typeFilter !== "All" || statusFilter !== "All" || countryFilter !== "All" || salesMarketFilter !== "All" || searchQuery;
-  const clearFilters = () => { setTypeFilter("All"); setStatusFilter("All"); setCountryFilter("All"); setSalesMarketFilter("All"); setSearchQuery(""); };
+  const filtersActive = typeFilter !== "All" || statusFilter !== "All" || countryFilter !== "All" || salesMarketFilter !== "All" || locationTypeFilter !== "All" || searchQuery;
+  const clearFilters = () => { setTypeFilter("All"); setStatusFilter("All"); setCountryFilter("All"); setSalesMarketFilter("All"); setLocationTypeFilter("All"); setSearchQuery(""); };
 
   const filteredProjects = projects.filter((project) => {
     if (searchQuery) {
@@ -255,7 +267,8 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     const matchesStatus = statusFilter === "All" || project.projectStatus === statusFilter;
     const matchesCountry = countryFilter === "All" || project.country === countryFilter;
     const matchesSalesMarket = salesMarketFilter === "All" || project.salesMarket === salesMarketFilter;
-    return matchesType && matchesStatus && matchesCountry && matchesSalesMarket;
+    const matchesLocationType = locationTypeFilter === "All" || project.locationType === locationTypeFilter;
+    return matchesType && matchesStatus && matchesCountry && matchesSalesMarket && matchesLocationType;
   });
 
   return (
@@ -289,6 +302,9 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         typeFilter={typeFilter}
         onTypeChange={setTypeFilter}
         typeOptions={typeOptions}
+        locationTypeFilter={locationTypeFilter}
+        onLocationTypeChange={setLocationTypeFilter}
+        locationTypeOptions={locationTypeOptions}
         filtersActive={filtersActive}
         onClearFilters={clearFilters}
         filteredCount={filteredProjects.length}
