@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { CREDENTIALS, login, logout } from './helpers.js';
 
 const UNIQUE_CODE = `TEST-${Date.now()}`;
@@ -172,5 +173,51 @@ test.describe('Portfolio page', () => {
     for (let i = 0; i < count; i++) {
       await expect(rows.nth(i)).toContainText('Mall');
     }
+  });
+
+  test('Export Projects button is visible and generates a real .xlsx workbook', async ({ page }) => {
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Export Projects' }).click(),
+    ]);
+
+    expect(download.suggestedFilename()).toMatch(/^OpenDay_Projects_\d{4}-\d{2}-\d{2}\.xlsx$/);
+
+    const path = await download.path();
+    const bytes = readFileSync(path);
+    const XLSX = await import('xlsx');
+    const workbook = XLSX.read(bytes, { type: 'buffer' });
+    expect(workbook.SheetNames).toEqual(['Projects']);
+
+    const table = XLSX.utils.sheet_to_json(workbook.Sheets['Projects'], { header: 1, defval: null });
+    expect(table[0]).toContain('Store Code');
+    expect(table[0]).not.toContain('Location'); // derived Portfolio LOCATION is never exported
+    // Every currently-visible Portfolio row's store code appears in the export.
+    const rowCount = await page.locator('table tbody tr').count();
+    if (rowCount > 0) {
+      const firstStoreCode = (await page.locator('table tbody tr').first().locator('button').first().textContent()).trim();
+      const exportedCodes = table.slice(1).map(r => r[0]);
+      expect(exportedCodes).toContain(firstStoreCode);
+    }
+  });
+
+  test('Export Projects respects the current Location Type filter (exports the filtered result set, not all projects)', async ({ page }) => {
+    const rowCount = await page.locator('table tbody tr').count();
+    test.skip(rowCount < 1, 'Need at least 1 project to test filtered export');
+
+    const locationTypeSelect = page.locator('select').filter({ has: page.locator('option[value="Mall"]') });
+    await locationTypeSelect.selectOption('Mall');
+    const filteredCount = await page.locator('table tbody tr').count();
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Export Projects' }).click(),
+    ]);
+    const path = await download.path();
+    const bytes = readFileSync(path);
+    const XLSX = await import('xlsx');
+    const workbook = XLSX.read(bytes, { type: 'buffer' });
+    const table = XLSX.utils.sheet_to_json(workbook.Sheets['Projects'], { header: 1, defval: null });
+    expect(table.length - 1).toBe(filteredCount); // header row + exactly the filtered rows, not the full unfiltered set
   });
 });

@@ -12,6 +12,7 @@
 
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { login } from './helpers.js';
 import { buildCsv } from '../../src/core/import/importTestFixtures.mjs';
 
@@ -199,6 +200,41 @@ test.describe('Import Projects — full workflow smoke test', () => {
 
     await page.getByRole('button', { name: 'Import another file' }).click();
     await expect(page.getByText('Drag an Excel or CSV file here')).toBeVisible(); // fully reset, no stale state
+  });
+});
+
+test.describe('Import Projects — Download Excel Template', () => {
+  test('Download Excel template button is visible near the upload step', async ({ page }) => {
+    await login(page, LOCAL_PM);
+    await page.goto('/import/projects');
+    await expect(page.getByRole('button', { name: 'Download Excel template' })).toBeVisible();
+  });
+
+  test('clicking Download Excel template downloads a real .xlsx workbook with the canonical headers and zero data rows', async ({ page }) => {
+    await login(page, LOCAL_PM);
+    await page.goto('/import/projects');
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('button', { name: 'Download Excel template' }).click(),
+    ]);
+
+    expect(download.suggestedFilename()).toBe('OpenDay_Project_Import_Template.xlsx');
+
+    const path = await download.path();
+    const bytes = readFileSync(path);
+    const XLSX = await import('xlsx');
+    const workbook = XLSX.read(bytes, { type: 'buffer' });
+    expect(workbook.SheetNames).toEqual(['Projects']);
+
+    const table = XLSX.utils.sheet_to_json(workbook.Sheets['Projects'], { header: 1, defval: null });
+    expect(table.length).toBe(1); // header row only — zero data rows
+    expect(table[0]).toContain('Store Code');
+    expect(table[0]).toContain('Location Type');
+    expect(table[0]).toContain('Shopping Mall Name');
+    expect(table[0]).toContain('Street Address');
+    expect(table[0]).not.toContain('Location'); // derived Portfolio LOCATION is never an exchange column
+    expect(table[0]).not.toContain('Status'); // excluded from Project Exchange v1 (see docs/SourceOfTruth.md)
   });
 });
 

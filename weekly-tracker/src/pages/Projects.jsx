@@ -13,6 +13,7 @@ import GcInvitationModal from "../components/projects/GcInvitationModal";
 import ProjectEditorModal from "../components/projects/ProjectEditorModal";
 import ProjectFilters from "../components/projects/ProjectFilters";
 import ProjectTable from "../components/projects/ProjectTable";
+import ExportProjectsButton from "../components/projects/ExportProjectsButton";
 import { useToast } from "../components/shared/Toast.jsx";
 import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
 import { LOCATION_TYPE_OPTIONS } from "../config/projectVocabulary";
@@ -279,12 +280,15 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
           <h1>Portfolio</h1>
           <p>Manage projects and generate contractor report links.</p>
         </div>
-        <button
-          className="primary-button"
-          onClick={() => { setNewProject(emptyProject); originalProjectRef.current = emptyProject; setEditingProjectId(null); setShowForm(true); }}
-        >
-          Add New Project
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <ExportProjectsButton projects={filteredProjects} onError={(msg) => toast.error(msg)} />
+          <button
+            className="primary-button"
+            onClick={() => { setNewProject(emptyProject); originalProjectRef.current = emptyProject; setEditingProjectId(null); setShowForm(true); }}
+          >
+            Add New Project
+          </button>
+        </div>
       </div>
 
       <ProjectFilters

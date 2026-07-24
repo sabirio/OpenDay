@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import Icon from '../shared/Icon.jsx';
+import DownloadTemplateButton from './DownloadTemplateButton.jsx';
 
 export default function UploadStep({ file, parsedFile, parseError, onUpload }) {
   const inputRef = useRef(null);
@@ -39,6 +40,8 @@ export default function UploadStep({ file, parsedFile, parseError, onUpload }) {
         style={{ display: 'none' }}
         onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
       />
+
+      <DownloadTemplateButton />
 
       {parseError ? (
         <div className="import-alert import-alert--danger" role="alert">

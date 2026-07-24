@@ -173,4 +173,26 @@ Location Type, Project Type, and Store Concept previously had two literal defini
 
 `core/import/projectImportFieldMap.js` re-exports the same three arrays under its historic names (`PROJECT_TYPE_VALUES`, `LOCATION_TYPE_VALUES`, `STORE_CONCEPT_SUGGESTIONS`) so every existing Import consumer/test is unaffected. Add/Edit Project and Portfolio's Location Type filter consume the canonical names directly. `src/tests/projectVocabularyArchitecture.test.mjs` proves by reference identity (`===`) that no second literal array exists.
 
-`ISO_4217_CURRENCY_CODES` was not touched by this cleanup (it was never mirrored) and still lives in `projectImportFieldMap.js`; it does not yet include KZT — recorded as existing debt, out of scope for this cleanup.
+`ISO_4217_CURRENCY_CODES` was not touched by this cleanup (it was never mirrored) and still lives in `projectImportFieldMap.js`. It was missing KZT at the time this section was written; fixed in Project Exchange v1 below (a real Kazakhstan project's stored currency was being flagged as unrecognized).
+
+---
+
+## Project Exchange v1 — Import, Project Export, and the Blank Template share one field catalog
+
+Project Export (Portfolio → "Export Projects") and the Blank Import Template (Import Projects → "Download Excel template") both read `core/import/projectImportFieldMap.js`'s `IMPORT_FIELD_CATALOG` directly — the exact same catalog Import's own mapping/normalization/validation already used. Neither introduces a second header, order, or field-vocabulary list. `src/export/xlsx/projectExportRow.js` derives its header row and per-field type handling entirely from that catalog; `src/export/xlsx/projectExportArchitectureGuard.test.mjs` proves this by source-text contract (no hard-coded header strings, `PROJECT_EXPORT_HEADERS` is byte-identical to `IMPORT_FIELD_CATALOG.map(f => f.label)`).
+
+**Workbook generator (one function, two callers):** `buildProjectWorkbook(projects)` in `src/export/xlsx/buildProjectWorkbook.js` is the only module that touches the `xlsx` package in this directory (mirrors `core/import/parseImportFile.js`'s "one module touches xlsx" rule). Project Export calls it with the current Portfolio result set (after search/filters — exactly the rows the table is showing, no separate filter re-implementation); the Blank Template calls it with `[]`. There is no static `public/*.xlsx` file and no second hard-coded header list anywhere.
+
+**KZT fix:** `ISO_4217_CURRENCY_CODES` now includes `KZT` — a real Kazakhstan project's stored `currency_code` was previously flagged `UNRECOGNIZED_CURRENCY` by Import despite being a perfectly valid stored value (the column itself has no FK/CHECK to this list). No other currency-model change; no FX; no currencies table.
+
+**Deliberately excluded from Project Exchange v1** (all documented here rather than silently dropped):
+- **Portfolio's derived `LOCATION`** — never a stored field (see the section above); the exchange catalog exports its two canonical sources, `Location Type` and `Shopping Mall Name`/`Street Address`, separately instead.
+- **`construction_completion_date` / `forecast_opening_date` / `gantt_*`** — engine-owned forecasts (`ganttEngine.calculateKeyDates`), never editable Import/Export facts, exactly as already documented above.
+- **`project_status`** — Import v1 has never written this column; adding it to the exchange catalog without matching Import support would create an Export column that silently fails to round-trip. Excluded pending an explicit future decision to make it Import-writable.
+- **`project_manager`** (and the other stakeholder-manager columns) — no stable, human-readable, Import-safe identity contract exists yet (a spreadsheet name string isn't a safe assignment mechanism to an OpenDay user account). Excluded from v1; `general_contractor`/`contractor_email` remain included since they were already plain historical text fields in the frozen catalog, not user-account assignments.
+- **`construction_end_date`** — exists in live project editing (`ProjectEditorModal`'s Planned Dates) but was **never added to Import's catalog or to migration 038's commit RPC INSERT column list** — a pre-existing gap discovered during this task's audit, not introduced by it. Adding true round-trip support would require a migration to the commit RPC, which is out of scope here (no new migration was needed or added for Project Exchange v1). Recorded as debt for a future, explicitly-scoped Import/Export enhancement.
+- Every internal id (`id`, `company_id`, `template_id`, `created_by`, ...) — never exported, never expected in an uploaded file.
+
+**Financial/date serialization:** Budget/Actual Cost export as bare numeric cells with Currency as its own column (`500000` / `KZT`, never a formatted `"500,000 KZT"` string) — Import already required this shape. Dates export as deterministic `YYYY-MM-DD` strings, matching Import's own unambiguous-date rule exactly. Null/unknown values export as blank cells, never a fabricated `0`/`"N/A"`/`"Unknown"`.
+
+**Security/scope:** Export reads whatever `projectService.getAll()` (RLS-scoped, no client-side company filter needed) already returned to the page — it cannot broaden visibility, since it never queries anything itself; it only serializes rows the page already legitimately has. Pure read/download: no `projects`/`import_jobs`/report/Gantt row is ever written by generating or downloading a workbook.
