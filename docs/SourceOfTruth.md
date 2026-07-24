@@ -13,7 +13,7 @@
 | Work Package Progress % | `progressEngine.calculatePhaseProgress` | `progressDeltaEngine.phasePct` (mirrors PhaseStepper logic) | VIOLATION — phasePct reimplements WP-level aggregation | Extract shared `wpPct(taskMap, weights)` utility |
 | Expected Progress % (linear time) | `scheduleUtils.computeExpectedPct` (AD-001 — commit d575a7d) | `ganttService.getProjectTrend` uses `spiEngine.computePlannedPct` (per-WP, not per-project — different computation, not a violation) | **RESOLVED** | `computeExpectedPct` extracted to `src/utils/scheduleUtils.js`; `progressEngine`, `riskEngine`, `evmEngine` all import and call it. 16 tests in `engines/__tests__/scheduleUtils.test.mjs`. |
 | SPI (Schedule Performance Index) — calendar/time-based | `spiEngine.computeCalendarSpi` (AD-002 — commit fe0d3f8) | `riskEngine.computeProjectRiskScore` uses it inline via `computeCalendarSpi` + `getSPIStatus` | **RESOLVED** | `computeCalendarSpi(actualPct, expectedPct)` is the single formula. Three SPIs are now clearly named: `computeCalendarSpi` (time-based, report-level), `computeSPIFromTasks` (Gantt task rows), and the inline riskEngine SPI (documented circular-import trade-off). |
-| CPI (Cost Performance Index) | Not computed — no monetary budget | — | N/A | — |
+| CPI (Cost Performance Index) | Not computed — `projects.budget`/`actual_cost` exist as of migration 037 (Retail Historical Project Profile v1) but no engine derives CPI from them yet | — | N/A | Future work: a small engine function (`cpi = budget / actual_cost` where both are non-null) — never stored, computed on read like every other value in this table |
 | Risk Score | `riskEngine.computeProjectRiskScore` | None — single owner | No | — |
 | Portfolio Health | `projectHealthEngine.computeProjectHealth` | Health weights hardcoded in file | Structural concern | Externalise health weights to config |
 | Opening Readiness | `openingReadinessEngine.computeOpeningReadiness` | None | No | — |
@@ -123,3 +123,30 @@ pct = Math.min(100, (today - start) / (end - start) * 100);
 ```
 
 This is functionally identical to `spiEngine.computePlannedPct`. The function should call `computePlannedPct` instead.
+
+---
+
+## Retail Historical Project Profile v1 — Canonical Field Ownership
+
+> Added by migration 037 (schema) and 038 (import commit layer). These are stored facts, not calculated values — listed here (rather than the Summary Table above) to document canonical ownership and the one deliberate near-duplicate this profile introduces. Capture Once, Use Everywhere: every field below is written by BOTH live project creation/editing (`ProjectEditorModal.jsx` → `projectService.toDB()`) and historical import (`core/import/` → `commit_project_import_batch` RPC) — there is no separate historical-only schema.
+
+| Field | Canonical column | Meaning | Notes |
+|-------|------------------|---------|-------|
+| Location Type | `projects.location_type` | `Mall` or `Street` (v1 application vocabulary only) | **No DB CHECK constraint** — deliberately TEXT NULL so a future evidence-backed value (e.g. Airport) can be added by editing `LOCATION_TYPE_VALUES` in `projectImportFieldMap.js`, never a migration. An unrecognized value is a warning, not a block. |
+| Shopping Mall | `projects.shopping_mall_name` | Mall name, required when `location_type = 'Mall'` | Must never hold a street address or a generic "project name" — a spreadsheet column literally named "Project Name" is deliberately NOT a recognized alias (Phase 1 field-mapping debt fix, see `projectImportFieldMap.js`). |
+| Street | `projects.street` | Street address, required when `location_type = 'Street'` | Pre-existing column (predates this profile); must be null whenever `location_type = 'Mall'`. |
+| Project Type | `projects.project_type` | What kind of work/project is being performed (New Opening, Rebuilding, ...) | Free text, zero DB constraint. Unrecognized values warn, never block — see `PROJECT_TYPE_VALUES`. |
+| Store Concept | `projects.store_concept` | Retail format/concept (Flagship, Standard, ...) | Free text, no DB enum, no hard-coded brand values. `STORE_CONCEPT_SUGGESTIONS` is a UI-suggestion list only, never validated against. |
+| Total Area | `projects.store_size_sqm` | Total store area (sqm) | Pre-existing column. **Has no live UI input as of this migration** — feeds `ganttEngine`'s size-modifier calculation and is display-only in `ProjectDetailModal.jsx`; historical import is its first real writer for most projects. |
+| Sales Area | `projects.sales_area_sqm` | Sales floor area (sqm) | **Not the same field as `scope.zoneAreas.sales`.** `scope.zoneAreas` is a V2-template-only, Gantt-zone-weighting input (`computeZoneWeights`/`zonedWeightsEngine.js`), scoped to projects using the zoned Gantt template. `sales_area_sqm` is the template-independent canonical historical/benchmark fact. These two are intentionally NOT reconciled by this migration — doing so would require touching the Gantt weighting engine, which is out of scope. A future task may decide to pre-fill `scope.zoneAreas` from these canonical fields at V2 template setup time. |
+| Back of House Area | `projects.back_of_house_area_sqm` | BOH area (sqm) | Same distinction as Sales Area above, vs. `scope.zoneAreas.boh`. |
+| Actual Construction Start | `projects.actual_construction_start_date` | Observed historical fact | Distinct from `construction_start_date` (planned/target, user-editable) and never reused from any forecast field. |
+| Actual Construction Completion | `projects.actual_construction_completion_date` | Observed historical fact | **Not the same field as `construction_completion_date`**, which is a CPM/Gantt forecast owned exclusively by `ganttService` (`ganttEngine.calculateKeyDates`, recalculated on every Gantt regeneration). The `actual_` column is a one-time observed fact, never engine-recalculated. |
+| Actual Opening | `projects.actual_opening_date` | Observed historical fact | **Not the same field as `forecast_opening_date`** (CPM forecast) or `target_opening_date` (planned/target). |
+| Target Opening | `projects.target_opening_date` | Planned/target opening date | Pre-existing column, unchanged by this migration — listed here only to disambiguate from the two fields above. |
+| Budget | `projects.budget` (`NUMERIC(14,2)`) | Planned cost | Requires `currency_code` whenever set. Unknown stays NULL, never `0`. |
+| Actual Cost | `projects.actual_cost` (`NUMERIC(14,2)`) | Real cost | Same currency requirement and NULL-not-zero rule as Budget. |
+| Currency | `projects.currency_code` | ISO 4217 3-letter code, one per project (v1 scope) | Validated at the application layer against `ISO_4217_CURRENCY_CODES` (`projectImportFieldMap.js`) — a 3-letter regex alone never proves a real currency; an unrecognized-but-well-formed code warns rather than blocks. No FX conversion is implemented anywhere. |
+| General Contractor | `projects.general_contractor` / `projects.contractor_email` | GC company name / contact | Pre-existing columns, sufficient for v1 historical import — a missing OpenDay account never blocks importing a GC name as a historical fact. The richer `project_stakeholders` table remains a separate, project-scoped mechanism, not required here. |
+
+Import commit path: `core/import/` (pure, Supabase-free) produces a `CREATE`/`SKIP`/`BLOCK` plan per row; `commit_project_import_batch` (migration 038) is the one trusted RPC that writes `CREATE` rows to `public.projects`, re-verifying each identity is still free at write time (stale-plan protection) and never performing UPDATE/MERGE/UPSERT. `public.import_jobs` holds batch-level audit metadata (row counts + a bounded per-row outcome summary), never a duplicate copy of canonical project data.
