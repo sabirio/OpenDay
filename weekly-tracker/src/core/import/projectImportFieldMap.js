@@ -4,16 +4,10 @@
  * normalizer, and validator all read from this one catalog rather than each
  * keeping their own copy of the field vocabulary (One Source of Truth).
  *
- * Every `key` below is an existing, already-canonical projects.* column
- * (verified live against the schema — see the Import v1 architecture audit).
- * This module adds no schema, no migration, no new destination.
- *
- * Deliberately excluded for now (architecture-audit Category C — genuine
- * gaps, not yet supported): actual_start_date, actual_opening_date, budget,
- * actual_cost, store_type. FUTURE_CANONICAL_FIELDS below exists solely so a
- * recognizable historical-spreadsheet header for one of these can be
- * surfaced as "OpenDay can't import this yet" instead of being silently
- * dropped — no value for these fields is ever read, stored, or normalized.
+ * Every `key` below is an existing, already-canonical projects.* column as of
+ * migration 037 (Retail Historical Project Profile v1 — see the frozen
+ * design's correction pass report). This module adds no schema, no
+ * migration, no new destination.
  */
 
 // project_type has no DB-level enum/CHECK constraint (verified live: zero
@@ -23,6 +17,31 @@
 // a warning rather than a hard block matches that reality — the current
 // product does not itself enforce a stricter rule.
 export const PROJECT_TYPE_VALUES = Object.freeze(['New Opening', 'Rebuilding']);
+
+// location_type has NO DB CHECK constraint either (frozen design §2/§11:
+// deliberately TEXT NULL, extensible without a migration). Mall/Street are
+// the only v1 application-recognized values; an unrecognized value is a
+// warning (see validateProjectImportRow), never a hard block, so a future
+// evidence-backed value doesn't require touching this list to stop being
+// rejected outright — only to stop warning.
+export const LOCATION_TYPE_VALUES = Object.freeze(['Mall', 'Street']);
+
+// store_concept is deliberately NOT a closed vocabulary (frozen design §9):
+// free text, preserved as-is. This list is UI-suggestion-only, never used to
+// reject or warn on an unrecognized value.
+export const STORE_CONCEPT_SUGGESTIONS = Object.freeze(['Flagship', 'Standard', 'Small', 'Compact']);
+
+// ISO 4217 allow-list for currency_code validation. A 3-letter regex proves
+// only shape, never that the code is a real currency (frozen design §8) —
+// this is the actual conceptual validation list. Scoped to currencies a
+// retail construction historical import is realistically likely to contain;
+// extend here (not with a DB CHECK) if a genuine gap surfaces.
+export const ISO_4217_CURRENCY_CODES = Object.freeze([
+  'AED', 'AUD', 'BHD', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK', 'EGP', 'EUR',
+  'GBP', 'HKD', 'HUF', 'IDR', 'ILS', 'INR', 'JOD', 'JPY', 'KRW', 'KWD',
+  'MXN', 'MYR', 'NOK', 'NZD', 'OMR', 'PLN', 'QAR', 'RON', 'RUB', 'SAR',
+  'SEK', 'SGD', 'THB', 'TRY', 'TWD', 'USD', 'ZAR',
+]);
 
 function keyify(text) {
   return String(text ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -43,39 +62,84 @@ export const IMPORT_FIELD_CATALOG = Object.freeze([
     aliases: ['store code', 'store', 'project code', 'code'],
   },
   {
+    // Label/aliases deliberately do NOT include "project name" (frozen
+    // design correction pass §4A): a spreadsheet column literally named
+    // "Project Name" must not silently populate the mall name — that was a
+    // Phase 1 field-mapping debt, not an intentional synonym. There is no
+    // separate canonical Project Name field in the product (audited: none
+    // exists), so a genuine "project name" header remains unmapped rather
+    // than guessed into the wrong field.
     key: 'shopping_mall_name',
-    label: 'Project Name',
+    label: 'Shopping Mall Name',
     required: false,
     type: 'string',
-    aliases: ['project name', 'mall', 'mall name', 'shopping mall name', 'shopping mall'],
+    aliases: ['mall', 'mall name', 'shopping mall name', 'shopping mall'],
   },
   {
     key: 'country',
     label: 'Country',
-    required: false,
+    required: true,
     type: 'country',
     aliases: ['country'],
   },
   {
     key: 'city',
     label: 'City',
-    required: false,
+    required: true,
     type: 'string',
     aliases: ['city'],
   },
   {
+    // Mall/Street only recognized in v1 (frozen design §3/§11); the
+    // vocabulary lives in LOCATION_TYPE_VALUES, not a DB CHECK, so it can be
+    // extended without a migration.
+    key: 'location_type',
+    label: 'Location Type',
+    required: true,
+    type: 'locationType',
+    aliases: ['location type', 'location'],
+  },
+  {
+    key: 'street',
+    label: 'Street Address',
+    required: false,
+    type: 'string',
+    aliases: ['street', 'street address', 'address'],
+  },
+  {
     key: 'store_size_sqm',
-    label: 'Area',
+    label: 'Total Area',
     required: false,
     type: 'area',
-    aliases: ['sqm', 'm2', 'area', 'store area', 'store size', 'size'],
+    aliases: ['sqm', 'm2', 'area', 'store area', 'store size', 'size', 'total area'],
+  },
+  {
+    key: 'sales_area_sqm',
+    label: 'Sales Area',
+    required: false,
+    type: 'area',
+    aliases: ['sales area', 'sales floor area', 'sales sqm'],
+  },
+  {
+    key: 'back_of_house_area_sqm',
+    label: 'Back of House Area',
+    required: false,
+    type: 'area',
+    aliases: ['back of house area', 'boh area', 'boh', 'back of house'],
   },
   {
     key: 'project_type',
     label: 'Project Type',
-    required: false,
+    required: true,
     type: 'projectType',
     aliases: ['project type', 'type'],
+  },
+  {
+    key: 'store_concept',
+    label: 'Store Concept',
+    required: false,
+    type: 'string',
+    aliases: ['store concept', 'concept', 'store format', 'format'],
   },
   {
     key: 'construction_start_date',
@@ -90,6 +154,48 @@ export const IMPORT_FIELD_CATALOG = Object.freeze([
     required: false,
     type: 'date',
     aliases: ['target opening', 'planned opening', 'opening date', 'opening target', 'target opening date'],
+  },
+  {
+    key: 'actual_construction_start_date',
+    label: 'Actual Construction Start',
+    required: false,
+    type: 'date',
+    aliases: ['actual construction start', 'actual start', 'actual start date', 'real start'],
+  },
+  {
+    key: 'actual_construction_completion_date',
+    label: 'Actual Construction Completion',
+    required: false,
+    type: 'date',
+    aliases: ['actual construction completion', 'actual completion', 'actual completion date', 'real completion'],
+  },
+  {
+    key: 'actual_opening_date',
+    label: 'Actual Opening Date',
+    required: false,
+    type: 'date',
+    aliases: ['actual opening', 'actual opening date', 'real opening', 'opened on'],
+  },
+  {
+    key: 'budget',
+    label: 'Budget',
+    required: false,
+    type: 'money',
+    aliases: ['budget', 'planned budget', 'budgeted cost'],
+  },
+  {
+    key: 'actual_cost',
+    label: 'Actual Cost',
+    required: false,
+    type: 'money',
+    aliases: ['actual cost', 'final cost', 'real cost', 'total cost'],
+  },
+  {
+    key: 'currency_code',
+    label: 'Currency',
+    required: false,
+    type: 'currency',
+    aliases: ['currency', 'currency code'],
   },
   {
     key: 'general_contractor',
@@ -111,17 +217,12 @@ export const IMPORT_FIELD_CATALOG = Object.freeze([
  * Recognizable headers for a genuine schema gap (architecture-audit Category
  * C). These are never mapped, never normalized, never stored — detecting one
  * only produces an UNSUPPORTED_CANONICAL_FIELD planning note so the column
- * isn't silently discarded without explanation. Add a field here (and to the
- * catalog above, once schema work lands) rather than inventing a shadow
- * property to hold its values today.
+ * isn't silently discarded without explanation. Empty as of migration 037:
+ * every previously-identified gap (actual dates, budget, actual cost,
+ * location/store type) now has a real catalog entry above. Add a field here
+ * (never a shadow property elsewhere) if a genuine new gap is identified.
  */
-export const FUTURE_CANONICAL_FIELDS = Object.freeze([
-  { key: 'actual_start_date', label: 'Actual Start', aliases: ['actual start', 'actual start date', 'real start'] },
-  { key: 'actual_opening_date', label: 'Actual Opening', aliases: ['actual opening', 'actual opening date', 'real opening', 'opened on'] },
-  { key: 'budget', label: 'Budget', aliases: ['budget', 'planned budget', 'budgeted cost'] },
-  { key: 'actual_cost', label: 'Actual Cost', aliases: ['actual cost', 'final cost', 'real cost', 'total cost'] },
-  { key: 'store_type', label: 'Store Type', aliases: ['store type', 'format', 'store format'] },
-]);
+export const FUTURE_CANONICAL_FIELDS = Object.freeze([]);
 
 const ALIAS_TO_FIELD = new Map();
 for (const field of IMPORT_FIELD_CATALOG) {

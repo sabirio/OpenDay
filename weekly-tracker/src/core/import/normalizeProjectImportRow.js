@@ -6,7 +6,7 @@
  * validateProjectImportRow to turn into a structured error, never a
  * best-effort silent result.
  */
-import { PROJECT_TYPE_VALUES } from './projectImportFieldMap.js';
+import { PROJECT_TYPE_VALUES, LOCATION_TYPE_VALUES, ISO_4217_CURRENCY_CODES } from './projectImportFieldMap.js';
 
 const AREA_UNIT_SUFFIX_RE = /\s*(m²|m2|sq\.?\s*m|sqm|㎡)\s*$/i;
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -30,14 +30,14 @@ export function normalizeString(value) {
   return text === '' ? null : text;
 }
 
-export function normalizeArea(value) {
+function normalizeNumericAmount(value, unitSuffixRe) {
   if (value == null || value === '') return { ok: true, value: null };
   if (typeof value === 'number') {
     return Number.isFinite(value) ? { ok: true, value } : { ok: false };
   }
   let text = String(value).trim();
   if (text === '') return { ok: true, value: null };
-  text = text.replace(AREA_UNIT_SUFFIX_RE, '');
+  if (unitSuffixRe) text = text.replace(unitSuffixRe, '');
   text = text.replace(/[\s\u00A0]/g, ''); // plain whitespace + non-breaking space (\u00A0) thousand separators, e.g. "1 250"
   if (/^\d{1,3}(,\d{3})+$/.test(text)) {
     text = text.replace(/,/g, ''); // comma-grouped thousands: "1,250" / "12,345,678"
@@ -49,6 +49,17 @@ export function normalizeArea(value) {
   if (!/^\d+(\.\d+)?$/.test(text)) return { ok: false };
   const parsed = Number(text);
   return Number.isFinite(parsed) ? { ok: true, value: parsed } : { ok: false };
+}
+
+export function normalizeArea(value) {
+  return normalizeNumericAmount(value, AREA_UNIT_SUFFIX_RE);
+}
+
+// Money is normalized as a bare amount only \u2014 no currency symbol stripping
+// (a "$"/"AED" prefix embedded in the amount cell is a mapping problem, not
+// a normalization one; currency is its own dedicated column/field).
+export function normalizeMoney(value) {
+  return normalizeNumericAmount(value, null);
 }
 
 export function normalizeDate(value) {
@@ -104,6 +115,31 @@ export function normalizeProjectType(value) {
   return match ? { value: match, recognized: true } : { value: text, recognized: false };
 }
 
+// Same recognized/unrecognized shape as normalizeProjectType — Mall/Street
+// are the only v1-recognized values (LOCATION_TYPE_VALUES), but an
+// unrecognized value is preserved verbatim, never rejected or guessed, since
+// location_type has no DB CHECK to enforce (frozen design §3/§11).
+export function normalizeLocationType(value) {
+  const text = normalizeString(value);
+  if (text == null) return { value: null, recognized: true };
+  const match = LOCATION_TYPE_VALUES.find(candidate => candidate.toLowerCase() === text.toLowerCase());
+  return match ? { value: match, recognized: true } : { value: text, recognized: false };
+}
+
+// currency_code: trim + uppercase, then check against the ISO 4217 allow-
+// list. A three-letter shape alone never proves a real currency (frozen
+// design §8) — recognized:false here means "not on the allow-list", which
+// validateProjectImportRow treats as a hard error, not a warning, since an
+// unrecognized currency code is far more likely a typo than a legitimate
+// emerging value (unlike project_type/location_type/store_concept, which are
+// deliberately open vocabularies).
+export function normalizeCurrencyCode(value) {
+  const text = normalizeString(value);
+  if (text == null) return { value: null, recognized: true };
+  const upper = text.toUpperCase();
+  return { value: upper, recognized: ISO_4217_CURRENCY_CODES.includes(upper) };
+}
+
 export function normalizeEmail(value) {
   const text = normalizeString(value);
   return text == null ? null : text.toLowerCase();
@@ -131,20 +167,41 @@ export function normalizeProjectImportRow(mappedRow) {
 
   normalized.store_code = normalizeString(row.store_code);
   normalized.shopping_mall_name = normalizeString(row.shopping_mall_name);
+  normalized.street = normalizeString(row.street);
   normalized.city = normalizeString(row.city);
+  normalized.store_concept = normalizeString(row.store_concept);
   normalized.general_contractor = normalizeString(row.general_contractor);
   normalized.contractor_email = normalizeEmail(row.contractor_email);
   normalized.country = normalizeCountry(row.country, COUNTRY_ALIASES);
 
-  const area = normalizeArea(row.store_size_sqm);
-  fieldNotes.store_size_sqm = area;
-  normalized.store_size_sqm = area.ok ? area.value : null;
+  const locationType = normalizeLocationType(row.location_type);
+  fieldNotes.location_type = locationType;
+  normalized.location_type = locationType.value;
+
+  const currency = normalizeCurrencyCode(row.currency_code);
+  fieldNotes.currency_code = currency;
+  normalized.currency_code = currency.value;
+
+  for (const areaField of ['store_size_sqm', 'sales_area_sqm', 'back_of_house_area_sqm']) {
+    const note = normalizeArea(row[areaField]);
+    fieldNotes[areaField] = note;
+    normalized[areaField] = note.ok ? note.value : null;
+  }
+
+  for (const moneyField of ['budget', 'actual_cost']) {
+    const note = normalizeMoney(row[moneyField]);
+    fieldNotes[moneyField] = note;
+    normalized[moneyField] = note.ok ? note.value : null;
+  }
 
   const projectType = normalizeProjectType(row.project_type);
   fieldNotes.project_type = projectType;
   normalized.project_type = projectType.value;
 
-  for (const dateField of ['construction_start_date', 'target_opening_date']) {
+  for (const dateField of [
+    'construction_start_date', 'target_opening_date',
+    'actual_construction_start_date', 'actual_construction_completion_date', 'actual_opening_date',
+  ]) {
     const note = normalizeDate(row[dateField]);
     fieldNotes[dateField] = note;
     normalized[dateField] = note.ok ? note.value : null;

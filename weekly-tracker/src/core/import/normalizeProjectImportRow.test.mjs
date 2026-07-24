@@ -1,8 +1,8 @@
 // normalizeProjectImportRow.test.mjs - P0 Import Foundation v1 Phase 1: normalization tests.
 // Run: node src/core/import/normalizeProjectImportRow.test.mjs
 import {
-  normalizeString, normalizeArea, normalizeDate, normalizeCountry,
-  normalizeProjectType, normalizeEmail, normalizeProjectImportRow,
+  normalizeString, normalizeArea, normalizeMoney, normalizeDate, normalizeCountry,
+  normalizeProjectType, normalizeLocationType, normalizeCurrencyCode, normalizeEmail, normalizeProjectImportRow,
 } from './normalizeProjectImportRow.js';
 
 let pass = 0, fail = 0;
@@ -65,23 +65,56 @@ console.log('\nnormalizeProjectImportRow - email is lightly normalized only (low
 check('email is trimmed and lowercased', normalizeEmail('  PM@ACME.example  ') === 'pm@acme.example');
 check('absent email normalizes to null', normalizeEmail(null) === null);
 
+console.log('\nnormalizeProjectImportRow - location type maps only to Mall/Street (frozen design: no DB enum, app-layer vocabulary only)');
+check('a recognized value (case-insensitive) normalizes to canonical casing', normalizeLocationType('mall').value === 'Mall' && normalizeLocationType('mall').recognized === true);
+check('"Street" normalizes unchanged', normalizeLocationType('Street').value === 'Street' && normalizeLocationType('Street').recognized === true);
+check('an unrecognized value is passed through, flagged unrecognized, never rejected at this layer', normalizeLocationType('Airport').value === 'Airport' && normalizeLocationType('Airport').recognized === false);
+check('absent location type is safely null and considered "recognized" (nothing to flag)', normalizeLocationType(null).value === null && normalizeLocationType(null).recognized === true);
+
+console.log('\nnormalizeProjectImportRow - money normalizes like area but without unit-suffix stripping');
+check('a plain integer passes through', normalizeMoney(500000).value === 500000 && normalizeMoney(500000).ok);
+check('a comma-grouped thousand separator parses ("1,250,000")', normalizeMoney('1,250,000').value === 1250000);
+check('a space-grouped thousand separator parses ("1 250 000")', normalizeMoney('1 250 000').value === 1250000);
+check('non-numeric text fails, does not coerce to NaN silently', normalizeMoney('not a number').ok === false);
+check('absent money is safely null, not an error', normalizeMoney(null).ok === true && normalizeMoney(null).value === null);
+
+console.log('\nnormalizeProjectImportRow - currency code is trimmed/uppercased, then checked against the ISO 4217 allow-list');
+check('a recognized code uppercases', normalizeCurrencyCode('usd').value === 'USD' && normalizeCurrencyCode('usd').recognized === true);
+check('a recognized code passes through unchanged when already uppercase', normalizeCurrencyCode('AED').value === 'AED' && normalizeCurrencyCode('AED').recognized === true);
+check('a well-formed but non-allow-listed code is preserved and flagged unrecognized (a 3-letter regex alone never proves a real currency)', normalizeCurrencyCode('xyz').value === 'XYZ' && normalizeCurrencyCode('xyz').recognized === false);
+check('absent currency is safely null and considered "recognized" (nothing to flag)', normalizeCurrencyCode(null).value === null && normalizeCurrencyCode(null).recognized === true);
+
 console.log('\nnormalizeProjectImportRow - full-row composition (single entry point, used by the validator)');
 const composed = normalizeProjectImportRow({
   store_code: '  kz001  ', shopping_mall_name: '  Mega Center  ', country: 'UAE', city: 'Dubai',
-  store_size_sqm: '1 250 m²', project_type: 'new opening', construction_start_date: '2024-01-15',
-  target_opening_date: '15 November 2024', general_contractor: ' ACME Co ', contractor_email: 'PM@ACME.EXAMPLE',
+  location_type: 'mall', store_size_sqm: '1 250 m²', sales_area_sqm: '900', back_of_house_area_sqm: '350',
+  project_type: 'new opening', store_concept: '  Flagship  ', construction_start_date: '2024-01-15',
+  target_opening_date: '15 November 2024', actual_construction_start_date: '2024-01-20',
+  actual_construction_completion_date: '2024-10-01', actual_opening_date: '2024-11-05',
+  budget: '2,500,000', actual_cost: '2 650 000', currency_code: 'aed',
+  general_contractor: ' ACME Co ', contractor_email: 'PM@ACME.EXAMPLE',
 });
 check('a fully dirty realistic row normalizes every field correctly in one pass',
   composed.normalized.store_code === 'kz001'
   && composed.normalized.shopping_mall_name === 'Mega Center'
   && composed.normalized.country === 'United Arab Emirates'
+  && composed.normalized.location_type === 'Mall'
   && composed.normalized.store_size_sqm === 1250
+  && composed.normalized.sales_area_sqm === 900
+  && composed.normalized.back_of_house_area_sqm === 350
   && composed.normalized.project_type === 'New Opening'
+  && composed.normalized.store_concept === 'Flagship'
   && composed.normalized.construction_start_date === '2024-01-15'
   && composed.normalized.target_opening_date === '2024-11-15'
+  && composed.normalized.actual_construction_start_date === '2024-01-20'
+  && composed.normalized.actual_construction_completion_date === '2024-10-01'
+  && composed.normalized.actual_opening_date === '2024-11-05'
+  && composed.normalized.budget === 2500000
+  && composed.normalized.actual_cost === 2650000
+  && composed.normalized.currency_code === 'AED'
   && composed.normalized.general_contractor === 'ACME Co'
   && composed.normalized.contractor_email === 'pm@acme.example');
-check('field-level notes are returned alongside the normalized row for the validator to read', composed.fieldNotes.store_size_sqm.ok === true && composed.fieldNotes.project_type.recognized === true);
+check('field-level notes are returned alongside the normalized row for the validator to read', composed.fieldNotes.store_size_sqm.ok === true && composed.fieldNotes.project_type.recognized === true && composed.fieldNotes.currency_code.recognized === true);
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

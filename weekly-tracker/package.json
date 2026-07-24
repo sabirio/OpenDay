@@ -26,9 +26,11 @@
     "cert:reset:ui": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/seed-test-users.mjs",
     "cert:verify-fixture-password": "node scripts/certification/verifyFixturePasswordPersistence.mjs",
     "cert:seed:contractor-workspace": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/contractorWorkspaceFixtures.mjs",
+    "cert:reset:import-phase2": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/applyImportFoundationPhase2Local.mjs",
     "test:db": "node scripts/certification/certifyContractorReport.mjs && node scripts/certification/certifySiteVisit.mjs && node scripts/certification/certifyProgressHistory.mjs",
     "test:rls": "node scripts/certification/certifyRls.mjs",
     "test:storage": "node scripts/certification/certifyStorage.mjs",
+    "test:import-phase2": "npm run cert:reset:import-phase2 && node scripts/certification/certifyImportPhase2.mjs",
     "test:certification": "npm run cert:reset && npm run test:db && npm run test:rls && npm run test:storage"
   },
   "dependencies": {

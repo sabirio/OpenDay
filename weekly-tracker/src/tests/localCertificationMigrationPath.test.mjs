@@ -16,6 +16,7 @@ function accepts(overrides = {}) {
 const deploy = readFileSync(new URL('../../scripts/certification/resetAndDeploy.mjs', import.meta.url), 'utf8');
 const snagLocal = readFileSync(new URL('../../scripts/certification/applySnagListLocal.mjs', import.meta.url), 'utf8');
 const contractorReportLegacyWpScopeLocal = readFileSync(new URL('../../scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs', import.meta.url), 'utf8');
+const importFoundationPhase2Local = readFileSync(new URL('../../scripts/certification/applyImportFoundationPhase2Local.mjs', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -69,6 +70,9 @@ check('local Snag hash verification is stable across Windows CRLF checkouts', /r
 check('local Contractor Report legacy WP scope extension uses the canonical local guard before psql', contractorReportLegacyWpScopeLocal.indexOf('assertLocalTarget') < contractorReportLegacyWpScopeLocal.indexOf("execFileSync('psql'"));
 check('local Contractor Report legacy WP scope extension pins and verifies the approved 036 migration', contractorReportLegacyWpScopeLocal.includes('036_contractor_report_legacy_wp_scope.sql') && /createHash\('sha256'\)/.test(contractorReportLegacyWpScopeLocal));
 check('local Contractor Report legacy WP scope hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(contractorReportLegacyWpScopeLocal));
+check('local Import Foundation v1 Phase 2 extension uses the canonical local guard before psql', importFoundationPhase2Local.indexOf('assertLocalTarget') < importFoundationPhase2Local.indexOf("execFileSync('psql'"));
+check('local Import Foundation v1 Phase 2 extension pins and verifies the approved 037-038 batch', ['037_retail_historical_project_profile.sql', '038_import_foundation_commit_layer.sql'].every(file => importFoundationPhase2Local.includes(file)) && /createHash\('sha256'\)/.test(importFoundationPhase2Local));
+check('local Import Foundation v1 Phase 2 hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(importFoundationPhase2Local));
 
 // Structural migration-completeness guard: the fresh-install path is a
 // multi-part composition (canonical contract's 000-029 + applySnagListLocal.mjs's
@@ -85,13 +89,15 @@ const excludedSkipOnFresh = new Set(contract.canonicalMigrationPath.excludedSkip
 const expectedFreshInstallSet = migrationFiles.filter(f => !excludedHistorical.has(f) && !excludedSkipOnFresh.has(f));
 const snagBatchFiles = [...snagLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const contractorReportLegacyWpScopeBatchFiles = [...contractorReportLegacyWpScopeLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
-const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles]);
-check('fresh-install migration set is exactly covered by canonical contract (000-029) + approved Snag batch (030-035) + approved Contractor Report legacy WP scope migration (036), no gaps',
+const importFoundationPhase2BatchFiles = [...importFoundationPhase2Local.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles]);
+check('fresh-install migration set is exactly covered by canonical contract (000-029) + approved Snag batch (030-035) + approved Contractor Report legacy WP scope migration (036) + approved Import Foundation v1 Phase 2 batch (037-038), no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
 check('at least one migration beyond 029 is covered (guards against this check being vacuously true)', snagBatchFiles.length >= 6);
 check('migration 036 is covered by the Contractor Report legacy WP scope batch (guards against this check being vacuously true)', contractorReportLegacyWpScopeBatchFiles.length >= 1);
+check('migrations 037-038 are covered by the Import Foundation v1 Phase 2 batch (guards against this check being vacuously true)', importFoundationPhase2BatchFiles.length >= 2);
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by

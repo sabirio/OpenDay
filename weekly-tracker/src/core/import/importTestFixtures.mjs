@@ -9,17 +9,17 @@ import * as XLSX from 'xlsx';
 // one-field-per-test artificial shape.
 export const HISTORICAL_HEADERS = [
   'Store Code', 'Mall', 'Country', 'City', 'Sqm', 'Project Type',
-  'Construction Start', 'Target Opening', 'GC', 'Contractor Email',
+  'Construction Start', 'Target Opening', 'GC', 'Contractor Email', 'Location Type',
 ];
 
-export const CLEAN_ROW = ['KZ100', 'Silk Road Mall', 'Kazakhstan', 'Almaty', '1200', 'New Opening', '2024-01-15', '2024-11-01', 'BuildCo LLP', 'ops@buildco.example'];
+export const CLEAN_ROW = ['KZ100', 'Silk Road Mall', 'Kazakhstan', 'Almaty', '1200', 'New Opening', '2024-01-15', '2024-11-01', 'BuildCo LLP', 'ops@buildco.example', 'Mall'];
 
-export const DIRTY_BUT_VALID_ROW = ['kz101', '  Mega Center  ', 'UAE', 'Dubai', '1 250 m²', 'new opening', '15 March 2024', 'November 1, 2024', ' ACME Construction ', 'PM@ACME.EXAMPLE'];
+export const DIRTY_BUT_VALID_ROW = ['kz101', '  Mega Center  ', 'UAE', 'Dubai', '1 250 m²', 'new opening', '15 March 2024', 'November 1, 2024', ' ACME Construction ', 'PM@ACME.EXAMPLE', 'mall'];
 
 export const HISTORICAL_SAMPLE_ROWS = [
   CLEAN_ROW,
   DIRTY_BUT_VALID_ROW,
-  ['KZ102', 'Dostyk Plaza', 'Kazakhstan', 'Almaty', '1,250', 'Rebuilding', '2024-02-01', '2024-12-01', 'BuildCo LLP', ''],
+  ['KZ102', 'Dostyk Plaza', 'Kazakhstan', 'Almaty', '1,250', 'Rebuilding', '2024-02-01', '2024-12-01', 'BuildCo LLP', '', 'Mall'],
 ];
 
 function csvEscape(value) {
@@ -52,4 +52,5 @@ export const HISTORICAL_MAPPING = {
   'Target Opening': 'target_opening_date',
   GC: 'general_contractor',
   'Contractor Email': 'contractor_email',
+  'Location Type': 'location_type',
 };

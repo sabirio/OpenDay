@@ -10,9 +10,9 @@ function check(label, condition) {
 }
 
 function row(overrides = {}) {
-  const base = { code: 'KZ001', mall: 'Mega Center', country: 'Kazakhstan', city: 'Almaty', sqm: '1250', type: 'New Opening', start: '2024-01-15', opening: '2024-11-01', gc: 'BuildCo', email: '' };
+  const base = { code: 'KZ001', mall: 'Mega Center', country: 'Kazakhstan', city: 'Almaty', sqm: '1250', type: 'New Opening', start: '2024-01-15', opening: '2024-11-01', gc: 'BuildCo', email: '', locationType: 'Mall' };
   const merged = { ...base, ...overrides };
-  return [merged.code, merged.mall, merged.country, merged.city, merged.sqm, merged.type, merged.start, merged.opening, merged.gc, merged.email];
+  return [merged.code, merged.mall, merged.country, merged.city, merged.sqm, merged.type, merged.start, merged.opening, merged.gc, merged.email, merged.locationType];
 }
 
 console.log('\nplanProjectImport - new row -> CREATE (test 26)');
@@ -95,15 +95,21 @@ console.log('\nplanProjectImport - planning is deterministic for identical input
 
 console.log('\nplanProjectImport - unsupported historical columns are surfaced, not silently discarded');
 {
-  const headersWithCost = [...HISTORICAL_HEADERS, 'Actual Cost'];
+  // As of migration 037 every previously-identified Category C gap (actual
+  // dates, budget, actual cost, location/store type) has a real catalog
+  // entry (see projectImportFieldMap.js's now-empty FUTURE_CANONICAL_FIELDS)
+  // — so a genuinely unmapped, unrecognized header must NOT be reported as
+  // "unsupported" (that would be a stale/incorrect claim); it is simply
+  // unmapped, exactly like any other column with no known meaning at all.
+  const headersWithUnknown = [...HISTORICAL_HEADERS, 'Loyalty Program Notes'];
   const plan = planProjectImport({
-    headers: headersWithCost,
-    rows: [[...row({ code: 'KZ500' }), '999999']],
-    mapping: HISTORICAL_MAPPING, // Actual Cost intentionally left unmapped by the (simulated) user
+    headers: headersWithUnknown,
+    rows: [[...row({ code: 'KZ500' }), 'internal notes, not a canonical field']],
+    mapping: HISTORICAL_MAPPING, // the unknown column is intentionally left unmapped by the (simulated) user
     existingProjects: [],
   });
-  check('an unmapped column recognizable as a future field is reported in unsupportedColumns', plan.unsupportedColumns.some(c => c.header === 'Actual Cost' && c.canonicalField === 'actual_cost'));
-  check('the unsupported column never appears anywhere in the normalized row output', !('actual_cost' in plan.rows[0].normalized) && !JSON.stringify(plan.rows[0]).includes('999999'));
+  check('a genuinely unmapped, uncatalogued column is not reported in unsupportedColumns (no known gap remains)', plan.unsupportedColumns.length === 0);
+  check('the unmapped column never appears anywhere in the normalized row output', !JSON.stringify(plan.rows[0]).includes('internal notes'));
 }
 
 console.log('\nplanProjectImport - a conflicting mapping refuses to plan rather than guessing (mapping-level ambiguity)');

@@ -1,7 +1,7 @@
-// projectImportFieldMap.test.mjs - P0 Import Foundation v1 Phase 1: mapping tests.
+// projectImportFieldMap.test.mjs - P0 Import Foundation v1 Phase 1/2: mapping tests.
 // Run: node src/core/import/projectImportFieldMap.test.mjs
 import {
-  IMPORT_FIELD_CATALOG, FUTURE_CANONICAL_FIELDS, PROJECT_TYPE_VALUES,
+  IMPORT_FIELD_CATALOG, FUTURE_CANONICAL_FIELDS, PROJECT_TYPE_VALUES, LOCATION_TYPE_VALUES, ISO_4217_CURRENCY_CODES,
   suggestColumnMapping, findMappingConflicts, applyColumnMapping,
   getFieldDefinition, getRequiredFieldKeys,
 } from './projectImportFieldMap.js';
@@ -12,18 +12,36 @@ function check(label, condition) {
   else           { fail++; console.error(`  FAIL ${label}`); }
 }
 
+const CANONICAL_KEYS = [
+  'store_code', 'shopping_mall_name', 'country', 'city', 'location_type', 'street',
+  'store_size_sqm', 'sales_area_sqm', 'back_of_house_area_sqm', 'project_type', 'store_concept',
+  'construction_start_date', 'target_opening_date', 'actual_construction_start_date',
+  'actual_construction_completion_date', 'actual_opening_date', 'budget', 'actual_cost', 'currency_code',
+  'general_contractor', 'contractor_email',
+];
+
 console.log('\nprojectImportFieldMap - catalog is the single source of field vocabulary');
-check('every catalog key is a real, existing projects.* column (audited list)',
-  IMPORT_FIELD_CATALOG.every(f => ['store_code', 'shopping_mall_name', 'country', 'city', 'store_size_sqm', 'project_type', 'construction_start_date', 'target_opening_date', 'general_contractor', 'contractor_email'].includes(f.key)));
-check('store_code is the only required field', getRequiredFieldKeys().length === 1 && getRequiredFieldKeys()[0] === 'store_code');
+check('every catalog key is a real, existing projects.* column (audited list, post-migration-037)',
+  IMPORT_FIELD_CATALOG.every(f => CANONICAL_KEYS.includes(f.key)));
+check('every expected canonical field has a catalog entry', CANONICAL_KEYS.every(key => IMPORT_FIELD_CATALOG.some(f => f.key === key)));
+check('required identity/business fields match the frozen design (store_code, country, city, location_type, project_type)',
+  getRequiredFieldKeys().sort().join(',') === ['city', 'country', 'location_type', 'project_type', 'store_code'].sort().join(','));
 check('project type vocabulary matches the existing Projects.jsx filter list', JSON.stringify(PROJECT_TYPE_VALUES) === JSON.stringify(['New Opening', 'Rebuilding']));
-check('getFieldDefinition finds a real field', getFieldDefinition('store_size_sqm')?.label === 'Area');
-check('getFieldDefinition returns null for an unknown key', getFieldDefinition('actual_cost') === null);
-check('Category C fields are catalogued as future-only, not as import destinations', FUTURE_CANONICAL_FIELDS.every(f => !IMPORT_FIELD_CATALOG.some(c => c.key === f.key)));
+check('location type vocabulary is exactly Mall/Street in v1', JSON.stringify(LOCATION_TYPE_VALUES) === JSON.stringify(['Mall', 'Street']));
+check('the ISO 4217 allow-list contains common retail-construction currencies', ['USD', 'EUR', 'AED', 'GBP'].every(code => ISO_4217_CURRENCY_CODES.includes(code)));
+check('getFieldDefinition finds a real field', getFieldDefinition('store_size_sqm')?.label === 'Total Area');
+check('getFieldDefinition returns null for an unknown key', getFieldDefinition('made_up_field') === null);
+check('no Category C gaps remain — FUTURE_CANONICAL_FIELDS is empty as of migration 037', FUTURE_CANONICAL_FIELDS.length === 0);
+
+console.log('\nprojectImportFieldMap - Phase 1 field-mapping debt fix (frozen design correction pass §4A)');
+check('shopping_mall_name is labeled "Shopping Mall Name", not "Project Name"', getFieldDefinition('shopping_mall_name').label === 'Shopping Mall Name');
+check('"Project Name" is no longer a recognized alias for anything (must not silently populate the mall name)', suggestColumnMapping(['Project Name'])[0].suggestedField === null);
+check('"Mall Name" still maps to shopping_mall_name (the real alias is preserved)', suggestColumnMapping(['Mall Name'])[0].suggestedField === 'shopping_mall_name');
+check('"Shopping Mall Name" (the new canonical label) maps to shopping_mall_name', suggestColumnMapping(['Shopping Mall Name'])[0].suggestedField === 'shopping_mall_name');
 
 console.log('\nprojectImportFieldMap - exact canonical headers map (test 8)');
-const exactSuggestions = suggestColumnMapping(['Store Code', 'Project Name', 'Country', 'Area']);
-check('exact canonical labels map to the right field', exactSuggestions.find(s => s.header === 'Project Name').suggestedField === 'shopping_mall_name');
+const exactSuggestions = suggestColumnMapping(['Store Code', 'Mall', 'Country', 'Area']);
+check('exact canonical labels/aliases map to the right field', exactSuggestions.find(s => s.header === 'Mall').suggestedField === 'shopping_mall_name');
 check('exact label match is case-insensitive and whitespace-tolerant', suggestColumnMapping(['  store code  '])[0].suggestedField === 'store_code');
 
 console.log('\nprojectImportFieldMap - alias suggestions (test 9)');
@@ -33,6 +51,17 @@ check('"Store Area" suggests store_size_sqm', suggestColumnMapping(['Store Area'
 check('"Planned Opening" suggests target_opening_date', suggestColumnMapping(['Planned Opening'])[0].suggestedField === 'target_opening_date');
 check('"Opening Target" suggests target_opening_date', suggestColumnMapping(['Opening Target'])[0].suggestedField === 'target_opening_date');
 check('"GC" suggests general_contractor', suggestColumnMapping(['GC'])[0].suggestedField === 'general_contractor');
+check('"Location Type" suggests location_type', suggestColumnMapping(['Location Type'])[0].suggestedField === 'location_type');
+check('"Street Address" suggests street', suggestColumnMapping(['Street Address'])[0].suggestedField === 'street');
+check('"Sales Area" suggests sales_area_sqm', suggestColumnMapping(['Sales Area'])[0].suggestedField === 'sales_area_sqm');
+check('"BOH" suggests back_of_house_area_sqm', suggestColumnMapping(['BOH'])[0].suggestedField === 'back_of_house_area_sqm');
+check('"Store Concept" suggests store_concept', suggestColumnMapping(['Store Concept'])[0].suggestedField === 'store_concept');
+check('"Actual Construction Start" suggests actual_construction_start_date', suggestColumnMapping(['Actual Construction Start'])[0].suggestedField === 'actual_construction_start_date');
+check('"Actual Completion" suggests actual_construction_completion_date', suggestColumnMapping(['Actual Completion'])[0].suggestedField === 'actual_construction_completion_date');
+check('"Actual Opening" suggests actual_opening_date', suggestColumnMapping(['Actual Opening'])[0].suggestedField === 'actual_opening_date');
+check('"Budget" suggests budget', suggestColumnMapping(['Budget'])[0].suggestedField === 'budget');
+check('"Actual Cost" suggests actual_cost', suggestColumnMapping(['Actual Cost'])[0].suggestedField === 'actual_cost');
+check('"Currency" suggests currency_code', suggestColumnMapping(['Currency'])[0].suggestedField === 'currency_code');
 
 console.log('\nprojectImportFieldMap - ambiguous aliases never auto-select (test 10)');
 check('a header matching no alias produces no suggestion, not a guess', suggestColumnMapping(['Random Notes Column'])[0].suggestedField === null);
@@ -42,10 +71,9 @@ console.log('\nprojectImportFieldMap - unknown columns remain explicitly unmappe
 const unknownSuggestion = suggestColumnMapping(['Notes'])[0];
 check('a genuinely unknown column has both suggestedField and unsupported as null', unknownSuggestion.suggestedField === null && unknownSuggestion.unsupported === null);
 
-console.log('\nprojectImportFieldMap - Category C headers are surfaced, not silently ignored');
-check('"Actual Cost" is recognized as an unsupported (not-yet-implemented) canonical field', suggestColumnMapping(['Actual Cost'])[0].unsupported?.key === 'actual_cost');
-check('"Store Type" is recognized as an unsupported canonical field', suggestColumnMapping(['Store Type'])[0].unsupported?.key === 'store_type');
-check('"Actual Opening" is recognized as an unsupported canonical field', suggestColumnMapping(['Actual Opening'])[0].unsupported?.key === 'actual_opening_date');
+console.log('\nprojectImportFieldMap - no Category C headers remain unsupported (all resolved by migration 037)');
+check('a header that used to be a Category C gap now maps to a real field instead of being reported unsupported', suggestColumnMapping(['Actual Cost'])[0].unsupported === null && suggestColumnMapping(['Actual Cost'])[0].suggestedField === 'actual_cost');
+check('with FUTURE_CANONICAL_FIELDS empty, no header can ever be reported unsupported', suggestColumnMapping(['Anything At All'])[0].unsupported === null);
 check('a header both suggested AND coincidentally future-like never reports both (suggestedField wins, unsupported is null)',
   suggestColumnMapping(['Area'])[0].suggestedField === 'store_size_sqm' && suggestColumnMapping(['Area'])[0].unsupported === null);
 
