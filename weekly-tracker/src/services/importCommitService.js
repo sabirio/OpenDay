@@ -41,3 +41,22 @@ export async function commitProjectImportBatch({ companyId, planRows, clientRequ
   if (error) throw safeError(error);
   return data;
 }
+
+/**
+ * fetchExistingStoreCodes — the `existingProjects` input planProjectImport()
+ * itself documents as "Phase 2 supplies this; Phase 1 never queries for it".
+ * Scoped to one company (project identity is company_id+store_code — see
+ * migration 039's audit), never a global list, so cross-company store codes
+ * are never mistaken for a duplicate. Plain read, no duplicate-detection
+ * decision made here — that stays exclusively planProjectImport's job.
+ *
+ * @param {string|null} companyId
+ * @returns {Promise<Array<{storeCode: string}>>}
+ */
+export async function fetchExistingStoreCodes(companyId) {
+  let query = supabase.from('projects').select('store_code');
+  query = companyId == null ? query.is('company_id', null) : query.eq('company_id', companyId);
+  const { data, error } = await query;
+  if (error) throw safeError(error);
+  return (data || []).map(row => ({ storeCode: row.store_code }));
+}

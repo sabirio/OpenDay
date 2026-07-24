@@ -11,7 +11,7 @@ export const ROLES = {
 // Resource keys must match the `resource` prop passed to <ProtectedRoute>.
 export const PERMISSIONS = {
   Admin: ['all'],  // 'all' is a wildcard — see permissionEngine.canAccess()
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags'],
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import'],
   Contractor: ['contractor_report', 'snags'],
   Viewer: ['dashboard', 'snags'],
 };
@@ -32,6 +32,7 @@ export const NAV_ITEMS = [
   { to: '/home',               label: 'Home',             resource: 'dashboard'      },
   { to: '/',                   label: 'Project Dashboard', resource: 'dashboard'      },
   { to: '/projects',           label: 'Portfolio',        resource: 'projects'       },
+  { to: '/import/projects',    label: 'Import Projects',  resource: 'projects_import' },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
   { to: '/snags',              label: 'Site Snag',        resource: 'snags'          },
   {

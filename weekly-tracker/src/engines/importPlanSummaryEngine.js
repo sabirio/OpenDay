@@ -38,3 +38,26 @@ export function computeAreaSumMismatch(totalArea, salesArea, bohArea) {
   const tolerance = Math.max(1, totalArea * 0.02);
   return { sum, diff, tolerance, mismatch: diff > tolerance };
 }
+
+/**
+ * Phase 3 Result screen tally: the trusted commit RPC (migration 038/039)
+ * returns a `summary` that counts CONFLICT toward `create` (a row whose plan
+ * action was CREATE, regardless of final outcome) rather than as its own
+ * bucket — correct for the audit record, but the Result screen needs to show
+ * Imported/Conflict/Skipped/Not-imported as four distinct, human-facing
+ * counts. This tallies the RPC's own per-row `outcome` field (never
+ * recomputed from the Phase 1 plan) so the Result screen is always
+ * authoritative to what the server actually did.
+ *
+ * @param {Array<{outcome:string}>} resultRows - commitPlan(...).rows, verbatim
+ * @returns {{imported:number, conflict:number, skipped:number, notImported:number}}
+ */
+export function summarizeCommitResult(resultRows) {
+  return (resultRows || []).reduce((summary, row) => {
+    if (row.outcome === 'COMMITTED') summary.imported += 1;
+    else if (row.outcome === 'CONFLICT') summary.conflict += 1;
+    else if (row.outcome === 'SKIPPED') summary.skipped += 1;
+    else summary.notImported += 1;
+    return summary;
+  }, { imported: 0, conflict: 0, skipped: 0, notImported: 0 });
+}

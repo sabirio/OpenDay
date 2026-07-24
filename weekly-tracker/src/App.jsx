@@ -14,6 +14,7 @@ import { constructionRetailV1 } from "./domains/construction/templates/construct
 import "./styles/snags.css";
 import "./styles/plans.css";
 import "./styles/snagFieldMode.css";
+import "./styles/import.css";
 
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Home             = lazy(() => import("./pages/Home"));
@@ -39,6 +40,7 @@ const SnagDetailPage   = lazy(() => import("./pages/snags/SnagDetailPage"));
 const SnagProjectSelectPage = lazy(() => import("./pages/snags/SnagProjectSelectPage"));
 const PlanManagementPage = lazy(() => import("./pages/plans/PlanManagementPage"));
 const PlanViewerPage = lazy(() => import("./pages/plans/PlanViewerPage"));
+const ImportProjectsPage = lazy(() => import("./pages/import/ImportProjectsPage"));
 
 const CONSTRUCTION_TEMPLATE = {
   phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
@@ -404,6 +406,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route path="/import/projects" element={<ProtectedRoute resource="projects_import"><ImportProjectsPage/></ProtectedRoute>} />
                   <Route path="/snags" element={<ProtectedRoute resource="snags"><SnagProjectSelectPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/field-snag" element={<ProtectedRoute resource="snags"><FieldSnagSelect projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
