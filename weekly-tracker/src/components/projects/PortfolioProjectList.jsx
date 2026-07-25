@@ -16,8 +16,8 @@ function RowActionsMenu({ project, onEditProject, onInviteContractor }) {
         aria-haspopup="true"
         aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="text-button"
-        style={{ fontSize: 16, lineHeight: 1, padding: "4px 8px" }}
+        className="btn-icon"
+        style={{ fontSize: 16, lineHeight: 1 }}
       >
         ⋯
       </button>
@@ -110,7 +110,7 @@ function PaginationFooter({ currentPage, pageCount, totalCount, pageSize, onPage
       <span className="portfolio-pagination-summary">{start}–{end} of {totalCount}</span>
       {pageCount > 1 && (
         <div className="portfolio-pagination-controls">
-          <button type="button" className="text-button" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)} aria-label="Previous page">‹</button>
+          <button type="button" className="btn-icon" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)} aria-label="Previous page">‹</button>
           {pages.map(p => (
             <button
               key={p}
@@ -122,7 +122,7 @@ function PaginationFooter({ currentPage, pageCount, totalCount, pageSize, onPage
               {p}
             </button>
           ))}
-          <button type="button" className="text-button" disabled={currentPage >= pageCount} onClick={() => onPageChange(currentPage + 1)} aria-label="Next page">›</button>
+          <button type="button" className="btn-icon" disabled={currentPage >= pageCount} onClick={() => onPageChange(currentPage + 1)} aria-label="Next page">›</button>
         </div>
       )}
     </nav>

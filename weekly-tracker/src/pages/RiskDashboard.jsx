@@ -8,7 +8,7 @@ import {
   computeRiskDashboardContractorScores,
   computeRiskDashboardSummaryStats,
 } from "../hooks/useRiskDashboardCalculations";
-import RiskSummaryKpis from "../components/risk/RiskSummaryKpis";
+import RiskSummaryKpis, { SupportingRiskKpis } from "../components/risk/RiskSummaryKpis";
 import CriticalWarnings from "../components/risk/CriticalWarnings";
 import Glyph from "../components/risk/Glyph";
 import OverviewTab from "../components/risk/OverviewTab";
@@ -132,130 +132,151 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
 
   return (
     <div>
-      {/* Page header + KPI cards */}
-      <div className="page-header" style={{ alignItems: "flex-start" }}>
+      <div className="page-header">
         <div>
           <h1>Risk Dashboard</h1>
           <p>Project health - Risk scoring - Contractor performance - PM verification alignment.</p>
-        </div>
-        <div className="no-break" style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
-          <RiskSummaryKpis summaryStats={summaryStats} riskColors={RISK_COLORS} />
-          <ExportButton label="Export Risk Report PDF" />
         </div>
       </div>
 
       <PrintHeader title="Risk & Readiness Dashboard" exportedBy={user?.email} />
 
-      {/* Monte Carlo forecast model toggle — affects every project's forecast
-          (CRITICAL/HIGH cards in the Overview tab), not just one widget, since
-          all rows share one useRiskRows() computation. */}
-      <div className="no-print" role="group" aria-labelledby="forecast-model-label" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-        <span id="forecast-model-label" style={{ fontSize: 13, color: "var(--text-muted)" }}>Forecast model:</span>
-        <button
-          type="button"
-          aria-pressed={!useSCurve}
-          onClick={() => setUseSCurve(false)}
-          style={{
-            padding: "4px 12px", borderRadius: 6, fontSize: 13, cursor: "pointer",
-            background: !useSCurve ? "var(--accent)" : "var(--accent-subtle)",
-            color:      !useSCurve ? "var(--text-inverse)" : "var(--text-secondary)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          Linear
-        </button>
-        <button
-          type="button"
-          aria-pressed={useSCurve}
-          onClick={() => setUseSCurve(true)}
-          style={{
-            padding: "4px 12px", borderRadius: 6, fontSize: 13, cursor: "pointer",
-            background: useSCurve ? "var(--accent)" : "var(--accent-subtle)",
-            color:      useSCurve ? "var(--text-inverse)" : "var(--text-secondary)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          S-curve
-        </button>
-        {useSCurve && (
-          <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
-            accounts for deceleration in final phases
-          </span>
-        )}
-      </div>
+      <div className="split-workspace">
+        <div className="workspace">
+          {/* Headline risk-level signals — "where is risk" at a glance */}
+          <div className="no-break" style={{ marginBottom: 4 }}>
+            <RiskSummaryKpis summaryStats={summaryStats} riskColors={RISK_COLORS} />
+          </div>
 
-      {/* Critical early warnings (always visible) */}
-      <CriticalWarnings rows={criticalRows} Glyph={Glyph} />
-      {/* ── Tab navigation ── */}
-      <div role="group" aria-label="Risk dashboard view" style={{ display: "flex", gap: 3, marginBottom: 20, background: "var(--accent-subtle)", borderRadius: 12, padding: 4, border: "1px solid var(--border)", width: "fit-content", maxWidth: "100%", overflowX: "auto" }}>
-        {VIEWS.map(({ id, label }) => (
-          <button key={id} type="button" aria-pressed={activeView === id} data-testid="risk-view-tab" data-view-id={id} onClick={() => setActiveView(id)} style={{
-            padding: "8px 18px", borderRadius: 9, border: "none",
-            background: activeView === id ? "var(--bg-surface)" : "transparent",
-            color: activeView === id ? "var(--accent)" : "var(--text-muted)",
-            boxShadow: activeView === id ? "var(--shadow-sm)" : "none",
-            fontSize: 13, fontWeight: activeView === id ? 700 : 500,
-            cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap",
-          }}>
-            {label}
-            {id === "escalations" && allEscalations.length > 0 && (
-              <span style={{ marginLeft: 6, background: "var(--status-alert)", color: "var(--text-inverse)", borderRadius: 8, fontSize: 10, fontWeight: 800, padding: "1px 6px" }}>{allEscalations.length}</span>
+          {/* Monte Carlo forecast model toggle — affects every project's forecast
+              (CRITICAL/HIGH cards in the Overview tab), not just one widget, since
+              all rows share one useRiskRows() computation. Frequently used and
+              changes the meaning of the primary analytical output below, so it
+              stays here rather than moving to the Inspector. */}
+          <div className="no-print" role="group" aria-labelledby="forecast-model-label" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+            <span id="forecast-model-label" style={{ fontSize: 13, color: "var(--text-muted)" }}>Forecast model:</span>
+            <button
+              type="button"
+              aria-pressed={!useSCurve}
+              onClick={() => setUseSCurve(false)}
+              style={{
+                padding: "4px 12px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+                background: !useSCurve ? "var(--accent)" : "var(--accent-subtle)",
+                color:      !useSCurve ? "var(--text-inverse)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              Linear
+            </button>
+            <button
+              type="button"
+              aria-pressed={useSCurve}
+              onClick={() => setUseSCurve(true)}
+              style={{
+                padding: "4px 12px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+                background: useSCurve ? "var(--accent)" : "var(--accent-subtle)",
+                color:      useSCurve ? "var(--text-inverse)" : "var(--text-secondary)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              S-curve
+            </button>
+            {useSCurve && (
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
+                accounts for deceleration in final phases
+              </span>
             )}
-          </button>
-        ))}
+          </div>
+
+          {/* Critical early warnings (always visible) */}
+          <CriticalWarnings rows={criticalRows} Glyph={Glyph} />
+          {/* ── Tab navigation ── */}
+          <div role="group" aria-label="Risk dashboard view" style={{ display: "flex", gap: 3, marginBottom: 20, background: "var(--accent-subtle)", borderRadius: 12, padding: 4, border: "1px solid var(--border)", width: "fit-content", maxWidth: "100%", overflowX: "auto" }}>
+            {VIEWS.map(({ id, label }) => (
+              <button key={id} type="button" aria-pressed={activeView === id} data-testid="risk-view-tab" data-view-id={id} onClick={() => setActiveView(id)} style={{
+                padding: "8px 18px", borderRadius: 9, border: "none",
+                background: activeView === id ? "var(--bg-surface)" : "transparent",
+                color: activeView === id ? "var(--accent)" : "var(--text-muted)",
+                boxShadow: activeView === id ? "var(--shadow-sm)" : "none",
+                fontSize: 13, fontWeight: activeView === id ? 700 : 500,
+                cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap",
+              }}>
+                {label}
+                {id === "escalations" && allEscalations.length > 0 && (
+                  <span style={{ marginLeft: 6, background: "var(--status-alert)", color: "var(--text-inverse)", borderRadius: 8, fontSize: 10, fontWeight: 800, padding: "1px 6px" }}>{allEscalations.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {activeView === "overview" && (
+            <OverviewTab sortedByRisk={sortedByRisk} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
+          )}
+
+          {activeView === "heatmap" && (
+            <HeatmapTab sortedByRisk={sortedByRisk} />
+          )}
+
+          {activeView === "escalations" && (
+            <EscalationsTab allEscalations={allEscalations} />
+          )}
+
+          {activeView === "contractors" && (
+            <ContractorsTab
+              allStoreCodes={allStoreCodes}
+              allContractorNames={allContractorNames}
+              filterStore={filterStore}
+              setFilterStore={setFilterStore}
+              filterContractor={filterContractor}
+              setFilterContractor={setFilterContractor}
+              contractorTabScores={contractorTabScores}
+              contractorTabRows={contractorTabRows}
+            />
+          )}
+
+          {activeView === "pm-align" && (
+            <PmAlignmentTab
+              allStoreCodes={allStoreCodes}
+              allContractorNames={allContractorNames}
+              filterStore={filterStore}
+              setFilterStore={setFilterStore}
+              filterContractor={filterContractor}
+              setFilterContractor={setFilterContractor}
+              filterReport={filterReport}
+              setFilterReport={setFilterReport}
+              pmAlignReportOptions={pmAlignReportOptions}
+              pmAlignRows={pmAlignRows}
+              allRows={allRows}
+            />
+          )}
+
+          {activeView === "gantt-spi" && (
+            <GanttSpiTab
+              ganttSpiLoading={ganttSpiLoading}
+              ganttMetricsMap={ganttMetricsMap}
+              allRows={allRows}
+              projectTrends={projectTrends}
+              discHistory={discHistory}
+              reliabilityMap={reliabilityMap}
+            />
+          )}
+        </div>
+
+        {/* ── Inspector: supporting risk metrics + export — no selected-risk
+            state exists yet in Risk Dashboard, so this is a default-only
+            context rail rather than a dynamic one (see Phase 4B report). ── */}
+        <div className="inspector">
+          <div className="inspector-section">
+            <div className="inspector-section-title">Supporting metrics</div>
+            <SupportingRiskKpis summaryStats={summaryStats} />
+          </div>
+
+          <div className="inspector-section">
+            <div className="inspector-section-title">Actions</div>
+            <ExportButton label="Export Risk Report PDF" />
+          </div>
+        </div>
       </div>
-
-      {activeView === "overview" && (
-        <OverviewTab sortedByRisk={sortedByRisk} expandedRow={expandedRow} setExpandedRow={setExpandedRow} />
-      )}
-
-      {activeView === "heatmap" && (
-        <HeatmapTab sortedByRisk={sortedByRisk} />
-      )}
-
-      {activeView === "escalations" && (
-        <EscalationsTab allEscalations={allEscalations} />
-      )}
-
-      {activeView === "contractors" && (
-        <ContractorsTab
-          allStoreCodes={allStoreCodes}
-          allContractorNames={allContractorNames}
-          filterStore={filterStore}
-          setFilterStore={setFilterStore}
-          filterContractor={filterContractor}
-          setFilterContractor={setFilterContractor}
-          contractorTabScores={contractorTabScores}
-          contractorTabRows={contractorTabRows}
-        />
-      )}
-
-      {activeView === "pm-align" && (
-        <PmAlignmentTab
-          allStoreCodes={allStoreCodes}
-          allContractorNames={allContractorNames}
-          filterStore={filterStore}
-          setFilterStore={setFilterStore}
-          filterContractor={filterContractor}
-          setFilterContractor={setFilterContractor}
-          filterReport={filterReport}
-          setFilterReport={setFilterReport}
-          pmAlignReportOptions={pmAlignReportOptions}
-          pmAlignRows={pmAlignRows}
-          allRows={allRows}
-        />
-      )}
-
-      {activeView === "gantt-spi" && (
-        <GanttSpiTab
-          ganttSpiLoading={ganttSpiLoading}
-          ganttMetricsMap={ganttMetricsMap}
-          allRows={allRows}
-          projectTrends={projectTrends}
-          discHistory={discHistory}
-          reliabilityMap={reliabilityMap}
-        />
-      )}
     </div>
   );
 }

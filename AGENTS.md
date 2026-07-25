@@ -11,6 +11,25 @@ architecture principles, or roadmap-vs-current distinctions here; reference
 them by section instead. This file should stay much shorter than the
 Constitution and should not need rewriting as OpenDay's codebase evolves.
 
+## 0. Task Depth & Token Efficiency
+
+Use the cheapest safe approach without reducing correctness.
+
+Classify work implicitly by risk:
+
+- MICRO — local UI/small isolated changes: focused inspection, no subagents, targeted tests.
+- FEATURE — product/engine changes: focused architectural audit, targeted tests during work, full validation once at the end.
+- CRITICAL — DB migrations, RLS, auth, security, production, financial semantics: deep audit, negative cases, full certification.
+
+Rules:
+- Do not spawn subagents by default.
+- Search before broad reading.
+- Do not read SourceOfTruth.md end-to-end unless justified.
+- Read only relevant canonical sections and owners.
+- Do not re-read unchanged files unnecessarily.
+- Escalate task depth immediately if new risk is discovered.
+- Never trade correctness or safety for token savings.
+
 ## 1. Instruction hierarchy
 
 When sources disagree, resolve in this order — but do not silently pick the

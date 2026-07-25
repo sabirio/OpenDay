@@ -98,7 +98,10 @@ check(
 );
 check(
   'Weekly Reports panels consume canonical surface tokens (var(--bg-surface-alpha) / var(--bg-elevated)), not literals',
-  /\.weekly-command-panel,\s*\n\.weekly-truth-console,\s*\n\.weekly-project-context\s*\{[^}]*background:\s*var\(--bg-surface-alpha\)/.test(indexCss)
+  // .weekly-project-context retired in Phase 4B (0 remaining consumers —
+  // ProjectHeader now renders in the Split Workspace Inspector instead);
+  // the other two panels still consume the canonical token.
+  /\.weekly-command-panel,\s*\n\.weekly-truth-console\s*\{[^}]*background:\s*var\(--bg-surface-alpha\)/.test(indexCss)
 );
 
 // No page-local redefinition of canonical theme variable names outside the

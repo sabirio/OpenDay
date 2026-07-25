@@ -328,13 +328,13 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
-            className="primary-button"
+            className="btn btn-primary"
             onClick={() => { setNewProject(emptyProject); originalProjectRef.current = emptyProject; setEditingProjectId(null); setShowForm(true); }}
           >
             Add New Project
           </button>
           {canImportProjects && (
-            <Link to="/projects/import" className="secondary-button">
+            <Link to="/projects/import" className="btn btn-secondary">
               Import Projects
             </Link>
           )}
@@ -413,7 +413,6 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         <ProjectEditorModal
           project={newProject}
           editingProjectId={editingProjectId}
-          inputStyle={inputStyle}
           onChange={handleChange}
           onProjectPatch={setNewProject}
           onOpenScopeConfigurator={() => setShowScopeConfigurator(true)}

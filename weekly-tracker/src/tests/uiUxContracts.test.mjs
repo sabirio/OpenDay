@@ -33,10 +33,20 @@ check('field controls retain 44px touch targets', /minHeight:\s*44/.test(formPar
 const layout = read('components/Layout.jsx');
 const sidebar = read('components/Sidebar.jsx');
 const css = read('index.css');
+const masterDetail = read('components/shared/MasterDetailLayout.jsx');
+const dashboard = read('pages/Dashboard.jsx');
+const dashboardMasterList = read('components/dashboard/DashboardMasterList.jsx');
 check('mobile navigation returns focus to its trigger', /toggleRef\.current\?\.focus/.test(layout));
 check('mobile navigation locks background scrolling while open', /document\.body\.style\.overflow\s*=\s*'hidden'/.test(layout));
 check('mobile navigation is not focusable while off-canvas', /\.sidebar\s*\{[\s\S]*visibility:\s*hidden/.test(css) && /\.sidebar\.sidebar-open\s*\{[\s\S]*visibility:\s*visible/.test(css));
 check('theme toggle has an accessible name', /aria-label=\{label\}/.test(sidebar));
+
+check('MasterDetailLayout owns geometry slots without dashboard domain imports', /master-detail/.test(masterDetail) && !/Project|Report|Risk|Progress|Contractor/.test(masterDetail));
+check('Dashboard project rows are semantic buttons with selected state', /<button[\s\S]*aria-pressed=\{selected\}[\s\S]*data-testid="dashboard-master-project"/.test(dashboardMasterList));
+check('Dashboard tabs use tablist, tab and selected semantics', /role="tablist"/.test(dashboard) && /role="tab"/.test(dashboard) && /aria-selected=\{activeView === id\}/.test(dashboard));
+check('Dashboard no longer renders ProjectDetailDrawer', !/ProjectDetailDrawer/.test(dashboard));
+check('Master and Detail establish independent scroll regions', /\.master-pane-list,[\s\S]*\.detail-pane-content\s*\{[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*auto/.test(css));
+check('narrow Master Detail uses explicit single-pane state', /data-mobile-view=\{mobileView\}/.test(masterDetail) && /data-mobile-view="master"[\s\S]*\.detail-pane[\s\S]*display:\s*none/.test(css) && /data-mobile-view="detail"[\s\S]*\.master-pane[\s\S]*display:\s*none/.test(css));
 
 check('UI contains no thick one-sided accent borders', !/borderLeft:\s*[`'"\s]*[3-9]px|border-left:\s*[3-9]px/i.test(uiSource));
 check('UI contains no width-property transitions', !/transition\s*:\s*[`'"]?width/i.test(uiSource));

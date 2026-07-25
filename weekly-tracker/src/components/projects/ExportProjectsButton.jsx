@@ -42,7 +42,7 @@ export default function ExportProjectsButton({ projects, onError }) {
   }, [projects, onError]);
 
   return (
-    <button type="button" className="secondary-button" onClick={handleClick} disabled={busy}>
+    <button type="button" className="btn btn-secondary" onClick={handleClick} disabled={busy}>
       {busy ? "Generating…" : "Export Projects"}
     </button>
   );

@@ -33,9 +33,18 @@
   --accent:            oklch(0.6724 0.1308 38.7559);
   --accent-subtle:     oklch(0.6724 0.1308 38.7559 / 0.12);
 
-  /* Status: functional color signals only */
-  --status-done:       oklch(0.6724 0.1308 38.7559);
-  --status-done-bg:    oklch(0.6724 0.1308 38.7559 / 0.12);
+  /* Status: functional color signals only.
+     Token reconciliation (2026-07-25): --status-done previously duplicated
+     --accent exactly, so "done/completed" and "selected/interactive"
+     rendered as the identical color — the two most distinct semantic roles
+     in the palette were visually indistinguishable. Per color philosophy,
+     normal/on-track/completed states get neutral treatment; accent is
+     reserved for selection/interactivity. --status-done now matches the
+     existing --status-active neutral tone (same normal-state tier) instead
+     of inventing a new value. --accent-success (design-system.css legacy
+     alias) inherits this fix automatically since it points at --status-done. */
+  --status-done:       oklch(0.7713 0.0169 99.0657);
+  --status-done-bg:    oklch(0.7713 0.0169 99.0657 / 0.10);
 
   --status-active:     oklch(0.7713 0.0169 99.0657);
   --status-active-bg:  oklch(0.7713 0.0169 99.0657 / 0.10);
@@ -76,6 +85,22 @@
   --radius-lg:   0.75rem;
   --radius-xl:   1rem;
   --radius-full: 9999px;
+
+  /* Control heights — the minimal shared sizing vocabulary compact controls
+     (Button/Input/Select) will consume as they're introduced. Not yet
+     referenced by any component; existing controls (.btn at 40px min-height,
+     .primary-button/.small-button at implicit heights) are untouched until
+     they're deliberately migrated onto these. */
+  --control-height-sm: 28px;
+  --control-height-md: 36px;
+
+  /* Data Surface geometry (Phase 5) — the shared cell rhythm .dashboard-table
+     and ReportTruthBar's grid-based cells both consume, replacing arbitrary
+     per-page combinations (12/14/18/22/24px) with one canonical pair. Yields
+     a ~38px standard row (2 x --table-cell-padding-y + ~18px line height),
+     in the "36-40px standard enterprise row" range. */
+  --table-cell-padding-y: 10px;
+  --table-cell-padding-x: 14px;
 
   /* Typography */
   --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -253,8 +278,9 @@
   --accent:            oklch(0.6171 0.1375 39.0427);
   --accent-subtle:     oklch(0.6171 0.1375 39.0427 / 0.10);
 
-  --status-done:       oklch(0.6171 0.1375 39.0427);
-  --status-done-bg:    oklch(0.6171 0.1375 39.0427 / 0.10);
+  /* Same reconciliation as the dark tokens above — neutral, matching --status-active. */
+  --status-done:       oklch(0.4334 0.0177 98.6048);
+  --status-done-bg:    oklch(0.4334 0.0177 98.6048 / 0.08);
 
   --status-active:     oklch(0.4334 0.0177 98.6048);
   --status-active-bg:  oklch(0.4334 0.0177 98.6048 / 0.08);
@@ -361,6 +387,13 @@
 
 
 /* ── 7. Buttons ──────────────────────────────────────────────────────────── */
+/* Phase 3 (2026-07-25): canonical control system. Height comes from a fixed
+   `height` (not min-height) so Button/Input/Select share one exact 36px row
+   — required for "equal heights, aligned text" across mixed toolbars/forms.
+   This is the ONE definition; the near-duplicate .btn-primary/.btn-ghost/
+   .btn-ghost-sm block that used to live in index.css (different padding, no
+   height) was silently winning the cascade by load order — removed there,
+   this is now the sole source. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -368,23 +401,38 @@
   gap: 6px;
   font-size: 0.875rem;
   font-weight: 600;
-  padding: 0.5rem 1rem;
+  padding: 0 16px;
+  height: var(--control-height-md);
   border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
-  transition: opacity 0.15s, background 0.15s;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
   white-space: nowrap;
   font-family: var(--font-sans);
-  min-height: 40px;
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/* Primary — the main action in a context; accent-filled. */
 .btn-primary {
   background: var(--accent);
   color: var(--text-inverse);
 }
 .btn-primary:hover:not(:disabled) { opacity: 0.85; }
 
+/* Secondary — normal supporting actions: neutral surface, subtle border,
+   clearly clickable but quieter than Primary. */
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--bg-surface); border-color: var(--border-strong); }
+
+/* Ghost — kept at its existing (pre-Phase-3) neutral-fill appearance for its
+   18 existing consumers app-wide; not re-themed to a fully transparent look
+   this phase to avoid an uncontrolled visual change across unreviewed
+   screens. New callers wanting a low-priority supporting action should
+   prefer .btn-secondary above, which is the properly-restrained variant. */
 .btn-ghost {
   background: var(--border);
   color: var(--text-primary);
@@ -392,19 +440,49 @@
 }
 .btn-ghost:hover:not(:disabled) { background: var(--border-strong); color: var(--text-primary); }
 
+/* Small ghost — .btn-ghost-sm is a size+style fusion (28px-scale, transparent
+   + border) rather than a separate semantic tier; left as one class since
+   splitting variant/size axes isn't needed by its 2 current consumers. */
 .btn-ghost-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: var(--control-height-sm);
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
-  padding: 0.375rem 0.75rem;
+  padding: 0 0.75rem;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
   font-family: var(--font-sans);
 }
 .btn-ghost-sm:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.btn-ghost-sm:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Icon button — square, canonical geometry for icon-only controls (e.g.
+   table/row actions). Independent of Phase 2's .close-button/
+   .sidebar-logout-icon (same visual family, but those are Modal/Sidebar-
+   owned and out of scope to touch this phase). */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-icon:hover:not(:disabled) { background: var(--bg-elevated); color: var(--text-primary); }
+.btn-icon:disabled { opacity: 0.45; cursor: not-allowed; }
 
 :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--accent);
@@ -456,6 +534,11 @@
 
 
 /* ── 10. Global form inputs ──────────────────────────────────────────────── */
+/* Phase 3: Input/Select share Button's exact 36px row height (fixed height,
+   horizontal-only padding — native form controls center their own text
+   vertically, same technique as .btn). Textarea intentionally keeps
+   vertical padding and a min-height instead of a fixed height — content
+   controls its size via the `rows` attribute, per its own component. */
 .ds-input,
 .ds-select,
 .ds-textarea {
@@ -463,12 +546,21 @@
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   outline: none;
   font-family: var(--font-sans);
   transition: border-color 0.15s, box-shadow 0.15s;
   width: 100%;
+}
+.ds-input,
+.ds-select {
+  height: var(--control-height-md);
+  padding: 0 0.75rem;
+}
+.ds-textarea {
+  padding: 0.5rem 0.75rem;
+  min-height: var(--control-height-md);
+  resize: vertical;
 }
 .ds-input:focus,
 .ds-select:focus,

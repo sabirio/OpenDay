@@ -206,139 +206,148 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           />
         )}
 
-        <WeeklyReportsToolbar
-          projects={projects}
-          projectReports={projectReports}
-          selectedProjectId={selectedProjectId}
-          selectedReportId={selectedReportId}
-          selectedProject={selectedProject}
-          showGantt={showGantt}
-          onProjectChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}
-          onReportChange={e => setSelectedReportId(e.target.value)}
-          onToggleGantt={() => setShowGantt(v => !v)}
-          actions={selectedProject ? (
-            <WeeklyReportExportButton
-              project={selectedProject}
-              report={selectedReport}
-              prevReport={prevReport}
+        <div className="split-workspace">
+          <div className="workspace">
+            <WeeklyReportsToolbar
+              projects={projects}
               projectReports={projectReports}
-              siteVisits={siteVisits}
-              canonicalResult={selectedRow?.canonical ?? null}
-              activeTemplate={activeTemplate}
-              legacyWorkPackages={WORK_PACKAGES}
-              overallProgress={overallProgress}
-              onError={toast.error}
+              selectedProjectId={selectedProjectId}
+              selectedReportId={selectedReportId}
+              selectedProject={selectedProject}
+              showGantt={showGantt}
+              onProjectChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}
+              onReportChange={e => setSelectedReportId(e.target.value)}
+              onToggleGantt={() => setShowGantt(v => !v)}
             />
-          ) : null}
-          statusLine={selectedProject ? (
-            <span>
-              <strong>{selectedProject.storeCode}</strong>
-              {" · "}
-              {selectedReport?.reportingDate || selectedReport?.submittedAt || "No report selected"}
-              {" · Contractor "}
-              {selectedReport ? "submitted" : "not submitted"}
-              {" · PM "}
-              {svKpis.totalVisits > 0 ? "verified" : "not verified"}
-            </span>
-          ) : null}
-        />
 
-        {selectedProject && (
-          <section className="weekly-project-context">
-            <ProjectHeader project={selectedProject} />
-          </section>
-        )}
+            {selectedProject && (
+              <section className="weekly-truth-console">
+                {templateErrorIssues.length > 0 && (
+                  <div role="alert" className="weekly-template-alert">
+                    <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
+                      Active template is invalid — using built-in default weights. Fix in Template Editor:
+                    </span>
+                    <ul style={{ margin: '6px 0 0 0', paddingLeft: 20 }}>
+                      {templateErrorIssues.map((e, idx) => (
+                        <li key={idx} style={{ color: 'var(--status-warn)', marginTop: 3 }}>{e.message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <ReportTruthBar
+                  overallProgress={overallProgress}
+                  progressComparison={engineOutputs?.progressComparison}
+                  selectedProgress={engineOutputs?.selectedProgress}
+                  svKpis={svKpis}
+                  report={selectedReport}
+                  portfolioKpis={portfolioKpis}
+                  additionalWorksList={additionalWorksList}
+                />
+              </section>
+            )}
 
-        {selectedProject && (
-          <section className="weekly-truth-console">
-            {templateErrorIssues.length > 0 && (
-              <div role="alert" className="weekly-template-alert">
-                <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
-                  Active template is invalid — using built-in default weights. Fix in Template Editor:
-                </span>
-                <ul style={{ margin: '6px 0 0 0', paddingLeft: 20 }}>
-                  {templateErrorIssues.map((e, idx) => (
-                    <li key={idx} style={{ color: 'var(--status-warn)', marginTop: 3 }}>{e.message}</li>
-                  ))}
-                </ul>
+            {selectedReport && (
+              <WeeklyReportTabs
+                tabs={reviewTabs}
+                activeTab={activeReviewTab}
+                onChange={setActiveReviewTab}
+              />
+            )}
+
+            {/* Gantt chart */}
+            {showGantt && selectedProject && (
+              <div className="dashboard-summary-card" style={{ marginBottom: 16 }}>
+                {ganttLoading ? (
+                  <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>Loading Gantt…</div>
+                ) : ganttTasks.length === 0 ? (
+                  <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>No Gantt schedule generated yet for this project.</div>
+                ) : (
+                  <React.Suspense fallback={<div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>Loading Gantt chart...</div>}>
+                    <GanttChart
+                      project={selectedProject}
+                      tasks={ganttTasks}
+                      keyDates={{
+                        constructionStartDate:      selectedProject.constructionStartDate,
+                        constructionEndDate:        selectedProject.constructionEndDate,
+                        targetOpeningDate:          selectedProject.targetOpeningDate,
+                        forecastOpeningDate:        selectedProject.forecastOpeningDate,
+                        constructionCompletionDate: selectedProject.constructionCompletionDate,
+                      }}
+                      onWPResize={handleWPResize}
+                    />
+                  </React.Suspense>
+                )}
               </div>
             )}
-            <ReportTruthBar
-              overallProgress={overallProgress}
-              progressComparison={engineOutputs?.progressComparison}
-              selectedProgress={engineOutputs?.selectedProgress}
-              svKpis={svKpis}
-              report={selectedReport}
-              portfolioKpis={portfolioKpis}
-              additionalWorksList={additionalWorksList}
-            />
-          </section>
-        )}
 
-        {selectedReport && (
-          <WeeklyReportTabs
-            tabs={reviewTabs}
-            activeTab={activeReviewTab}
-            onChange={setActiveReviewTab}
-          />
-        )}
-
-        {/* Gantt chart */}
-        {showGantt && selectedProject && (
-          <div className="dashboard-summary-card" style={{ marginBottom: 16 }}>
-            {ganttLoading ? (
-              <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>Loading Gantt…</div>
-            ) : ganttTasks.length === 0 ? (
-              <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>No Gantt schedule generated yet for this project.</div>
-            ) : (
-              <React.Suspense fallback={<div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>Loading Gantt chart...</div>}>
-                <GanttChart
-                  project={selectedProject}
-                  tasks={ganttTasks}
-                  keyDates={{
-                    constructionStartDate:      selectedProject.constructionStartDate,
-                    constructionEndDate:        selectedProject.constructionEndDate,
-                    targetOpeningDate:          selectedProject.targetOpeningDate,
-                    forecastOpeningDate:        selectedProject.forecastOpeningDate,
-                    constructionCompletionDate: selectedProject.constructionCompletionDate,
-                  }}
-                  onWPResize={handleWPResize}
-                />
-              </React.Suspense>
-            )}
-          </div>
-        )}
-
-        {/* Missing reports modal */}
-        {showMissingModal && (
-          <MissingReportsModal
-            missingRows={[...portfolioKpis.missing].sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999))}
-            onClose={() => setShowMissingModal(false)}
-          />
-        )}
-        {/* Empty state */}
-        {projectReports.length === 0 && selectedProject && (
-          <div className="dashboard-summary-card weekly-report-empty">
-            <h2>No contractor reports yet</h2>
-            <p>This project has no weekly contractor submission to verify. Once a report is submitted, progress, risks, photos, and PM comparison will appear here.</p>
-          </div>
-        )}
-
-        {selectedReport && activeReviewTab === "overview" && (
-          <section className="weekly-overview-console">
-            <div className="weekly-overview-main">
-              <ProgressNarrative
-                progressComparison={engineOutputs?.progressComparison}
-                selectedProgress={engineOutputs?.selectedProgress}
-                explainResult={explainResult}
+            {/* Missing reports modal */}
+            {showMissingModal && (
+              <MissingReportsModal
+                missingRows={[...portfolioKpis.missing].sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999))}
+                onClose={() => setShowMissingModal(false)}
               />
+            )}
+            {/* Empty state */}
+            {projectReports.length === 0 && selectedProject && (
+              <div className="dashboard-summary-card weekly-report-empty">
+                <h2>No contractor reports yet</h2>
+                <p>This project has no weekly contractor submission to verify. Once a report is submitted, progress, risks, photos, and PM comparison will appear here.</p>
+              </div>
+            )}
 
-              <PhaseBoard
-                phases={phaseClassifications}
-                phaseChangeFlags={phaseChangeFlags}
-                wpDeltas={wpDeltas}
-                mergedStatuses={mergedStatuses}
-              >
+            {selectedReport && activeReviewTab === "overview" && (
+              <section className="weekly-overview-main">
+                <ProgressNarrative
+                  progressComparison={engineOutputs?.progressComparison}
+                  selectedProgress={engineOutputs?.selectedProgress}
+                  explainResult={explainResult}
+                />
+
+                <PhaseBoard
+                  phases={phaseClassifications}
+                  phaseChangeFlags={phaseChangeFlags}
+                  wpDeltas={wpDeltas}
+                  mergedStatuses={mergedStatuses}
+                >
+                  <PhaseTimeline
+                    key={effectiveReportId}
+                    phases={phaseClassifications}
+                    mergedStatuses={mergedStatuses}
+                    wpDeltas={wpDeltas}
+                    phaseChangeFlags={phaseChangeFlags}
+                  />
+                </PhaseBoard>
+              </section>
+            )}
+
+            {selectedReport && activeReviewTab === "verification" && selectedProject && (
+              <SiteVisitComparison
+                svData={svData}
+                svKpis={svKpis}
+                expandedVisitId={expandedVisitId}
+                onExpandedChange={setExpandedVisitId}
+              />
+            )}
+
+            {selectedReport && activeReviewTab === "details" && (
+              <section className="weekly-report-body">
+                <KpiStrip
+                  project={selectedProject}
+                  report={selectedReport}
+                  overallProgress={overallProgress}
+                  portfolioKpis={portfolioKpis}
+                  projectReportCount={projectReports.length}
+                  onMissingClick={() => setShowMissingModal(true)}
+                />
+
+                <ProgressChart
+                  series={progressSeries}
+                  scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
+                  spi={engineOutputs?.progressComparison?.spi}
+                  reportCount={projectReports.length}
+                  latestDate={projectReports[0]?.reportingDate}
+                />
+
                 <PhaseTimeline
                   key={effectiveReportId}
                   phases={phaseClassifications}
@@ -346,81 +355,83 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                   wpDeltas={wpDeltas}
                   phaseChangeFlags={phaseChangeFlags}
                 />
-              </PhaseBoard>
-            </div>
 
-            <div className="weekly-overview-side">
-              <ActionRequiredPanel
-                report={selectedReport}
-                svKpis={svKpis}
-                portfolioKpis={portfolioKpis}
-                additionalWorksList={additionalWorksList}
-              />
-              <CompactProgressTrend
-                series={progressSeries}
-                scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
-                spi={engineOutputs?.progressComparison?.spi}
-              />
-            </div>
-          </section>
-        )}
+                <ReportLinksBlock report={selectedReport} />
 
-        {selectedReport && activeReviewTab === "verification" && selectedProject && (
-          <SiteVisitComparison
-            svData={svData}
-            svKpis={svKpis}
-            expandedVisitId={expandedVisitId}
-            onExpandedChange={setExpandedVisitId}
-          />
-        )}
+                <AllClearStrip report={selectedReport} riskCount={riskCount} />
 
-        {selectedReport && activeReviewTab === "details" && (
-          <section className="weekly-report-body">
-            <KpiStrip
-              project={selectedProject}
-              report={selectedReport}
-              overallProgress={overallProgress}
-              portfolioKpis={portfolioKpis}
-              projectReportCount={projectReports.length}
-              onMissingClick={() => setShowMissingModal(true)}
-            />
+                <AdditionalWorksBlock
+                  entries={additionalWorksList.entries}
+                  total={additionalWorksList.total}
+                />
 
-            <ProgressChart
-              series={progressSeries}
-              scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
-              spi={engineOutputs?.progressComparison?.spi}
-              reportCount={projectReports.length}
-              latestDate={projectReports[0]?.reportingDate}
-            />
+                <PhotoGallery paths={selectedReport.photos} title="Site Photos" />
 
-            <PhaseTimeline
-              key={effectiveReportId}
-              phases={phaseClassifications}
-              mergedStatuses={mergedStatuses}
-              wpDeltas={wpDeltas}
-              phaseChangeFlags={phaseChangeFlags}
-            />
-
-            <ReportLinksBlock report={selectedReport} />
-
-            <AllClearStrip report={selectedReport} riskCount={riskCount} />
-
-            <AdditionalWorksBlock
-              entries={additionalWorksList.entries}
-              total={additionalWorksList.total}
-            />
-
-            <PhotoGallery paths={selectedReport.photos} title="Site Photos" />
-
-            {/* Audit log — who changed progress and when */}
-            {selectedProject && (
-              <div className="dashboard-summary-card" style={{ marginBottom: 20 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "var(--text-primary)" }}>Change History</div>
-                <AuditLogPanel projectId={selectedProject.id} />
-              </div>
+                {/* Audit log — who changed progress and when */}
+                {selectedProject && (
+                  <div className="dashboard-summary-card" style={{ marginBottom: 20 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "var(--text-primary)" }}>Change History</div>
+                    <AuditLogPanel projectId={selectedProject.id} />
+                  </div>
+                )}
+              </section>
             )}
-          </section>
-        )}
+          </div>
+
+          {/* ── Inspector: selected-report context + secondary actions,
+              persistent across all 3 review tabs (previously Overview-tab-only) ── */}
+          {selectedProject && (
+            <div className="inspector">
+              <div className="inspector-section">
+                <ProjectHeader project={selectedProject} />
+              </div>
+
+              <div className="inspector-section">
+                <div className="inspector-section-title">Report status</div>
+                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
+                  {selectedReport?.reportingDate || selectedReport?.submittedAt || "No report selected"}
+                  {" · Contractor "}
+                  {selectedReport ? "submitted" : "not submitted"}
+                  {" · PM "}
+                  {svKpis.totalVisits > 0 ? "verified" : "not verified"}
+                </p>
+                <WeeklyReportExportButton
+                  project={selectedProject}
+                  report={selectedReport}
+                  prevReport={prevReport}
+                  projectReports={projectReports}
+                  siteVisits={siteVisits}
+                  canonicalResult={selectedRow?.canonical ?? null}
+                  activeTemplate={activeTemplate}
+                  legacyWorkPackages={WORK_PACKAGES}
+                  overallProgress={overallProgress}
+                  onError={toast.error}
+                />
+              </div>
+
+              {selectedReport && (
+                <>
+                  <div className="inspector-section">
+                    <ActionRequiredPanel
+                      report={selectedReport}
+                      svKpis={svKpis}
+                      portfolioKpis={portfolioKpis}
+                      additionalWorksList={additionalWorksList}
+                    />
+                  </div>
+
+                  <div className="inspector-section">
+                    <CompactProgressTrend
+                      series={progressSeries}
+                      scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
+                      spi={engineOutputs?.progressComparison?.spi}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </ErrorBoundary>
   );

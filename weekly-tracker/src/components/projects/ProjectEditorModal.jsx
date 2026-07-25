@@ -9,7 +9,6 @@ import Modal from "../shared/Modal";
 export default function ProjectEditorModal({
   project,
   editingProjectId,
-  inputStyle,
   onChange,
   onProjectPatch,
   onOpenScopeConfigurator,
@@ -60,27 +59,28 @@ export default function ProjectEditorModal({
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 5 }}>Store Code</div>
             <input
+              className="ds-input"
               name="storeCode"
               value={project.storeCode}
               onChange={onChange}
               placeholder="e.g. SE001"
-              style={{ ...inputStyle, maxWidth: 200, fontWeight: 700, fontSize: 15 }}
+              style={{ maxWidth: 200, fontWeight: 700, fontSize: 15 }}
             />
           </div>
 
           <FormSection title="Identity & Location" accentColor="var(--accent)">
             <FieldRow>
               <Field label="Country">
-                <input name="country" value={project.country} onChange={onChange} style={inputStyle} placeholder="Country" />
+                <input name="country" value={project.country} onChange={onChange} className="ds-input" placeholder="Country" />
               </Field>
               <Field label="City">
-                <input name="city" value={project.city} onChange={onChange} style={inputStyle} placeholder="City" />
+                <input name="city" value={project.city} onChange={onChange} className="ds-input" placeholder="City" />
               </Field>
               <Field label="Sales Market">
-                <input name="salesMarket" value={project.salesMarket || ""} onChange={onChange} style={inputStyle} placeholder="e.g. Sweden" />
+                <input name="salesMarket" value={project.salesMarket || ""} onChange={onChange} className="ds-input" placeholder="e.g. Sweden" />
               </Field>
               <Field label="State / Region">
-                <input name="state" value={project.state || ""} onChange={onChange} style={inputStyle} placeholder="State or region" />
+                <input name="state" value={project.state || ""} onChange={onChange} className="ds-input" placeholder="State or region" />
               </Field>
             </FieldRow>
 
@@ -111,11 +111,11 @@ export default function ProjectEditorModal({
               <div style={{ marginTop: 12 }}>
                 {project.locationType === "Mall" ? (
                   <Field label="Shopping Mall Name">
-                    <input name="shoppingMallName" value={project.shoppingMallName || ""} onChange={onChange} style={inputStyle} placeholder="Mall name" />
+                    <input name="shoppingMallName" value={project.shoppingMallName || ""} onChange={onChange} className="ds-input" placeholder="Mall name" />
                   </Field>
                 ) : project.locationType === "Street" ? (
                   <Field label="Street Address">
-                    <input name="street" value={project.street || ""} onChange={onChange} style={inputStyle} placeholder="Street address" />
+                    <input name="street" value={project.street || ""} onChange={onChange} className="ds-input" placeholder="Street address" />
                   </Field>
                 ) : (
                   <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Select a Location Type to enter the mall name or street address.</div>
@@ -127,13 +127,13 @@ export default function ProjectEditorModal({
           <FormSection title="Planned Dates" accentColor="var(--status-warn)">
             <FieldRow>
               <Field label="Construction Start Date">
-                <input type="date" name="constructionStartDate" value={project.constructionStartDate} onChange={onChange} style={inputStyle} />
+                <input type="date" name="constructionStartDate" value={project.constructionStartDate} onChange={onChange} className="ds-input" />
               </Field>
               <Field label="Construction End Date">
-                <input type="date" name="constructionEndDate" value={project.constructionEndDate} onChange={onChange} style={inputStyle} />
+                <input type="date" name="constructionEndDate" value={project.constructionEndDate} onChange={onChange} className="ds-input" />
               </Field>
               <Field label="Target Opening Date">
-                <input type="date" name="targetOpeningDate" value={project.targetOpeningDate} onChange={onChange} style={inputStyle} />
+                <input type="date" name="targetOpeningDate" value={project.targetOpeningDate} onChange={onChange} className="ds-input" />
               </Field>
             </FieldRow>
           </FormSection>
@@ -146,13 +146,13 @@ export default function ProjectEditorModal({
           <FormSection title="Actual Dates" accentColor="var(--status-done)">
             <FieldRow>
               <Field label="Actual Construction Start">
-                <input type="date" name="actualConstructionStartDate" value={project.actualConstructionStartDate || ""} onChange={onChange} style={inputStyle} />
+                <input type="date" name="actualConstructionStartDate" value={project.actualConstructionStartDate || ""} onChange={onChange} className="ds-input" />
               </Field>
               <Field label="Actual Construction Completion">
-                <input type="date" name="actualConstructionCompletionDate" value={project.actualConstructionCompletionDate || ""} onChange={onChange} style={inputStyle} />
+                <input type="date" name="actualConstructionCompletionDate" value={project.actualConstructionCompletionDate || ""} onChange={onChange} className="ds-input" />
               </Field>
               <Field label="Actual Opening">
-                <input type="date" name="actualOpeningDate" value={project.actualOpeningDate || ""} onChange={onChange} style={inputStyle} />
+                <input type="date" name="actualOpeningDate" value={project.actualOpeningDate || ""} onChange={onChange} className="ds-input" />
               </Field>
             </FieldRow>
           </FormSection>
@@ -160,13 +160,13 @@ export default function ProjectEditorModal({
           <FormSection title="Areas" accentColor="var(--accent)">
             <FieldRow>
               <Field label="Total Area (m²)">
-                <input type="number" min="0" name="storeSizeSqm" value={project.storeSizeSqm ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 1250" />
+                <input type="number" min="0" name="storeSizeSqm" value={project.storeSizeSqm ?? ""} onChange={onChange} className="ds-input" placeholder="e.g. 1250" />
               </Field>
               <Field label="Sales Area (m²)">
-                <input type="number" min="0" name="salesAreaSqm" value={project.salesAreaSqm ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 900" />
+                <input type="number" min="0" name="salesAreaSqm" value={project.salesAreaSqm ?? ""} onChange={onChange} className="ds-input" placeholder="e.g. 900" />
               </Field>
               <Field label="Back of House Area (m²)">
-                <input type="number" min="0" name="backOfHouseAreaSqm" value={project.backOfHouseAreaSqm ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 350" />
+                <input type="number" min="0" name="backOfHouseAreaSqm" value={project.backOfHouseAreaSqm ?? ""} onChange={onChange} className="ds-input" placeholder="e.g. 350" />
               </Field>
             </FieldRow>
           </FormSection>
@@ -174,18 +174,18 @@ export default function ProjectEditorModal({
           <FormSection title="Financial" accentColor="var(--status-warn)">
             <FieldRow>
               <Field label="Budget">
-                <input type="number" min="0" name="budget" value={project.budget ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 2500000" />
+                <input type="number" min="0" name="budget" value={project.budget ?? ""} onChange={onChange} className="ds-input" placeholder="e.g. 2500000" />
               </Field>
               {/* Actual Cost is real known cost — it generally doesn't exist
                   yet at creation time, so it's edit-only (never shown when
                   creating a new project, never defaulted to 0). */}
               {editingProjectId && (
                 <Field label="Actual Cost">
-                  <input type="number" min="0" name="actualCost" value={project.actualCost ?? ""} onChange={onChange} style={inputStyle} placeholder="e.g. 2430000" />
+                  <input type="number" min="0" name="actualCost" value={project.actualCost ?? ""} onChange={onChange} className="ds-input" placeholder="e.g. 2430000" />
                 </Field>
               )}
               <Field label="Currency">
-                <input name="currencyCode" value={project.currencyCode || ""} onChange={onChange} style={inputStyle} placeholder="e.g. USD" maxLength={3} />
+                <input name="currencyCode" value={project.currencyCode || ""} onChange={onChange} className="ds-input" placeholder="e.g. USD" maxLength={3} />
               </Field>
             </FieldRow>
           </FormSection>
@@ -193,25 +193,25 @@ export default function ProjectEditorModal({
           <FormSection title="Stakeholders" accentColor="var(--status-done)">
             <FieldRow>
               <Field label="Project Manager">
-                <input name="projectManager" value={project.projectManager} onChange={onChange} style={inputStyle} placeholder="Full name" />
+                <input name="projectManager" value={project.projectManager} onChange={onChange} className="ds-input" placeholder="Full name" />
               </Field>
               <Field label="General Contractor">
-                <input name="generalContractor" value={project.generalContractor} onChange={onChange} style={inputStyle} placeholder="Company name" />
+                <input name="generalContractor" value={project.generalContractor} onChange={onChange} className="ds-input" placeholder="Company name" />
               </Field>
               <Field label="Security Manager">
-                <input name="securityManager" value={project.securityManager || ""} onChange={onChange} style={inputStyle} placeholder="Full name" />
+                <input name="securityManager" value={project.securityManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
               </Field>
               <Field label="IT Manager">
-                <input name="itManager" value={project.itManager || ""} onChange={onChange} style={inputStyle} placeholder="Full name" />
+                <input name="itManager" value={project.itManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
               </Field>
               <Field label="Facility Manager">
-                <input name="facilityManager" value={project.facilityManager || ""} onChange={onChange} style={inputStyle} placeholder="Full name" />
+                <input name="facilityManager" value={project.facilityManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
               </Field>
               <Field label="HR Manager">
-                <input name="hrManager" value={project.hrManager || ""} onChange={onChange} style={inputStyle} placeholder="Full name" />
+                <input name="hrManager" value={project.hrManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
               </Field>
               <Field label="Supply Manager">
-                <input name="supplyManager" value={project.supplyManager || ""} onChange={onChange} style={inputStyle} placeholder="Full name" />
+                <input name="supplyManager" value={project.supplyManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
               </Field>
             </FieldRow>
           </FormSection>
@@ -297,7 +297,7 @@ export default function ProjectEditorModal({
                       const v = e.target.value === '' ? '' : clamp(Number(e.target.value) || 0, 0, Infinity);
                       onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, sales: v } } }));
                     }}
-                    style={inputStyle}
+                    className="ds-input"
                     placeholder="e.g. 700"
                   />
                 </Field>
@@ -314,7 +314,7 @@ export default function ProjectEditorModal({
                       const v = e.target.value === '' ? '' : clamp(Number(e.target.value) || 0, 0, Infinity);
                       onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, boh: v } } }));
                     }}
-                    style={inputStyle}
+                    className="ds-input"
                     placeholder="e.g. 300"
                   />
                 </Field>
@@ -344,7 +344,7 @@ export default function ProjectEditorModal({
                   list="store-concept-suggestions"
                   value={project.storeConcept || ""}
                   onChange={onChange}
-                  style={inputStyle}
+                  className="ds-input"
                   placeholder="e.g. Flagship"
                 />
                 {/* Suggestions only — free text, no enum, matches the frozen
@@ -376,20 +376,16 @@ export default function ProjectEditorModal({
               {editingProjectId && (
                 <button
                   type="button"
+                  className="btn btn-danger"
                   onClick={onDelete}
-                  style={{
-                    padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                    border: "1.5px solid var(--border)", background: "var(--status-alert-bg)", color: "var(--status-alert)",
-                    transition: "all 0.15s ease",
-                  }}
                 >
                   Delete Project
                 </button>
               )}
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="secondary-button" onClick={requestClose}>Cancel</button>
-              <button className="primary-button" onClick={onSave}>
+              <button className="btn btn-secondary" onClick={requestClose}>Cancel</button>
+              <button className="btn btn-primary" onClick={onSave}>
                 {editingProjectId ? "Save Changes" : "Create Project"}
               </button>
             </div>

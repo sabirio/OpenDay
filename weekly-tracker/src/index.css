@@ -28,21 +28,23 @@ body {
    ============================================================ */
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  block-size: 100dvh;
+  min-block-size: 0;
   background: var(--bg-page);
-  align-items: flex-start;
+  align-items: stretch;
+  overflow: hidden;
 }
 
 
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sidebar {
-  width: 216px;
+  width: 208px;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
-  padding: 20px 12px;
+  padding: 16px 10px;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -50,14 +52,14 @@ body {
 }
 
 .sidebar-brand {
-  padding: 8px 4px 18px;
+  padding: 6px 6px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
 }
 
 .sidebar-brand span {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 750;
   color: var(--text-primary);
   letter-spacing: 0;
@@ -72,18 +74,23 @@ body {
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-/* NavLink from react-router — .active class auto-applied */
+/* NavLink from react-router — .active class auto-applied. Icon inherits
+   color via currentColor, so the active/hover treatment below colors icon
+   and label together with no separate icon rule needed. */
 .sidebar a {
-  padding: 9px 11px;
+  min-height: var(--control-height-md);
+  padding: 0 10px;
   border-radius: var(--radius-md);
   text-decoration: none;
   color: var(--text-secondary);
   font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   transition: background 0.12s, color 0.12s;
-  display: block;
 }
 .sidebar a:hover {
   background: var(--bg-elevated);
@@ -93,22 +100,21 @@ body {
   background: var(--accent-subtle);
   color: var(--accent);
   font-weight: 600;
-  border-left: none;
 }
 
 .sidebar-nav-group {
   display: grid;
-  gap: 3px;
+  gap: 2px;
 }
 
 .sidebar-nav-group-toggle {
   width: 100%;
-  min-height: 38px;
-  padding: 9px 11px;
+  min-height: var(--control-height-md);
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -126,8 +132,16 @@ body {
   color: var(--text-primary);
 }
 
+.sidebar-nav-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .sidebar-nav-group-chevron {
-  font-size: 0.875rem;
+  flex-shrink: 0;
+  color: var(--text-muted);
   transition: transform 0.18s ease-out;
 }
 
@@ -137,7 +151,7 @@ body {
 
 .sidebar-nav-children {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   padding-left: 10px;
 }
 
@@ -153,9 +167,11 @@ body {
 /* ── Main content ────────────────────────────────────────── */
 .main-content {
   flex: 1;
-  padding: 36px 40px;
-  overflow-x: auto;
+  align-self: stretch;
+  padding: var(--space-6) var(--space-8);
+  overflow: auto;
   min-width: 0;
+  min-height: 0;
 }
 
 
@@ -166,16 +182,16 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   gap: 20px;
   flex-wrap: wrap;
 }
 
 .page-header h1 {
-  font-size: 1.875rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .page-header p,
@@ -183,6 +199,78 @@ body {
   font-size: 0.813rem;
   color: var(--text-muted);
   margin-top: 4px;
+}
+
+
+/* ============================================================
+   SPLIT WORKSPACE — shared Main Workspace + Inspector layout.
+   Phase 4A (2026-07-25): a canonical, feature-agnostic pattern —
+   .split-workspace owns geometry only, never business content, so
+   Weekly Reports/Risk Dashboard/Portfolio can reuse it later without
+   a second grid definition. (Weekly Reports currently hand-rolls an
+   equivalent pattern — .weekly-overview-console/-main/-side — left
+   untouched this phase; a future migration could point it at this
+   instead of maintaining two copies.)
+
+   Inspector uses `position: sticky`, not a fixed-height/overflow
+   trick — it stays visible while Main Workspace's own content
+   scrolls with the page, with no calc(100vh - magic-number) coupling
+   to main-content's padding (the kind of fragile dependency Phase 2
+   introduced for Portfolio and had to patch after a padding change).
+   Below Dashboard's existing 1080px breakpoint (where its KPI row
+   and status table already adapt) Inspector stacks below Workspace —
+   two compressed columns stop being readable before then.
+   ============================================================ */
+.split-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.workspace {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+
+/* Grid items default to min-width:auto, so a wide-content child (e.g. a
+   KPI row that doesn't wrap) would otherwise force .workspace's own
+   (implicit, single) column wider than the space .split-workspace gave it
+   — discovered on Weekly Reports' ReportTruthBar during Phase 4B, which
+   has no internal overflow handling of its own (unlike Dashboard's Status
+   Matrix, which already scrolls internally). Fixed once here so every
+   Workspace/Inspector consumer inherits the protection. */
+.workspace > *,
+.inspector > * {
+  min-width: 0;
+}
+
+.inspector {
+  min-width: 0;
+  display: grid;
+  gap: 20px;
+  position: sticky;
+  top: var(--space-6);
+}
+
+.inspector-section-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.inspector-section + .inspector-section {
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 1080px) {
+  .split-workspace { grid-template-columns: 1fr; }
+  .inspector { position: static; }
 }
 
 
@@ -449,6 +537,16 @@ body {
 /* ============================================================
    DASHBOARD TABLE
    ============================================================ */
+/* Phase 5 canonical Data Surface base — 4 real consumers (Dashboard's own
+   Status Matrix + Contractors tab, Risk's Escalations Register, Weekly
+   Reports' Missing Reports modal). ~38px row (2 x --table-cell-padding-y +
+   ~18px line height), in the "36-40px standard enterprise row" range.
+   white-space is deliberately NOT forced to nowrap here — a blanket rule
+   was silently forcing long description text in nested cell content
+   (inherited, since white-space cascades) to never wrap; columns that
+   genuinely need nowrap (dates, counts, single-word status) set it
+   themselves, same as they already did for several columns before this
+   change. */
 .dashboard-table {
   width: 100%;
   border-collapse: collapse;
@@ -457,9 +555,8 @@ body {
 
 .dashboard-table th,
 .dashboard-table td {
-  padding: 12px 14px;
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
   text-align: left;
-  white-space: nowrap;
   border-bottom: 1px solid var(--border);
 }
 
@@ -482,7 +579,7 @@ body {
 /* Project Dashboard polish: operational KPI row, desktop-fit matrix, controls, tabs. */
 .dashboard-kpi-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -568,45 +665,32 @@ body {
   pointer-events: none;
 }
 
-.dashboard-search-field input,
-.dashboard-status-select {
-  height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 0.8125rem;
-  outline: none;
-}
-
-.dashboard-search-field input {
-  width: 100%;
-  padding: 0 12px 0 36px;
-}
-
-.dashboard-status-select {
-  padding: 0 12px;
-  cursor: pointer;
-}
+/* Search input/status select now use canonical .ds-input/.ds-select
+   (Phase 4A) — only the wrapper/icon positioning above stays local;
+   .ds-input already provides width:100%. */
 
 .status-matrix-card {
   overflow: hidden;
 }
 
+/* Phase 5: unconditional overflow-x:auto — with explicit px column widths
+   below, the table's own intrinsic width (950px) now determines when
+   scrolling is actually needed, so the previous "only below 1080px"
+   breakpoint-gated toggle is redundant (one less breakpoint to track). */
 .status-matrix-scroll {
   max-width: 100%;
-  overflow-x: visible;
+  overflow-x: auto;
 }
 
 .status-matrix-table {
   table-layout: fixed;
+  min-width: 950px;
   margin-top: 0;
 }
 
 .status-matrix-table th,
 .status-matrix-table td {
-  padding: 10px 8px;
-  white-space: normal;
+  padding: var(--table-cell-padding-y) 8px;
   vertical-align: middle;
 }
 
@@ -619,18 +703,46 @@ body {
   font-size: 0.78rem;
 }
 
-.status-matrix-table th:nth-child(1)  { width: 8%; }
-.status-matrix-table th:nth-child(2)  { width: 12%; }
-.status-matrix-table th:nth-child(3)  { width: 11%; }
-.status-matrix-table th:nth-child(4)  { width: 9%; }
-.status-matrix-table th:nth-child(5)  { width: 8%; }
-.status-matrix-table th:nth-child(6)  { width: 6%; }
-.status-matrix-table th:nth-child(7)  { width: 7%; }
-.status-matrix-table th:nth-child(8)  { width: 6%; }
-.status-matrix-table th:nth-child(9)  { width: 10%; }
-.status-matrix-table th:nth-child(10) { width: 6%; }
-.status-matrix-table th:nth-child(11) { width: 9%; }
-.status-matrix-table th:nth-child(12) { width: 8%; }
+/* Phase 5: explicit px widths replace the previous 12-way percentage split
+   on this table-layout:fixed table — percentages of a fixed-layout table
+   don't respect content minimums, which is exactly why Store/Project (was
+   8% ≈ 78px of the 980px-min table) felt cramped for 2-line store codes.
+   Store gets real room (110px); Blocked/Support/Alert/Days Left give up a
+   few px each since their content (Yes/No/—/counts) never needed as much
+   as a uniform percentage split gave them. Sum = 950px, matching the
+   table's own min-width above. */
+.status-matrix-table th:nth-child(1)  { width: 110px; }   /* Store */
+.status-matrix-table th:nth-child(2)  { width: 110px; }   /* Phase */
+.status-matrix-table th:nth-child(3)  { width: 108px; }   /* Progress */
+.status-matrix-table th:nth-child(4)  { width: 80px;  }   /* Schedule */
+.status-matrix-table th:nth-child(5)  { width: 78px;  }   /* Risk */
+.status-matrix-table th:nth-child(6)  { width: 50px;  }   /* Blocked */
+.status-matrix-table th:nth-child(7)  { width: 56px;  }   /* Support */
+.status-matrix-table th:nth-child(8)  { width: 50px;  }   /* Alert */
+.status-matrix-table th:nth-child(9)  { width: 92px;  }   /* Target Opening */
+.status-matrix-table th:nth-child(10) { width: 56px;  }   /* Days Left */
+.status-matrix-table th:nth-child(11) { width: 82px;  }   /* Latest Report */
+.status-matrix-table th:nth-child(12) { width: 78px;  }   /* Report Status */
+
+/* white-space decided per-column on the data cells (th text is short
+   already); Store/Phase/Progress may wrap (2-line store codes, phase
+   names), everything else — badges, dates, counts — stays on one line. */
+.status-matrix-table td:nth-child(1),
+.status-matrix-table td:nth-child(2),
+.status-matrix-table td:nth-child(3) {
+  white-space: normal;
+}
+.status-matrix-table td:nth-child(4),
+.status-matrix-table td:nth-child(5),
+.status-matrix-table td:nth-child(6),
+.status-matrix-table td:nth-child(7),
+.status-matrix-table td:nth-child(8),
+.status-matrix-table td:nth-child(9),
+.status-matrix-table td:nth-child(10),
+.status-matrix-table td:nth-child(11),
+.status-matrix-table td:nth-child(12) {
+  white-space: nowrap;
+}
 
 .status-matrix-phase {
   color: var(--text-body);
@@ -714,8 +826,10 @@ body {
 @media (max-width: 1080px) {
   .dashboard-kpi-row { grid-template-columns: 1fr; }
   .dashboard-donut-wrap { grid-template-columns: 1fr; }
-  .status-matrix-scroll { overflow-x: auto; }
-  .status-matrix-table { min-width: 980px; }
+  /* .status-matrix-scroll/-table's overflow-x:auto + min-width are now
+     unconditional (Phase 5) — the table's own explicit px column widths
+     make scrolling trigger naturally whenever available width is
+     insufficient, without needing this breakpoint. */
 }
 
 /* ============================================================
@@ -835,8 +949,7 @@ body {
 }
 
 .weekly-command-panel,
-.weekly-truth-console,
-.weekly-project-context {
+.weekly-truth-console {
   position: relative;
   padding: 22px;
   background: var(--bg-surface-alpha);
@@ -889,14 +1002,6 @@ body {
   padding: 12px 16px;
   margin-bottom: 16px;
   font-size: 0.8125rem;
-}
-
-.weekly-project-context {
-  padding: 16px 22px;
-}
-
-.weekly-project-context .weekly-project-header {
-  margin-bottom: 0;
 }
 
 .weekly-truth-console {
@@ -1015,37 +1120,22 @@ body {
   box-shadow: var(--focus-ring);
 }
 
-.weekly-overview-console {
-  display: grid;
-  grid-template-columns: minmax(0, 2.15fr) minmax(300px, 0.85fr);
-  gap: 18px;
-  align-items: start;
-}
-
+/* .weekly-overview-console/-side retired (Phase 4B) — the canonical
+   .split-workspace/.workspace/.inspector now own this geometry, applied to
+   the whole page rather than just the Overview tab. .weekly-overview-main
+   stays: still used standalone inside .workspace for the Overview tab's
+   own content grouping (no longer paired with a sibling side column). */
 .weekly-overview-main {
   display: grid;
   gap: 16px;
   min-width: 0;
 }
 
-.weekly-overview-side {
-  display: grid;
-  gap: 16px;
-  min-width: 0;
-}
-
-.weekly-action-panel {
-  position: sticky;
-  top: 96px;
-  min-height: 280px;
-  max-height: 430px;
-  overflow: auto;
-  padding: 18px;
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface-alpha);
-}
-
+/* .weekly-action-panel's sticky/scroll/card-look geometry retired (Phase
+   4B) — ActionRequiredPanel now renders inside a plain .inspector-section,
+   which gets sticky positioning and spacing from the shared Inspector
+   instead of its own independent scroll region. Only its content styling
+   (h2 and below) remains. */
 .weekly-action-panel h2 {
   margin: 0 0 14px;
   color: var(--text-primary);
@@ -1108,16 +1198,18 @@ body {
   font-size: 0.8125rem;
 }
 
-.weekly-compact-trend,
 .weekly-phase-board {
   margin-bottom: 0;
   border: 0;
   background: var(--bg-surface-alpha);
 }
 
+/* .weekly-compact-trend's card look (padding/radius/background) retired
+   (Phase 4B) — it now renders inside a plain .inspector-section, so it
+   shouldn't carry its own nested card surface. */
 .weekly-compact-trend {
-  padding: 18px;
-  border-radius: var(--radius-lg);
+  margin-bottom: 0;
+  border: 0;
 }
 
 .weekly-compact-trend.is-empty {
@@ -1641,20 +1733,6 @@ button.weekly-phase-row {
 }
 .secondary-button:hover { background: var(--border-strong); }
 
-/* Small action button */
-.small-button {
-  background: var(--chip-bg-cyan);
-  color: var(--chip-fg-cyan);
-  border: none;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 0.8125rem;
-  transition: opacity 0.15s;
-}
-.small-button:hover { opacity: 0.8; }
-
 /* Text / ghost button */
 .text-button {
   background: transparent;
@@ -1669,43 +1747,10 @@ button.weekly-phase-row {
 }
 .text-button:hover { background: var(--accent-subtle); }
 
-/* Shared utility buttons */
-.btn-primary {
-  padding: 10px 20px;
-  background: var(--accent);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.btn-primary:hover { opacity: 0.85; }
-
-.btn-ghost {
-  padding: 10px 20px;
-  background: var(--border);
-  color: var(--text-body);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.btn-ghost:hover { background: var(--border-strong); color: var(--text-primary); }
-
-.btn-ghost-sm {
-  padding: 6px 14px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.btn-ghost-sm:hover { border-color: var(--border-strong); color: var(--text-primary); }
+/* .btn-primary/.btn-ghost/.btn-ghost-sm previously had a second, different
+   definition here (Phase 3, 2026-07-25) — same selectors as
+   design-system.css's canonical versions, loaded later so it silently won
+   the cascade. Removed; design-system.css is now the sole source. */
 
 
 /* ============================================================
@@ -1806,27 +1851,33 @@ button.weekly-phase-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--overlay-dim);
 }
 
 .modal-header h2 {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   background: transparent;
   border: none;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
-  font-size: 1.75rem;
+  font-size: 1.25rem;
   cursor: pointer;
   line-height: 1;
-  transition: color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
-.close-button:hover { color: var(--text-primary); }
+.close-button:hover { background: var(--bg-elevated); color: var(--text-primary); }
 
 
 /* ============================================================
@@ -2880,8 +2931,7 @@ button.weekly-phase-row {
   }
   .weekly-command-panel,
   .weekly-comparison-section,
-  .weekly-truth-console,
-  .weekly-project-context {
+  .weekly-truth-console {
     padding: 16px;
   }
   .weekly-reports-toolbar {
@@ -3117,13 +3167,14 @@ button.weekly-phase-row {
    are two independent scroll regions. Achieved by chaining
    height -> flex:1/min-height:0 -> overflow-y:auto down the tree (the
    standard constrained-flex-scroll pattern), anchored to `.main-content`'s
-   own 36px top/bottom padding (72px total) rather than a page-specific
-   viewport hack. Below 900px this entire model is abandoned in favor of
-   normal document scrolling with one pane visible at a time.
+   own top/bottom padding (--space-6 * 2 = 48px total, Phase 2 shell density
+   pass) rather than a page-specific viewport hack. Below 900px this entire
+   model is abandoned in favor of normal document scrolling with one pane
+   visible at a time.
    ============================================================ */
 @media (min-width: 901px) {
   .portfolio-page {
-    height: calc(100vh - 72px);
+    height: calc(100vh - 48px);
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -3169,10 +3220,10 @@ button.weekly-phase-row {
 }
 
 .portfolio-pane-title {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
   margin: 0 0 10px;
 }
@@ -3210,7 +3261,7 @@ button.weekly-phase-row {
 
 .portfolio-row-main { flex: 1; min-width: 0; }
 .portfolio-row-code {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-primary);
   overflow: hidden;
@@ -3278,7 +3329,6 @@ button.weekly-phase-row {
   font-weight: 700;
 }
 .portfolio-page-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.portfolio-pagination-controls .text-button:disabled { opacity: 0.4; cursor: default; }
 
 /* -- Details pane: header + tabs stationary, body scrolls -- */
 .portfolio-details-content {
@@ -3331,4 +3381,797 @@ button.weekly-phase-row {
 
   .portfolio-back-to-list { display: inline-flex; }
   .portfolio-details-header { flex-wrap: wrap; }
+}
+
+
+/* ============================================================
+   MASTER -> DETAIL
+   Shared geometry only. Consumers provide all headings, controls, rows,
+   tabs and domain content. The panes inherit their available block size
+   from the application shell and establish independent scroll regions via
+   the constrained flex chain (flex:1 + min-height:0).
+   ============================================================ */
+.master-detail {
+  display: grid;
+  grid-template-columns: clamp(320px, 28vw, 390px) minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.master-pane,
+.detail-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.master-pane {
+  border-right: 1px solid var(--border);
+}
+
+.master-pane-header,
+.detail-pane-header,
+.detail-pane-tabs {
+  flex-shrink: 0;
+}
+
+.master-pane-list,
+.detail-pane-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+
+/* ============================================================
+   PROJECT DASHBOARD — Phase 5A Master -> Detail consumer
+   ============================================================ */
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-page-header {
+  flex-shrink: 0;
+  margin-bottom: 14px;
+}
+
+.dashboard-current-date {
+  align-self: center;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.dashboard-master-detail {
+  background: var(--bg-surface);
+}
+
+.master-pane-header {
+  padding: 13px 14px 11px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.master-pane-title {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.master-search {
+  position: relative;
+  display: block;
+}
+
+.master-search > svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 10px;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.master-search .ds-input {
+  height: var(--control-height-sm);
+  padding-left: 32px;
+  font-size: 0.75rem;
+}
+
+.master-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.master-filter-select-wrap {
+  flex: 0 0 auto;
+}
+
+.master-filter-select {
+  width: 82px;
+  height: var(--control-height-sm);
+  padding: 0 22px 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.master-quick-filters {
+  display: flex;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.master-quick-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--control-height-sm);
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: 600 0.6875rem/1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.master-quick-filter span {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+}
+
+.master-quick-filter:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.master-quick-filter.is-active {
+  border-color: var(--border);
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.master-quick-filter:focus-visible,
+.master-list-row:focus-visible,
+.detail-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.master-list-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.master-list-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 76px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease-out;
+}
+
+.master-list-row:hover {
+  background: var(--bg-elevated);
+}
+
+.master-list-row.is-selected {
+  padding-left: 17px;
+  background: var(--accent-subtle);
+}
+
+.master-list-row.is-selected::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent);
+  content: "";
+}
+
+.master-list-row--portfolio {
+  min-height: 58px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.master-row-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.master-row-main strong,
+.master-row-top strong,
+.master-row-name,
+.master-row-bottom > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.master-row-main strong {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.master-row-main span {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.master-row-count {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.master-row-top,
+.master-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.master-row-top strong {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.master-lifecycle {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 650;
+}
+
+.master-row-name {
+  margin-top: 3px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.master-row-bottom {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.master-row-bottom > span:first-child {
+  min-width: 0;
+}
+
+.master-health {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.master-health.is-positive { color: var(--status-done); }
+.master-health.is-warning { color: var(--status-warn); }
+.master-health.is-critical { color: var(--status-alert); }
+
+.master-list-empty {
+  padding: 28px 18px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.detail-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.dashboard-back-to-master {
+  display: none;
+}
+
+.dashboard-detail-identity {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dashboard-detail-identity > div {
+  min-width: 0;
+}
+
+.dashboard-detail-title,
+.dashboard-detail-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-detail-title {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.dashboard-detail-meta {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-lifecycle-badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.dashboard-detail-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-detail-actions .btn {
+  min-height: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0 10px;
+  font-size: 0.6875rem;
+}
+
+.detail-pane-tabs {
+  display: flex;
+  gap: 20px;
+  min-width: 0;
+  padding: 0 18px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.detail-tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 10px 0 9px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: 600 0.75rem/1.2 var(--font-sans);
+  cursor: pointer;
+}
+
+.detail-tab:hover {
+  color: var(--text-primary);
+}
+
+.detail-tab.is-active {
+  color: var(--accent);
+}
+
+.detail-tab.is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  content: "";
+}
+
+.detail-pane-content {
+  background: var(--bg-base);
+}
+
+.dashboard-detail-tabpanel {
+  min-width: 0;
+  min-height: 100%;
+  padding: 16px;
+}
+
+.dashboard-project-overview,
+.dashboard-portfolio-overview {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dashboard-project-overview {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-detail-section {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.dashboard-detail-section > h3,
+.dashboard-section-heading h3 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+
+.dashboard-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+}
+
+.dashboard-detail-field {
+  min-width: 0;
+}
+
+.dashboard-detail-field dt {
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard-detail-field dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.dashboard-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-section-heading h3 {
+  margin-bottom: 2px;
+}
+
+.dashboard-section-heading p,
+.dashboard-section-heading > span {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.dashboard-attention-list {
+  display: grid;
+}
+
+.dashboard-attention-row {
+  display: grid;
+  grid-template-columns: 92px minmax(72px, 0.6fr) minmax(100px, 1fr) auto minmax(120px, 1fr) 28px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+
+.dashboard-attention-row > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-attention-row strong {
+  color: var(--text-primary);
+}
+
+.dashboard-attention-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--status-warn);
+  font-weight: 700;
+}
+
+.dashboard-attention-row.is-critical .dashboard-attention-status {
+  color: var(--status-alert);
+}
+
+.dashboard-attention-row .btn-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.dashboard-portfolio-overview .dashboard-detail-section .dashboard-kpi-row {
+  margin-bottom: 0;
+}
+
+.dashboard-portfolio-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
+  gap: 20px;
+}
+
+.dashboard-portfolio-tools h3,
+.dashboard-snapshot-control > label {
+  display: block;
+  margin: 0 0 10px;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+
+.dashboard-snapshot-control {
+  padding-left: 20px;
+  border-left: 1px solid var(--border);
+}
+
+.dashboard-snapshot-control p {
+  margin: -6px 0 8px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.dashboard-snapshot-control > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-snapshot-control .ds-input {
+  max-width: 180px;
+  height: var(--control-height-sm);
+  font-size: 0.75rem;
+}
+
+.dashboard-snapshot-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.dashboard-snapshot-banner strong {
+  color: var(--accent);
+}
+
+.dashboard-snapshot-banner .btn-icon {
+  margin-left: auto;
+}
+
+.dashboard-content-heading {
+  margin-bottom: 4px;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.dashboard-content-subtitle {
+  margin-bottom: 18px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-project-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-detail-actions .btn-secondary {
+    display: none;
+  }
+
+  .dashboard-attention-row {
+    grid-template-columns: 82px minmax(70px, 0.6fr) minmax(100px, 1fr) auto 28px;
+  }
+
+  .dashboard-attention-row > span:nth-child(5) {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-page {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .master-detail {
+    display: block;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .master-pane,
+  .detail-pane {
+    overflow: visible;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .master-pane-list,
+  .detail-pane-content {
+    overflow: visible;
+  }
+
+  .master-detail[data-mobile-view="master"] .detail-pane {
+    display: none;
+  }
+
+  .master-detail[data-mobile-view="detail"] .master-pane {
+    display: none;
+  }
+
+  .dashboard-back-to-master {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .detail-pane-header {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-detail-identity {
+    flex-basis: calc(100% - 110px);
+  }
+
+  .dashboard-detail-actions {
+    width: 100%;
+    padding-left: 98px;
+  }
+
+  .dashboard-portfolio-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-snapshot-control {
+    padding: 16px 0 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-current-date {
+    display: none;
+  }
+
+  .dashboard-page-header {
+    margin-bottom: 12px;
+  }
+
+  .master-pane-header {
+    padding: 12px;
+  }
+
+  .master-list-row {
+    min-height: 80px;
+    padding: 11px 12px;
+  }
+
+  .master-list-row.is-selected {
+    padding-left: 15px;
+  }
+
+  .detail-pane-header {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .dashboard-detail-identity {
+    flex-basis: calc(100% - 94px);
+  }
+
+  .dashboard-detail-actions {
+    padding-left: 0;
+  }
+
+  .dashboard-detail-actions .btn {
+    flex: 1;
+  }
+
+  .detail-pane-tabs {
+    gap: 16px;
+    padding: 0 12px;
+  }
+
+  .dashboard-detail-tabpanel {
+    padding: 12px;
+  }
+
+  .dashboard-detail-section {
+    padding: 12px;
+  }
+
+  .dashboard-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dashboard-attention-row {
+    grid-template-columns: 78px minmax(68px, 0.7fr) minmax(90px, 1fr) 28px;
+  }
+
+  .dashboard-attention-row > span:nth-child(4),
+  .dashboard-attention-row > span:nth-child(5) {
+    display: none;
+  }
 }

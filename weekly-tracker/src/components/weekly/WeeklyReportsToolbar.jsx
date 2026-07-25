@@ -10,8 +10,6 @@ export default function WeeklyReportsToolbar({
   onProjectChange,
   onReportChange,
   onToggleGantt,
-  statusLine,
-  actions,
 }) {
   return (
     <div className="dashboard-toolbar weekly-reports-toolbar">
@@ -38,19 +36,17 @@ export default function WeeklyReportsToolbar({
           </select>
         </div>
       </div>
-      <div className="weekly-toolbar-actions">
-        {actions}
-        {selectedProject && (
-        <button
-          type="button"
-          className={showGantt ? "weekly-gantt-button is-active" : "weekly-gantt-button"}
-          onClick={onToggleGantt}
-        >
-          {showGantt ? "Hide Gantt" : "View Gantt ->"}
-        </button>
-        )}
-      </div>
-      {statusLine && <div className="weekly-control-status">{statusLine}</div>}
+      {selectedProject && (
+        <div className="weekly-toolbar-actions">
+          <button
+            type="button"
+            className={showGantt ? "weekly-gantt-button is-active" : "weekly-gantt-button"}
+            onClick={onToggleGantt}
+          >
+            {showGantt ? "Hide Gantt" : "View Gantt ->"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

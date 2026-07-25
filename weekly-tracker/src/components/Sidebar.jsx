@@ -3,6 +3,26 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { getAllowedNavItemsForRole } from '../hooks/useDefaultRoute';
 import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
+import Icon from './shared/Icon';
+
+// One icon per nav destination, keyed by route (or group id for the
+// Site Works parent) — kept here rather than in rolePermissions.js since
+// icon choice is a presentation concern, not part of the route/permission
+// contract NAV_ITEMS defines.
+const NAV_ICONS = {
+  '/home': 'home',
+  '/': 'dashboard',
+  '/projects': 'folder',
+  '/weekly-reports': 'fileText',
+  '/snags': 'flag',
+  'site-works': 'hardHat',
+  '/site-visit-select': 'mapPin',
+  '/field-snag': 'listChecks',
+  '/risk': 'shield',
+  '/weight-audit': 'scale',
+  '/admin/users': 'users',
+  '/contractor-select': 'briefcase',
+};
 
 // UX-audit fix (2026-07-21): plain prefix-matching NavLink made "Portfolio"
 // (/projects) light up as active for every /projects/:id/snags/* and
@@ -37,8 +57,11 @@ function NavGroup({ item, pathname, onNavigate }) {
         aria-controls={`sidebar-group-${item.id}`}
         onClick={() => setToggleState({ pathname, expanded: !expanded })}
       >
-        <span>{item.label}</span>
-        <span className="sidebar-nav-group-chevron" aria-hidden="true">⌄</span>
+        <span className="sidebar-nav-label">
+          <Icon name={NAV_ICONS[item.id]} size={17} />
+          <span>{item.label}</span>
+        </span>
+        <Icon name="chevronDown" size={15} className="sidebar-nav-group-chevron" />
       </button>
       <div id={`sidebar-group-${item.id}`} className="sidebar-nav-children" hidden={!expanded}>
         {item.children.map((child) => {
@@ -51,7 +74,8 @@ function NavGroup({ item, pathname, onNavigate }) {
               className={active ? 'active' : undefined}
               aria-current={active ? 'page' : undefined}
             >
-              {child.label}
+              <Icon name={NAV_ICONS[child.to]} size={16} />
+              <span>{child.label}</span>
             </Link>
           );
         })}
@@ -131,7 +155,8 @@ function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
           const active = isNavItemActive(item, pathname);
           return (
             <Link key={item.to} to={item.to} onClick={onClose} className={active ? 'active' : undefined} aria-current={active ? 'page' : undefined}>
-              {item.label}
+              <Icon name={NAV_ICONS[item.to]} size={17} />
+              <span>{item.label}</span>
             </Link>
           );
         })}
@@ -148,9 +173,7 @@ function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
               </div>
             </div>
             <button type="button" className="sidebar-logout-icon" onClick={handleLogout} title="Sign out" aria-label="Sign out">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M15 7l5 5-5 5M20 12H9M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <Icon name="logout" size={16} />
             </button>
           </div>
         )}
