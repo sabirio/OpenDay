@@ -4,8 +4,13 @@ import { useWeeklyReportReviewModel } from "../hooks/useWeeklyReportReviewModel"
 import { useWeeklyGanttTasks } from "../hooks/useWeeklyGanttTasks";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/shared/Toast.jsx";
+import MasterDetailLayout from "../components/shared/MasterDetailLayout";
+import Icon from "../components/shared/Icon";
 import PrintHeader from "../components/print/PrintHeader";
 import WeeklyReportExportButton from "../components/weekly/WeeklyReportExportButton";
+import WeeklyReportsMasterList from "../components/weekly/WeeklyReportsMasterList";
+import { currentISOWeek } from "../utils/scheduleUtils";
+import { formatDate } from "../utils/reportUtils";
 // TODO wave4: WORK_PACKAGES here is the intentional legacy-report fallback
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
 // report model, gated on Gantt-vs-legacy report shape. Audited
@@ -17,7 +22,6 @@ import WeeklyReportExportButton from "../components/weekly/WeeklyReportExportBut
 // eslint-disable-next-line no-restricted-imports
 import { WORK_PACKAGES } from "../config/workPackages";
 import { fetchActiveTemplate, fetchTemplateById } from "../data/templatesApi";
-import ProjectHeader      from "../components/weekly/ProjectHeader";
 import KpiStrip           from "../components/weekly/KpiStrip";
 import AllClearStrip      from "../components/weekly/AllClearStrip";
 import ReportLinksBlock   from "../components/weekly/ReportLinksBlock";
@@ -27,7 +31,6 @@ import ProgressNarrative  from "../components/weekly/ProgressNarrative";
 import ProgressChart      from "../components/weekly/ProgressChart";
 import PhaseTimeline          from "../components/weekly/PhaseTimeline";
 import SiteVisitComparison   from "../components/weekly/SiteVisitComparison";
-import WeeklyReportsToolbar from "../components/weekly/WeeklyReportsToolbar";
 import MissingReportsModal from "../components/weekly/MissingReportsModal";
 import PhotoGallery from "../components/shared/PhotoGallery";
 import ReportTruthBar from "../components/weekly/ReportTruthBar";
@@ -67,6 +70,9 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   const [showGantt,         setShowGantt]         = useState(false);
   const [expandedVisitId,   setExpandedVisitId]   = useState(null);
   const [activeReviewTab,   setActiveReviewTab]   = useState("overview");
+  const [mobileView,        setMobileView]        = useState("master");
+  const [masterSearch,      setMasterSearch]      = useState("");
+  const [masterFilter,      setMasterFilter]      = useState("all");
 
   const effectiveProjectId = useMemo(() => {
     if (selectedProjectId && projects.some(p => String(p.id) === selectedProjectId))
@@ -94,6 +100,65 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   const selectedReport  = projectReports.find(r => String(r.id) === effectiveReportId);
   const selectedProject = selectedRow?.canonical?.snapshot?.project
     ?? projects.find(p => String(p.id) === effectiveProjectId);
+
+  const masterRows = useMemo(() => allRows.flatMap((row) => {
+    const project = row.canonical?.snapshot?.project ?? row.project;
+    const canonicalReports = [...(row.canonical?.snapshot?.contractorReports ?? [])].reverse();
+    const projectCode = project?.storeCode ?? "";
+    const projectName = project?.shoppingMallName ?? "";
+
+    if (canonicalReports.length === 0) {
+      return [{
+        key: `${project.id}:missing`,
+        projectId: String(project.id),
+        reportId: "",
+        projectCode,
+        projectName,
+        status: "missing",
+        statusLabel: "Missing",
+        reportingContext: "No contractor report",
+        attentionLabel: null,
+      }];
+    }
+
+    return canonicalReports.map((report, index) => {
+      const reportDate = report.reportingDate || report.submittedAt;
+      const isoWeek = reportDate ? currentISOWeek(new Date(reportDate)) : null;
+      const weekLabel = isoWeek ? `Week ${Number(isoWeek.slice(-2))}` : "Date unavailable";
+      const isMissing = index === 0 && row.missingReport;
+      const attentionLabel = [
+        report.activitiesBlocked === "Yes" ? "Blocked" : null,
+        report.supportRequired === "Yes" ? "Support" : null,
+        report.riskScale ? `Risk ${report.riskScale}` : null,
+      ].filter(Boolean).join(" · ");
+
+      return {
+        key: `${project.id}:${report.id}`,
+        projectId: String(project.id),
+        reportId: String(report.id),
+        projectCode,
+        projectName,
+        status: isMissing ? "missing" : "submitted",
+        statusLabel: isMissing ? "Missing" : "Submitted",
+        reportingContext: [weekLabel, reportDate ? formatDate(reportDate) : null].filter(Boolean).join(" · "),
+        attentionLabel: attentionLabel || null,
+      };
+    });
+  }), [allRows]);
+
+  const filteredMasterRows = useMemo(() => {
+    const query = masterSearch.trim().toLowerCase();
+    return masterRows.filter((row) => {
+      if (masterFilter !== "all" && row.status !== masterFilter) return false;
+      if (!query) return true;
+      return [row.projectCode, row.projectName, row.reportingContext, row.attentionLabel]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(query));
+    });
+  }, [masterRows, masterSearch, masterFilter]);
+
+  const selectedMasterKey = `${effectiveProjectId}:${effectiveReportId || "missing"}`;
+  const selectedMasterRow = masterRows.find((row) => row.key === selectedMasterKey) ?? null;
 
   // `templateResult.key` tracks which (projectId, templateId) pair the
   // loaded template actually belongs to — `activeTemplate` is derived below
@@ -206,20 +271,111 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           />
         )}
 
-        <div className="split-workspace">
-          <div className="workspace">
-            <WeeklyReportsToolbar
+        <MasterDetailLayout
+          className="weekly-reports-master-detail"
+          mobileView={mobileView}
+          master={(
+            <WeeklyReportsMasterList
               projects={projects}
-              projectReports={projectReports}
-              selectedProjectId={selectedProjectId}
-              selectedReportId={selectedReportId}
-              selectedProject={selectedProject}
-              showGantt={showGantt}
-              onProjectChange={e => { setSelectedProjectId(e.target.value); setSelectedReportId(""); setShowGantt(false); }}
-              onReportChange={e => setSelectedReportId(e.target.value)}
-              onToggleGantt={() => setShowGantt(v => !v)}
+              rows={masterRows}
+              filteredRows={filteredMasterRows}
+              selectedKey={selectedMasterKey}
+              selectedProjectId={effectiveProjectId}
+              searchQuery={masterSearch}
+              onSearchChange={setMasterSearch}
+              filterStatus={masterFilter}
+              onFilterChange={setMasterFilter}
+              onProjectChange={(event) => {
+                setSelectedProjectId(event.target.value);
+                setSelectedReportId("");
+                setShowGantt(false);
+                setMobileView("detail");
+              }}
+              onSelect={(row) => {
+                setSelectedProjectId(row.projectId);
+                setSelectedReportId(row.reportId);
+                setShowGantt(false);
+                setMobileView("detail");
+              }}
             />
-
+          )}
+          detailHeader={selectedProject ? (
+            <header className="detail-pane-header weekly-detail-header">
+              <button type="button" className="btn btn-ghost-sm weekly-back-to-master" onClick={() => setMobileView("master")}>
+                <Icon name="arrowRight" size={14} />
+                Back
+              </button>
+              <div className="weekly-detail-identity">
+                <div className="weekly-detail-title-row">
+                  <h2>{selectedProject.storeCode || "Project"}{selectedProject.shoppingMallName ? ` — ${selectedProject.shoppingMallName}` : ""}</h2>
+                  {selectedMasterRow && (
+                    <span className={`weekly-master-status is-${selectedMasterRow.status}`}>{selectedMasterRow.statusLabel}</span>
+                  )}
+                </div>
+                <div className="weekly-detail-meta">
+                  <span>{selectedMasterRow?.reportingContext || "No contractor report"}</span>
+                  {selectedProject.city && <span>{selectedProject.city}</span>}
+                  {selectedProject.country && <span>{selectedProject.country}</span>}
+                  {selectedProject.projectManager && <span>PM: {selectedProject.projectManager}</span>}
+                </div>
+              </div>
+              <div className="weekly-detail-actions">
+                <label className="weekly-report-select-wrap">
+                  <span>Report date</span>
+                  <select
+                    data-testid="report-date-select"
+                    className="ds-select"
+                    value={effectiveReportId}
+                    onChange={(event) => setSelectedReportId(event.target.value)}
+                    disabled={!projectReports.length}
+                  >
+                    {projectReports.length === 0
+                      ? <option value="">No reports yet</option>
+                      : projectReports.map((report) => (
+                          <option key={report.id} value={String(report.id)}>
+                            {report.reportingDate || formatDate(report.submittedAt)}
+                          </option>
+                        ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className={showGantt ? "btn btn-secondary is-active" : "btn btn-secondary"}
+                  aria-pressed={showGantt}
+                  onClick={() => setShowGantt((value) => !value)}
+                >
+                  {showGantt ? "Hide Gantt" : "View Gantt"}
+                </button>
+                <WeeklyReportExportButton
+                  project={selectedProject}
+                  report={selectedReport}
+                  prevReport={prevReport}
+                  projectReports={projectReports}
+                  siteVisits={siteVisits}
+                  canonicalResult={selectedRow?.canonical ?? null}
+                  activeTemplate={activeTemplate}
+                  legacyWorkPackages={WORK_PACKAGES}
+                  overallProgress={overallProgress}
+                  onError={toast.error}
+                />
+              </div>
+            </header>
+          ) : null}
+          detailTabs={selectedReport ? (
+            <WeeklyReportTabs
+              tabs={reviewTabs}
+              activeTab={activeReviewTab}
+              onChange={setActiveReviewTab}
+              panelId="weekly-detail-tabpanel"
+            />
+          ) : null}
+          detail={(
+            <div
+              id="weekly-detail-tabpanel"
+              className="weekly-detail-tabpanel"
+              role={selectedReport ? "tabpanel" : undefined}
+              aria-labelledby={selectedReport ? `weekly-tab-${activeReviewTab}` : undefined}
+            >
             {selectedProject && (
               <section className="weekly-truth-console">
                 {templateErrorIssues.length > 0 && (
@@ -244,14 +400,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                   additionalWorksList={additionalWorksList}
                 />
               </section>
-            )}
-
-            {selectedReport && (
-              <WeeklyReportTabs
-                tabs={reviewTabs}
-                activeTab={activeReviewTab}
-                onChange={setActiveReviewTab}
-              />
             )}
 
             {/* Gantt chart */}
@@ -280,13 +428,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               </div>
             )}
 
-            {/* Missing reports modal */}
-            {showMissingModal && (
-              <MissingReportsModal
-                missingRows={[...portfolioKpis.missing].sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999))}
-                onClose={() => setShowMissingModal(false)}
-              />
-            )}
             {/* Empty state */}
             {projectReports.length === 0 && selectedProject && (
               <div className="dashboard-summary-card weekly-report-empty">
@@ -297,6 +438,24 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
             {selectedReport && activeReviewTab === "overview" && (
               <section className="weekly-overview-main">
+                <div className="weekly-overview-context">
+                  <div className="weekly-detail-section">
+                    <ActionRequiredPanel
+                      report={selectedReport}
+                      svKpis={svKpis}
+                      portfolioKpis={portfolioKpis}
+                      additionalWorksList={additionalWorksList}
+                    />
+                  </div>
+                  <div className="weekly-detail-section">
+                    <CompactProgressTrend
+                      series={progressSeries}
+                      scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
+                      spi={engineOutputs?.progressComparison?.spi}
+                    />
+                  </div>
+                </div>
+
                 <ProgressNarrative
                   progressComparison={engineOutputs?.progressComparison}
                   selectedProgress={engineOutputs?.selectedProgress}
@@ -376,62 +535,16 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 )}
               </section>
             )}
-          </div>
-
-          {/* ── Inspector: selected-report context + secondary actions,
-              persistent across all 3 review tabs (previously Overview-tab-only) ── */}
-          {selectedProject && (
-            <div className="inspector">
-              <div className="inspector-section">
-                <ProjectHeader project={selectedProject} />
-              </div>
-
-              <div className="inspector-section">
-                <div className="inspector-section-title">Report status</div>
-                <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
-                  {selectedReport?.reportingDate || selectedReport?.submittedAt || "No report selected"}
-                  {" · Contractor "}
-                  {selectedReport ? "submitted" : "not submitted"}
-                  {" · PM "}
-                  {svKpis.totalVisits > 0 ? "verified" : "not verified"}
-                </p>
-                <WeeklyReportExportButton
-                  project={selectedProject}
-                  report={selectedReport}
-                  prevReport={prevReport}
-                  projectReports={projectReports}
-                  siteVisits={siteVisits}
-                  canonicalResult={selectedRow?.canonical ?? null}
-                  activeTemplate={activeTemplate}
-                  legacyWorkPackages={WORK_PACKAGES}
-                  overallProgress={overallProgress}
-                  onError={toast.error}
-                />
-              </div>
-
-              {selectedReport && (
-                <>
-                  <div className="inspector-section">
-                    <ActionRequiredPanel
-                      report={selectedReport}
-                      svKpis={svKpis}
-                      portfolioKpis={portfolioKpis}
-                      additionalWorksList={additionalWorksList}
-                    />
-                  </div>
-
-                  <div className="inspector-section">
-                    <CompactProgressTrend
-                      series={progressSeries}
-                      scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
-                      spi={engineOutputs?.progressComparison?.spi}
-                    />
-                  </div>
-                </>
-              )}
             </div>
           )}
-        </div>
+        />
+
+        {showMissingModal && (
+          <MissingReportsModal
+            missingRows={[...portfolioKpis.missing].sort((a, b) => (b.daysSinceReport ?? 999) - (a.daysSinceReport ?? 999))}
+            onClose={() => setShowMissingModal(false)}
+          />
+        )}
       </div>
     </ErrorBoundary>
   );

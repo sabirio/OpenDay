@@ -36,6 +36,12 @@ const css = read('index.css');
 const masterDetail = read('components/shared/MasterDetailLayout.jsx');
 const dashboard = read('pages/Dashboard.jsx');
 const dashboardMasterList = read('components/dashboard/DashboardMasterList.jsx');
+const weeklyReports = read('pages/WeeklyReports.jsx');
+const weeklyMasterList = read('components/weekly/WeeklyReportsMasterList.jsx');
+const weeklyTabs = read('components/weekly/WeeklyReportTabs.jsx');
+const riskDashboard = read('pages/RiskDashboard.jsx');
+const riskMasterList = read('components/risk/RiskDashboardMasterList.jsx');
+const riskTabs = read('components/risk/RiskDetailTabs.jsx');
 check('mobile navigation returns focus to its trigger', /toggleRef\.current\?\.focus/.test(layout));
 check('mobile navigation locks background scrolling while open', /document\.body\.style\.overflow\s*=\s*'hidden'/.test(layout));
 check('mobile navigation is not focusable while off-canvas', /\.sidebar\s*\{[\s\S]*visibility:\s*hidden/.test(css) && /\.sidebar\.sidebar-open\s*\{[\s\S]*visibility:\s*visible/.test(css));
@@ -45,6 +51,15 @@ check('MasterDetailLayout owns geometry slots without dashboard domain imports',
 check('Dashboard project rows are semantic buttons with selected state', /<button[\s\S]*aria-pressed=\{selected\}[\s\S]*data-testid="dashboard-master-project"/.test(dashboardMasterList));
 check('Dashboard tabs use tablist, tab and selected semantics', /role="tablist"/.test(dashboard) && /role="tab"/.test(dashboard) && /aria-selected=\{activeView === id\}/.test(dashboard));
 check('Dashboard no longer renders ProjectDetailDrawer', !/ProjectDetailDrawer/.test(dashboard));
+check('Weekly Reports consumes the canonical Master Detail primitive', /<MasterDetailLayout/.test(weeklyReports));
+check('Weekly report rows are semantic buttons with selected state', /<button[\s\S]*aria-pressed=\{selected\}[\s\S]*data-testid="weekly-master-report"/.test(weeklyMasterList));
+check('Weekly report tabs use the shared Detail tab semantics', /className="detail-pane-tabs"[\s\S]*role="tablist"/.test(weeklyTabs) && /role="tab"/.test(weeklyTabs) && /aria-selected=\{activeTab === tab\.id\}/.test(weeklyTabs));
+check('Weekly Reports retired Phase 4 split and inspector composition', !/split-workspace|className="inspector"|WeeklyReportsToolbar|ProjectHeader/.test(weeklyReports));
+check('Risk Dashboard consumes the canonical Master Detail primitive', /<MasterDetailLayout/.test(riskDashboard));
+check('Risk project rows are semantic buttons with selected state', /<button[\s\S]*aria-pressed=\{selected\}[\s\S]*data-testid="risk-master-project"/.test(riskMasterList));
+check('Risk Detail exposes Overview, Drivers, Evidence and Trend tabs', /Overview/.test(riskTabs) && /Drivers/.test(riskTabs) && /Evidence/.test(riskTabs) && /Trend/.test(riskTabs) && /role="tablist"/.test(riskTabs));
+check('Risk Dashboard retired Phase 4 split and inspector composition', !/split-workspace|className="inspector"/.test(riskDashboard));
+check('Risk UI consumes canonical rows without importing risk engines', !/engines\/riskEngine|computeProjectRiskScore|computeScheduleDeviation/.test(riskDashboard + riskMasterList));
 check('Master and Detail establish independent scroll regions', /\.master-pane-list,[\s\S]*\.detail-pane-content\s*\{[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*auto/.test(css));
 check('narrow Master Detail uses explicit single-pane state', /data-mobile-view=\{mobileView\}/.test(masterDetail) && /data-mobile-view="master"[\s\S]*\.detail-pane[\s\S]*display:\s*none/.test(css) && /data-mobile-view="detail"[\s\S]*\.master-pane[\s\S]*display:\s*none/.test(css));
 
