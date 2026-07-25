@@ -75,6 +75,10 @@ export default function BenchmarkCard({ card }) {
 
       {detailsOpen && (
         <div id={detailsId} className="benchmark-disclosure-panel">
+          <div className="benchmark-criteria-row">
+            <span>Match</span>
+            <span>{card.tierLabel}</span>
+          </div>
           {card.criteria.map(c => (
             <div key={c.label} className="benchmark-criteria-row">
               <span>{c.label}</span>

@@ -3070,6 +3070,14 @@ button.weekly-phase-row {
 .benchmark-sample-size { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; }
 
 .benchmark-your-project { border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 6px; }
+/* Median is the benchmark headline (UX audit v1, §7/§10) — "Your project"
+   shares the same size/weight as Median by default, which made the two
+   numbers compete for attention and risked confusing "historical" with
+   "current project" at a glance. Accent color (already used for this
+   view's own interactive elements — active tab, Comparison basis link)
+   distinguishes "about this specific project" from the neutral historical
+   fact, without implying good/bad. */
+.benchmark-your-project .benchmark-stat-value { color: var(--accent); }
 .benchmark-comparison { font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); }
 .benchmark-comparison-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
 .benchmark-not-available-yet { font-size: 0.8125rem; color: var(--text-muted); font-style: italic; }
