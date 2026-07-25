@@ -322,9 +322,9 @@ Area tolerance is inclusive at both boundaries (target 1000m², Tier 1 → 750 a
 
 **Currency boundary is metric-specific, not uniform.** `actualCostPerTotalSqm`/`actualCostPerSalesSqm` are absolute currency-per-area values, so they require the same `currencyCode` as the target (no FX in v1 — a different-currency project is excluded from the cohort, never converted). `costVariancePercent` is already dimensionless (a ratio of actual to budget in the project's own currency), so it does **not** require currency match — this is a deliberate v1 policy decision, not an oversight.
 
-**Zero-actual-cost benchmark policy (Benchmark-only, not a Historical Foundation correction).** Historical Foundation correctly keeps `actualCost = 0` as a real, non-null fact. Benchmark Engine additionally excludes `actualCost <= 0` candidates from **cost-per-area** cohorts specifically (`actualCostPerTotalSqm`/`actualCostPerSalesSqm`) as not-meaningful comparable construction-cost evidence — a comparability policy layered on top of the raw fact, which is itself untouched. `costVariancePercent` does not apply this exclusion (a $0-actual-cost project can still have a meaningful, if extreme, budget variance).
+**Zero-actual-cost benchmark policy (a shared analytical policy, not a Historical Foundation correction).** Historical Foundation correctly keeps `actualCost = 0` as a real, non-null fact. Benchmark Engine additionally excludes `actualCost <= 0` candidates from **cost-per-area** cohorts specifically (`actualCostPerTotalSqm`/`actualCostPerSalesSqm`) as not-meaningful comparable construction-cost evidence — a comparability policy layered on top of the raw fact, which is itself untouched. `costVariancePercent` does not apply this exclusion (a $0-actual-cost project can still have a meaningful, if extreme, budget variance). This predicate is owned by `engines/costEvidencePolicy.js` (`isUsableActualCostEvidence`) — extracted so Cost Intelligence Engine (below) applies the exact same rule rather than a second, potentially drifting `actualCost > 0` check.
 
-**Median is the primary comparison center**, mean is still returned for transparency. Statistics (`min`, `max`, `mean`, `median`, `p25`, `p75`) use one documented deterministic percentile algorithm — linear interpolation between ranks (a.k.a. "PERCENTILE.INC") — with no outlier trimming in v1. `comparison.deltaFromMedian` preserves sign (e.g. `openingVarianceDays` cohorts and their median can legitimately be negative — early openings are never converted to absolute values or labeled "delay"). `comparison.percentFromMedian` is only computed for positive scalar cost/duration metrics (`actualCostPerTotalSqm`, `actualCostPerSalesSqm`, `actualConstructionDays`) when the median is non-zero — never for `openingVarianceDays` (signed, can legitimately be 0) or `costVariancePercent` (already a percent), and never `NaN`/`Infinity` when the median is 0.
+**Median is the primary comparison center**, mean is still returned for transparency. Statistics (`min`, `max`, `mean`, `median`, `p25`, `p75`) use one documented deterministic percentile algorithm — linear interpolation between ranks (a.k.a. "PERCENTILE.INC") — with no outlier trimming in v1. `comparison.deltaFromMedian` preserves sign (e.g. `openingVarianceDays` cohorts and their median can legitimately be negative — early openings are never converted to absolute values or labeled "delay"). `comparison.percentFromMedian` is only computed for positive scalar cost/duration metrics (`actualCostPerTotalSqm`, `actualCostPerSalesSqm`, `actualConstructionDays`) when the median is non-zero — never for `openingVarianceDays` (signed, can legitimately be 0) or `costVariancePercent` (already a percent), and never `NaN`/`Infinity` when the median is 0. The statistics algorithm itself is owned by the neutral `engines/statistics.js` (`computeStatistics`/`percentileOf`), not Benchmark Engine — Cost Intelligence Engine (below) is its second consumer.
 
 **Cohort eligibility ≠ target comparison availability (fundamental product rule).** These are two different questions and Benchmark Engine v1 keeps them structurally separate:
 
@@ -376,3 +376,60 @@ Project
 **Financial visibility.** Benchmark introduces no new permission model. The Portfolio/Project detail surface (and therefore Benchmark, nested inside it) is already gated to the `projects` resource (`Admin`/`PM` roles only, `auth/rolePermissions.js`) at the route level; Project Information already shows every visible project's `budget`/`actualCost` unconditionally to any role that can reach that route. Benchmark's cost cards aggregate (median/range) over that exact same already-visible, already-authorized project collection — no new project or field becomes visible to a role that could not already see it.
 
 **No persistence, no new top-level nav item, no new module.** Card computation is in-memory per render (memoized on `project`/`projects` identity); nothing is written to the database. `Benchmark` was not added to `auth/rolePermissions.js`'s `NAV_ITEMS`, and no `Analytics`/`Intelligence`/`Historical Data` module was created.
+
+# Cost Intelligence Engine v1
+
+```
+Historical Project Facts
+        ↓
+Cost Evidence Selection
+        ↓
+Market Partition
+        ↓
+Dimension Breakdown
+        ↓
+Median / Typical Range / Distribution
+```
+
+`engines/costIntelligenceEngine.js` exports `buildCostIntelligence({ dataset, metric, groupBy })` — a pure, dataset-wide cost-pattern breakdown over `HistoricalProjectFacts[]`. It consumes the same Historical Foundation metrics/eligibility Benchmark Engine consumes, and reuses (never re-implements) Benchmark's own neutral statistics utility and positive-actual-cost policy.
+
+**Cost Intelligence vs. Benchmark vs. Forecast — a frozen distinction, do not collapse these layers:**
+- **Benchmark** answers *"what happened on projects comparable to THIS project?"* — target-relative, a per-project cohort.
+- **Cost Intelligence** answers *"what patterns exist across our historical cost evidence?"* — no target project at all; a market/project-type/concept/location breakdown over the whole dataset.
+- **Forecast** (future work) will answer *"what is likely to happen on this project?"* — not built here.
+
+**Generic statistics ownership moved to a neutral utility.** `engines/statistics.js` (`computeStatistics`/`percentileOf`) is the single owner of the min/max/mean/median/p25/p75 algorithm (same linear-interpolation percentile, unchanged) — extracted out of `benchmarkEngine.js` specifically so Cost Intelligence could become a second consumer without creating a `Cost Intelligence → Benchmark → statistics` dependency chain:
+```
+             statistics.js
+              /          \
+      benchmarkEngine   costIntelligenceEngine
+```
+Benchmark Engine's own outputs are unchanged (byte-for-byte identical algorithm; `benchmarkEngine.test.mjs` passes unmodified).
+
+**Shared positive-actual-cost evidence policy.** `engines/costEvidencePolicy.js` (`isUsableActualCostEvidence`) is the single owner of "is this project's actual cost usable evidence for a cost-per-area comparison?" (`actualCost` is a finite number `> 0`) — extracted out of `benchmarkEngine.js`, which had the same check inlined independently in two places. This is a **comparability policy layered on top of Historical Foundation's own eligibility**, not a Historical Foundation change: Historical Foundation still correctly treats `actualCost = 0` as a real, non-null fact ("unknown ≠ zero"), and `eligibility.costPerTotalSqm`/`costPerSalesSqm` stay `true` at `actualCost = 0`. Both Benchmark and Cost Intelligence apply this shared predicate identically; it does not apply to `costVariancePercent` (dimensionless — a $0-actual-cost project can still have a meaningful, if extreme, budget variance).
+
+**Supported v1 metrics — exactly 3, deliberately narrow:** `actualCostPerTotalSqm`, `actualCostPerSalesSqm`, `costVariancePercent`. Raw `actualCost`/`budget`, `budgetPerTotalSqm`/`budgetPerSalesSqm`, and `costVarianceAmount` are excluded from v1 — absolute money amounts are strongly area-dependent, the per-area budget metrics have no frozen Historical eligibility dimension yet, and raw variance amounts are currency-mixing-prone.
+
+**Supported v1 breakdown dimensions — exactly 4:** `country`, `projectType`, `storeConcept`, `locationType`. No `city` yet, no `contractor` (belongs to a future Contractor Performance engine), no year/time trend (no inflation/index normalization exists yet — a historical project from years earlier is not treated as comparable nominal-currency evidence across time without a later explicit policy; this is deferred scope, not an oversight).
+
+**Country is always the market partition.** Every Cost Intelligence summary — regardless of requested `groupBy`, and regardless of metric, including the dimensionless `costVariancePercent` — is partitioned by `country` first. Kazakhstan and China projects are never merged into one statistical group merely because another dimension (e.g. `projectType`) matches; market conditions and budgeting practices differ even for a percentage metric. When `groupBy = 'country'`, country IS the requested breakdown — the result identity is just `{ country, currencyCode? }`, never redundantly duplicated as a separate `dimension`/`dimensionValue` pair repeating the same country value.
+
+**Currency additionally partitions the two absolute cost-per-area metrics** (`actualCostPerTotalSqm`, `actualCostPerSalesSqm`) — `Kazakhstan/KZT` and `Kazakhstan/USD` are always separate groups, no FX, no normalization, no mixed-currency median. `costVariancePercent` does **not** partition by currency (dimensionless, calculated inside each project's own currency) — `policy.currencyPartition` is `false` for that metric, `true` for the two cost-per-area metrics.
+
+**Candidate eligibility per metric** reuses Historical Foundation's own eligibility flags verbatim (`eligibility.costPerTotalSqm`, `eligibility.costPerSalesSqm`, `eligibility.costVariance`) plus the metric's own value — never re-derived from raw area/cost/budget. `actualCostPerTotalSqm`/`actualCostPerSalesSqm` additionally require `country`, `currencyCode`, and `isUsableActualCostEvidence`; `costVariancePercent` requires only `country` (no currency, no positive-cost requirement).
+
+**Missing breakdown dimension value is excluded, never folded into a fake "Unknown" group.** A project with `storeConcept = null` requesting a `groupBy: 'storeConcept'` breakdown is excluded from that specific breakdown (counted in `exclusions.missingDimension`), not treated as belonging to a literal "Unknown concept" cohort — Unknown is not a real business category.
+
+**Minimum sample size is its own dedicated policy — `COST_INTELLIGENCE_POLICY.minSampleSize = 3`** — deliberately not a reuse of `BENCHMARK_COHORT_POLICY.minSampleSize` merely because both currently equal 3; these are separate product policies that happen to agree today. Groups below the minimum return `status: 'INSUFFICIENT_EVIDENCE'` with `statistics: null` but a real, visible `sampleSize` — never discarded, never presented as a reliable statistical conclusion.
+
+**Statistics** (`sampleSize`, `min`, `max`, `mean`, `median`, `p25`, `p75`) for `AVAILABLE` groups use the shared `statistics.js` utility verbatim. Median remains the primary analytical center. No outlier trimming, no winsorizing — an extreme value stays visible in the group's `min`/`max`/`mean`.
+
+**Budget-performance counts** (`overBudgetCount`/`onBudgetCount`/`underBudgetCount`/`overBudgetRate`) are derived only for `costVariancePercent` (`value > 0` → over budget, `= 0` → on budget, `< 0` → under budget; `overBudgetRate` normalized `0–1`, percent formatting is a UI concern for later). Cost-per-area groups never receive this metadata — it isn't meaningful for them. This is a descriptive count, never called a "budget performance score," never ranked.
+
+**No ranking, no causal claims.** Groups are never sorted or labeled by which is "cheapest," "best," or "worst" — only by identity (`country`, then `currencyCode`, then `dimensionValue`, a fixed deterministic order, §45). `Mall median = X, Street median = Y` is descriptive; Cost Intelligence never infers that location type *causes* a cost difference.
+
+**Imported and live projects are unified**, exactly like Historical Foundation and Benchmark Engine — Cost Intelligence never inspects `import_jobs`, contractor reports, site visits, Gantt generation, or snag counts; it only ever reads the canonical `HistoricalProjectFacts` Historical Foundation already produced.
+
+**No target project.** Unlike Benchmark, Cost Intelligence has no per-project cohort concept — its result has no `target`/`comparison`/`cohort` field. It is a standing dataset-wide breakdown: `Historical Dataset → Market/Project-Type/Concept/Location breakdown`.
+
+**No persistence, no UI, no new migration.** No `cost_intelligence` table, no analytics snapshot, no materialized view — migration chain still ends at `040`. No sidebar entry, no dashboard, no charts — this is an engine-only certification (`costIntelligenceEngine.test.mjs`, `costIntelligenceArchitectureGuard.test.mjs`). A future Cost Intelligence Product/UI layer consumes this engine; it was not built here.
