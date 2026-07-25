@@ -15,6 +15,7 @@
  * will happen) — Forecast Engine is a separate, later concern.
  */
 import { buildHistoricalProjectFacts } from './historyEngine.js';
+import { computeStatistics } from './statistics.js';
 
 // ── generic guards (small, local — mirrors historyEngine.js's own private
 // helpers rather than exporting/importing across engines for a few lines) ──
@@ -141,36 +142,6 @@ function buildCriteria(target, tier, metricDef) {
   if (metricDef.requiresCurrency) criteria.currencyCode = target.financial.currencyCode;
   if (metricDef.requiresPositiveCost) criteria.excludesNonPositiveActualCost = true;
   return criteria;
-}
-
-// ── statistics (§ statistics) — one deterministic percentile algorithm:
-// linear interpolation between ranks (a.k.a. "PERCENTILE.INC"), documented
-// here since no existing repo helper computes percentiles this way
-// (monteCarloEngine.js uses a nearest-rank lookup suited to its own N=10000
-// simulation array, not this small-N cohort case). No outlier trimming. ────
-function percentileOf(sortedValues, p) {
-  const n = sortedValues.length;
-  if (n === 1) return sortedValues[0];
-  const index = (p / 100) * (n - 1);
-  const lower = Math.floor(index);
-  const upper = Math.ceil(index);
-  if (lower === upper) return sortedValues[lower];
-  const weight = index - lower;
-  return sortedValues[lower] + (sortedValues[upper] - sortedValues[lower]) * weight;
-}
-function computeStatistics(values) {
-  const sorted = [...values].sort((a, b) => a - b);
-  const n = sorted.length;
-  const sum = sorted.reduce((acc, v) => acc + v, 0);
-  return {
-    sampleSize: n,
-    min: sorted[0],
-    max: sorted[n - 1],
-    mean: sum / n,
-    median: percentileOf(sorted, 50),
-    p25: percentileOf(sorted, 25),
-    p75: percentileOf(sorted, 75),
-  };
 }
 
 /**
