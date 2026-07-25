@@ -3034,4 +3034,62 @@ button.weekly-phase-row {
 .toast-dismiss:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+/* -- Project Benchmark v1 (Project detail: Information | Benchmark) ------ */
+.benchmark-view-header { margin-bottom: 16px; }
+.benchmark-view-title { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; }
+.benchmark-view-subtitle { font-size: 0.85rem; color: var(--text-secondary); margin: 0; }
+.benchmark-view-note { font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 0; }
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.benchmark-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  background: var(--bg-elevated);
+  padding: 16px;
+  min-width: 0;
+}
+
+.benchmark-card--unavailable { color: var(--text-muted); }
+
+.benchmark-card-title { font-size: 0.85rem; font-weight: 750; color: var(--text-primary); margin-bottom: 10px; }
+
+.benchmark-unavailable-heading { font-size: 0.8125rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; }
+.benchmark-unavailable-text { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; }
+
+.benchmark-stat-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 2px; }
+.benchmark-stat-value { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px; }
+.benchmark-stat-secondary { font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; }
+
+.benchmark-sample-size { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; }
+
+.benchmark-your-project { border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 6px; }
+.benchmark-comparison { font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); }
+.benchmark-comparison-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+.benchmark-not-available-yet { font-size: 0.8125rem; color: var(--text-muted); font-style: italic; }
+
+.benchmark-hint { font-size: 0.6875rem; color: var(--text-muted); margin-bottom: 8px; }
+
+.benchmark-disclosure-toggle {
+  border: none; background: transparent; color: var(--accent);
+  font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 4px 0;
+}
+.benchmark-disclosure-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.benchmark-disclosure-panel { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.benchmark-criteria-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 0.75rem; color: var(--text-secondary); padding: 3px 0;
+}
+.benchmark-criteria-row span:last-child { color: var(--text-primary); font-weight: 600; text-align: right; }
+
+@media (max-width: 720px) {
+  .benchmark-grid { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 480px) { .toast-stack { width: calc(100vw - 24px); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } }

@@ -337,6 +337,40 @@ A brand-new or in-progress project — no actual cost, no actual dates, no actua
 
 **One stable result shape** across all 5 metrics and all 3 statuses: `{ metric, status, target, cohort, statistics, comparison }`, where `target` includes `comparisonAvailable` (`true` only when the target has its own valid, comparable metric value; `false` — never inferred from a falsy number, only from explicit null/eligibility/positive-cost checks — otherwise). `statistics` is populated whenever `status = AVAILABLE`, independent of `comparisonAvailable` (cohort evidence never depends on the target's own outcome). `comparison` (`deltaFromMedian`/`percentFromMedian`) is `null` whenever `comparisonAvailable` is `false`, and never fabricated as `0`. `cohort` always includes a `tiersEvaluated` log of all 4 tiers' criteria and sample sizes, so "why were these projects compared" is always answerable, even for an insufficient-evidence result.
 
-**No persistence, no UI, no new migration.** No `project_benchmarks` table, no `benchmark_snapshots`/`benchmark_percentiles` columns, no cohort table — migration chain still ends at `040`. No "Benchmarks" nav item, dashboard card, or Portfolio/Project Information change — this is an engine-only certification (`benchmarkEngine.test.mjs`, `benchmarkArchitectureGuard.test.mjs`). A future Benchmark UI/product layer consumes this engine; it was not built here.
+**No persistence, no new migration.** No `project_benchmarks` table, no `benchmark_snapshots`/`benchmark_percentiles` columns, no cohort table — migration chain still ends at `040`. No "Benchmarks" top-level nav item, dashboard, or Portfolio analytics module — Benchmark is a Project-context view (see "Benchmark Product/UI Layer v1" below), not a standalone module.
 
 **Per-metric cohorts, not one universal cohort.** The same target project can legitimately get a different cohort (different tier, different sample size, different member projects) for each of its 5 metrics, since eligibility is per-dimension (Historical Foundation's own model) — `buildProjectBenchmarks` never forces a single shared cohort across metrics.
+
+# Benchmark Product/UI Layer v1
+
+The UI layer that exposes Benchmark Engine v1 (above) to users. Benchmark is **not** a standalone OpenDay module — it answers a Project-scoped question ("how does *this* project compare with genuinely similar previous projects?"), so it lives inside the existing canonical Project detail surface, not the sidebar:
+
+```
+Project
+├── Information   (unchanged — frozen Project Information IA)
+└── Benchmark     (new — this task)
+      ├── Cost / Total m²
+      ├── Cost / Sales m²
+      ├── Construction Duration
+      ├── Opening Variance
+      └── Cost Variance
+```
+
+`ProjectDetailModal.jsx` gained an Information/Benchmark tab switcher (`ProjectDetailTabs.jsx`, the same accessible `role="tablist"`/`role="tab"` pattern already used by Weekly Reports); Information's existing sections (Identity & Location, Classification, Areas, Planned/Actual/Forecast Dates, Financial, Stakeholders, Construction Phases, Contractor Link) are untouched and still the default tab.
+
+**Data flow — UI never queries or recomputes.** `Projects.jsx` already holds the authorized `projects[]` collection (from `projectService.getAll()`); it now also passes that same collection into `ProjectDetailModal`, which passes it into `BenchmarkView`. The one new facade, `core/presentation/projectBenchmarkModel.js` (`buildProjectBenchmarkCards(project, projects)`), builds `HistoricalProjectFacts` for the target and the dataset and calls the frozen `buildProjectBenchmarks` — it never queries Supabase itself and never recomputes a cohort, a statistic, or a comparison delta; it only formats the numbers Benchmark Engine already produced. `hooks/useProjectBenchmark.js` is a thin `useMemo` wrapper (pure/synchronous computation, so no loading-spinner architecture was introduced). This is the same "UI → hook → core/presentation facade → engines" boundary `projectInfoPresentationModel.js`/`useProjectInfoPresentation.js` already established — pages/components/hooks still never import `engines/` directly.
+
+**Five cards, one reusable component.** `BenchmarkCard.jsx` renders all 3 Benchmark Engine statuses:
+- `AVAILABLE` — **Median** (primary statistic) and **Typical range** (P25–P75, explicitly not called a confidence interval) always shown, plus sample size ("N comparable projects"). **Your project** shows the target's own value and a **vs median** comparison line *only* when `comparisonAvailable` is `true`; otherwise it shows a plain "Actual … not available yet" sentence — never "No benchmark," never a fabricated zero, never a hidden card. Mean and full range live inside a collapsed **Comparison basis** disclosure alongside the cohort criteria, not on the main card face.
+- `INSUFFICIENT_EVIDENCE` — "Not enough comparable history" plus the engine's own `bestAvailableSampleSize`/`BENCHMARK_COHORT_POLICY.minSampleSize` — no fabricated statistics.
+- `TARGET_NOT_ELIGIBLE` — a short, human-facing sentence ("Country and Project Type are required…", "Currency is required to compare historical costs.") derived from which cohort-context fact is missing, never a raw engine string dump or stack trace.
+
+**A project does not need to be finished to receive a historical benchmark** (the frozen Benchmark Engine rule this whole layer exists to expose): an in-progress target with full cohort context but no actual outcome yet renders all 5 cards as `AVAILABLE` with real statistics and `comparisonAvailable: false` — the UI proof that cohort selection and target comparison are separate concerns.
+
+**Comparison basis = explainability, not a similarity score.** The disclosure only lists the criteria the *winning* cohort tier actually applied (country, project type, store concept, location type, area tolerance, currency — whichever the tier used), plus sample size, mean, and full range. There is no match/similarity percentage anywhere in this layer (Evidence Over Opinion). Technical tier identifiers (`CLOSE_MATCH`, `Tier 1`, …) are mapped to human labels ("Close match", "Strong match", "Broad match", "Market & project type") — the technical names stay internal/test-only.
+
+**No judgment, no FX, no forecasting, no AI.** Values are shown with their sign preserved (early openings and cost underruns are not "bad"); there is no Good/Bad/Excellent/Poor language anywhere. `percentFromMedian` is only rendered when the engine itself provides it (never independently calculated in React). No currency conversion — a cost card shows only the target's own currency cohort, even when other currencies exist in the historical dataset; `costVariancePercent` may combine currencies per the engine's own existing (unmodified) policy. This is deterministic historical evidence ("what happened"), not a forecast of what will happen — Forecast Engine remains future work.
+
+**Financial visibility.** Benchmark introduces no new permission model. The Portfolio/Project detail surface (and therefore Benchmark, nested inside it) is already gated to the `projects` resource (`Admin`/`PM` roles only, `auth/rolePermissions.js`) at the route level; Project Information already shows every visible project's `budget`/`actualCost` unconditionally to any role that can reach that route. Benchmark's cost cards aggregate (median/range) over that exact same already-visible, already-authorized project collection — no new project or field becomes visible to a role that could not already see it.
+
+**No persistence, no new top-level nav item, no new module.** Card computation is in-memory per render (memoized on `project`/`projects` identity); nothing is written to the database. `Benchmark` was not added to `auth/rolePermissions.js`'s `NAV_ITEMS`, and no `Analytics`/`Intelligence`/`Historical Data` module was created.

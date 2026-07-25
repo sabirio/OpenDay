@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PHASES } from "../../config/masterTaskLibrary";
 import { TEMPLATES } from "../../config/projectTemplates";
 import { getOpeningColor } from "../../config/thresholds";
@@ -5,6 +6,8 @@ import { formatDate, daysUntil } from "../../utils/reportUtils";
 import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
 import { describeProjectLocation, formatArea, formatMoney } from "../../hooks/useProjectInfoPresentation";
 import { DetailField, FieldRow, FormSection } from "./ProjectFormParts";
+import ProjectDetailTabs from "./ProjectDetailTabs";
+import BenchmarkView from "./BenchmarkView";
 import Modal from "../shared/Modal";
 import { useToast } from "../shared/Toast.jsx";
 
@@ -12,8 +15,14 @@ const PHASE_MAP = Object.fromEntries(
   PHASES.map(p => [p.id, { ...p, bg: "var(--bg-elevated)", border: "var(--border)" }])
 );
 
-export default function ProjectDetailModal({ project, onClose, onEdit }) {
+const DETAIL_TABS = [
+  { id: "information", label: "Information" },
+  { id: "benchmark", label: "Benchmark" },
+];
+
+export default function ProjectDetailModal({ project, projects, onClose, onEdit }) {
   const toast = useToast();
+  const [activeTab, setActiveTab] = useState("information");
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
   const openingColor = getOpeningColor(daysLeft);
@@ -55,7 +64,16 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
           </div>
         </div>
 
-        <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 72px)", padding: "20px 24px" }}>
+        <div style={{ padding: "0 24px" }}>
+          <ProjectDetailTabs tabs={DETAIL_TABS} activeTab={activeTab} onChange={setActiveTab} />
+        </div>
+
+        {activeTab === "benchmark" ? (
+          <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 116px)", padding: "20px 24px" }}>
+            <BenchmarkView project={project} projects={projects || []} />
+          </div>
+        ) : (
+        <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 116px)", padding: "20px 24px" }}>
           <FormSection title="Identity & Location" accentColor="var(--accent)">
             <FieldRow>
               <DetailField label="Country" value={project.country} />
@@ -177,6 +195,7 @@ export default function ProjectDetailModal({ project, onClose, onEdit }) {
             }}>Copy</button>
           </div>
         </div>
+        )}
     </Modal>
   );
 }

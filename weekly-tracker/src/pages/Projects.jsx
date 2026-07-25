@@ -339,6 +339,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       {viewingProject && (
         <ProjectDetailModal
           project={viewingProject}
+          projects={projects}
           onClose={() => setViewingProject(null)}
           onEdit={() => handleEditProject(viewingProject)}
         />
