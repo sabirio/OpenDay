@@ -3071,13 +3071,21 @@ button.weekly-phase-row {
 
 .benchmark-your-project { border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 6px; }
 /* Median is the benchmark headline (UX audit v1, §7/§10) — "Your project"
-   shares the same size/weight as Median by default, which made the two
-   numbers compete for attention and risked confusing "historical" with
-   "current project" at a glance. Accent color (already used for this
-   view's own interactive elements — active tab, Comparison basis link)
-   distinguishes "about this specific project" from the neutral historical
-   fact, without implying good/bad. */
-.benchmark-your-project .benchmark-stat-value { color: var(--accent); }
+   must read as clearly secondary, not compete with it. A prior pass colored
+   the "Your project" VALUE with the accent — on this dark background a
+   saturated accent number is at least as eye-catching as Median's neutral
+   bold text, so the two ended up tied (or Your Project even winning) rather
+   than Median staying the primary anchor (visual-hierarchy confirmation,
+   commit 02b0466 follow-up). The accent now marks only the label (a
+   restrained cue for "this is about the current project"), while the value
+   itself is deliberately smaller/lighter than Median's — a legibility
+   distinction, not a judgment color. */
+.benchmark-your-project .benchmark-stat-label { color: var(--accent); }
+.benchmark-your-project .benchmark-stat-value {
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
 .benchmark-comparison { font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); }
 .benchmark-comparison-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
 .benchmark-not-available-yet { font-size: 0.8125rem; color: var(--text-muted); font-style: italic; }
