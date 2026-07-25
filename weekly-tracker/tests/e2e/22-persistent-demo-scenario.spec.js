@@ -860,7 +860,7 @@ test.describe.serial('DEMO SEED — Persistent QA Data', () => {
       // Check if already exists
       await page.goto('/projects');
       await page.waitForLoadState('networkidle');
-      const existing = page.locator('table tbody tr, [data-testid="project-row"]').filter({ hasText: proj.storeCode });
+      const existing = page.locator('.portfolio-row, [data-testid="project-row"]').filter({ hasText: proj.storeCode });
       if (await existing.count() > 0) {
         STATE.warnings.push(`${proj.storeCode} already exists — skipping creation`);
       } else {

@@ -155,19 +155,19 @@ test.describe('Visual / Content regression', () => {
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('table tbody tr').count();
+    const rowCount = await page.locator('.portfolio-row').count();
     test.skip(rowCount === 0, 'No projects for site visit visual check');
 
-    await page.locator('table tbody tr').first().locator('button').first().click();
-    const modal = page.locator('.modal');
-    if (await modal.count() === 0) {
-      test.skip(true, 'No project modal opened');
+    await page.locator('.portfolio-row').first().click();
+    const detailsPane = page.locator('.portfolio-details-pane');
+    if (await detailsPane.count() === 0) {
+      test.skip(true, 'No project details pane opened');
     }
-    await expect(modal).toBeVisible();
+    await expect(detailsPane).toBeVisible();
 
-    const siteVisitBtn = modal.locator('button', { hasText: /site visit/i });
+    const siteVisitBtn = detailsPane.locator('button', { hasText: /site visit/i });
     if (await siteVisitBtn.count() === 0) {
-      test.skip(true, 'No Site Visit button in modal');
+      test.skip(true, 'No Site Visit button in details pane');
     }
 
     const [svPage] = await Promise.all([
@@ -183,13 +183,8 @@ test.describe('Visual / Content regression', () => {
 
     await svPage.close();
 
-    // The project detail modal (opened on `page` to launch the Site Visit
-    // popup) is still open here and its full-screen .modal-overlay backdrop
-    // covers the sidebar's Sign out button — close it before logging out.
-    // ProjectDetailModal.jsx does not close on Escape (verified live), so use
-    // its real close button.
-    await modal.locator('.close-button').click();
-    await expect(modal).not.toBeVisible({ timeout: 5_000 });
+    // Project details render inline in the Portfolio master-detail workspace
+    // (no modal/overlay), so the sidebar's Sign out button is never covered.
     await logout(page);
   });
 });

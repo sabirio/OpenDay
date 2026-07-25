@@ -114,14 +114,14 @@ test.describe('Full data flow', () => {
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('table tbody tr').count();
+    const rowCount = await page.locator('.portfolio-row').count();
     test.skip(rowCount === 0, 'No projects for PM site visit flow test');
 
-    await page.locator('table tbody tr').first().locator('button').first().click();
-    await expect(page.locator('.modal')).toBeVisible();
+    await page.locator('.portfolio-row').first().click();
+    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
 
-    const siteVisitBtn = page.locator('.modal button', { hasText: /site visit/i });
-    test.skip(await siteVisitBtn.count() === 0, 'No Site Visit button in project modal');
+    const siteVisitBtn = page.locator('.portfolio-details-header button', { hasText: /site visit/i });
+    test.skip(await siteVisitBtn.count() === 0, 'No Site Visit button in project details pane');
 
     const [svPage] = await Promise.all([
       page.context().waitForEvent('page'),
@@ -155,13 +155,8 @@ test.describe('Full data flow', () => {
 
     await svPage.close();
 
-    // The project detail modal (opened on `page` at the top of this test, to
-    // launch the Site Visit popup) is still open here and its full-screen
-    // .modal-overlay backdrop covers the sidebar's Sign out button — close it
-    // before logging out. ProjectDetailModal.jsx does not close on Escape
-    // (verified live), so use its real close button.
-    await page.locator('.modal .close-button').click();
-    await expect(page.locator('.modal')).not.toBeVisible({ timeout: 5_000 });
+    // Project details render inline in the Portfolio master-detail workspace
+    // (no modal/overlay), so the sidebar's Sign out button is never covered.
     await logout(page);
   });
 

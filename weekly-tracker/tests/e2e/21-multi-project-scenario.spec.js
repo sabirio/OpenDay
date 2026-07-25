@@ -160,7 +160,7 @@ test.describe('Multi-project scenario', () => {
 
     for (const code of Object.values(PROJECT_NAMES)) {
       // Projects may or may not be in current page view — just verify no crash
-      page.locator('table tbody tr, [data-testid="project-row"]').filter({ hasText: code });
+      page.locator('.portfolio-row, [data-testid="project-row"]').filter({ hasText: code });
     }
 
     await logout(page);

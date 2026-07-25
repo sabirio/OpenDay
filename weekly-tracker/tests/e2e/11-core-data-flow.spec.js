@@ -134,14 +134,14 @@ test.describe('Cross-module data flow', () => {
 
     // Find a project with at least one GC report
     await page.goto('/projects');
-    const rowCount = await page.locator('table tbody tr').count();
+    const rowCount = await page.locator('.portfolio-row').count();
     test.skip(rowCount === 0, 'No projects for discrepancy test');
 
-    // Open modal and navigate to site visit
-    await page.locator('table tbody tr').first().locator('button').first().click();
-    await expect(page.locator('.modal')).toBeVisible();
+    // Select the project and navigate to site visit
+    await page.locator('.portfolio-row').first().click();
+    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
 
-    const siteVisitBtn = page.locator('.modal button', { hasText: 'Site Visit' });
+    const siteVisitBtn = page.locator('.portfolio-details-header button', { hasText: 'Site Visit' });
     const [svPage] = await Promise.all([
       page.context().waitForEvent('page'),
       siteVisitBtn.click(),

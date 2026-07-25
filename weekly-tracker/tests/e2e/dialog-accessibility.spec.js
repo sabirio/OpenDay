@@ -9,15 +9,20 @@ import { login } from './helpers.js';
 const ADMIN = { email: 'admin-a@cert.local', password: 'Cert-Test-Pass-1!' };
 
 test.describe('Shared dialog primitive (components/shared/Modal.jsx)', () => {
-  test('ProjectDetailModal — role/aria-modal, initial focus inside, Escape closes and returns focus to trigger', async ({ page }) => {
+  test('ProjectEditorModal (opened from the Portfolio details pane) — role/aria-modal, initial focus inside, Escape closes and returns focus to trigger', async ({ page }) => {
     await login(page, ADMIN);
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('table tbody tr').count();
+    const rowCount = await page.locator('.portfolio-row').count();
     test.skip(rowCount === 0, 'fixture admin has no visible projects — needs fixture check, not a dialog defect');
 
-    const trigger = page.locator('table tbody tr').first().locator('button').first();
+    // Project details render inline in the Portfolio master-detail workspace
+    // (no dialog) — the reachable dialog from there is Edit Project.
+    await page.locator('.portfolio-row').first().click();
+    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+
+    const trigger = page.locator('.portfolio-details-header button', { hasText: 'Edit Project' });
     await trigger.click();
 
     const dialog = page.locator('[role="dialog"]').first();

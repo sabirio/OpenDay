@@ -330,15 +330,12 @@ async function assertPortfolioUi(page) {
   await page.goto('/projects');
   await page.waitForLoadState('networkidle');
   await page.getByText(STORE_CODE).first().click();
-  const detailModal = page.locator('.modal, [role="dialog"]').first();
-  await expect(detailModal).toBeVisible({ timeout: 10_000 });
+  // Project details render inline in the Portfolio master-detail workspace
+  // (no modal/overlay), so the sidebar's Sign out button is never covered.
+  const detailsPane = page.locator('.portfolio-details-pane');
+  await expect(detailsPane).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/contractor report/i).first()).toBeVisible({ timeout: 10_000 });
 
-  // This modal's full-screen .modal-overlay backdrop covers the sidebar's
-  // Sign out button — close it before logging out. ProjectDetailModal.jsx
-  // does not close on Escape (verified live), so use its real close button.
-  await detailModal.locator('.close-button').click();
-  await expect(detailModal).not.toBeVisible({ timeout: 5_000 });
   await logout(page);
 }
 

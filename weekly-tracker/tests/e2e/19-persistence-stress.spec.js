@@ -225,16 +225,16 @@ test.describe('Persistence stress', () => {
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('table tbody tr').count();
+    const rowCount = await page.locator('.portfolio-row').count();
     test.skip(rowCount === 0, 'No projects to test PM site visit persistence');
 
-    await page.locator('table tbody tr').first().locator('button').first().click();
-    const modal = page.locator('.modal').first();
-    await expect(modal).toBeVisible({ timeout: 5_000 });
+    await page.locator('.portfolio-row').first().click();
+    const detailsPane = page.locator('.portfolio-details-pane').first();
+    await expect(detailsPane).toBeVisible({ timeout: 5_000 });
 
-    const siteVisitBtn = modal.locator('button', { hasText: /site visit/i });
+    const siteVisitBtn = detailsPane.locator('button', { hasText: /site visit/i });
     if (await siteVisitBtn.count() === 0) {
-      test.skip(true, 'No Site Visit button in project modal');
+      test.skip(true, 'No Site Visit button in project details pane');
     }
 
     const [svPage] = await Promise.all([
@@ -256,13 +256,8 @@ test.describe('Persistence stress', () => {
     await expect(svPage.locator('text=Site Visit Recorded')).toBeVisible({ timeout: 20_000 });
     await svPage.close();
 
-    // The project detail modal (opened on `page` at the top of this test, to
-    // launch the Site Visit popup) is still open here and covers the nav bar's
-    // Sign out button — close it before logging out. ProjectDetailModal.jsx
-    // does not close on Escape (verified live — it only closes via its own
-    // "x" button or a click on the overlay), so use the real close button.
-    await modal.locator('.close-button').click();
-    await expect(modal).not.toBeVisible({ timeout: 5_000 });
+    // Project details render inline in the Portfolio master-detail workspace
+    // (no modal/overlay), so the sidebar's Sign out button is never covered.
 
     // Logout and re-login, verify data still visible in drawer
     await logout(page);

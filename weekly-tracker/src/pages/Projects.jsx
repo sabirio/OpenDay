@@ -11,15 +11,17 @@ import {
 } from "../hooks/useProjectEditorOrchestration";
 import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
 import ZonedScopeConfigurator from "../components/projects/ZonedScopeConfigurator";
-import ProjectDetailModal from "../components/projects/ProjectDetailModal";
+import ProjectDetailPane from "../components/projects/ProjectDetailPane";
+import PortfolioProjectList from "../components/projects/PortfolioProjectList";
 import GcInvitationModal from "../components/projects/GcInvitationModal";
 import ProjectEditorModal from "../components/projects/ProjectEditorModal";
-import ProjectFilters from "../components/projects/ProjectFilters";
-import ProjectTable from "../components/projects/ProjectTable";
 import ExportProjectsButton from "../components/projects/ExportProjectsButton";
 import { useToast } from "../components/shared/Toast.jsx";
 import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
 import { LOCATION_TYPE_OPTIONS } from "../config/projectVocabulary";
+import { computePageCount, clampPage, paginate } from "../hooks/usePortfolioPaginationPresentation";
+
+const PORTFOLIO_PAGE_SIZE = 50;
 
 const emptyProject = {
   storeCode: "",
@@ -71,13 +73,18 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const [showForm, setShowForm] = useState(false);
   const [newProject, setNewProject] = useState(emptyProject);
   const [editingProjectId, setEditingProjectId] = useState(null);
-  const [viewingProject, setViewingProject] = useState(null); // detail view
   const [typeFilter, setTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [countryFilter, setCountryFilter] = useState("All");
   const [salesMarketFilter, setSalesMarketFilter] = useState("All");
   const [locationTypeFilter, setLocationTypeFilter] = useState("All");
   const [searchQuery, setSearchQuery]     = useState("");
+  // Master-detail workspace state — selection/pagination are Portfolio's own
+  // presentation state, not a new data model (Portfolio's authorized
+  // `projects` collection is unchanged).
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [mobileView, setMobileView] = useState("list"); // 'list' | 'details' — only visually meaningful below the mobile breakpoint (see index.css)
   const [gcModal, setGcModal]                 = useState(null); // project being invited
   const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
   const [gcEmail, setGcEmail]             = useState('');
@@ -129,7 +136,6 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     setNewProject(snapshot);
     originalProjectRef.current = snapshot;
     setEditingProjectId(project.id);
-    setViewingProject(null);
     setConflict(null);
     setShowForm(true);
   }
@@ -277,8 +283,43 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     return matchesType && matchesStatus && matchesCountry && matchesSalesMarket && matchesLocationType;
   });
 
+  const pageCount = computePageCount(filteredProjects.length, PORTFOLIO_PAGE_SIZE);
+
+  // Reset to page 1 whenever the active filters/search change, and clamp if
+  // the page count shrinks for any other reason (e.g. a project is deleted).
+  // Adjusted during render — React's documented pattern for resetting state
+  // in response to a prop/derived-value change — rather than a useEffect, so
+  // this render already reflects the corrected page with no extra round-trip.
+  const filterSignature = JSON.stringify([searchQuery, typeFilter, statusFilter, countryFilter, salesMarketFilter, locationTypeFilter]);
+  const prevFilterSignatureRef = useRef(filterSignature);
+  let effectiveCurrentPage = prevFilterSignatureRef.current !== filterSignature ? 1 : currentPage;
+  prevFilterSignatureRef.current = filterSignature;
+  effectiveCurrentPage = clampPage(effectiveCurrentPage, pageCount);
+  if (effectiveCurrentPage !== currentPage) setCurrentPage(effectiveCurrentPage);
+
+  const pagedProjects = paginate(filteredProjects, effectiveCurrentPage, PORTFOLIO_PAGE_SIZE);
+
+  // Keep selection valid for whatever is currently visible (initial load,
+  // page change, or a filter change that moves the current selection off the
+  // visible page): select the first visible project, or none. Same
+  // render-time adjustment pattern as above.
+  let effectiveSelectedProjectId = selectedProjectId;
+  if (pagedProjects.length === 0) {
+    effectiveSelectedProjectId = null;
+  } else if (!pagedProjects.some((p) => p.id === selectedProjectId)) {
+    effectiveSelectedProjectId = pagedProjects[0].id;
+  }
+  if (effectiveSelectedProjectId !== selectedProjectId) setSelectedProjectId(effectiveSelectedProjectId);
+
+  const selectedProject = pagedProjects.find((p) => p.id === effectiveSelectedProjectId) ?? null;
+
+  function selectProject(project) {
+    setSelectedProjectId(project.id);
+    setMobileView("details"); // no visual effect on desktop — see index.css
+  }
+
   return (
-    <div>
+    <div className="portfolio-page">
       {/* -- Page header -------------------------------------------------------- */}
       <div className="page-header">
         <div>
@@ -301,49 +342,60 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         </div>
       </div>
 
-      <ProjectFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        salesMarketFilter={salesMarketFilter}
-        onSalesMarketChange={setSalesMarketFilter}
-        salesMarketOptions={salesMarketOptions}
-        countryFilter={countryFilter}
-        onCountryChange={setCountryFilter}
-        countryOptions={countryOptions}
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
-        statusOptions={statusOptions}
-        typeFilter={typeFilter}
-        onTypeChange={setTypeFilter}
-        typeOptions={typeOptions}
-        locationTypeFilter={locationTypeFilter}
-        onLocationTypeChange={setLocationTypeFilter}
-        locationTypeOptions={locationTypeOptions}
-        filtersActive={filtersActive}
-        onClearFilters={clearFilters}
-        filteredCount={filteredProjects.length}
-        totalCount={projects.length}
-        activeCount={activeCount}
-        completedCount={completedCount}
-      />
-
-      <ProjectTable
-        projects={filteredProjects}
-        totalProjects={projects.length}
-        onViewProject={setViewingProject}
-        onEditProject={handleEditProject}
-        onInviteContractor={openGcModal}
-      />
-
-      {/* -- Project Detail Modal (read-only, opens on Store Code click) -------- */}
-      {viewingProject && (
-        <ProjectDetailModal
-          project={viewingProject}
-          projects={projects}
-          onClose={() => setViewingProject(null)}
-          onEdit={() => handleEditProject(viewingProject)}
+      {/* -- Master-detail workspace: Project List | Project Details ----------- */}
+      <div className="portfolio-workspace" data-mobile-view={mobileView}>
+        <PortfolioProjectList
+          pagedProjects={pagedProjects}
+          totalFilteredCount={filteredProjects.length}
+          totalProjects={projects.length}
+          selectedProjectId={selectedProject?.id ?? null}
+          onSelectProject={selectProject}
+          onEditProject={handleEditProject}
+          onInviteContractor={openGcModal}
+          currentPage={currentPage}
+          pageCount={pageCount}
+          pageSize={PORTFOLIO_PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          filterProps={{
+            searchQuery,
+            onSearchChange: setSearchQuery,
+            salesMarketFilter,
+            onSalesMarketChange: setSalesMarketFilter,
+            salesMarketOptions,
+            countryFilter,
+            onCountryChange: setCountryFilter,
+            countryOptions,
+            statusFilter,
+            onStatusChange: setStatusFilter,
+            statusOptions,
+            typeFilter,
+            onTypeChange: setTypeFilter,
+            typeOptions,
+            locationTypeFilter,
+            onLocationTypeChange: setLocationTypeFilter,
+            locationTypeOptions,
+            filtersActive,
+            onClearFilters: clearFilters,
+            filteredCount: filteredProjects.length,
+            totalCount: projects.length,
+            activeCount,
+            completedCount,
+          }}
         />
-      )}
+
+        <div className="portfolio-details-pane">
+          {selectedProject ? (
+            <ProjectDetailPane
+              project={selectedProject}
+              projects={projects}
+              onEdit={() => handleEditProject(selectedProject)}
+              onBack={() => setMobileView("list")}
+            />
+          ) : (
+            <div className="portfolio-empty-state portfolio-details-empty">Select a project to view its details.</div>
+          )}
+        </div>
+      </div>
 
       <GcInvitationModal
         project={gcModal}
