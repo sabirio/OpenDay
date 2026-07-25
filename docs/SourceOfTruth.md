@@ -271,7 +271,7 @@ future analytical engines (Benchmark, Cost/Schedule/Contractor Intelligence, For
 | | `budgetPerTotalSqm` / `budgetPerSalesSqm` | `budget / totalArea` / `budget / salesArea` |
 | Area | `salesAreaRatio` / `backOfHouseAreaRatio` | `salesArea / totalArea` / `backOfHouseArea / totalArea` (0–1, not a percentage) |
 
-All calendar-day differences reuse the existing `diffDays` from `engines/ganttLayout.js` (already the canonical, UTC-safe day-difference formula used by GanttChart's own drag-resize) rather than a new duplicate implementation.
+All calendar-day differences reuse the canonical `diffDays` from `engines/dateMath.js` — a neutral date-math utility, not a Gantt-layout one. It was moved out of `engines/ganttLayout.js` (which now only re-exports it, unchanged, for its existing consumers) so History (and later Benchmark) depend on generic date arithmetic rather than on a Gantt-specific module; the formula itself is unchanged. `engines/ganttEngine.js` has its own separate, private, UTC-midnight-normalizing `diffDays` for CPM scheduling — a deliberately different formula for a different purpose, out of scope for this consolidation.
 
 **Forecast fields are never historical truth.** `construction_completion_date`/`forecast_opening_date` (engine-owned CPM outputs, recalculated on every Gantt regeneration) are never read by `historyEngine.js` — actual performance uses only `actual_construction_completion_date`/`actual_opening_date`. Enforced by a dedicated architecture-guard check (`historyArchitectureGuard.test.mjs`) that fails if either forecast field is ever accessed as a property.
 

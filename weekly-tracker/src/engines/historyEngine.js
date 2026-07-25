@@ -14,7 +14,7 @@
  * No Supabase, no React, no DB writes — this module only ever computes from
  * the project object it is given.
  */
-import { diffDays } from './ganttLayout.js';
+import { diffDays } from './dateMath.js';
 
 // ── generic guards ──────────────────────────────────────────────────────
 function hasText(value) {
