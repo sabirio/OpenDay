@@ -279,8 +279,57 @@ All calendar-day differences reuse the canonical `diffDays` from `engines/dateMa
 
 **Data quality issues (v1, minimal).** `buildHistoricalProjectFacts(project).qualityIssues` is a small deterministic array (`{code, field, message}`) flagging only analytical contradictions that would corrupt a derived metric — `PLANNED_END_BEFORE_START`, `PLANNED_OPENING_BEFORE_CONSTRUCTION_END`, `ACTUAL_COMPLETION_BEFORE_START`, `ACTUAL_OPENING_BEFORE_COMPLETION`, `SALES_AREA_EXCEEDS_TOTAL`, `NEGATIVE_AREA`, `NEGATIVE_MONEY`, `MONEY_WITHOUT_CURRENCY`. Missing optional data is never itself a quality issue — only internally-inconsistent *present* values are. The raw canonical dates/values are never rewritten; a quality issue only suppresses the specific derived metric(s) it would corrupt.
 
-**Currency — no FX, ever.** Every financial metric stays denominated in the project's own `currencyCode`; `500 USD/m²` and `250000 KZT/m²` are never averaged or converted. `costPerTotalSqm`/`costPerSalesSqm`/`costVariance` eligibility all require a known `currencyCode` (a cost-per-sqm value computed without a known currency is still returned as a number by the metric itself, but is *not* eligible — eligibility signals analytical comparability, not mere numeric presence). `portfolioHistoryEngine.buildHistoricalDataCoverage()` may report `eligibleCostProjectsByCurrency` (counts per currency code) but never a cross-currency value. FX conversion is out of scope until a future Benchmark Engine explicitly requires currency-compatible cohorts.
+**Currency — no FX, ever.** Every financial metric stays denominated in the project's own `currencyCode`; `500 USD/m²` and `250000 KZT/m²` are never averaged or converted. `costPerTotalSqm`/`costPerSalesSqm`/`costVariance` eligibility all require a known `currencyCode` (a cost-per-sqm value computed without a known currency is still returned as a number by the metric itself, but is *not* eligible — eligibility signals analytical comparability, not mere numeric presence). `portfolioHistoryEngine.buildHistoricalDataCoverage()` may report `eligibleCostProjectsByCurrency` (counts per currency code) but never a cross-currency value. FX conversion is out of scope — Benchmark Engine v1 (below) enforces same-currency cohorts for absolute cost metrics instead of converting.
 
 **Contractor attribution ≠ contractor scoring.** `eligibility.contractorAttribution` only says whether `general_contractor` is known/non-empty — it is not a score, rank, or quality judgment. Contractor Performance (a future engine) owns that.
 
 **No benchmarking, no forecasting, no AI in this layer.** No averages, medians, percentiles, rankings, or outlier detection are computed here — this is Data Coverage (counts only), not Benchmark Engine. Those consume this same dataset later.
+
+# Benchmark Engine v1
+
+Answers "which genuinely comparable previous projects should this project be benchmarked against, and what does that cohort tell us?" — a project-profile benchmark of **what happened**, not a forecast of what will happen (Forecast Engine is separate, later work).
+
+```
+Live OpenDay Projects + Imported Historical Projects
+        ↓
+Canonical projects
+        ↓
+Historical Data Foundation (buildHistoricalProjectFacts / buildHistoricalProjectDataset)
+        ↓
+Benchmark Engine (buildProjectBenchmark / buildProjectBenchmarks)
+        ↓
+future Benchmark UI (not built in this task)
+```
+
+**Evidence over opinion — no similarity score.** `src/engines/benchmarkEngine.js` never computes an opaque similarity score, weighting, or AI ranking. Cohort membership is a deterministic, explainable rule set: every result's `cohort.criteria` states exactly why the compared projects were compared (country, projectType, storeConcept, locationType, area tolerance, currency).
+
+**Consumes Historical Foundation, never recalculates it.** `buildProjectBenchmark`/`buildProjectBenchmarks` take `HistoricalProjectFacts`/`HistoricalProjectFacts[]` (from `historyEngine.js`/`portfolioHistoryEngine.js`) as input — they never recompute `actualCostPerTotalSqm`, `actualConstructionDays`, `openingVarianceDays`, `costVariancePercent`, or any eligibility flag, and never query Supabase or accept a raw DB project row. Authorization (which projects the caller is even allowed to see) stays entirely outside this engine, in whatever built the dataset.
+
+**Exactly 5 supported v1 metrics:** `actualCostPerTotalSqm`, `actualCostPerSalesSqm`, `actualConstructionDays`, `openingVarianceDays`, `costVariancePercent`. No others without new evidence of need.
+
+**Base compatibility (every metric, every tier).** A candidate must: not be the target itself (excluded by canonical identity — `identity.storeCode` — not array reference, so the same project appearing twice in a dataset is still excluded); be eligible for that metric per Historical Foundation's own `eligibility.*` flag; have the metric's value; share the target's `country` and `projectType` (both mandatory always — a benchmark never silently crosses a market or project-type boundary to inflate sample size).
+
+**Deterministic 4-tier cohort selection**, evaluated strongest → broadest, first tier reaching `MIN_BENCHMARK_SAMPLE_SIZE = 3` wins (both constants centralized in the one `BENCHMARK_COHORT_POLICY` object, not scattered literals):
+
+| Tier | Label | storeConcept | locationType | Total area tolerance |
+|---|---|---|---|---|
+| 1 | CLOSE_MATCH | required | required | ±25% |
+| 2 | STRONG_MATCH | required | any | ±40% |
+| 3 | BROAD_MATCH | any | any | ±50% |
+| 4 | MARKET_PROJECT_TYPE | any | any | none |
+
+Area tolerance is inclusive at both boundaries (target 1000m², Tier 1 → 750 and 1250 both included, 749 and 1251 excluded). If the target's own `storeConcept`/`locationType`/`totalArea` is unknown, tiers that require a *known* matching value on that field never match anything (a null target value is never treated as "matches every null candidate") — the search simply falls through to a broader tier. If no tier reaches the minimum, the result is `INSUFFICIENT_EVIDENCE` with `bestAvailableTier`/`bestAvailableSampleSize` exposed for transparency — never a benchmark fabricated from 1–2 projects.
+
+**Currency boundary is metric-specific, not uniform.** `actualCostPerTotalSqm`/`actualCostPerSalesSqm` are absolute currency-per-area values, so they require the same `currencyCode` as the target (no FX in v1 — a different-currency project is excluded from the cohort, never converted). `costVariancePercent` is already dimensionless (a ratio of actual to budget in the project's own currency), so it does **not** require currency match — this is a deliberate v1 policy decision, not an oversight.
+
+**Zero-actual-cost benchmark policy (Benchmark-only, not a Historical Foundation correction).** Historical Foundation correctly keeps `actualCost = 0` as a real, non-null fact. Benchmark Engine additionally excludes `actualCost <= 0` candidates from **cost-per-area** cohorts specifically (`actualCostPerTotalSqm`/`actualCostPerSalesSqm`) as not-meaningful comparable construction-cost evidence — a comparability policy layered on top of the raw fact, which is itself untouched. `costVariancePercent` does not apply this exclusion (a $0-actual-cost project can still have a meaningful, if extreme, budget variance).
+
+**Median is the primary comparison center**, mean is still returned for transparency. Statistics (`min`, `max`, `mean`, `median`, `p25`, `p75`) use one documented deterministic percentile algorithm — linear interpolation between ranks (a.k.a. "PERCENTILE.INC") — with no outlier trimming in v1. `comparison.deltaFromMedian` preserves sign (e.g. `openingVarianceDays` cohorts and their median can legitimately be negative — early openings are never converted to absolute values or labeled "delay"). `comparison.percentFromMedian` is only computed for positive scalar cost/duration metrics (`actualCostPerTotalSqm`, `actualCostPerSalesSqm`, `actualConstructionDays`) when the median is non-zero — never for `openingVarianceDays` (signed, can legitimately be 0) or `costVariancePercent` (already a percent), and never `NaN`/`Infinity` when the median is 0.
+
+**Three statuses, no judgmental labels.** `AVAILABLE`, `INSUFFICIENT_EVIDENCE`, `TARGET_NOT_ELIGIBLE` (target itself lacks the metric's value, eligibility, country/projectType, currency, or — for cost-per-area metrics — a positive actual cost). No `GOOD`/`BAD`/`HIGH RISK` labels anywhere.
+
+**One stable result shape** across all 5 metrics and all 3 statuses: `{ metric, status, target, cohort, statistics, comparison }` (`statistics`/`comparison` are `null` unless `AVAILABLE`; `cohort` always includes a `tiersEvaluated` log of all 4 tiers' criteria and sample sizes, so "why were these projects compared" is always answerable, even for an insufficient-evidence result).
+
+**No persistence, no UI, no new migration.** No `project_benchmarks` table, no `benchmark_snapshots`/`benchmark_percentiles` columns, no cohort table — migration chain still ends at `040`. No "Benchmarks" nav item, dashboard card, or Portfolio/Project Information change — this is an engine-only certification (`benchmarkEngine.test.mjs`, `benchmarkArchitectureGuard.test.mjs`). A future Benchmark UI/product layer consumes this engine; it was not built here.
+
+**Per-metric cohorts, not one universal cohort.** The same target project can legitimately get a different cohort (different tier, different sample size, different member projects) for each of its 5 metrics, since eligibility is per-dimension (Historical Foundation's own model) — `buildProjectBenchmarks` never forces a single shared cohort across metrics.

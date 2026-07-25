@@ -111,6 +111,23 @@ export const LIVE_IN_PROGRESS_PROJECT = {
   templateType: 'standard_with_demo', ganttGeneratedAt: '2026-08-20T10:00:00.000Z',
 };
 
+/** Benchmark Engine v1 — a single reusable "target" project, fully eligible
+ * for all 5 supported benchmark metrics (cost-per-total-sqm, cost-per-sales-
+ * sqm, actualConstructionDays, openingVarianceDays, costVariancePercent).
+ * benchmarkEngine.test.mjs builds its own small, purpose-built cohort peers
+ * around this target inline (via a local `peer()` factory) rather than
+ * pre-baking dozens of narrow tier/boundary combinations here. */
+export const BENCHMARK_TARGET_PROJECT = {
+  storeCode: 'KZ-BENCH-TARGET-1', country: 'Kazakhstan', city: 'Almaty',
+  locationType: 'Mall', shoppingMallName: 'Dostyk Plaza',
+  projectType: 'New Opening', storeConcept: 'Standard',
+  storeSizeSqm: 1000, salesAreaSqm: 700, backOfHouseAreaSqm: 300,
+  constructionStartDate: '2025-01-01', constructionEndDate: '2025-04-01', targetOpeningDate: '2025-04-10',
+  actualConstructionStartDate: '2025-01-02', actualConstructionCompletionDate: '2025-03-28', actualOpeningDate: '2025-04-09',
+  budget: 400000, actualCost: 420000, currencyCode: 'KZT',
+  generalContractor: 'Bench GC',
+};
+
 export const ALL_HISTORY_FIXTURES = Object.freeze([
   COMPLETE_MALL_PROJECT,
   COMPLETE_STREET_PROJECT,
