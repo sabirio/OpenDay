@@ -292,6 +292,192 @@ ok('openingVarianceDays never derives percentFromMedian at all (signed metric, c
   assert.equal(result.comparison.percentFromMedian, null);
 });
 
+// ── target semantics fix: cohort eligibility ≠ target comparison
+// availability. A project must be able to receive a historical benchmark
+// BEFORE it has its own actual outcome (§28 test matrix). ──────────────────
+console.log('\nbenchmarkEngine — cohort eligibility vs. target comparison availability (in-progress target)');
+
+// A brand-new/in-progress target: enough context to define a cohort
+// (country/projectType/concept/locationType/area/currency), but NO actual
+// outcome data at all (no actualCost, no budget, no actual dates).
+const inProgressTargetRaw = {
+  storeCode: 'KZ-BENCH-INPROGRESS-1', country: 'Kazakhstan', city: 'Almaty',
+  locationType: 'Mall', projectType: 'Rebuilding', storeConcept: 'Flagship',
+  storeSizeSqm: 1000, currencyCode: 'KZT',
+};
+const inProgressTarget = buildHistoricalProjectFacts(inProgressTargetRaw);
+// The exact same project, later — same cohort-defining context, now with a
+// measured outcome. Same storeCode: this is meant to represent one project
+// at two points in time, not two different projects.
+const completedTarget = buildHistoricalProjectFacts({ ...inProgressTargetRaw, actualCost: 530000, budget: 500000, salesAreaSqm: 700 });
+const rebuildFlagshipPeers = (count, overrides = {}) => peers(count, { projectType: 'Rebuilding', storeConcept: 'Flagship', ...overrides });
+
+ok('1. in-progress target (no actualCost) still gets AVAILABLE cost-per-sqm benchmark from a valid cohort', () => {
+  const result = buildProjectBenchmark({ target: inProgressTarget, dataset: rebuildFlagshipPeers(4), metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.status, 'AVAILABLE');
+  assert.equal(result.cohort.sampleSize, 4);
+  assert.ok(result.statistics);
+});
+
+ok('2. in-progress target (no actual schedule dates) still gets AVAILABLE construction-duration benchmark', () => {
+  const result = buildProjectBenchmark({ target: inProgressTarget, dataset: rebuildFlagshipPeers(4), metric: 'actualConstructionDays' });
+  assert.equal(result.status, 'AVAILABLE');
+  assert.ok(result.statistics);
+});
+
+ok('3. in-progress target (no actual opening) still gets AVAILABLE opening-variance benchmark', () => {
+  const result = buildProjectBenchmark({ target: inProgressTarget, dataset: rebuildFlagshipPeers(4), metric: 'openingVarianceDays' });
+  assert.equal(result.status, 'AVAILABLE');
+  assert.ok(result.statistics);
+});
+
+ok('4. in-progress target (no budget/actualCost) still gets AVAILABLE costVariancePercent benchmark', () => {
+  const result = buildProjectBenchmark({ target: inProgressTarget, dataset: rebuildFlagshipPeers(4), metric: 'costVariancePercent' });
+  assert.equal(result.status, 'AVAILABLE');
+  assert.ok(result.statistics);
+});
+
+ok('5/6. missing target metric value -> comparisonAvailable false and comparison null (never fabricated)', () => {
+  const result = buildProjectBenchmark({ target: inProgressTarget, dataset: rebuildFlagshipPeers(4), metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.target.value, null);
+  assert.equal(result.target.comparisonAvailable, false);
+  assert.equal(result.comparison, null);
+});
+
+ok('7/8. known target metric value -> comparisonAvailable true and comparison present', () => {
+  const result = buildProjectBenchmark({ target, dataset: peers(4), metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.target.comparisonAvailable, true);
+  assert.ok(result.comparison);
+  assert.ok(Number.isFinite(result.comparison.deltaFromMedian));
+});
+
+ok('9. cohort and statistics are byte-identical whether the target has a known actual outcome or not (regression guard)', () => {
+  const dataset = rebuildFlagshipPeers(4);
+  const before = buildProjectBenchmark({ target: inProgressTarget, dataset, metric: 'actualCostPerTotalSqm' });
+  const after = buildProjectBenchmark({ target: completedTarget, dataset, metric: 'actualCostPerTotalSqm' });
+  assert.deepEqual(before.cohort, after.cohort);
+  assert.deepEqual(before.statistics, after.statistics);
+  assert.equal(before.comparison, null);
+  assert.ok(after.comparison);
+});
+
+ok('10. missing target country -> TARGET_NOT_ELIGIBLE', () => {
+  const t = buildHistoricalProjectFacts({ ...inProgressTargetRaw, country: undefined });
+  const result = buildProjectBenchmark({ target: t, dataset: rebuildFlagshipPeers(4), metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.status, 'TARGET_NOT_ELIGIBLE');
+  assert.match(result.reason, /country/);
+});
+
+ok('11. missing target projectType -> TARGET_NOT_ELIGIBLE (no cross-project-type fallback)', () => {
+  const t = buildHistoricalProjectFacts({ ...inProgressTargetRaw, projectType: undefined });
+  const result = buildProjectBenchmark({ target: t, dataset: rebuildFlagshipPeers(4), metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.status, 'TARGET_NOT_ELIGIBLE');
+  assert.match(result.reason, /projectType/);
+});
+
+ok('12. absolute-cost metric with target missing currency -> TARGET_NOT_ELIGIBLE (no FX fallback)', () => {
+  const t = buildHistoricalProjectFacts({ ...inProgressTargetRaw, currencyCode: undefined });
+  const result = buildProjectBenchmark({ target: t, dataset: rebuildFlagshipPeers(4), metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.status, 'TARGET_NOT_ELIGIBLE');
+  assert.match(result.reason, /currency/);
+});
+
+ok('13. costVariancePercent target missing currency may still benchmark (dimensionless, no currency requirement)', () => {
+  const t = buildHistoricalProjectFacts({ ...inProgressTargetRaw, currencyCode: undefined });
+  const result = buildProjectBenchmark({ target: t, dataset: rebuildFlagshipPeers(4), metric: 'costVariancePercent' });
+  assert.equal(result.status, 'AVAILABLE');
+});
+
+ok('14. historical candidates still require Historical Foundation eligibility, even when the target itself has no actuals', () => {
+  const badChronologyPeer = peer({ projectType: 'Rebuilding', storeConcept: 'Flagship', actualConstructionStartDate: '2025-03-01', actualConstructionCompletionDate: '2025-01-01' });
+  const dataset = [...rebuildFlagshipPeers(3), badChronologyPeer];
+  const result = buildProjectBenchmark({ target: inProgressTarget, dataset, metric: 'actualConstructionDays' });
+  assert.equal(result.cohort.sampleSize, 3); // bad-chronology peer still excluded
+});
+
+ok('15. the in-progress target is still excluded from its own cohort by identity, even with no actual metric value', () => {
+  const dataset = [completedTarget, ...rebuildFlagshipPeers(4)]; // completedTarget shares inProgressTarget's storeCode
+  const result = buildProjectBenchmark({ target: inProgressTarget, dataset, metric: 'actualCostPerTotalSqm' });
+  assert.ok(!result.cohort.projectIdentities.some(p => p.storeCode === 'KZ-BENCH-INPROGRESS-1'));
+  assert.equal(result.cohort.sampleSize, 4);
+});
+
+ok('16. buildProjectBenchmarks: an in-progress target can receive all 5 supported dimensions, all comparisonAvailable=false', () => {
+  const dataset = rebuildFlagshipPeers(5);
+  const results = buildProjectBenchmarks(inProgressTarget, dataset);
+  for (const metric of SUPPORTED_BENCHMARK_METRICS) {
+    assert.equal(results[metric].status, 'AVAILABLE', `${metric} should be AVAILABLE`);
+    assert.equal(results[metric].target.comparisonAvailable, false, `${metric} comparisonAvailable should be false`);
+    assert.equal(results[metric].comparison, null, `${metric} comparison should be null`);
+  }
+});
+
+ok('17. target actualCost = 0 (explicit, not missing) preserves unknown != zero but is still non-comparable for cost-per-area (existing zero-cost policy applies to target too)', () => {
+  const zeroCostTarget = buildHistoricalProjectFacts({ ...inProgressTargetRaw, actualCost: 0 });
+  const result = buildProjectBenchmark({ target: zeroCostTarget, dataset: rebuildFlagshipPeers(4), metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.status, 'AVAILABLE'); // cohort context (country/type/currency) is still fine
+  assert.equal(result.target.value, 0); // unknown != zero — explicit 0, not null
+  assert.equal(result.target.comparisonAvailable, false); // but not meaningful cost-per-area comparison evidence
+  assert.equal(result.comparison, null);
+});
+
+ok('18. insufficient historical sample still returns INSUFFICIENT_EVIDENCE for an in-progress target (never fabricated)', () => {
+  const result = buildProjectBenchmark({ target: inProgressTarget, dataset: rebuildFlagshipPeers(2), metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.status, 'INSUFFICIENT_EVIDENCE');
+  assert.equal(result.target.comparisonAvailable, false);
+  assert.equal(result.statistics, null);
+});
+
+// ── worked examples from the product brief, reproduced exactly ─────────────
+console.log('\nbenchmarkEngine — worked examples (cost/schedule/opening, in-progress vs completed)');
+
+ok('worked example (cost, in-progress): 4-project KZT cohort, target has no actual cost yet', () => {
+  const t = buildHistoricalProjectFacts({
+    storeCode: 'KZ-BENCH-EX-COST', country: 'Kazakhstan', projectType: 'Rebuilding', storeConcept: 'Flagship', locationType: 'Mall',
+    storeSizeSqm: 1000, currencyCode: 'KZT',
+  });
+  const dataset = [480000, 500000, 520000, 550000].map(actualCost => peer({ projectType: 'Rebuilding', storeConcept: 'Flagship', actualCost, storeSizeSqm: 1000 }));
+  const result = buildProjectBenchmark({ target: t, dataset, metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.status, 'AVAILABLE');
+  assert.equal(result.cohort.sampleSize, 4);
+  assert.equal(result.target.value, null);
+  assert.equal(result.target.comparisonAvailable, false);
+  assert.equal(result.comparison, null);
+  assert.ok(close(result.statistics.median, 510)); // (500 + 520) / 2
+});
+
+ok('worked example (cost, completed): same target/cohort, actual now known -> same cohort+statistics, comparison now present', () => {
+  const t = buildHistoricalProjectFacts({
+    storeCode: 'KZ-BENCH-EX-COST', country: 'Kazakhstan', projectType: 'Rebuilding', storeConcept: 'Flagship', locationType: 'Mall',
+    storeSizeSqm: 1000, currencyCode: 'KZT', actualCost: 530000000, // -> actualCostPerTotalSqm = 530000
+  });
+  const dataset = [480000, 500000, 520000, 550000].map(actualCost => peer({ projectType: 'Rebuilding', storeConcept: 'Flagship', actualCost, storeSizeSqm: 1000 }));
+  const result = buildProjectBenchmark({ target: t, dataset, metric: 'actualCostPerTotalSqm' });
+  assert.equal(result.status, 'AVAILABLE');
+  assert.equal(result.cohort.sampleSize, 4); // same cohort as the in-progress example
+  assert.equal(result.target.value, 530000);
+  assert.equal(result.target.comparisonAvailable, true);
+  assert.ok(result.comparison);
+  assert.ok(close(result.statistics.median, 510)); // same statistics as the in-progress example
+  assert.ok(close(result.comparison.deltaFromMedian, 530000 - 510));
+});
+
+ok('worked example (schedule): in-progress target with no actualConstructionDays still gets historical duration statistics', () => {
+  const t = buildHistoricalProjectFacts({ storeCode: 'KZ-BENCH-EX-SCHED', country: 'Kazakhstan', projectType: 'New Opening' });
+  const result = buildProjectBenchmark({ target: t, dataset: peers(4), metric: 'actualConstructionDays' });
+  assert.equal(result.status, 'AVAILABLE');
+  assert.equal(result.target.comparisonAvailable, false);
+  assert.ok(result.statistics);
+});
+
+ok('worked example (opening): target has targetOpeningDate but no actualOpeningDate yet, still gets opening-variance statistics', () => {
+  const t = buildHistoricalProjectFacts({ storeCode: 'KZ-BENCH-EX-OPEN', country: 'Kazakhstan', projectType: 'New Opening', targetOpeningDate: '2025-06-01' });
+  const result = buildProjectBenchmark({ target: t, dataset: peers(4), metric: 'openingVarianceDays' });
+  assert.equal(result.status, 'AVAILABLE');
+  assert.equal(result.target.comparisonAvailable, false);
+  assert.ok(result.statistics);
+});
+
 // ── portfolio builder ───────────────────────────────────────────────────────
 console.log('\nbenchmarkEngine — buildProjectBenchmarks (all 5 metrics at once, no UI)');
 

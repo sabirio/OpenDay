@@ -77,6 +77,17 @@ const SUPPORTED_METRICS = {
 };
 export const SUPPORTED_BENCHMARK_METRICS = Object.freeze(Object.keys(SUPPORTED_METRICS));
 
+// ── target comparison availability — separate from cohort eligibility
+// (above). Answers "does THIS project already have its own measured
+// outcome for this metric?" — never a reason to withhold cohort evidence,
+// only a reason to withhold the target-vs-median comparison itself. ───────
+function isComparisonAvailable(target, metricDef, targetValue) {
+  if (targetValue == null) return false;
+  if (!target?.eligibility?.[metricDef.eligibilityKey]) return false;
+  if (metricDef.requiresPositiveCost && !(isFiniteNum(target?.financial?.actualCost) && target.financial.actualCost > 0)) return false;
+  return true;
+}
+
 // ── base compatibility (§ base compatibility rules — ALL v1 metrics) ───────
 // Candidate's metric value presence is checked by the caller (it needs the
 // metric key, which this function intentionally doesn't take — see
@@ -182,23 +193,31 @@ export function buildProjectBenchmark({ target, dataset, metric }) {
   const targetValue = target?.metrics?.[metric] ?? null;
   const targetCurrency = metricDef.requiresCurrency ? (target?.financial?.currencyCode ?? null) : null;
 
-  // ── TARGET_NOT_ELIGIBLE gate — nothing to benchmark, no cohort search
-  // is even attempted; explicit reasons for explainability. ────────────────
-  const reasons = [];
-  if (!hasText(target?.location?.country)) reasons.push('target country is unknown');
-  if (!hasText(target?.classification?.projectType)) reasons.push('target projectType is unknown');
-  if (!target?.eligibility?.[metricDef.eligibilityKey]) reasons.push(`target is not eligible for ${metric} per Historical Data Foundation`);
-  if (targetValue == null) reasons.push(`target has no value for ${metric}`);
-  if (metricDef.requiresCurrency && !hasText(target?.financial?.currencyCode)) reasons.push('target currency is unknown');
-  if (metricDef.requiresPositiveCost && !(isFiniteNum(target?.financial?.actualCost) && target.financial.actualCost > 0)) {
-    reasons.push('target actualCost is zero or negative — not meaningful cost-per-area evidence');
-  }
+  // comparisonAvailable is a target-outcome question ("has this project
+  // finished/measured this metric yet?"), fully independent of whether a
+  // comparable historical cohort can be selected. A brand-new/in-progress
+  // project must still be able to receive cohort statistics — see
+  // docs/SourceOfTruth.md "Benchmark Engine v1 — target cohort eligibility
+  // vs. target comparison availability".
+  const comparisonAvailable = isComparisonAvailable(target, metricDef, targetValue);
 
-  if (reasons.length > 0) {
+  // ── TARGET_NOT_ELIGIBLE gate — can a comparable cohort even be DEFINED
+  // for this target? Only cohort-defining context matters here (country,
+  // projectType, and — for absolute cost-per-area metrics only — currency).
+  // The target's OWN outcome (eligibility flag / metric value / positive
+  // cost) must never block cohort selection; that only gates
+  // comparisonAvailable above. No cohort search is attempted below when
+  // this gate fails. ─────────────────────────────────────────────────────
+  const cohortContextReasons = [];
+  if (!hasText(target?.location?.country)) cohortContextReasons.push('target country is unknown');
+  if (!hasText(target?.classification?.projectType)) cohortContextReasons.push('target projectType is unknown');
+  if (metricDef.requiresCurrency && !hasText(target?.financial?.currencyCode)) cohortContextReasons.push('target currency is unknown');
+
+  if (cohortContextReasons.length > 0) {
     return {
       metric,
       status: 'TARGET_NOT_ELIGIBLE',
-      target: { projectIdentity: targetIdentity, value: targetValue, unit: metricDef.unit, currencyCode: targetCurrency },
+      target: { projectIdentity: targetIdentity, value: targetValue, unit: metricDef.unit, currencyCode: targetCurrency, comparisonAvailable },
       cohort: {
         tier: null, tierLabel: null, criteria: null, sampleSize: 0, projectIdentities: [],
         bestAvailableTier: null, bestAvailableTierLabel: null, bestAvailableSampleSize: null, bestAvailableProjectIdentities: [],
@@ -206,7 +225,7 @@ export function buildProjectBenchmark({ target, dataset, metric }) {
       },
       statistics: null,
       comparison: null,
-      reason: reasons.join('; '),
+      reason: cohortContextReasons.join('; '),
     };
   }
 
@@ -231,7 +250,7 @@ export function buildProjectBenchmark({ target, dataset, metric }) {
     return {
       metric,
       status: 'INSUFFICIENT_EVIDENCE',
-      target: { projectIdentity: targetIdentity, value: targetValue, unit: metricDef.unit, currencyCode: targetCurrency },
+      target: { projectIdentity: targetIdentity, value: targetValue, unit: metricDef.unit, currencyCode: targetCurrency, comparisonAvailable },
       cohort: {
         // No winning cohort was found — tier/criteria/sampleSize describe
         // nothing here (never fabricate a benchmark from an under-sized
@@ -251,15 +270,23 @@ export function buildProjectBenchmark({ target, dataset, metric }) {
 
   const values = winning.matches.map(m => m.metrics[metric]);
   const statistics = computeStatistics(values);
-  const deltaFromMedian = targetValue - statistics.median;
-  const percentFromMedian = (metricDef.supportsPercentFromMedian && statistics.median !== 0)
-    ? (deltaFromMedian / statistics.median) * 100
-    : null;
+
+  // Cohort statistics are computed unconditionally (evidence about the
+  // historical cohort never depends on whether the target itself has
+  // finished) — only the target-vs-median comparison is gated.
+  let comparison = null;
+  if (comparisonAvailable) {
+    const deltaFromMedian = targetValue - statistics.median;
+    const percentFromMedian = (metricDef.supportsPercentFromMedian && statistics.median !== 0)
+      ? (deltaFromMedian / statistics.median) * 100
+      : null;
+    comparison = { deltaFromMedian, percentFromMedian };
+  }
 
   return {
     metric,
     status: 'AVAILABLE',
-    target: { projectIdentity: targetIdentity, value: targetValue, unit: metricDef.unit, currencyCode: targetCurrency },
+    target: { projectIdentity: targetIdentity, value: targetValue, unit: metricDef.unit, currencyCode: targetCurrency, comparisonAvailable },
     cohort: {
       tier: winning.tier,
       tierLabel: winning.tierLabel,
@@ -271,7 +298,7 @@ export function buildProjectBenchmark({ target, dataset, metric }) {
       tiersEvaluated: tiersEvaluated.map(({ matches: _matches, ...rest }) => rest),
     },
     statistics,
-    comparison: { deltaFromMedian, percentFromMedian },
+    comparison,
   };
 }
 
