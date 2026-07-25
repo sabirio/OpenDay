@@ -16,6 +16,7 @@
  */
 import { buildHistoricalProjectFacts } from './historyEngine.js';
 import { computeStatistics } from './statistics.js';
+import { isUsableActualCostEvidence } from './costEvidencePolicy.js';
 
 // ── generic guards (small, local — mirrors historyEngine.js's own private
 // helpers rather than exporting/importing across engines for a few lines) ──
@@ -85,7 +86,7 @@ export const SUPPORTED_BENCHMARK_METRICS = Object.freeze(Object.keys(SUPPORTED_M
 function isComparisonAvailable(target, metricDef, targetValue) {
   if (targetValue == null) return false;
   if (!target?.eligibility?.[metricDef.eligibilityKey]) return false;
-  if (metricDef.requiresPositiveCost && !(isFiniteNum(target?.financial?.actualCost) && target.financial.actualCost > 0)) return false;
+  if (metricDef.requiresPositiveCost && !isUsableActualCostEvidence(target)) return false;
   return true;
 }
 
@@ -99,7 +100,7 @@ function isCandidateEligible(target, candidate, metricDef) {
   if (candidate?.location?.country !== target.location.country) return false;
   if (candidate?.classification?.projectType !== target.classification.projectType) return false;
   if (metricDef.requiresCurrency && candidate?.financial?.currencyCode !== target.financial.currencyCode) return false;
-  if (metricDef.requiresPositiveCost && !(isFiniteNum(candidate?.financial?.actualCost) && candidate.financial.actualCost > 0)) return false;
+  if (metricDef.requiresPositiveCost && !isUsableActualCostEvidence(candidate)) return false;
   return true;
 }
 
