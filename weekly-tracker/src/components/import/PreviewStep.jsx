@@ -103,7 +103,7 @@ export default function PreviewStep({ plan, previewFilter, onSetFilter, onBackTo
           })}
         </div>
       ) : (
-        <div className="card" style={{ overflowX: 'auto', padding: 0 }}>
+        <div className="card ds-data-surface" style={{ padding: 0 }}>
           <table className="ds-table">
             <thead>
               <tr>

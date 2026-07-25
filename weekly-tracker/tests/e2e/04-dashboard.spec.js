@@ -25,7 +25,7 @@ test.describe('Project Dashboard — Admin', () => {
   test('clicking a project row opens the detail drawer', async ({ page }) => {
     // Real project rows have a <strong> storeCode element.
     // Wait for at least one to appear (avoids clicking the empty "No matching projects." placeholder).
-    const projectRows = page.locator('table.dashboard-table tbody tr').filter({ has: page.locator('strong') });
+    const projectRows = page.locator('table.status-matrix-table tbody tr').filter({ has: page.locator('strong') });
     await expect(projectRows.first()).toBeVisible({ timeout: 15_000 });
 
     await projectRows.first().click();

@@ -11,8 +11,8 @@ export default function MissingReportsModal({ missingRows, onClose }) {
           </div>
           <button type="button" onClick={onClose} style={{ minHeight: 36, padding: "5px 13px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--accent-subtle)", color: "var(--text-secondary)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Close</button>
         </div>
-        <div style={{ overflowY: "auto", padding: "16px 24px" }}>
-          <table className="dashboard-table" style={{ width: "100%" }}>
+        <div className="ds-data-surface" style={{ overflowY: "auto", padding: "16px 24px" }}>
+          <table className="ds-table ds-table--dense" style={{ width: "100%" }}>
             <thead><tr><th>Project</th><th>Contractor</th><th>Last Report</th><th>Days Since</th><th>PM</th><th>Status</th></tr></thead>
             <tbody>
               {missingRows.map(({ project, latestReport, daysSinceReport }) => (

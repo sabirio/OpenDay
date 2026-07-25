@@ -534,48 +534,6 @@ body {
 }
 
 
-/* ============================================================
-   DASHBOARD TABLE
-   ============================================================ */
-/* Phase 5 canonical Data Surface base — 4 real consumers (Dashboard's own
-   Status Matrix + Contractors tab, Risk's Escalations Register, Weekly
-   Reports' Missing Reports modal). ~38px row (2 x --table-cell-padding-y +
-   ~18px line height), in the "36-40px standard enterprise row" range.
-   white-space is deliberately NOT forced to nowrap here — a blanket rule
-   was silently forcing long description text in nested cell content
-   (inherited, since white-space cascades) to never wrap; columns that
-   genuinely need nowrap (dates, counts, single-word status) set it
-   themselves, same as they already did for several columns before this
-   change. */
-.dashboard-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 14px;
-}
-
-.dashboard-table th,
-.dashboard-table td {
-  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
-
-.dashboard-table th {
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.dashboard-table td {
-  color: var(--text-body);
-  font-size: 0.875rem;
-}
-
-.dashboard-table tbody tr:hover { background: var(--bg-elevated); }
-
 /* Project Dashboard polish: operational KPI row, desktop-fit matrix, controls, tabs. */
 .dashboard-kpi-row {
   display: grid;
@@ -673,8 +631,8 @@ body {
   overflow: hidden;
 }
 
-/* Phase 5: unconditional overflow-x:auto — with explicit px column widths
-   below, the table's own intrinsic width (950px) now determines when
+/* Phase 5D: unconditional overflow-x:auto — with explicit px column widths
+   below, the table's own intrinsic width (980px) now determines when
    scrolling is actually needed, so the previous "only below 1080px"
    breakpoint-gated toggle is redundant (one less breakpoint to track). */
 .status-matrix-scroll {
@@ -684,7 +642,7 @@ body {
 
 .status-matrix-table {
   table-layout: fixed;
-  min-width: 950px;
+  min-width: 980px;
   margin-top: 0;
 }
 
@@ -707,11 +665,11 @@ body {
    on this table-layout:fixed table — percentages of a fixed-layout table
    don't respect content minimums, which is exactly why Store/Project (was
    8% ≈ 78px of the 980px-min table) felt cramped for 2-line store codes.
-   Store gets real room (110px); Blocked/Support/Alert/Days Left give up a
+   Store gets real room (140px); Blocked/Support/Alert/Days Left give up a
    few px each since their content (Yes/No/—/counts) never needed as much
-   as a uniform percentage split gave them. Sum = 950px, matching the
+   as a uniform percentage split gave them. Sum = 980px, matching the
    table's own min-width above. */
-.status-matrix-table th:nth-child(1)  { width: 110px; }   /* Store */
+.status-matrix-table th:nth-child(1)  { width: 140px; }   /* Store */
 .status-matrix-table th:nth-child(2)  { width: 110px; }   /* Phase */
 .status-matrix-table th:nth-child(3)  { width: 108px; }   /* Progress */
 .status-matrix-table th:nth-child(4)  { width: 80px;  }   /* Schedule */
@@ -1008,10 +966,15 @@ body {
   padding: 12px;
 }
 
+.weekly-truth-scroll {
+  width: 100%;
+}
+
 .weekly-truth-bar {
   display: grid;
-  grid-template-columns: minmax(360px, 1.35fr) minmax(140px, 0.45fr) minmax(420px, 1.2fr);
-  gap: 10px;
+  grid-template-columns: minmax(270px, 1.2fr) minmax(100px, 0.4fr) minmax(310px, 1.25fr);
+  gap: 8px;
+  min-width: 700px;
 }
 
 .weekly-truth-group {
@@ -1021,28 +984,28 @@ body {
 }
 
 .weekly-truth-group-progress {
-  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  grid-template-columns: repeat(3, minmax(84px, 1fr));
 }
 
 .weekly-truth-group-validation {
-  grid-template-columns: minmax(130px, 1fr);
+  grid-template-columns: minmax(96px, 1fr);
 }
 
 .weekly-truth-group-issues {
-  grid-template-columns: repeat(5, minmax(84px, 1fr));
+  grid-template-columns: repeat(5, minmax(54px, 1fr));
 }
 
 .weekly-truth-cell {
-  min-height: 72px;
-  padding: 10px 12px;
+  min-height: 58px;
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
   border-radius: var(--radius-md);
   border: 0;
   background: var(--bg-elevated);
 }
 
 .weekly-truth-group-progress .weekly-truth-cell {
-  min-height: 88px;
-  padding: 13px 14px;
+  min-height: 66px;
+  padding: 10px;
   background: var(--bg-elevated);
 }
 
@@ -1063,7 +1026,7 @@ body {
 }
 
 .weekly-truth-group-progress .weekly-truth-value {
-  font-size: 1.35rem;
+  font-size: 1.125rem;
 }
 
 .weekly-truth-sub {
@@ -1240,26 +1203,37 @@ body {
 
 .weekly-phase-table {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
-  gap: 8px;
+  min-width: 620px;
+  border-top: 1px solid var(--border);
+}
+
+.weekly-phase-columns,
+.weekly-phase-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 84px 72px 116px;
+  align-items: center;
+  column-gap: 12px;
+}
+
+.weekly-phase-columns {
+  min-height: 32px;
+  padding: 0 var(--table-cell-padding-x);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .weekly-phase-row {
   position: relative;
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr);
-  grid-template-areas:
-    "marker title"
-    "marker meta"
-    "marker status";
-  gap: 5px 10px;
-  align-items: start;
   width: 100%;
-  min-height: 118px;
-  padding: 12px;
+  min-height: 44px;
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
   color: var(--text-secondary);
   text-align: left;
   font: inherit;
@@ -1271,14 +1245,14 @@ button.weekly-phase-row {
 
 .weekly-phase-row.is-active {
   background: var(--accent-subtle);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 48%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .weekly-phase-marker {
-  grid-area: marker;
-  width: 8px;
-  height: 100%;
-  min-height: 72px;
+  position: absolute;
+  left: 0;
+  width: 3px;
+  height: 20px;
   border-radius: var(--radius-full);
   background: var(--border-strong);
 }
@@ -1298,7 +1272,6 @@ button.weekly-phase-row {
 }
 
 .weekly-phase-title {
-  grid-area: title;
   min-width: 0;
 }
 
@@ -1322,13 +1295,10 @@ button.weekly-phase-row {
 }
 
 .weekly-phase-pct {
-  grid-area: meta;
   font-weight: 800;
 }
 
 .weekly-phase-delta {
-  grid-area: meta;
-  justify-self: end;
   margin-top: 0;
 }
 
@@ -1338,10 +1308,8 @@ button.weekly-phase-row {
 }
 
 .weekly-phase-status {
-  grid-area: status;
-  align-self: end;
   justify-self: start;
-  padding: 4px 8px;
+  padding: 2px 7px;
   border-radius: var(--radius-full);
   background: var(--bg-elevated);
   text-transform: capitalize;
@@ -1662,40 +1630,6 @@ button.weekly-phase-row {
   font-size: 0.875rem;
   line-height: 1.55;
 }
-
-/* Project table card wrapper */
-.projects-table-card {
-  display: flex;
-  justify-content: center;
-}
-.projects-table-card > div { width: 100%; }
-
-.projects-table-card .dashboard-table {
-  width: 100%;
-  margin: 0;
-  table-layout: fixed;
-}
-.projects-table-card .dashboard-table th,
-.projects-table-card .dashboard-table td {
-  padding: 10px 12px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.projects-table-card .dashboard-table tbody tr:hover { background: var(--bg-elevated); }
-
-/* Column widths — unchanged */
-.projects-table-card .dashboard-table th:nth-child(1)  { width: 110px; }
-.projects-table-card .dashboard-table th:nth-child(2)  { width: 220px; }
-.projects-table-card .dashboard-table th:nth-child(3)  { width: 90px;  }
-.projects-table-card .dashboard-table th:nth-child(4)  { width: 140px; }
-.projects-table-card .dashboard-table th:nth-child(5)  { width: 100px; }
-.projects-table-card .dashboard-table th:nth-child(6),
-.projects-table-card .dashboard-table th:nth-child(7),
-.projects-table-card .dashboard-table th:nth-child(8)  { width: 95px;  }
-.projects-table-card .dashboard-table th:nth-child(9)  { width: 110px; }
-.projects-table-card .dashboard-table th:nth-child(10) { width: 75px;  }
-.projects-table-card .dashboard-table th:nth-child(11) { width: 160px; }
 
 /* Status cells */
 .status-active  { background: var(--chip-bg-green);  color: var(--chip-fg-green); border-radius: var(--radius-full); padding: 2px 8px; font-size: 0.75rem; font-weight: 600; }
@@ -2758,11 +2692,6 @@ button.weekly-phase-row {
   .weekly-report-truth-grid { grid-template-columns: 1fr; }
   .weekly-report-links { grid-template-columns: 1fr; }
   .weekly-comparison-kpis { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
-  .weekly-truth-bar { grid-template-columns: 1fr; }
-  .weekly-truth-group-progress,
-  .weekly-truth-group-issues {
-    grid-template-columns: repeat(3, minmax(120px, 1fr));
-  }
   .weekly-overview-console { grid-template-columns: 1fr; }
   .weekly-action-panel {
     position: static;
@@ -2773,7 +2702,6 @@ button.weekly-phase-row {
   .weekly-reports-toolbar-fields { width: 100%; }
   .weekly-reports-toolbar .dashboard-filter-group { flex: 1 1 220px; }
   .weekly-reports-toolbar .dashboard-filter-group select { width: 100%; }
-  .weekly-phase-row { grid-template-columns: 10px minmax(0, 1fr); }
 }
 
 /* ── Sidebar: off-canvas drawer below 640px ─────────────────
@@ -2940,18 +2868,6 @@ button.weekly-phase-row {
   .weekly-toolbar-actions {
     width: 100%;
   }
-  .weekly-truth-bar {
-    grid-template-columns: 1fr;
-  }
-  .weekly-truth-group-progress,
-  .weekly-truth-group-validation,
-  .weekly-truth-group-issues {
-    grid-template-columns: 1fr;
-  }
-  .weekly-truth-cell {
-    min-height: 66px;
-  }
-  .weekly-phase-table { grid-template-columns: 1fr; }
   .weekly-comparison-kpis {
     grid-template-columns: 1fr;
   }
@@ -3238,7 +3154,7 @@ button.weekly-phase-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: var(--table-cell-padding-y) 12px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: background 0.12s;
@@ -3248,7 +3164,7 @@ button.weekly-phase-row {
 .portfolio-row.is-selected {
   background: var(--accent-subtle);
   border-left: 2px solid var(--accent);
-  padding-left: 14px;
+  padding-left: 10px;
 }
 
 .portfolio-row-selected-marker {
@@ -3381,6 +3297,23 @@ button.weekly-phase-row {
 
   .portfolio-back-to-list { display: inline-flex; }
   .portfolio-details-header { flex-wrap: wrap; }
+}
+
+.specialized-data-grid {
+  font-variant-numeric: tabular-nums;
+}
+
+.specialized-data-grid tr:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+
+.risk-register-table {
+  min-width: 820px;
+}
+
+.risk-register-table tbody > tr:not(.is-selected) {
+  background: transparent;
 }
 
 
@@ -4331,13 +4264,9 @@ button.weekly-phase-row {
 
 .weekly-detail-tabpanel .weekly-truth-console {
   margin-bottom: 16px;
-  overflow-x: auto;
+  overflow: hidden;
   border: 1px solid var(--border);
   background: var(--bg-surface);
-}
-
-.weekly-detail-tabpanel .weekly-truth-bar {
-  min-width: 930px;
 }
 
 .weekly-overview-context {

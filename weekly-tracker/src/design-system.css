@@ -94,13 +94,12 @@
   --control-height-sm: 28px;
   --control-height-md: 36px;
 
-  /* Data Surface geometry (Phase 5) — the shared cell rhythm .dashboard-table
-     and ReportTruthBar's grid-based cells both consume, replacing arbitrary
-     per-page combinations (12/14/18/22/24px) with one canonical pair. Yields
-     a ~38px standard row (2 x --table-cell-padding-y + ~18px line height),
-     in the "36-40px standard enterprise row" range. */
-  --table-cell-padding-y: 10px;
-  --table-cell-padding-x: 14px;
+  /* Data Surface geometry (Phase 5D). A single standard and dense rhythm is
+     shared by semantic tables, comparison grids and master lists. */
+  --table-cell-padding-y: 8px;
+  --table-cell-padding-x: 10px;
+  --table-cell-padding-y-dense: 6px;
+  --table-cell-padding-x-dense: 8px;
 
   /* Typography */
   --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -493,10 +492,21 @@
 .btn-danger:hover:not(:disabled) { opacity: 0.85; }
 
 
-/* ── 8. Tables ───────────────────────────────────────────────────────────── */
-.ds-table { width: 100%; border-collapse: collapse; }
+/* ── 8. Data surfaces ────────────────────────────────────────────────────── */
+.ds-data-surface {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
 .ds-table thead th {
-  padding: 10px 14px;
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -506,13 +516,34 @@
   background: transparent;
 }
 .ds-table tbody td {
-  padding: 12px 14px;
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
   color: var(--text-primary);
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
+  vertical-align: middle;
 }
 .ds-table tbody tr:hover { background: var(--accent-subtle); }
 .ds-table tbody tr.row--alert { background: var(--status-alert-bg); }
+.ds-table tbody tr.is-selected { background: var(--accent-subtle); }
+.ds-table tbody tr:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+.ds-table--dense thead th,
+.ds-table--dense tbody td {
+  padding: var(--table-cell-padding-y-dense) var(--table-cell-padding-x-dense);
+}
+.ds-cell-primary { color: var(--text-primary); font-weight: 700; }
+.ds-cell-secondary { color: var(--text-muted); font-size: 0.75rem; }
+.ds-cell-number { text-align: right !important; font-variant-numeric: tabular-nums; }
+.ds-cell-nowrap,
+.ds-cell-status,
+.ds-cell-action { white-space: nowrap; }
+.ds-table-empty {
+  padding-block: 24px !important;
+  color: var(--text-muted) !important;
+  text-align: center !important;
+}
 
 
 /* ── 9. Navigation item ──────────────────────────────────────────────────── */

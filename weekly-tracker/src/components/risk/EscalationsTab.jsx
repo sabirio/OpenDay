@@ -17,8 +17,8 @@ function EscalationsTab({ allEscalations }) {
           <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 6 }}>No risks have been repeatedly reported without resolution</div>
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table className="dashboard-table" style={{ minWidth: 780 }}>
+        <div className="ds-data-surface">
+          <table className="ds-table ds-table--dense" style={{ minWidth: 780 }}>
             <thead>
               <tr><th>Project</th><th>Category</th><th>Issue</th><th style={{ textAlign: "right" }}>Reports / Days</th><th>Latest Owner</th><th>First Seen</th><th>Last Seen</th><th>Level</th></tr>
             </thead>

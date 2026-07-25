@@ -42,6 +42,10 @@ const weeklyTabs = read('components/weekly/WeeklyReportTabs.jsx');
 const riskDashboard = read('pages/RiskDashboard.jsx');
 const riskMasterList = read('components/risk/RiskDashboardMasterList.jsx');
 const riskTabs = read('components/risk/RiskDetailTabs.jsx');
+const designSystem = read('design-system.css');
+const statusMatrix = read('components/dashboard/StatusMatrix.jsx');
+const riskTable = read('components/RiskTable.jsx');
+const truthBar = read('components/weekly/ReportTruthBar.jsx');
 check('mobile navigation returns focus to its trigger', /toggleRef\.current\?\.focus/.test(layout));
 check('mobile navigation locks background scrolling while open', /document\.body\.style\.overflow\s*=\s*'hidden'/.test(layout));
 check('mobile navigation is not focusable while off-canvas', /\.sidebar\s*\{[\s\S]*visibility:\s*hidden/.test(css) && /\.sidebar\.sidebar-open\s*\{[\s\S]*visibility:\s*visible/.test(css));
@@ -62,6 +66,9 @@ check('Risk Dashboard retired Phase 4 split and inspector composition', !/split-
 check('Risk UI consumes canonical rows without importing risk engines', !/engines\/riskEngine|computeProjectRiskScore|computeScheduleDeviation/.test(riskDashboard + riskMasterList));
 check('Master and Detail establish independent scroll regions', /\.master-pane-list,[\s\S]*\.detail-pane-content\s*\{[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*auto/.test(css));
 check('narrow Master Detail uses explicit single-pane state', /data-mobile-view=\{mobileView\}/.test(masterDetail) && /data-mobile-view="master"[\s\S]*\.detail-pane[\s\S]*display:\s*none/.test(css) && /data-mobile-view="detail"[\s\S]*\.master-pane[\s\S]*display:\s*none/.test(css));
+check('canonical data surface owns table density and horizontal containment', /\.ds-data-surface\s*\{[\s\S]*overflow-x:\s*auto/.test(designSystem) && /\.ds-table--dense/.test(designSystem));
+check('representative dashboard, weekly and risk surfaces consume the canonical grammar', /ds-table ds-table--dense status-matrix-table/.test(statusMatrix) && /ds-data-surface weekly-truth-scroll/.test(truthBar) && /ds-table ds-table--dense risk-register-table/.test(riskTable));
+check('legacy dashboard table system is retired', !/dashboard-table/.test(uiSource));
 
 check('UI contains no thick one-sided accent borders', !/borderLeft:\s*[`'"\s]*[3-9]px|border-left:\s*[3-9]px/i.test(uiSource));
 check('UI contains no width-property transitions', !/transition\s*:\s*[`'"]?width/i.test(uiSource));

@@ -5,8 +5,8 @@ export default function ProjectHeatmap({ rows, onRowClick }) {
     <div className="dashboard-summary-card">
       <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>Work Package Status Heatmap</div>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>Cumulative status of each work package per project · click row to open project details</div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ borderCollapse: 'separate', borderSpacing: '3px 3px', minWidth: 900 }}>
+      <div className="ds-data-surface">
+        <table className="specialized-data-grid" style={{ borderCollapse: 'separate', borderSpacing: '3px 3px', minWidth: 900 }}>
           <thead>
             <tr>
               <th style={{ textAlign: 'left', padding: '4px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', minWidth: 110 }}>Project</th>
@@ -15,7 +15,18 @@ export default function ProjectHeatmap({ rows, onRowClick }) {
           </thead>
           <tbody>
             {rows.map(({ project, cumulativeStatuses, wpCumulativeStatuses }) => (
-              <tr key={project.id} onClick={() => onRowClick(String(project.id))} style={{ cursor: 'pointer' }}>
+              <tr
+                key={project.id}
+                onClick={() => onRowClick(String(project.id))}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onRowClick(String(project.id));
+                  }
+                }}
+                tabIndex={0}
+                style={{ cursor: 'pointer' }}
+              >
                 <td style={{ padding: '4px 8px', fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{project.storeCode}</td>
                 {WP_COLS.map(col => {
                   const st = getWpStatus(cumulativeStatuses, wpCumulativeStatuses, col);

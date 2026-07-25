@@ -6,8 +6,8 @@ export default function ContractorsTab({ contractorPerf }) {
       {contractorPerf.length === 0
         ? <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '48px 0' }}>No contractor data.</div>
         : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="dashboard-table" style={{ minWidth: 760 }}>
+          <div className="ds-data-surface">
+            <table className="ds-table ds-table--dense" style={{ minWidth: 760 }}>
               <thead>
                 <tr><th>Contractor</th><th>Projects</th><th>Avg Progress</th><th>At Risk</th><th>Blockers</th><th>Support</th><th>Missing Reports</th><th>Total Reports</th></tr>
               </thead>
@@ -20,7 +20,7 @@ export default function ContractorsTab({ contractorPerf }) {
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.projects.join(', ')}</div>
                       </td>
-                      <td style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{c.n}</td>
+                      <td className="ds-cell-number" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{c.n}</td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                           <div style={{ width: 48, background: 'var(--border)', borderRadius: 3, height: 6, overflow: 'hidden' }}>
@@ -29,11 +29,11 @@ export default function ContractorsTab({ contractorPerf }) {
                           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{c.avgProg}%</span>
                         </div>
                       </td>
-                      <td style={{ fontSize: 13, fontWeight: 700, color: c.atRisk > 0 ? 'var(--status-warn)' : 'var(--status-done)' }}>{c.atRisk}/{c.n}</td>
-                      <td style={{ fontSize: 13, fontWeight: 700, color: c.blockers > 0 ? 'var(--status-alert)' : 'var(--status-done)' }}>{c.blockers}/{c.n}</td>
-                      <td style={{ fontSize: 13, fontWeight: 700, color: c.support > 0 ? 'var(--status-warn)' : 'var(--status-done)' }}>{c.support}/{c.n}</td>
-                      <td style={{ fontSize: 13, fontWeight: 700, color: c.missing > 0 ? 'var(--status-alert)' : 'var(--status-done)' }}>{c.missing}/{c.n}</td>
-                      <td style={{ fontSize: 13, color: 'var(--text-primary)' }}>{c.reportCount}</td>
+                      <td className="ds-cell-number" style={{ fontSize: 13, fontWeight: 700, color: c.atRisk > 0 ? 'var(--status-warn)' : 'var(--status-done)' }}>{c.atRisk}/{c.n}</td>
+                      <td className="ds-cell-number" style={{ fontSize: 13, fontWeight: 700, color: c.blockers > 0 ? 'var(--status-alert)' : 'var(--status-done)' }}>{c.blockers}/{c.n}</td>
+                      <td className="ds-cell-number" style={{ fontSize: 13, fontWeight: 700, color: c.support > 0 ? 'var(--status-warn)' : 'var(--status-done)' }}>{c.support}/{c.n}</td>
+                      <td className="ds-cell-number" style={{ fontSize: 13, fontWeight: 700, color: c.missing > 0 ? 'var(--status-alert)' : 'var(--status-done)' }}>{c.missing}/{c.n}</td>
+                      <td className="ds-cell-number" style={{ fontSize: 13, color: 'var(--text-primary)' }}>{c.reportCount}</td>
                     </tr>
                   );
                 })}

@@ -105,8 +105,8 @@ function PmAlignmentTab({
                     </div>
                   </div>
                   {items.length > 0 && (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <div className="ds-data-surface">
+                      <table className="ds-table ds-table--dense" style={{ minWidth: 660 }}>
                         <thead>
                           <tr style={{ borderBottom: `2px solid var(--border)` }}>
                             {["Work Item", "Contractor Status", "PM Observed", "Mismatch Type", "Severity"].map(h => (

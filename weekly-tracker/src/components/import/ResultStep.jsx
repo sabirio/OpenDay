@@ -17,7 +17,7 @@ export default function ResultStep({ result, resultSummary, onImportAnother, onB
       </div>
 
       {notImportedRows.length > 0 ? (
-        <div className="card" style={{ overflowX: 'auto', padding: 0 }}>
+        <div className="card ds-data-surface" style={{ padding: 0 }}>
           <table className="ds-table">
             <thead>
               <tr>
