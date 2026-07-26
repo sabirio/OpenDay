@@ -14,15 +14,15 @@ test.describe('Shared dialog primitive (components/shared/Modal.jsx)', () => {
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.getByTestId('portfolio-master-project').count();
     test.skip(rowCount === 0, 'fixture admin has no visible projects — needs fixture check, not a dialog defect');
 
     // Project details render inline in the Portfolio master-detail workspace
     // (no dialog) — the reachable dialog from there is Edit Project.
-    await page.locator('.portfolio-row').first().click();
-    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+    await page.getByTestId('portfolio-master-project').first().click();
+    await expect(page.locator('.detail-pane')).toBeVisible();
 
-    const trigger = page.locator('.portfolio-details-header button', { hasText: 'Edit Project' });
+    const trigger = page.getByRole('button', { name: 'Edit Project' });
     await trigger.click();
 
     const dialog = page.locator('[role="dialog"]').first();

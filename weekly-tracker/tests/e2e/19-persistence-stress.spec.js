@@ -225,11 +225,11 @@ test.describe('Persistence stress', () => {
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.getByTestId('portfolio-master-project').count();
     test.skip(rowCount === 0, 'No projects to test PM site visit persistence');
 
-    await page.locator('.portfolio-row').first().click();
-    const detailsPane = page.locator('.portfolio-details-pane').first();
+    await page.getByTestId('portfolio-master-project').first().click();
+    const detailsPane = page.locator('.detail-pane').first();
     await expect(detailsPane).toBeVisible({ timeout: 5_000 });
 
     const siteVisitBtn = detailsPane.locator('button', { hasText: /site visit/i });

@@ -46,6 +46,9 @@ const designSystem = read('design-system.css');
 const statusMatrix = read('components/dashboard/StatusMatrix.jsx');
 const riskTable = read('components/RiskTable.jsx');
 const truthBar = read('components/weekly/ReportTruthBar.jsx');
+const projects = read('pages/Projects.jsx');
+const portfolioMasterList = read('components/projects/PortfolioProjectList.jsx');
+const projectDetailTabs = read('components/projects/ProjectDetailTabs.jsx');
 check('mobile navigation returns focus to its trigger', /toggleRef\.current\?\.focus/.test(layout));
 check('mobile navigation locks background scrolling while open', /document\.body\.style\.overflow\s*=\s*'hidden'/.test(layout));
 check('mobile navigation is not focusable while off-canvas', /\.sidebar\s*\{[\s\S]*visibility:\s*hidden/.test(css) && /\.sidebar\.sidebar-open\s*\{[\s\S]*visibility:\s*visible/.test(css));
@@ -69,6 +72,11 @@ check('narrow Master Detail uses explicit single-pane state', /data-mobile-view=
 check('canonical data surface owns table density and horizontal containment', /\.ds-data-surface\s*\{[\s\S]*overflow-x:\s*auto/.test(designSystem) && /\.ds-table--dense/.test(designSystem));
 check('representative dashboard, weekly and risk surfaces consume the canonical grammar', /ds-table ds-table--dense status-matrix-table/.test(statusMatrix) && /ds-data-surface weekly-truth-scroll/.test(truthBar) && /ds-table ds-table--dense risk-register-table/.test(riskTable));
 check('legacy dashboard table system is retired', !/dashboard-table/.test(uiSource));
+check('Portfolio consumes the canonical Master Detail primitive', /<MasterDetailLayout/.test(projects) && !/portfolio-workspace|portfolio-list-pane|portfolio-details-pane/.test(projects));
+check('Portfolio project selection has one state owner', (projects.match(/useState\(null\)/g) || []).length >= 1 && /selectedProjectId/.test(projects) && !/selectedProjectId/.test(projectDetailTabs));
+check('Portfolio master rows are semantic buttons with selected state', /<button[\s\S]*aria-pressed=\{selected\}[\s\S]*data-testid="portfolio-master-project"/.test(portfolioMasterList));
+check('Portfolio detail tabs expose tab, panel and keyboard focus semantics', /role="tab"/.test(projectDetailTabs) && /aria-controls="portfolio-detail-tabpanel"/.test(projectDetailTabs) && /tabIndex=\{activeTab === tab\.id \? 0 : -1\}/.test(projectDetailTabs) && /ArrowRight/.test(projectDetailTabs) && /ArrowLeft/.test(projectDetailTabs) && /role="tabpanel"/.test(projects));
+check('Portfolio has no page-specific viewport-height calculation', !/portfolio[\s\S]{0,160}calc\(100vh/.test(css));
 
 check('UI contains no thick one-sided accent borders', !/borderLeft:\s*[`'"\s]*[3-9]px|border-left:\s*[3-9]px/i.test(uiSource));
 check('UI contains no width-property transitions', !/transition\s*:\s*[`'"]?width/i.test(uiSource));

@@ -345,7 +345,7 @@ test.describe('Import Projects — Projects IA v1 end-to-end (Portfolio -> Impor
     await expect(page.locator('h1')).toContainText('Portfolio');
 
     await page.getByPlaceholder('Search').fill(storeCode);
-    await expect(page.locator('.portfolio-row', { hasText: storeCode })).toBeVisible();
+    await expect(page.getByTestId('portfolio-master-project').filter({ hasText: storeCode })).toBeVisible();
 
     // Export Projects -> the newly imported project is in the generated workbook.
     const [exportDownload] = await Promise.all([

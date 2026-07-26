@@ -6,16 +6,16 @@ test.describe('Site Visit report', () => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/projects');
 
-    const count = await page.locator('.portfolio-row').count();
+    const count = await page.locator('[data-testid="portfolio-master-project"]').count();
     test.skip(count === 0, 'No projects available');
 
     // Select the first project — opens its details pane to get the site visit link
-    const firstRow = page.locator('.portfolio-row').first();
+    const firstRow = page.locator('[data-testid="portfolio-master-project"]').first();
 
     await firstRow.click();
-    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+    await expect(page.locator('.detail-pane')).toBeVisible();
 
-    const siteVisitBtn = page.locator('.portfolio-details-header button', { hasText: 'Site Visit' });
+    const siteVisitBtn = page.locator('.portfolio-detail-header a', { hasText: 'Site Visit' });
     await expect(siteVisitBtn).toBeVisible();
 
     // Open in same tab — button uses window.open, so intercept navigation
@@ -37,13 +37,13 @@ test.describe('Site Visit report', () => {
 
     // Navigate directly if we can find a project ID
     await page.goto('/projects');
-    const count = await page.locator('.portfolio-row').count();
+    const count = await page.locator('[data-testid="portfolio-master-project"]').count();
     test.skip(count === 0, 'No projects to test site visit');
 
-    await page.locator('.portfolio-row').first().click();
-    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+    await page.locator('[data-testid="portfolio-master-project"]').first().click();
+    await expect(page.locator('.detail-pane')).toBeVisible();
 
-    const siteVisitBtn = page.locator('.portfolio-details-header button', { hasText: 'Site Visit' });
+    const siteVisitBtn = page.locator('.portfolio-detail-header a', { hasText: 'Site Visit' });
     const [newPage] = await Promise.all([
       page.context().waitForEvent('page'),
       siteVisitBtn.click(),

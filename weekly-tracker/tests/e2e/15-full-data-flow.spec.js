@@ -36,6 +36,7 @@ test.describe('Full data flow', () => {
     // .modal-overlay backdrop) stays open and blocks the later logout()'s Sign
     // out click. Use the same reliable name-attribute selectors as
     // 02-projects.spec.js's own passing "creates a new project" test.
+    await modal.getByRole('button', { name: 'Mall', exact: true }).click();
     await modal.locator('input[name="shoppingMallName"]').fill(uniqueName);
     await modal.locator('input[name="storeCode"]').fill(`ST${Date.now().toString().slice(-4)}`);
     await modal.locator('input[name="city"]').fill('E2E City');
@@ -114,13 +115,13 @@ test.describe('Full data flow', () => {
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.getByTestId('portfolio-master-project').count();
     test.skip(rowCount === 0, 'No projects for PM site visit flow test');
 
-    await page.locator('.portfolio-row').first().click();
-    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+    await page.getByTestId('portfolio-master-project').first().click();
+    await expect(page.locator('.detail-pane')).toBeVisible();
 
-    const siteVisitBtn = page.locator('.portfolio-details-header button', { hasText: /site visit/i });
+    const siteVisitBtn = page.getByRole('link', { name: /site visit/i });
     test.skip(await siteVisitBtn.count() === 0, 'No Site Visit button in project details pane');
 
     const [svPage] = await Promise.all([

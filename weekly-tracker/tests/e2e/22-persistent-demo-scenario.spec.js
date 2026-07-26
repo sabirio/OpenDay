@@ -612,7 +612,7 @@ async function createProject(page, proj) {
   await page.goto('/projects');
   await page.waitForLoadState('networkidle');
 
-  const addBtn = page.locator('button.primary-button', { hasText: /add project|\+ project|new project/i }).first();
+  const addBtn = page.getByRole('button', { name: 'Add New Project' });
   if (await addBtn.count() === 0) {
     STATE.warnings.push(`Add project button not found for ${proj.storeCode}`);
     return false;
@@ -623,11 +623,11 @@ async function createProject(page, proj) {
   await expect(modal).toBeVisible({ timeout: 8_000 });
 
   // Required fields
+  await modal.getByRole('button', { name: 'Mall', exact: true }).click();
   await modal.locator('input[name="storeCode"]').fill(proj.storeCode);
   await modal.locator('input[name="shoppingMallName"]').fill(proj.shoppingMallName);
   await modal.locator('input[name="city"]').fill(proj.city);
   if (proj.state) await modal.locator('input[name="state"]').fill(proj.state);
-  if (proj.street) await modal.locator('input[name="street"]').fill(proj.street);
   await modal.locator('input[name="country"]').fill(proj.country);
   if (proj.salesMarket) await modal.locator('input[name="salesMarket"]').fill(proj.salesMarket);
   await modal.locator('input[name="projectManager"]').fill(proj.projectManager);
@@ -640,7 +640,7 @@ async function createProject(page, proj) {
   await modal.locator('input[type="date"][name="targetOpeningDate"]').fill(proj.targetOpeningDate);
 
   // Save
-  const saveBtn = modal.locator('button.primary-button', { hasText: /create project/i }).first();
+  const saveBtn = modal.getByRole('button', { name: 'Create Project' });
   if (await saveBtn.count() === 0) {
     // Fallback: any primary button that isn't Cancel
     const fallback = modal.locator('button', { hasText: /create|save/i }).first();
@@ -860,7 +860,7 @@ test.describe.serial('DEMO SEED — Persistent QA Data', () => {
       // Check if already exists
       await page.goto('/projects');
       await page.waitForLoadState('networkidle');
-      const existing = page.locator('.portfolio-row, [data-testid="project-row"]').filter({ hasText: proj.storeCode });
+      const existing = page.locator('[data-testid="portfolio-master-project"], [data-testid="project-row"]').filter({ hasText: proj.storeCode });
       if (await existing.count() > 0) {
         STATE.warnings.push(`${proj.storeCode} already exists — skipping creation`);
       } else {

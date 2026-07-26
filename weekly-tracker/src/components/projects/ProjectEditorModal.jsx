@@ -35,6 +35,7 @@ export default function ProjectEditorModal({
       titleId="project-editor-title"
       isDirty={isDirty}
       dirtyMessage="Discard unsaved project changes?"
+      className="modal project-editor-modal"
       style={{ maxWidth: 820, width: "95vw" }}
     >
         <div className="modal-header">
@@ -44,10 +45,10 @@ export default function ProjectEditorModal({
               <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>{project.storeCode}</div>
             )}
           </div>
-          <button className="close-button" onClick={requestClose}>x</button>
+          <button type="button" className="close-button" onClick={requestClose} aria-label="Close project editor">×</button>
         </div>
 
-        <div style={{ overflowY: "auto", maxHeight: "calc(90vh - 72px)", padding: "20px 24px" }}>
+        <div className="project-editor-body">
           {conflict && (
             <ConflictWarning
               serverUpdatedAt={conflict.serverUpdatedAt}

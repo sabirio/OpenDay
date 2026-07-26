@@ -155,11 +155,11 @@ test.describe('Visual / Content regression', () => {
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.locator('[data-testid="portfolio-master-project"]').count();
     test.skip(rowCount === 0, 'No projects for site visit visual check');
 
-    await page.locator('.portfolio-row').first().click();
-    const detailsPane = page.locator('.portfolio-details-pane');
+    await page.locator('[data-testid="portfolio-master-project"]').first().click();
+    const detailsPane = page.locator('.detail-pane');
     if (await detailsPane.count() === 0) {
       test.skip(true, 'No project details pane opened');
     }

@@ -42,6 +42,7 @@ async function createTestProject(page, { storeCode, mallName, country, targetOpe
   const modal = page.locator('.modal, [role="dialog"]').first();
   await expect(modal).toBeVisible({ timeout: 5_000 });
 
+  await modal.getByRole('button', { name: 'Mall', exact: true }).click();
   await modal.locator('input[name="storeCode"]').fill(storeCode);
   await modal.locator('input[name="shoppingMallName"]').fill(mallName);
   await modal.locator('input[name="country"]').fill(country);
@@ -160,7 +161,7 @@ test.describe('Multi-project scenario', () => {
 
     for (const code of Object.values(PROJECT_NAMES)) {
       // Projects may or may not be in current page view — just verify no crash
-      page.locator('.portfolio-row, [data-testid="project-row"]').filter({ hasText: code });
+      page.locator('[data-testid="portfolio-master-project"], [data-testid="project-row"]').filter({ hasText: code });
     }
 
     await logout(page);

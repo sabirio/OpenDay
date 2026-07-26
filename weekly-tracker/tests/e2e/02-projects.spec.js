@@ -21,7 +21,7 @@ test.describe('Portfolio page', () => {
   test('loads the master-detail workspace: compact rows in the list pane, first project auto-selected in the details pane', async ({ page }) => {
     // Project List pane shows compact identity rows only (Store Code,
     // Location, City, Concept, Status) — not every Project field.
-    const rows = page.locator('.portfolio-row');
+    const rows = page.locator('[data-testid="portfolio-master-project"]');
     await expect(rows.first()).toBeVisible();
     const rowText = await rows.first().textContent();
     expect(rowText).not.toContain('Project Manager');
@@ -30,7 +30,7 @@ test.describe('Portfolio page', () => {
     // Selection behavior (§Selection): on initial load the first visible
     // project is auto-selected, without requiring a click.
     await expect(rows.first()).toHaveClass(/is-selected/);
-    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+    await expect(page.locator('.detail-pane')).toBeVisible();
     await expect(page.locator('#project-detail-title')).toBeVisible();
   });
 
@@ -57,13 +57,13 @@ test.describe('Portfolio page', () => {
   });
 
   test('opens new project form via Add New Project button', async ({ page }) => {
-    await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+    await page.getByRole('button', { name: 'Add New Project' }).click();
     // Form should appear with Store Code field
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
   });
 
   test('creates a new Mall project and selecting its row shows Location Type + Location correctly', async ({ page }) => {
-    await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+    await page.getByRole('button', { name: 'Add New Project' }).click();
 
     await page.locator('input[name="storeCode"]').fill(UNIQUE_CODE);
     await page.locator('input[name="country"]').fill('Testland');
@@ -73,21 +73,21 @@ test.describe('Portfolio page', () => {
     await page.getByRole('button', { name: 'Mall', exact: true }).click();
     await page.locator('input[name="shoppingMallName"]').fill('Playwright Test Mall');
 
-    await page.locator('button.primary-button', { hasText: 'Create Project' }).click();
+    await page.getByRole('button', { name: 'Create Project' }).click();
 
     await expect(page.locator('input[name="storeCode"]')).not.toBeVisible({ timeout: 15_000 });
 
-    const row = page.locator('.portfolio-row', { hasText: UNIQUE_CODE });
+    const row = page.locator('[data-testid="portfolio-master-project"]', { hasText: UNIQUE_CODE });
     await expect(row).toContainText('Playwright Test Mall', { timeout: 15_000 });
 
     await row.click();
     await expect(page.locator('#project-detail-title')).toContainText(UNIQUE_CODE);
-    await expect(page.locator('.portfolio-details-body')).toContainText('Mall');
-    await expect(page.locator('.portfolio-details-body')).toContainText('Playwright Test Mall');
+    await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Mall');
+    await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Playwright Test Mall');
   });
 
   test('creates a new Street project and selecting its row shows Street Address as Location, not Mall', async ({ page }) => {
-    await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+    await page.getByRole('button', { name: 'Add New Project' }).click();
 
     await page.locator('input[name="storeCode"]').fill(UNIQUE_STREET_CODE);
     await page.locator('input[name="country"]').fill('Testland');
@@ -96,21 +96,21 @@ test.describe('Portfolio page', () => {
     await page.getByRole('button', { name: 'Street', exact: true }).click();
     await page.locator('input[name="street"]').fill('Test Ave 1');
 
-    await page.locator('button.primary-button', { hasText: 'Create Project' }).click();
+    await page.getByRole('button', { name: 'Create Project' }).click();
 
     await expect(page.locator('input[name="storeCode"]')).not.toBeVisible({ timeout: 15_000 });
 
-    const row = page.locator('.portfolio-row', { hasText: UNIQUE_STREET_CODE });
+    const row = page.locator('[data-testid="portfolio-master-project"]', { hasText: UNIQUE_STREET_CODE });
     await expect(row).toContainText('Test Ave 1', { timeout: 15_000 });
 
     await row.click();
     await expect(page.locator('#project-detail-title')).toContainText(UNIQUE_STREET_CODE);
-    await expect(page.locator('.portfolio-details-body')).toContainText('Street');
-    await expect(page.locator('.portfolio-details-body')).toContainText('Test Ave 1');
+    await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Street');
+    await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Test Ave 1');
   });
 
   test('switching Location Type from Mall to Street clears the stale mall name field', async ({ page }) => {
-    await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+    await page.getByRole('button', { name: 'Add New Project' }).click();
 
     await page.getByRole('button', { name: 'Mall', exact: true }).click();
     await page.locator('input[name="shoppingMallName"]').fill('Should Be Cleared');
@@ -120,26 +120,26 @@ test.describe('Portfolio page', () => {
     await expect(page.locator('input[name="street"]')).toHaveValue('');
   });
 
-  test('selecting a project row shows its Information in the details pane with the canonical sections', async ({ page }) => {
-    const firstRow = page.locator('.portfolio-row').first();
-    const codeName = (await firstRow.locator('.portfolio-row-code').textContent()).trim();
+  test('selecting a project row shows its Overview in the details pane with the canonical sections', async ({ page }) => {
+    const firstRow = page.locator('[data-testid="portfolio-master-project"]').first();
+    const codeName = (await firstRow.locator('.master-row-top strong').textContent()).trim();
     await firstRow.click();
 
-    const details = page.locator('.portfolio-details-pane');
+    const details = page.locator('.detail-pane');
     await expect(details).toBeVisible();
     await expect(page.locator('#project-detail-title')).toContainText(codeName);
-    await expect(details).toContainText('General');
+    await expect(details).toContainText('Project profile');
     await expect(details).toContainText('Schedule');
-    await expect(details).toContainText('Financial');
+    await expect(details).toContainText('Commercial');
   });
 
   test('switching the selected project updates only the details pane, preserving list scroll/selection semantics', async ({ page }) => {
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.locator('[data-testid="portfolio-master-project"]').count();
     test.skip(rowCount < 2, 'Need at least 2 projects to test switching selection');
 
-    const rows = page.locator('.portfolio-row');
-    const firstCode = (await rows.nth(0).locator('.portfolio-row-code').textContent()).trim();
-    const secondCode = (await rows.nth(1).locator('.portfolio-row-code').textContent()).trim();
+    const rows = page.locator('[data-testid="portfolio-master-project"]');
+    const firstCode = (await rows.nth(0).locator('.master-row-top strong').textContent()).trim();
+    const secondCode = (await rows.nth(1).locator('.master-row-top strong').textContent()).trim();
 
     await expect(page.locator('#project-detail-title')).toContainText(firstCode);
 
@@ -154,40 +154,35 @@ test.describe('Portfolio page', () => {
   });
 
   test('opens edit form from the project details pane', async ({ page }) => {
-    await page.locator('.portfolio-row').first().click();
-    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+    await page.locator('[data-testid="portfolio-master-project"]').first().click();
+    await expect(page.locator('.detail-pane')).toBeVisible();
 
-    await page.locator('.portfolio-details-header button', { hasText: 'Edit Project' }).click();
+    await page.locator('.portfolio-detail-header button', { hasText: 'Edit Project' }).click();
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
   });
 
   test('Add New Project does not show an Actual Cost input', async ({ page }) => {
-    await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+    await page.getByRole('button', { name: 'Add New Project' }).click();
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
     await expect(page.locator('input[name="actualCost"]')).toHaveCount(0);
   });
 
   test('Edit Project shows an Actual Cost input', async ({ page }) => {
-    await page.locator('.portfolio-row').first().click();
-    await page.locator('.portfolio-details-header button', { hasText: 'Edit Project' }).click();
+    await page.locator('[data-testid="portfolio-master-project"]').first().click();
+    await page.locator('.portfolio-detail-header button', { hasText: 'Edit Project' }).click();
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
     await expect(page.locator('input[name="actualCost"]')).toBeVisible();
   });
 
-  test('row "..." actions menu opens with Edit Project and GC Invite', async ({ page }) => {
-    const menuBtn = page.locator('.portfolio-row').first().getByRole('button', { name: /Actions for/ });
-    await menuBtn.click();
-
-    const menu = page.locator('[role="menu"]');
-    await expect(menu).toBeVisible();
-    await expect(menu.getByRole('menuitem', { name: 'Edit Project' })).toBeVisible();
-    await expect(menu.getByRole('menuitem', { name: /GC Invite|GC Invited/ })).toBeVisible();
+  test('selected-project actions live in the Detail header', async ({ page }) => {
+    const header = page.locator('.portfolio-detail-header');
+    await expect(header.getByRole('button', { name: 'Edit Project' })).toBeVisible();
+    await expect(header.getByRole('button', { name: 'Invite GC' })).toBeVisible();
+    await expect(header.getByRole('link', { name: 'Site Visit' })).toBeVisible();
   });
 
-  test('GC Invite menu item opens invite modal', async ({ page }) => {
-    const menuBtn = page.locator('.portfolio-row').first().getByRole('button', { name: /Actions for/ });
-    await menuBtn.click();
-    await page.locator('[role="menu"]').getByRole('menuitem', { name: /GC Invite|GC Invited/ }).click();
+  test('Invite GC Detail action opens invite modal', async ({ page }) => {
+    await page.locator('.portfolio-detail-header').getByRole('button', { name: 'Invite GC' }).click();
 
     await expect(page.locator('.modal')).toBeVisible();
     await expect(page.locator('.modal input[type="email"], .modal input[placeholder*="email" i], .modal input[placeholder*="@"]')).toBeVisible();
@@ -195,44 +190,45 @@ test.describe('Portfolio page', () => {
 
   test('search filter narrows the project list', async ({ page }) => {
     // Only run if there are multiple projects
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.locator('[data-testid="portfolio-master-project"]').count();
     test.skip(rowCount < 2, 'Need at least 2 projects to test filter');
 
-    const firstCode = (await page.locator('.portfolio-row').first().locator('.portfolio-row-code').textContent()).trim();
-    await page.getByPlaceholder('Search').fill(firstCode);
+    const firstCode = (await page.locator('[data-testid="portfolio-master-project"]').first().locator('.master-row-top strong').textContent()).trim();
+    await page.getByPlaceholder('Search projects...').fill(firstCode);
 
     // Should see only rows matching that code
-    await expect(page.locator('.portfolio-row')).toHaveCount(1, { timeout: 5_000 });
+    await expect(page.locator('[data-testid="portfolio-master-project"]')).toHaveCount(1, { timeout: 5_000 });
   });
 
   test('search with no matches shows an empty state in both the list and details panes', async ({ page }) => {
-    await page.getByPlaceholder('Search').fill('ZZZ_NO_SUCH_PROJECT_ZZZ');
+    await page.getByPlaceholder('Search projects...').fill('ZZZ_NO_SUCH_PROJECT_ZZZ');
 
-    await expect(page.locator('.portfolio-list-rows')).toContainText('No projects match the current filters.');
-    await expect(page.locator('.portfolio-details-pane')).toContainText('Select a project to view its details.');
+    await expect(page.locator('.master-pane-list')).toContainText('No projects match the current filters.');
+    await expect(page.locator('.detail-pane')).toContainText('Select a project to view its details.');
   });
 
   test('Location Type filter narrows the project list to Mall projects only', async ({ page }) => {
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.locator('[data-testid="portfolio-master-project"]').count();
     test.skip(rowCount < 1, 'Need at least 1 project to test filter');
 
     // The Location Type <select> is the one whose options include "Mall"/"Street".
+    await page.locator('.portfolio-filter-disclosure > summary').click();
     const locationTypeSelect = page.locator('select').filter({ has: page.locator('option[value="Mall"]') });
     await locationTypeSelect.selectOption('Mall');
 
     // The compact row no longer prints "Location Type" as its own text, so
     // verify via the canonical details pane (still the authoritative
     // presentation of every filtered project's Location Type).
-    const rows = page.locator('.portfolio-row');
+    const rows = page.locator('[data-testid="portfolio-master-project"]');
     const count = await rows.count();
     for (let i = 0; i < count; i++) {
       await rows.nth(i).click();
-      await expect(page.locator('.portfolio-details-body')).toContainText('Mall');
+      await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Mall');
     }
   });
 
   test('pagination footer shows the correct "start–end of total" summary', async ({ page }) => {
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.locator('[data-testid="portfolio-master-project"]').count();
     test.skip(rowCount < 1, 'Need at least 1 project to test pagination summary');
 
     await expect(page.locator('.portfolio-pagination-summary')).toContainText(`of ${rowCount}`);
@@ -246,8 +242,8 @@ test.describe('Portfolio page', () => {
     const secondPageButton = pageButtons.nth(1);
     await secondPageButton.click();
 
-    const firstRowOnNewPage = page.locator('.portfolio-row').first();
-    const codeOnNewPage = (await firstRowOnNewPage.locator('.portfolio-row-code').textContent()).trim();
+    const firstRowOnNewPage = page.locator('[data-testid="portfolio-master-project"]').first();
+    const codeOnNewPage = (await firstRowOnNewPage.locator('.master-row-top strong').textContent()).trim();
     await expect(firstRowOnNewPage).toHaveClass(/is-selected/);
     await expect(page.locator('#project-detail-title')).toContainText(codeOnNewPage);
   });
@@ -270,21 +266,22 @@ test.describe('Portfolio page', () => {
     expect(table[0]).toContain('Store Code');
     expect(table[0]).not.toContain('Location'); // derived Portfolio LOCATION is never exported
     // Every currently-visible Portfolio row's store code appears in the export.
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.locator('[data-testid="portfolio-master-project"]').count();
     if (rowCount > 0) {
-      const firstStoreCode = (await page.locator('.portfolio-row').first().locator('.portfolio-row-code').textContent()).trim();
+      const firstStoreCode = (await page.locator('[data-testid="portfolio-master-project"]').first().locator('.master-row-top strong').textContent()).trim();
       const exportedCodes = table.slice(1).map(r => r[0]);
       expect(exportedCodes).toContain(firstStoreCode);
     }
   });
 
   test('Export Projects respects the current Location Type filter (exports the filtered result set, not all projects)', async ({ page }) => {
-    const rowCount = await page.locator('.portfolio-row').count();
+    const rowCount = await page.locator('[data-testid="portfolio-master-project"]').count();
     test.skip(rowCount < 1, 'Need at least 1 project to test filtered export');
 
+    await page.locator('.portfolio-filter-disclosure > summary').click();
     const locationTypeSelect = page.locator('select').filter({ has: page.locator('option[value="Mall"]') });
     await locationTypeSelect.selectOption('Mall');
-    const filteredCount = await page.locator('.portfolio-row').count();
+    const filteredCount = await page.locator('[data-testid="portfolio-master-project"]').count();
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
@@ -323,22 +320,22 @@ test.describe('Portfolio page — mobile', () => {
     await expect(page.locator('h1')).toContainText('Portfolio');
 
     // List is visible, Details is hidden, on initial mobile load.
-    await expect(page.locator('.portfolio-list-pane')).toBeVisible();
-    await expect(page.locator('.portfolio-details-pane')).toBeHidden();
+    await expect(page.locator('.master-pane')).toBeVisible();
+    await expect(page.locator('.detail-pane')).toBeHidden();
 
-    const firstRow = page.locator('.portfolio-row').first();
-    const codeName = (await firstRow.locator('.portfolio-row-code').textContent()).trim();
+    const firstRow = page.locator('[data-testid="portfolio-master-project"]').first();
+    const codeName = (await firstRow.locator('.master-row-top strong').textContent()).trim();
     await firstRow.click();
 
     // Details pane takes over full width; list is hidden.
-    await expect(page.locator('.portfolio-details-pane')).toBeVisible();
-    await expect(page.locator('.portfolio-list-pane')).toBeHidden();
+    await expect(page.locator('.detail-pane')).toBeVisible();
+    await expect(page.locator('.master-pane')).toBeHidden();
     await expect(page.locator('#project-detail-title')).toContainText(codeName);
 
     // Back control returns to the list, without losing it.
-    await page.locator('.portfolio-back-to-list').click();
-    await expect(page.locator('.portfolio-list-pane')).toBeVisible();
-    await expect(page.locator('.portfolio-details-pane')).toBeHidden();
+    await page.locator('.portfolio-back-to-master').click();
+    await expect(page.locator('.master-pane')).toBeVisible();
+    await expect(page.locator('.detail-pane')).toBeHidden();
     await expect(firstRow).toBeVisible();
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

@@ -11,7 +11,9 @@ import {
 } from "../hooks/useProjectEditorOrchestration";
 import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
 import ZonedScopeConfigurator from "../components/projects/ZonedScopeConfigurator";
-import ProjectDetailPane from "../components/projects/ProjectDetailPane";
+import ProjectDetailPane, { ProjectDetailHeader } from "../components/projects/ProjectDetailPane";
+import ProjectDetailTabs from "../components/projects/ProjectDetailTabs";
+import { PROJECT_DETAIL_TABS } from "../components/projects/projectDetailConfig";
 import PortfolioProjectList from "../components/projects/PortfolioProjectList";
 import GcInvitationModal from "../components/projects/GcInvitationModal";
 import ProjectEditorModal from "../components/projects/ProjectEditorModal";
@@ -20,6 +22,7 @@ import { useToast } from "../components/shared/Toast.jsx";
 import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
 import { LOCATION_TYPE_OPTIONS } from "../config/projectVocabulary";
 import { computePageCount, clampPage, paginate } from "../hooks/usePortfolioPaginationPresentation";
+import MasterDetailLayout from "../components/shared/MasterDetailLayout";
 
 const PORTFOLIO_PAGE_SIZE = 50;
 
@@ -84,7 +87,8 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   // `projects` collection is unchanged).
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [mobileView, setMobileView] = useState("list"); // 'list' | 'details' — only visually meaningful below the mobile breakpoint (see index.css)
+  const [mobileView, setMobileView] = useState("master");
+  const [activeDetailTab, setActiveDetailTab] = useState("overview");
   const [gcModal, setGcModal]                 = useState(null); // project being invited
   const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
   const [gcEmail, setGcEmail]             = useState('');
@@ -262,7 +266,6 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const completedCount = projects.filter((p) => p.projectStatus === "Completed").length;
 
   const typeOptions = ["All", "New Opening", "Rebuilding"];
-  const statusOptions = ["All", "Active", "Completed"];
   const countryOptions = ["All", ...Array.from(new Set(projects.map((p) => p.country).filter(Boolean))).sort()];
   const salesMarketOptions = ["All", ...Array.from(new Set(projects.map((p) => p.salesMarket).filter(Boolean))).sort()];
   const locationTypeOptions = ["All", ...LOCATION_TYPE_OPTIONS];
@@ -315,7 +318,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
 
   function selectProject(project) {
     setSelectedProjectId(project.id);
-    setMobileView("details"); // no visual effect on desktop — see index.css
+    setMobileView("detail");
   }
 
   return (
@@ -342,60 +345,82 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         </div>
       </div>
 
-      {/* -- Master-detail workspace: Project List | Project Details ----------- */}
-      <div className="portfolio-workspace" data-mobile-view={mobileView}>
-        <PortfolioProjectList
-          pagedProjects={pagedProjects}
-          totalFilteredCount={filteredProjects.length}
-          totalProjects={projects.length}
-          selectedProjectId={selectedProject?.id ?? null}
-          onSelectProject={selectProject}
-          onEditProject={handleEditProject}
-          onInviteContractor={openGcModal}
-          currentPage={currentPage}
-          pageCount={pageCount}
-          pageSize={PORTFOLIO_PAGE_SIZE}
-          onPageChange={setCurrentPage}
-          filterProps={{
-            searchQuery,
-            onSearchChange: setSearchQuery,
-            salesMarketFilter,
-            onSalesMarketChange: setSalesMarketFilter,
-            salesMarketOptions,
-            countryFilter,
-            onCountryChange: setCountryFilter,
-            countryOptions,
-            statusFilter,
-            onStatusChange: setStatusFilter,
-            statusOptions,
-            typeFilter,
-            onTypeChange: setTypeFilter,
-            typeOptions,
-            locationTypeFilter,
-            onLocationTypeChange: setLocationTypeFilter,
-            locationTypeOptions,
-            filtersActive,
-            onClearFilters: clearFilters,
-            filteredCount: filteredProjects.length,
-            totalCount: projects.length,
-            activeCount,
-            completedCount,
-          }}
-        />
-
-        <div className="portfolio-details-pane">
-          {selectedProject ? (
+      <MasterDetailLayout
+        className="portfolio-master-detail"
+        mobileView={mobileView}
+        master={(
+          <PortfolioProjectList
+            pagedProjects={pagedProjects}
+            totalFilteredCount={filteredProjects.length}
+            totalProjects={projects.length}
+            selectedProjectId={selectedProject?.id ?? null}
+            onSelectProject={selectProject}
+            currentPage={currentPage}
+            pageCount={pageCount}
+            pageSize={PORTFOLIO_PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            filterProps={{
+              searchQuery,
+              onSearchChange: setSearchQuery,
+              salesMarketFilter,
+              onSalesMarketChange: setSalesMarketFilter,
+              salesMarketOptions,
+              countryFilter,
+              onCountryChange: setCountryFilter,
+              countryOptions,
+              statusFilter,
+              onStatusChange: setStatusFilter,
+              typeFilter,
+              onTypeChange: setTypeFilter,
+              typeOptions,
+              locationTypeFilter,
+              onLocationTypeChange: setLocationTypeFilter,
+              locationTypeOptions,
+              filtersActive,
+              onClearFilters: clearFilters,
+              filteredCount: filteredProjects.length,
+              totalCount: projects.length,
+              activeCount,
+              completedCount,
+            }}
+          />
+        )}
+        detailHeader={selectedProject ? (
+          <ProjectDetailHeader
+            project={selectedProject}
+            onEdit={() => handleEditProject(selectedProject)}
+            onInvite={() => openGcModal(selectedProject)}
+            onBack={() => setMobileView("master")}
+          />
+        ) : (
+          <header className="detail-pane-header">
+            <div className="dashboard-detail-title">No project selected</div>
+          </header>
+        )}
+        detailTabs={selectedProject ? (
+          <ProjectDetailTabs
+            tabs={PROJECT_DETAIL_TABS}
+            activeTab={activeDetailTab}
+            onChange={setActiveDetailTab}
+          />
+        ) : null}
+        detail={selectedProject ? (
+          <div
+            id="portfolio-detail-tabpanel"
+            role="tabpanel"
+            aria-labelledby={`portfolio-tab-${activeDetailTab}`}
+            className="portfolio-detail-tabpanel"
+          >
             <ProjectDetailPane
               project={selectedProject}
               projects={projects}
-              onEdit={() => handleEditProject(selectedProject)}
-              onBack={() => setMobileView("list")}
+              activeTab={activeDetailTab}
             />
-          ) : (
-            <div className="portfolio-empty-state portfolio-details-empty">Select a project to view its details.</div>
-          )}
-        </div>
-      </div>
+          </div>
+        ) : (
+          <div className="master-list-empty portfolio-detail-empty">Select a project to view its details.</div>
+        )}
+      />
 
       <GcInvitationModal
         project={gcModal}

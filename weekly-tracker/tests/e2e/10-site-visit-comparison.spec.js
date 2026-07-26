@@ -3,14 +3,14 @@ import { CREDENTIALS, login, logout } from './helpers.js';
 
 async function getFirstProjectId(page) {
   await page.goto('/projects');
-  const count = await page.locator('.portfolio-row').count();
+  const count = await page.locator('[data-testid="portfolio-master-project"]').count();
   if (count === 0) return null;
 
   // Select the first project to get the site-visit link from its details pane
-  await page.locator('.portfolio-row').first().click();
-  await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+  await page.locator('[data-testid="portfolio-master-project"]').first().click();
+  await expect(page.locator('.detail-pane')).toBeVisible();
 
-  const siteVisitBtn = page.locator('.portfolio-details-header button', { hasText: 'Site Visit' });
+  const siteVisitBtn = page.locator('.portfolio-detail-header a', { hasText: 'Site Visit' });
   const [newPage] = await Promise.all([
     page.context().waitForEvent('page'),
     siteVisitBtn.click(),

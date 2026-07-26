@@ -19,7 +19,8 @@ const COHORT_CITY = 'Almaty';
 
 async function createProject(page, fields) {
   await page.goto('/projects');
-  await page.locator('button.primary-button', { hasText: 'Add New Project' }).click();
+  await page.getByRole('button', { name: 'Add New Project' }).click();
+  await page.getByRole('button', { name: 'Mall', exact: true }).click();
   await page.locator('input[name="storeCode"]').fill(fields.storeCode);
   await page.locator('input[name="country"]').fill(fields.country ?? '');
   await page.locator('input[name="city"]').fill(fields.city ?? '');
@@ -40,27 +41,27 @@ async function createProject(page, fields) {
   if (fields.projectType) await page.getByRole('button', { name: fields.projectType, exact: true }).click();
   if (fields.storeConcept) await page.locator('input[name="storeConcept"]').fill(fields.storeConcept);
 
-  await page.locator('button.primary-button', { hasText: 'Create Project' }).click();
+  await page.getByRole('button', { name: 'Create Project' }).click();
   await expect(page.locator('input[name="storeCode"]')).not.toBeVisible({ timeout: 15_000 });
 }
 
 async function setActualCost(page, storeCode, actualCost) {
   await page.goto('/projects');
   await page.getByPlaceholder('Search').fill(storeCode);
-  await expect(page.locator('.portfolio-row')).toHaveCount(1, { timeout: 8_000 });
-  await page.locator('.portfolio-row').first().click();
-  await page.locator('.portfolio-details-header button', { hasText: 'Edit Project' }).click();
+  await expect(page.getByTestId('portfolio-master-project')).toHaveCount(1, { timeout: 8_000 });
+  await page.getByTestId('portfolio-master-project').first().click();
+  await page.getByRole('button', { name: 'Edit Project' }).click();
   await page.locator('input[name="actualCost"]').fill(String(actualCost));
-  await page.locator('button.primary-button', { hasText: 'Save Changes' }).click();
+  await page.getByRole('button', { name: 'Save Changes' }).click();
   await expect(page.locator('input[name="storeCode"]')).not.toBeVisible({ timeout: 15_000 });
 }
 
 async function openBenchmarkTab(page, storeCode) {
   await page.goto('/projects');
   await page.getByPlaceholder('Search').fill(storeCode);
-  await expect(page.locator('.portfolio-row')).toHaveCount(1, { timeout: 8_000 });
-  await page.locator('.portfolio-row').first().click();
-  await expect(page.locator('.portfolio-details-pane')).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByTestId('portfolio-master-project')).toHaveCount(1, { timeout: 8_000 });
+  await page.getByTestId('portfolio-master-project').first().click();
+  await expect(page.locator('.detail-pane')).toBeVisible({ timeout: 8_000 });
   await page.getByRole('tab', { name: 'Benchmark' }).click();
 }
 
@@ -142,23 +143,23 @@ test.describe('Project Benchmark v1', () => {
     }
   });
 
-  // -- 1/2/3: navigation + Information regression --------------------------
-  test('opens on Information by default, Benchmark view opens, switching back to Information works', async ({ page }) => {
+  // -- 1/2/3: navigation + Overview regression -----------------------------
+  test('opens on Overview by default, Benchmark view opens, switching back to Overview works', async ({ page }) => {
     await openBenchmarkTab(page, TARGET_CODE);
-    await expect(page.locator('.portfolio-details-pane')).toContainText('Benchmark');
-    await expect(page.locator('.portfolio-details-pane')).toContainText('Compare this project with similar historical projects.');
+    await expect(page.locator('.detail-pane')).toContainText('Benchmark');
+    await expect(page.locator('.detail-pane')).toContainText('Compare this project with similar historical projects.');
 
-    await page.getByRole('tab', { name: 'Information' }).click();
-    await expect(page.locator('.portfolio-details-pane')).toContainText('General');
-    await expect(page.locator('.portfolio-details-pane')).toContainText('Schedule');
-    await expect(page.locator('.portfolio-details-pane')).toContainText('Financial');
+    await page.getByRole('tab', { name: 'Overview' }).click();
+    await expect(page.locator('.detail-pane')).toContainText('Project profile');
+    await expect(page.locator('.detail-pane')).toContainText('Areas and construction setup');
+    await expect(page.locator('.detail-pane')).toContainText('Contractor access');
   });
 
   // -- 4: all five benchmark titles render ----------------------------------
   test('all five benchmark card titles render', async ({ page }) => {
     await openBenchmarkTab(page, TARGET_CODE);
     for (const title of ['Cost / Total m²', 'Cost / Sales m²', 'Construction Duration', 'Opening Variance', 'Cost Variance']) {
-      await expect(page.locator('.portfolio-details-pane')).toContainText(title);
+      await expect(page.locator('.detail-pane')).toContainText(title);
     }
   });
 
@@ -258,7 +259,7 @@ test.describe('Project Benchmark v1', () => {
   // -- 22: opening a second project shows fresh, non-stale results ---------
   test('opening a second project does not reuse the previous project\'s benchmark results', async ({ page }) => {
     await openBenchmarkTab(page, TARGET_CODE);
-    await expect(page.locator('.portfolio-details-pane')).toContainText('Cost / Total m²');
+    await expect(page.locator('.detail-pane')).toContainText('Cost / Total m²');
 
     // openBenchmarkTab() re-navigates to /projects and re-selects fresh —
     // there's no modal to close first in the inline master-detail workspace.
@@ -269,18 +270,18 @@ test.describe('Project Benchmark v1', () => {
 
   // -- 19/20/21: mobile viewports (same describe block/worker as beforeAll) --
   for (const vp of [{ width: 320, height: 640 }, { width: 375, height: 667 }, { width: 412, height: 915 }]) {
-    test(`Information/Benchmark navigation and cards remain usable at ${vp.width}px`, async ({ page }) => {
+    test(`Overview/Benchmark navigation and cards remain usable at ${vp.width}px`, async ({ page }) => {
       await page.setViewportSize(vp);
       await openBenchmarkTab(page, TARGET_CODE);
 
       await expect(page.getByRole('tab', { name: 'Benchmark' })).toBeVisible();
-      await expect(page.locator('.portfolio-details-pane')).toContainText('Cost / Total m²');
+      await expect(page.locator('.detail-pane')).toContainText('Cost / Total m²');
 
       const costCard = page.locator('.benchmark-card', { hasText: 'Cost / Total m²' });
       await costCard.getByRole('button', { name: /Comparison basis/ }).click();
       await expect(costCard).toContainText('Country');
 
-      await expect(page.locator('.portfolio-details-pane')).toBeVisible();
+      await expect(page.locator('.detail-pane')).toBeVisible();
 
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, `page scrollWidth exceeds clientWidth by ${overflow}px at ${vp.width}px`).toBeLessThanOrEqual(1);

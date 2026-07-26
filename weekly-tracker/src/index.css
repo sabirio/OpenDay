@@ -3077,144 +3077,120 @@ button.weekly-phase-row {
 @media (max-width: 480px) { .toast-stack { width: calc(100vw - 24px); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } }
 
 /* ============================================================
-   PORTFOLIO MASTER-DETAIL WORKSPACE
-   Desktop (>900px): a fixed-height application workspace — the outer
-   Portfolio page itself never scrolls; Project List and Project Details
-   are two independent scroll regions. Achieved by chaining
-   height -> flex:1/min-height:0 -> overflow-y:auto down the tree (the
-   standard constrained-flex-scroll pattern), anchored to `.main-content`'s
-   own top/bottom padding (--space-6 * 2 = 48px total, Phase 2 shell density
-   pass) rather than a page-specific viewport hack. Below 900px this entire
-   model is abandoned in favor of normal document scrolling with one pane
-   visible at a time.
+   PORTFOLIO — canonical Master -> Detail consumer
    ============================================================ */
-@media (min-width: 901px) {
-  .portfolio-page {
-    height: calc(100vh - 48px);
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .portfolio-workspace {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-    gap: 16px;
-    margin-top: 4px;
-    overflow: hidden;
-  }
-
-  .portfolio-list-pane {
-    flex: 0 0 38%;
-    max-width: 38%;
-  }
-
-  .portfolio-details-pane {
-    flex: 1;
-    min-width: 0;
-  }
-}
-
-.portfolio-list-pane,
-.portfolio-details-pane {
+.portfolio-page {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-width: 0;
   min-height: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 14px);
-  background: var(--bg-surface);
   overflow: hidden;
 }
 
-/* -- List pane: header + filters stationary, rows scroll, footer stationary */
-.portfolio-list-header {
+.portfolio-page > .page-header {
   flex-shrink: 0;
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
 }
 
-.portfolio-pane-title {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin: 0 0 10px;
+.portfolio-master-detail {
+  background: var(--bg-surface);
 }
 
-.portfolio-list-rows {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+.portfolio-master-header {
+  padding-bottom: 10px;
 }
 
-.portfolio-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--table-cell-padding-y) 12px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background 0.12s;
+.portfolio-filter-stack {
+  display: grid;
+  gap: 8px;
 }
-.portfolio-row:hover { background: var(--bg-elevated); }
-.portfolio-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.portfolio-row.is-selected {
-  background: var(--accent-subtle);
-  border-left: 2px solid var(--accent);
+
+.portfolio-master-header .master-search .ds-input {
+  width: 100%;
   padding-left: 10px;
 }
 
-.portfolio-row-selected-marker {
-  width: 10px;
-  flex-shrink: 0;
-  font-size: 9px;
-  color: var(--accent);
-  text-align: center;
-}
-
-.portfolio-row-main { flex: 1; min-width: 0; }
-.portfolio-row-code {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.portfolio-row-meta {
+.portfolio-filter-primary {
   display: flex;
+  align-items: flex-start;
   gap: 6px;
-  margin-top: 2px;
-  font-size: 0.6875rem;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.portfolio-row-status {
-  flex-shrink: 0;
-  font-size: 0.6875rem;
-  color: var(--text-muted);
-  white-space: nowrap;
+  min-width: 0;
 }
 
-.portfolio-empty-state {
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
+.portfolio-filter-disclosure {
+  flex-shrink: 0;
 }
-.portfolio-details-empty {
-  flex: 1;
+
+.portfolio-filter-disclosure > summary {
+  height: var(--control-height-sm);
+  padding: 0 8px;
+  font-size: 0.6875rem;
+  list-style: none;
+}
+
+.portfolio-filter-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.portfolio-filter-disclosure > summary.is-active {
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+.portfolio-secondary-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.portfolio-secondary-filters label {
+  min-width: 0;
+}
+
+.portfolio-secondary-filters label > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 650;
+}
+
+.portfolio-secondary-filters .ds-select {
+  height: var(--control-height-sm);
+  padding-inline: 8px 22px;
+  font-size: 0.6875rem;
+}
+
+.portfolio-filter-summary {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
 }
 
-/* -- Pagination footer (stationary) -- */
+.portfolio-filter-summary .btn-ghost-sm {
+  min-height: 24px;
+  padding-inline: 6px;
+  font-size: 0.625rem;
+}
+
+.master-list-row.portfolio-master-row {
+  min-height: 72px;
+  padding: 8px 14px;
+}
+
+.master-list-row.portfolio-master-row.is-selected {
+  padding-left: 17px;
+}
+
+.portfolio-master-row .master-row-bottom {
+  justify-content: flex-start;
+}
+
 .portfolio-pagination {
   flex-shrink: 0;
   display: flex;
@@ -3246,57 +3222,206 @@ button.weekly-phase-row {
 }
 .portfolio-page-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-/* -- Details pane: header + tabs stationary, body scrolls -- */
-.portfolio-details-content {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
+.portfolio-detail-header {
+  justify-content: space-between;
 }
-.portfolio-details-header {
+
+.portfolio-detail-actions {
+  display: flex;
   flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.portfolio-detail-actions .btn {
+  min-height: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0 10px;
+  font-size: 0.6875rem;
+}
+
+.portfolio-back-to-master {
+  display: none;
+}
+
+.portfolio-detail-tabpanel {
+  min-width: 0;
+  min-height: 100%;
+  padding: 16px;
+}
+
+.project-detail-sheet {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.project-detail-section {
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.project-detail-section + .project-detail-section {
+  border-top: 1px solid var(--border);
+}
+
+.project-detail-section-heading {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.project-detail-section-heading h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.project-detail-section-heading p {
+  max-width: 58ch;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.project-detail-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+  margin: 0;
+}
+
+.project-detail-kv-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.7fr) minmax(0, 1fr);
   gap: 14px;
-  padding: 18px 24px;
+  min-width: 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
 }
-.portfolio-details-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 20px 24px;
+
+.project-detail-kv-row dt {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
 }
 
-.portfolio-back-to-list { display: none; }
+.project-detail-kv-row dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
 
-/* ============================================================
-   PORTFOLIO — MOBILE / NARROW (<=900px): abandon the fixed-height
-   workspace entirely. One pane is visible at a time (list or details),
-   both scroll with the normal document, exactly like every other page.
-   ============================================================ */
-@media (max-width: 900px) {
-  .portfolio-workspace {
-    display: block;
+.project-detail-kv-row dd.is-empty {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.project-detail-value-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.625rem;
+  font-weight: 500;
+}
+
+.project-detail-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-detail-link-actions .btn {
+  height: var(--control-height-sm);
+  padding-inline: 10px;
+  font-size: 0.6875rem;
+}
+
+.portfolio-detail-empty {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+}
+
+.project-editor-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(90vh, 820px);
+}
+
+.project-editor-body {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+@media (max-width: 1180px) {
+  .portfolio-detail-header {
+    flex-wrap: wrap;
   }
-  .portfolio-list-pane,
-  .portfolio-details-pane {
-    border: none;
-    border-radius: 0;
-    background: transparent;
+
+  .project-detail-kv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-detail-actions {
+    width: 100%;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .portfolio-page {
+    height: auto;
     overflow: visible;
   }
-  .portfolio-list-rows { overflow-y: visible; }
-  .portfolio-details-body { overflow-y: visible; }
 
-  /* Only one pane shown at a time, driven by Projects.jsx's mobileView state. */
-  .portfolio-workspace[data-mobile-view="list"] .portfolio-details-pane { display: none; }
-  .portfolio-workspace[data-mobile-view="details"] .portfolio-list-pane { display: none; }
+  .portfolio-back-to-master {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+}
 
-  .portfolio-back-to-list { display: inline-flex; }
-  .portfolio-details-header { flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .project-detail-kv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-detail-section-heading {
+    display: block;
+  }
+
+  .project-detail-section-heading p {
+    margin-top: 4px;
+    text-align: left;
+  }
+
+  .portfolio-detail-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portfolio-detail-actions .btn-primary {
+    grid-column: 1 / -1;
+  }
+
+  .project-editor-modal {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 20px);
+  }
+
+  .project-editor-body {
+    padding: 16px;
+  }
 }
 
 .specialized-data-grid {
