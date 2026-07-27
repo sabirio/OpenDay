@@ -3,8 +3,27 @@ import { buildSiteSnagOverview, deriveDueState, filterSnags, summarizeSnags } fr
 
 export const STATUS_LABELS={OPEN:'Open',ASSIGNED:'Assigned',IN_PROGRESS:'In progress',READY_FOR_REVIEW:'Ready for review',CLOSED:'Closed',CANCELLED:'Cancelled'};
 export const PRIORITY_LABELS={LOW:'Low',MEDIUM:'Medium',HIGH:'High',CRITICAL:'Critical'};
-export const SNAG_QUICK_VIEWS=Object.freeze([{label:'All',filters:{}},{label:'Active',filters:{activeOnly:true}},{label:'Assigned to me',filters:{assigneeId:'$ACTOR'}},{label:'Ready for review',filters:{status:'READY_FOR_REVIEW'}},{label:'Overdue',filters:{dueState:'OVERDUE'}},{label:'Closed',filters:{status:'CLOSED'}}]);
+// 'Captured' was previously a standalone hardcoded quick-view button in
+// SiteSnagObservations.jsx (Site Snag P0 master-detail rework) — folded in
+// here so every quick view (including its count and its "preserve unrelated
+// manual filters" merge behavior) goes through one declarative list.
+export const SNAG_QUICK_VIEWS=Object.freeze([{label:'All',filters:{}},{label:'Captured',filters:{publicationState:'CAPTURED'}},{label:'Active',filters:{activeOnly:true}},{label:'Assigned to me',filters:{assigneeId:'$ACTOR'}},{label:'Ready for review',filters:{status:'READY_FOR_REVIEW'}},{label:'Overdue',filters:{dueState:'OVERDUE'}},{label:'Closed',filters:{status:'CLOSED'}}]);
 export const DUE_STATE_OPTIONS=Object.freeze(['ON_TRACK','DUE_SOON','OVERDUE','NO_DUE_DATE','COMPLETED']);
+
+// The dimension each quick view "owns" — used by the master list to replace
+// only these keys when a quick view is selected, while preserving any other
+// manually-entered filter (search, category, discipline, zone, creator).
+export const QUICK_VIEW_OWNED_KEYS=Object.freeze(['activeOnly','assigneeId','status','dueState','publicationState']);
+
+// Per-quick-view counts for the master-list chip row. Reuses the same
+// canonical filterSnags() every manual filter already goes through — no new
+// filtering engine, just a label->count map over the full unfiltered set.
+export function countSnagQuickViews(snags,actor,asOf=new Date()) {
+  return Object.fromEntries(SNAG_QUICK_VIEWS.map(view=>{
+    const mapped=Object.fromEntries(Object.entries(view.filters).map(([key,value])=>[key,value==='$ACTOR'?actor?.id:value]));
+    return [view.label,filterSnags(snags,mapped,asOf).length];
+  }));
+}
 const STATUS_TONES={OPEN:'neutral',ASSIGNED:'info',IN_PROGRESS:'warning',READY_FOR_REVIEW:'review',CLOSED:'success',CANCELLED:'danger'};
 const humanize=value=>String(value||'').replaceAll('_',' ').toLowerCase().replace(/^./,letter=>letter.toUpperCase());
 const formatDate=value=>value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium'}).format(new Date(value)):'—';

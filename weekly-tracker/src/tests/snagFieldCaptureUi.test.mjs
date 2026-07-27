@@ -41,7 +41,10 @@ check('full form returns to same drawing revision and page', /planReturn/.test(c
 check('captured detail Done returns to drawing context', /captureReturn/.test(detail) && /Back to drawing/.test(detail) && /withCreatedParam\(captureReturn, snag\.id\)/.test(detail));
 check('created-param helper is bare-path safe (no `?` in the return context does not break the route)', /url\.includes\('\?'\)/.test(detail));
 check('captured detail omits empty optional catalog ids', /if \(captureForm\.tradeId \|\| snag\.tradeId\) payload\.tradeId/.test(detail) && /if \(captureForm\.stakeholderId \|\| snag\.stakeholderId\) payload\.stakeholderId/.test(detail));
-check('captured product command errors are visible', /command\.error \|\| product\.error/.test(detail) && /snagErrorMessage\(command\.error \|\| product\.error\)/.test(detail));
+// P0 master-detail rework added a single-observation Publish action (reusing
+// batchPublish) alongside command/product — its errors must surface through
+// the same banner, not be silently swallowed.
+check('captured product command errors are visible (including the P0 single-observation Publish action)', /command\.error \|\| product\.error \|\| publish\.error/.test(detail) && /snagErrorMessage\(command\.error \|\| product\.error \|\| publish\.error\)/.test(detail));
 check('viewer preserves page query and placement after return', /initialPage=Number\(query\.get\('page'\)\)\|\|1/.test(viewer) && /query\.get\('created'\)/.test(viewer));
 check('PDF upload remains plan-management only', /type="file" accept="application\/pdf,.pdf"/.test(management) && !/type="file" accept="application\/pdf,.pdf"/.test(create) && !/type="file" accept="application\/pdf,.pdf"/.test(detail));
 

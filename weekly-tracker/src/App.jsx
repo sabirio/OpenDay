@@ -36,7 +36,6 @@ const SnagFieldPage    = lazy(() => import("./pages/snags/SnagFieldPage"));
 const FieldSnagSelect  = lazy(() => import("./pages/snags/FieldSnagSelect"));
 const LegacyFieldSnagRedirect = lazy(() => import("./pages/snags/LegacyFieldSnagRedirect"));
 const SnagCreatePage   = lazy(() => import("./pages/snags/SnagCreatePage"));
-const SnagDetailPage   = lazy(() => import("./pages/snags/SnagDetailPage"));
 const SnagProjectSelectPage = lazy(() => import("./pages/snags/SnagProjectSelectPage"));
 const PlanManagementPage = lazy(() => import("./pages/plans/PlanManagementPage"));
 const PlanViewerPage = lazy(() => import("./pages/plans/PlanViewerPage"));
@@ -425,7 +424,7 @@ function App() {
                       see above). This keeps old deep links working. */}
                   <Route path="/projects/:projectId/snags/field" element={<ProtectedRoute resource="snags"><LegacyFieldSnagRedirect/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/new" element={<ProtectedRoute resource="snags"><SnagCreatePage/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagDetailPage/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans" element={<ProtectedRoute resource="snags"><PlanManagementPage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans/:planId" element={<ProtectedRoute resource="snags"><PlanViewerPage/></ProtectedRoute>} />
                   <Route
