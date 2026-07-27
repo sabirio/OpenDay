@@ -730,6 +730,17 @@ async function submitContractorReport(page, projectId, report) {
   await page.goto(`/contractor-report/${projectId}`);
   await page.waitForLoadState('networkidle');
 
+  // This helper submits several reports to the same project in one session
+  // (different reporting periods each time). ContractorReport.jsx's
+  // findContractorDraft() intentionally matches any unresolved draft for
+  // this user+project regardless of reporting period (PHASE 5E.4
+  // investigation), so a leftover draft from an earlier period in this same
+  // loop can surface the "Unfinished report found" banner and block Submit
+  // until it's resolved — this scenario always supplies fresh, explicit
+  // data for every period, so discarding any such banner is correct.
+  const discardDraftBtn = page.getByRole('button', { name: /Discard and start new|Remove old draft/ });
+  if (await discardDraftBtn.count() > 0) await discardDraftBtn.click();
+
   // Date
   const dateInput = page.locator('[data-testid="reporting-date"]');
   await dateInput.fill(report.date);
@@ -750,30 +761,49 @@ async function submitContractorReport(page, projectId, report) {
   // Schedule status
   const schedBtn = page.locator(`[data-testid="toggle-schedule-status-${report.schedule}"]`);
   if (await schedBtn.count() > 0) await schedBtn.click();
+  if (report.schedule === 'At Risk' || report.schedule === 'Critical') {
+    await page.getByRole('checkbox', { name: /Coordination/ }).click();
+    await page.getByRole('group', { name: 'Risk Owner' }).getByRole('button', { name: 'Authorities' }).click();
+    await page.getByRole('button', { name: report.schedule === 'Critical' ? 'High' : 'Medium', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Short Description' }).fill(report.comment);
+  }
 
   // Support required
   const supportBtn = page.locator(`[data-testid="toggle-support-required-${report.support}"]`);
   if (await supportBtn.count() > 0) await supportBtn.click();
+  if (report.support === 'Yes') {
+    await page.getByRole('checkbox', { name: /Authorities/ }).last().click();
+    await page.getByRole('textbox', { name: 'Support Description' }).fill(report.weekAfter);
+  }
 
   // Activities blocked
   const blockedBtn = page.locator(`[data-testid="toggle-activities-blocked-${report.blocked}"]`);
   if (await blockedBtn.count() > 0) await blockedBtn.click();
+  if (report.blocked === 'Yes') {
+    await page.getByRole('textbox', { name: 'Delay Reason & Mitigation' }).fill(report.comment);
+  }
 
   // Additional works
   if (report.additionalWorks) {
     const awBtn = page.locator(`[data-testid="toggle-additional-works-${report.additionalWorks}"]`);
     if (await awBtn.count() > 0) await awBtn.click();
+    if (report.additionalWorks === 'Yes') {
+      await page.locator('#additional-works-reason').selectOption({ label: report.additionalWorksReason });
+      await page.getByPlaceholder('Explain the project change, reason, and affected scope...').fill(report.additionalWorksDesc);
+    }
   }
 
-  // Text areas (look-ahead)
-  const form = page.locator('[data-testid="contractor-report-form"]');
-  const textareas = form.locator('textarea');
-  const taCount = await textareas.count();
-
-  if (taCount >= 1 && report.nextWeek) await textareas.nth(0).fill(report.nextWeek);
-  if (taCount >= 2 && report.weekAfter) await textareas.nth(1).fill(report.weekAfter);
-  if (taCount >= 3) await textareas.nth(2).fill('No unresolved pending issues this week.');
-  if (taCount >= 4 && report.comment) await textareas.nth(3).fill(report.comment);
+  // Look-ahead and comments: locate by field semantics because conditional
+  // risk/support sections add textareas before these fields.
+  if (report.nextWeek) {
+    await page.getByRole('textbox', { name: 'Top 3 Activities — Next Week (optional)' }).fill(report.nextWeek);
+  }
+  if (report.weekAfter) {
+    await page.getByRole('textbox', { name: 'Top 3 Activities — Week +2 (optional)' }).fill(report.weekAfter);
+  }
+  if (report.comment) {
+    await page.getByRole('textbox', { name: 'Final Comments or Pending Issues (optional)' }).fill(report.comment);
+  }
 
   // Photo
   const fileInput = page.locator('input[type="file"][accept="image/*"]');
@@ -816,6 +846,7 @@ async function submitPMSiteVisit(page, projectId, visit) {
   }
 
   // PM task observations
+  let observationsRecorded = 0;
   for (const [wpId, obs] of Object.entries(visit.wpObservations)) {
     const pmRows = page.locator(`[data-testid="pm-task-row"][data-wp-id="${wpId}"]`);
     const rowCount = await pmRows.count();
@@ -824,9 +855,13 @@ async function submitPMSiteVisit(page, projectId, visit) {
       const statusBtn = pmRows.nth(i).locator(`[data-testid="pm-status-btn-${obs.status}"]`);
       if (await statusBtn.count() > 0) {
         await statusBtn.click();
+        observationsRecorded++;
         await page.waitForTimeout(40);
       }
     }
+  }
+  if (observationsRecorded === 0) {
+    await page.locator('[data-testid="pm-status-btn-completed"]').first().click();
   }
 
   // PM schedule assessment
@@ -1104,7 +1139,12 @@ test.describe.serial('DEMO SEED — Persistent QA Data', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]').filter({ hasText: 'DEMO-QA' });
+    // Dashboard is now a master-detail workspace (no modal drawer): selecting
+    // a project updates the inline `.dashboard-project-overview` pane, and
+    // the master list's own rows (unlike the Status Matrix's rows, which
+    // unmount once a single project is selected) stay mounted throughout, so
+    // the loop below can keep re-clicking `rows` across iterations.
+    const rows = page.locator('[data-testid="dashboard-master-project"]').filter({ hasText: 'DEMO-QA' });
     const rowCount = await rows.count();
     test.skip(rowCount === 0, 'No DEMO-QA rows found in dashboard');
 
@@ -1112,17 +1152,15 @@ test.describe.serial('DEMO SEED — Persistent QA Data', () => {
     for (let i = 0; i < Math.min(rowCount, 3); i++) {
       await rows.nth(i).click();
       await page.waitForTimeout(500);
-      const drawer = page.locator('[data-testid="project-detail-drawer"]');
-      if (!await drawer.isVisible().catch(() => false)) continue;
+      const overview = page.locator('.dashboard-project-overview');
+      if (!await overview.isVisible().catch(() => false)) continue;
 
-      const text = await drawer.innerText();
+      const text = await overview.innerText();
       expect(text).not.toContain('NaN');
       expect(text).not.toContain('[object Object]');
       expect(text).not.toContain('undefined');
 
       verified++;
-      await page.keyboard.press('Escape');
-      await page.waitForTimeout(300);
     }
 
     expect(verified).toBeGreaterThanOrEqual(1);

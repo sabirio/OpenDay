@@ -5,22 +5,29 @@ test.describe('Contractor report flow', () => {
   test('contractor lands on /contractor-select and can navigate to a project', async ({ page }) => {
     await login(page, CREDENTIALS.contractor);
     await expect(page).toHaveURL(/\/contractor-select/);
+    await expect(page.getByText('Loading project data…')).not.toBeVisible();
+    await expect.poll(async () => {
+      const cards = await page.locator('.contractor-project-card').count();
+      const emptyReady = await page.locator('.contractor-no-projects').filter({ hasNotText: 'Loading your work…' }).count();
+      return cards + emptyReady;
+    }).toBeGreaterThan(0);
 
     // If no projects are assigned, just verify the page loads
     const hasProjects = await page.locator('.contractor-project-card').count() > 0;
     if (!hasProjects) {
-      await expect(page.locator('.contractor-no-projects')).toBeVisible();
+      await expect(page.locator('.contractor-no-projects')).toContainText('No assigned projects');
       await logout(page);
       return;
     }
 
     // Navigate to first project's report
-    await page.locator('.contractor-project-card button.btn-primary').first().click();
+    await page.locator('.contractor-project-card').first().getByRole('button', { name: 'Submit Report' }).click();
     await expect(page).toHaveURL(/\/contractor-report\//);
 
     // Form should be visible
-    await expect(page.locator('button', { hasText: 'Submit Weekly Report' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Submit Weekly Report' })).toBeVisible();
 
+    await page.goto('/contractor-select');
     await logout(page);
   });
 

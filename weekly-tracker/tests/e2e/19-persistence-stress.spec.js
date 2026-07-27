@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { CREDENTIALS, login, logout } from './helpers.js';
+import { CONTRACTOR_REPORT_DATES, CREDENTIALS, login, logout } from './helpers.js';
 
 /**
  * Persistence stress tests.
@@ -27,9 +27,7 @@ test.describe('Persistence stress', () => {
     await expect(page).toHaveURL(/\/contractor-report\//);
     await page.waitForLoadState('networkidle');
 
-    const today = new Date().toISOString().split('T')[0];
-
-    await page.locator('[data-testid="reporting-date"]').fill(today);
+    await page.locator('[data-testid="reporting-date"]').fill(CONTRACTOR_REPORT_DATES.PERSISTENCE_STRESS);
 
     const wpToggle = page.locator('[data-testid="wp-toggle"]').first();
     const wasActive = (await wpToggle.textContent()).includes('✓');
@@ -43,8 +41,7 @@ test.describe('Persistence stress', () => {
     const persistenceComment = `Persistence-test-${Date.now()}`;
     await textareas.nth(0).fill(`1) ${persistenceComment}\n2) B\n3) C`);
     await textareas.nth(1).fill('1) Week+2 A\n2) B\n3) C');
-    await textareas.nth(2).fill('No issues');
-    await textareas.nth(3).fill(persistenceComment);
+    await textareas.nth(2).fill(`${persistenceComment} — no pending issues`);
 
     await page.locator('input[type="file"][accept="image/*"]').setInputFiles({
       name: 'persist-test.png',
@@ -56,7 +53,12 @@ test.describe('Persistence stress', () => {
     // Submit stays disabled while the photo's async upload is in flight.
     await expect(page.locator('[data-testid="save-contractor-report"]')).toBeEnabled({ timeout: 30_000 });
     await page.locator('[data-testid="save-contractor-report"]').click();
-    await expect(page.locator('text=Report submitted')).toBeVisible({ timeout: 20_000 });
+    // Exact heading match, not a substring — ReportHeaderCard.jsx's own
+    // "N reports submitted total" stat (always present once any prior report
+    // exists for the project) contains "report submitted" as a substring and
+    // would satisfy a loose text= locator regardless of this submission's
+    // actual outcome (confirmed via PHASE 5E.2A trace/screenshot audit).
+    await expect(page.getByRole('heading', { name: 'Report submitted', exact: true })).toBeVisible({ timeout: 20_000 });
 
     // The success screen has no nav bar, so navigate home before logging out.
     // Reload and verify the report appears in Weekly Reports (as admin)

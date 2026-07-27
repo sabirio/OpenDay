@@ -76,7 +76,8 @@ test.describe('Contractor login', () => {
     await login(page, CREDENTIALS.contractor);
 
     await expect(page).toHaveURL(/\/contractor-select/);
-    await expect(page.locator('h1')).toContainText('Submit Weekly Report');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('My Work');
+    await expect(page.getByRole('group', { name: 'Work summary filters' })).toBeVisible();
     await expect(page.locator('.contractor-role-badge')).toContainText('Contractor');
 
     await logout(page);

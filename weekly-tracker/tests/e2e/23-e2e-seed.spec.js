@@ -124,13 +124,12 @@ async function submitContractorReportViaUI(page, projectId, reportDate, weekInde
   // Activities Blocked: No (default)
   await page.locator('[data-testid="toggle-activities-blocked-No"]').click();
 
-  // Fill the 4 visible textareas in order:
+  // Current form exposes the two look-ahead fields plus final comments.
   //   0 = Next Week Top 3, 1 = Week+2 Top 3, 2 = Pending Issues, 3 = Final Comments
   const textareas = page.locator('textarea');
   await textareas.nth(0).fill(`1) E2E site prep week ${weekIndex + 1}\n2) E2E structural works\n3) E2E MEP roughing`);
   await textareas.nth(1).fill(`1) E2E finishes start\n2) E2E equipment delivery\n3) E2E snagging prep`);
-  await textareas.nth(2).fill(`E2E pending: awaiting delivery confirmation — week ${weekIndex + 1}`);
-  await textareas.nth(3).fill(`E2E auto-report #${weekIndex + 1} — ${reportDate}`);
+  await textareas.nth(2).fill(`E2E auto-report #${weekIndex + 1} — ${reportDate}; awaiting delivery confirmation`);
 
   // Upload a minimal photo (required by validation)
   await page.locator('input[type="file"]').setInputFiles({
@@ -304,17 +303,24 @@ test.describe('E2E seed — TEST_01_e2e & TEST_02_e2e', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const row = page.locator('tr, [data-testid="dashboard-project-row"]').filter({ hasText: 'TEST_01_e2e' }).first();
+    const row = page.locator('[data-testid="dashboard-master-project"]').filter({ hasText: 'TEST_01_e2e' }).first();
     await expect(row).toBeVisible({ timeout: 10_000 });
     await row.click();
     await page.waitForTimeout(500);
 
-    await expect(page.locator('[data-testid="pm-site-visit-summary"]').first()).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator('.dashboard-detail-field').filter({ hasText: 'PM comparison' }).first()).toBeVisible({ timeout: 8_000 });
 
-    const discCell = page.locator('[data-testid="discrepancy-count"]').first();
+    const discCell = page.locator('.dashboard-detail-field').filter({ hasText: 'PM comparison' }).first();
     if (await discCell.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      const num = parseInt((await discCell.innerText()).trim());
-      expect(isNaN(num), 'discrepancy count should be a number').toBe(false);
+      const discText = await discCell.innerText();
+      // DashboardProjectOverview.jsx only renders a digit for this field when
+      // it actually reports a discrepancy count ("No site visit" / "Matched"
+      // are valid, correct, non-numeric states) — only check numeric-ness
+      // when the field claims to be showing a count.
+      if (/discrepanc/i.test(discText)) {
+        const num = Number(discText.match(/\d+/)?.[0]);
+        expect(isNaN(num), 'discrepancy count should be a number').toBe(false);
+      }
     }
 
     await logout(page);

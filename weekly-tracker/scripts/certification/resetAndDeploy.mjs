@@ -30,13 +30,28 @@ function psqlFile(file) {
   });
 }
 
+function resetLocalDatabase() {
+  try {
+    execSync('npx --yes supabase db reset', { cwd: weeklyTrackerDir, stdio: 'inherit' });
+  } catch {
+    // The local CLI can finish recreating Postgres before dependent local
+    // containers (notably Storage/Realtime) become healthy. Reconcile the
+    // whole proved-local stack once, then retry the same reset. A persistent
+    // schema/reset error still fails closed on the second attempt.
+    console.warn('Local reset health check failed; restarting the proved-local Supabase stack once before retrying...');
+    execSync('npx --yes supabase stop', { cwd: weeklyTrackerDir, stdio: 'inherit' });
+    execSync('npx --yes supabase start', { cwd: weeklyTrackerDir, stdio: 'inherit' });
+    execSync('npx --yes supabase db reset', { cwd: weeklyTrackerDir, stdio: 'inherit' });
+  }
+}
+
 function main() {
   const deployOnly = process.argv.includes('--deploy-only');
   if (deployOnly) {
     console.log('1/2 reset skipped (--deploy-only); using the existing local database...');
   } else {
     console.log('1/2 supabase db reset (truncates public schema back to empty)...');
-    execSync('npx --yes supabase db reset', { cwd: weeklyTrackerDir, stdio: 'inherit' });
+    resetLocalDatabase();
   }
 
   console.log(`\n2/2 applying ${freshPath.length} canonical fresh-path migrations...`);

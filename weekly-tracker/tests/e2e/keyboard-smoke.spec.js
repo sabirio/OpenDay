@@ -117,12 +117,20 @@ test.describe('Keyboard/focus smoke — PM Site Visit', () => {
     await page.waitForTimeout(300);
 
     // PM status buttons: also real <button>s with aria-pressed + aria-label.
-    const completedBtn = page.locator('[data-testid="pm-status-btn-completed"]').first();
-    await completedBtn.focus();
-    await expect(completedBtn).toBeFocused();
-    await expect(completedBtn).toHaveAttribute('aria-label', /.+/);
+    // Deliberately "In Progress", not "Completed" — SiteVisitPhaseSection.jsx
+    // auto-collapses (unmounts) a phase the instant it becomes fully
+    // complete, and this fixture's phases each have exactly one WP, so
+    // marking it Completed would remove this very button from the DOM
+    // before the re-query below could find it. "In Progress" exercises the
+    // same Enter-activates-aria-pressed behavior without triggering that.
+    const statusBtn = page.locator('[data-testid="pm-status-btn-in_progress"]').first();
+    await statusBtn.focus();
+    await expect(statusBtn).toBeFocused();
+    await expect(statusBtn).toHaveAttribute('aria-label', /.+/);
+    const statusLabel = await statusBtn.getAttribute('aria-label');
     await page.keyboard.press('Enter');
-    await expect(completedBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: statusLabel, exact: true }))
+      .toHaveAttribute('aria-pressed', 'true');
 
     // Declaration checkbox (if present at this scroll position): custom
     // role="checkbox", must respond to both Space and Enter (its own

@@ -9,7 +9,7 @@ import Icon from "../components/shared/Icon";
 import PrintHeader from "../components/print/PrintHeader";
 import WeeklyReportExportButton from "../components/weekly/WeeklyReportExportButton";
 import WeeklyReportsMasterList from "../components/weekly/WeeklyReportsMasterList";
-import { currentISOWeek } from "../utils/scheduleUtils";
+import { useWeeklyReportsMasterRows, describeReportContext } from "../hooks/useWeeklyReportsMasterRows";
 import { formatDate } from "../utils/reportUtils";
 // TODO wave4: WORK_PACKAGES here is the intentional legacy-report fallback
 // (old flat-task vocabulary, no masterTaskLibrary equivalent) — see
@@ -101,50 +101,21 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   const selectedProject = selectedRow?.canonical?.snapshot?.project
     ?? projects.find(p => String(p.id) === effectiveProjectId);
 
-  const masterRows = useMemo(() => allRows.flatMap((row) => {
-    const project = row.canonical?.snapshot?.project ?? row.project;
-    const canonicalReports = [...(row.canonical?.snapshot?.contractorReports ?? [])].reverse();
-    const projectCode = project?.storeCode ?? "";
-    const projectName = project?.shoppingMallName ?? "";
+  // Drives the detail header's status pill/reporting-context line — must
+  // track whichever report the Report Date selector currently has open, not
+  // the project's fixed master-row summary (which always reflects the
+  // latest report, for master-list identity purposes only). The "missing"
+  // status only ever applies to the latest slot, same as before this fix.
+  const selectedReportSummary = useMemo(() => {
+    if (!selectedReport) return null;
+    const isLatest = projectReports[0] && String(projectReports[0].id) === String(selectedReport.id);
+    return describeReportContext(selectedReport, isLatest && Boolean(selectedRow?.missingReport));
+  }, [selectedReport, projectReports, selectedRow]);
 
-    if (canonicalReports.length === 0) {
-      return [{
-        key: `${project.id}:missing`,
-        projectId: String(project.id),
-        reportId: "",
-        projectCode,
-        projectName,
-        status: "missing",
-        statusLabel: "Missing",
-        reportingContext: "No contractor report",
-        attentionLabel: null,
-      }];
-    }
-
-    return canonicalReports.map((report, index) => {
-      const reportDate = report.reportingDate || report.submittedAt;
-      const isoWeek = reportDate ? currentISOWeek(new Date(reportDate)) : null;
-      const weekLabel = isoWeek ? `Week ${Number(isoWeek.slice(-2))}` : "Date unavailable";
-      const isMissing = index === 0 && row.missingReport;
-      const attentionLabel = [
-        report.activitiesBlocked === "Yes" ? "Blocked" : null,
-        report.supportRequired === "Yes" ? "Support" : null,
-        report.riskScale ? `Risk ${report.riskScale}` : null,
-      ].filter(Boolean).join(" · ");
-
-      return {
-        key: `${project.id}:${report.id}`,
-        projectId: String(project.id),
-        reportId: String(report.id),
-        projectCode,
-        projectName,
-        status: isMissing ? "missing" : "submitted",
-        statusLabel: isMissing ? "Missing" : "Submitted",
-        reportingContext: [weekLabel, reportDate ? formatDate(reportDate) : null].filter(Boolean).join(" · "),
-        attentionLabel: attentionLabel || null,
-      };
-    });
-  }), [allRows]);
+  // One master row per project (never per report) — see
+  // core/weekly/weeklyReportsMasterRowModel.js for why and for the shared
+  // describeReportContext() this and selectedReportSummary above both use.
+  const masterRows = useWeeklyReportsMasterRows(allRows);
 
   const filteredMasterRows = useMemo(() => {
     const query = masterSearch.trim().toLowerCase();
@@ -157,8 +128,10 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
     });
   }, [masterRows, masterSearch, masterFilter]);
 
-  const selectedMasterKey = `${effectiveProjectId}:${effectiveReportId || "missing"}`;
-  const selectedMasterRow = masterRows.find((row) => row.key === selectedMasterKey) ?? null;
+  // Master-row identity is the project alone (see masterRows above) — a
+  // project is either selected or not, regardless of which of its reports
+  // the detail pane is currently showing.
+  const selectedMasterKey = effectiveProjectId;
 
   // `templateResult.key` tracks which (projectId, templateId) pair the
   // loaded template actually belongs to — `activeTemplate` is derived below
@@ -308,12 +281,12 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               <div className="weekly-detail-identity">
                 <div className="weekly-detail-title-row">
                   <h2>{selectedProject.storeCode || "Project"}{selectedProject.shoppingMallName ? ` — ${selectedProject.shoppingMallName}` : ""}</h2>
-                  {selectedMasterRow && (
-                    <span className={`weekly-master-status is-${selectedMasterRow.status}`}>{selectedMasterRow.statusLabel}</span>
+                  {selectedReportSummary && (
+                    <span className={`weekly-master-status is-${selectedReportSummary.status}`}>{selectedReportSummary.statusLabel}</span>
                   )}
                 </div>
                 <div className="weekly-detail-meta">
-                  <span>{selectedMasterRow?.reportingContext || "No contractor report"}</span>
+                  <span>{selectedReportSummary?.reportingContext || "No contractor report"}</span>
                   {selectedProject.city && <span>{selectedProject.city}</span>}
                   {selectedProject.country && <span>{selectedProject.country}</span>}
                   {selectedProject.projectManager && <span>PM: {selectedProject.projectManager}</span>}

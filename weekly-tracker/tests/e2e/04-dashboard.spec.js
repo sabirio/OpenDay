@@ -22,22 +22,15 @@ test.describe('Project Dashboard — Admin', () => {
     expect(hasTable || hasEmpty).toBeTruthy();
   });
 
-  test('clicking a project row opens the detail drawer', async ({ page }) => {
-    // Real project rows have a <strong> storeCode element.
-    // Wait for at least one to appear (avoids clicking the empty "No matching projects." placeholder).
-    const projectRows = page.locator('table.status-matrix-table tbody tr').filter({ has: page.locator('strong') });
+  test('selecting a project opens its canonical detail workspace', async ({ page }) => {
+    const projectRows = page.locator('[data-testid="dashboard-master-project"]');
     await expect(projectRows.first()).toBeVisible({ timeout: 15_000 });
 
     await projectRows.first().click();
 
-    // Drawer appears with a "Copy link" button unique to its header
-    await expect(
-      page.locator('button', { hasText: 'Copy link' })
-    ).toBeVisible({ timeout: 8_000 });
-
-    // Close the drawer (Escape handler) so the fixed overlay doesn't block afterEach logout
-    await page.keyboard.press('Escape');
-    await expect(page.locator('button', { hasText: 'Copy link' })).not.toBeVisible();
+    await expect(projectRows.first()).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.dashboard-project-overview')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copy report link' })).toBeVisible();
   });
 });
 
