@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/AuthContext.jsx';
 import { usePlanCanvas, usePlanCommand, usePlanDocument, usePlanPins, usePlanPlacement, useProjectPlans } from '../../../hooks/plans/usePlanController.js';
 import { useCaptureCommand } from '../../../hooks/snags/useSnagController.js';
+import { snagErrorMessage } from '../../../hooks/snags/useSnagPresentation.js';
 import { changePlanZoom, planZoomLabel, renderPlanPoint } from '../../../hooks/plans/usePlanPresentation.js';
 
 // Mobile Field Mode's Plan tab. Reuses the same normalized-coordinate pin
@@ -135,7 +136,7 @@ export default function SnagFieldPlanView({ projectId, canCreate, autoStartCaptu
           <button className="btn btn-primary" disabled={capture.pending} onClick={() => capture.execute({ projectId, planId: plan.id, page, ...capturePoint }).catch(() => {})}>
             {capture.pending ? 'Saving…' : 'Confirm & open Observation'}
           </button>
-          {capture.error ? <p className="snag-error" role="alert">{capture.error.message}</p> : null}
+          {capture.error ? <p className="snag-error" role="alert">{snagErrorMessage(capture.error)}</p> : null}
         </div>
       ) : null}
 

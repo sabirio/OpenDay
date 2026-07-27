@@ -54,11 +54,11 @@ export default function SnagDetailPage() {
   // uses, just with a one-item snagIds collection. No second publish command.
   const publish = useSnagProductCommand(() => detail.reload());
 
-  if (detail.status === 'loading') return <div className="snag-page" role="status">Loading snag...</div>;
+  if (detail.status === 'loading') return <div className="snag-page" role="status">Loading Observation...</div>;
   if (detail.status === 'error') {
     return (
       <div className="snag-page snag-error" role="alert">
-        <p>Snag could not be loaded.</p>
+        <p>Observation could not be loaded.</p>
         <button className="btn" onClick={detail.reload}>Retry</button>
       </div>
     );

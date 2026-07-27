@@ -88,7 +88,9 @@ export default function RiskDashboardMasterList({
         </button>
 
         {filteredRows.length === 0 ? (
-          <div className="master-list-empty">No projects match the current search and severity filter.</div>
+          <div className="master-list-empty">
+            {rows.length === 0 ? "No projects yet. Add a project to begin." : "No projects match the current search and severity filter."}
+          </div>
         ) : filteredRows.map((row) => {
           const selected = selectedRiskProjectId === String(row.project.id);
           const delay = row.schedDev?.predictedDelayDays;

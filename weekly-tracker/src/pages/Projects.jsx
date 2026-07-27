@@ -302,19 +302,24 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
 
   const pagedProjects = paginate(filteredProjects, effectiveCurrentPage, PORTFOLIO_PAGE_SIZE);
 
-  // Keep selection valid for whatever is currently visible (initial load,
-  // page change, or a filter change that moves the current selection off the
-  // visible page): select the first visible project, or none. Same
-  // render-time adjustment pattern as above.
+  // Phase 4 cross-page consistency fix: this used to re-derive selection from
+  // pagedProjects, so any search/filter/pagination change that moved the
+  // selected project off the visible page silently swapped the open detail
+  // to a different project (or cleared it) without the user choosing
+  // anything. Selection now persists against the full projects list — same
+  // "filtering never silently swaps or clears the selected detail" contract
+  // Weekly Reports/Risk Dashboard/Site Snag already use — and only falls
+  // back to auto-selecting the first visible row when nothing is selected
+  // yet, or the previous selection no longer exists at all (e.g. deleted).
+  // Same render-time adjustment pattern as the page-count clamp above.
+  const selectedProjectExists = selectedProjectId !== null && projects.some((p) => p.id === selectedProjectId);
   let effectiveSelectedProjectId = selectedProjectId;
-  if (pagedProjects.length === 0) {
-    effectiveSelectedProjectId = null;
-  } else if (!pagedProjects.some((p) => p.id === selectedProjectId)) {
-    effectiveSelectedProjectId = pagedProjects[0].id;
+  if (!selectedProjectExists) {
+    effectiveSelectedProjectId = pagedProjects[0]?.id ?? null;
   }
   if (effectiveSelectedProjectId !== selectedProjectId) setSelectedProjectId(effectiveSelectedProjectId);
 
-  const selectedProject = pagedProjects.find((p) => p.id === effectiveSelectedProjectId) ?? null;
+  const selectedProject = projects.find((p) => p.id === effectiveSelectedProjectId) ?? null;
 
   function selectProject(project) {
     setSelectedProjectId(project.id);

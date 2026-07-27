@@ -296,14 +296,20 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
     setMobileView("detail");
   }
 
+  // Phase 4 cross-page consistency fix: filtering/searching the master list
+  // used to unconditionally clear the open detail (setSelectedProjectId(null)
+  // on every keystroke/filter click), even when the selected project still
+  // existed. selectedRow is already derived from the full, unfiltered
+  // allRows (see above) — same pattern Weekly Reports/Risk Dashboard use —
+  // so the open project now stays open through filtering/search, matching
+  // the established Site Snag "filtering never silently swaps or clears the
+  // selected detail" contract. Only the master list's visible rows change.
   function changeFilter(value) {
     setFilterStatus(value);
-    setSelectedProjectId(null);
   }
 
   function changeSearch(value) {
     setSearchQuery(value);
-    setSelectedProjectId(null);
   }
 
   const detailHeader = (
@@ -345,9 +351,29 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
     </header>
   );
 
+  // Phase 4 cross-page consistency fix: Dashboard's tab bar was the one
+  // .detail-pane-tabs implementation without arrow-key roving-tabindex
+  // support — Portfolio (ProjectDetailTabs.jsx), Weekly Reports
+  // (WeeklyReportTabs.jsx) and Risk Dashboard (RiskDetailTabs.jsx) already
+  // support Left/Right/Home/End, so a keyboard user tabbing into any other
+  // detail-pane tablist could reach every tab, but not here. Same handler
+  // shape as those three (kept local rather than extracted, to avoid
+  // touching three already-working files for one gap).
+  function handleViewTabKeyDown(event, index) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? VIEWS.length - 1
+        : (index + (event.key === 'ArrowRight' ? 1 : -1) + VIEWS.length) % VIEWS.length;
+    setActiveView(VIEWS[nextIndex].id);
+    event.currentTarget.parentElement?.querySelectorAll('[role="tab"]')[nextIndex]?.focus();
+  }
+
   const detailTabs = (
     <div className="detail-pane-tabs" role="tablist" aria-label="Dashboard detail views">
-      {VIEWS.map(({ id, label }) => (
+      {VIEWS.map(({ id, label }, index) => (
         <button
           key={id}
           id={`dashboard-tab-${id}`}
@@ -357,6 +383,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
           aria-controls="dashboard-detail-tabpanel"
           tabIndex={activeView === id ? 0 : -1}
           onClick={() => setActiveView(id)}
+          onKeyDown={(event) => handleViewTabKeyDown(event, index)}
           className={activeView === id ? 'detail-tab is-active' : 'detail-tab'}
         >
           {label}

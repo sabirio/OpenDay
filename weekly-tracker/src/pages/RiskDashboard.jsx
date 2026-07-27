@@ -204,7 +204,15 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
             onLevelFilterChange={setLevelFilter}
             onSelect={(projectId) => {
               setSelectedRiskProjectId(projectId);
-              setActiveTab('overview');
+              // Phase 4 cross-page consistency fix: previously forced the
+              // detail tab back to Overview on every selection change,
+              // unlike Portfolio/Dashboard/Weekly Reports, which all
+              // preserve whichever tab the user had open across a master
+              // selection change. Overview/Drivers/Evidence/Trend are all
+              // meaningful for any selected project, so the tab now
+              // persists too. filterReport IS reset — it's a report-scoped
+              // filter value tied to the previous project's own reports and
+              // wouldn't carry meaning for a newly selected project.
               setFilterReport('');
               setMobileView('detail');
             }}

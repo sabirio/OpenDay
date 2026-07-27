@@ -54,7 +54,6 @@ class ErrorBoundary extends React.Component {
           <h2>Weekly report could not render</h2>
           <p>The report data loaded, but this view hit a rendering problem. Refresh the page or try another report date.</p>
         </div>
-        <pre style={{ whiteSpace: "pre-wrap", fontSize: 13, color: "var(--status-alert)", margin: 0 }}>{String(this.state.error)}</pre>
       </div>
     );
     return this.props.children;

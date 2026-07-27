@@ -80,7 +80,9 @@ export default function WeeklyReportsMasterList({
         </div>
 
         {filteredRows.length === 0 ? (
-          <div className="master-list-empty">No weekly reports match the current search and filter.</div>
+          <div className="master-list-empty">
+            {rows.length === 0 ? "No projects yet. Add a project to begin." : "No weekly reports match the current search and filter."}
+          </div>
         ) : filteredRows.map((row) => {
           const selected = selectedKey === row.key;
           return (
