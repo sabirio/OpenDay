@@ -1,21 +1,24 @@
-function MorningBrief({ summary }) {
+import { TONE, severityTone, getPortfolioState } from './homePresentation.js';
+
+function MorningBrief({ summary, projectCount }) {
   const { critical, warning, total } = summary;
+  const portfolioState = getPortfolioState(projectCount, total);
 
   let message;
-  if (total === 0) {
+  let color;
+  if (portfolioState === 'empty') {
+    message = 'No projects yet — add a project to start tracking priorities.';
+    color = TONE.muted;
+  } else if (portfolioState === 'healthy') {
     message = 'All clear — no issues detected across the portfolio.';
+    color = TONE.done;
   } else {
     const parts = [];
     if (critical > 0) parts.push(`${critical} critical`);
     if (warning  > 0) parts.push(`${warning} need attention`);
     message = parts.join(', ') + '.';
+    color = severityTone({ critical, warning });
   }
-
-  const color = critical > 0
-    ? 'var(--status-alert)'
-    : warning > 0
-      ? 'var(--status-warn)'
-      : 'var(--status-done)';
 
   return (
     <div style={{

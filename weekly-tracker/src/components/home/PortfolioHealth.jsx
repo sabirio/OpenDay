@@ -1,20 +1,22 @@
+import { TONE, countTone } from './homePresentation.js';
+
 function StatCard({ label, value, color, sub }) {
   return (
     <div style={{
-      flex: '1 1 140px',
-      padding: '14px 16px',
+      flex: '1 1 120px',
+      padding: '10px 14px',
       background: 'var(--bg-elevated)',
-      border: '1.5px solid var(--border)',
-      borderRadius: 10,
+      border: '1px solid var(--border)',
+      borderRadius: 8,
     }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 4 }}>
         {label}
       </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: color || 'var(--text-primary)', lineHeight: 1 }}>
+      <div style={{ fontSize: 19, fontWeight: 700, color: color || 'var(--text-primary)', lineHeight: 1.1 }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{sub}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>
       )}
     </div>
   );
@@ -26,15 +28,15 @@ function PortfolioHealth({ kpis }) {
   } = kpis;
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 8 }}>
         Portfolio Health
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <StatCard
           label="Avg Progress"
           value={`${avgProgress}%`}
-          color={avgProgress >= 70 ? 'var(--status-done)' : avgProgress >= 40 ? 'var(--status-warn)' : 'var(--status-alert)'}
+          color={avgProgress >= 70 ? TONE.done : avgProgress >= 40 ? TONE.warn : TONE.alert}
         />
         <StatCard
           label="Active Projects"
@@ -44,24 +46,24 @@ function PortfolioHealth({ kpis }) {
         <StatCard
           label="At Risk"
           value={atRisk}
-          color={atRisk > 0 ? 'var(--status-warn)' : 'var(--status-done)'}
+          color={countTone(atRisk)}
           sub="schedule issues"
         />
         <StatCard
           label="Critical"
           value={critical}
-          color={critical > 0 ? 'var(--status-alert)' : 'var(--status-done)'}
+          color={countTone(critical, TONE.alert)}
           sub="risk level"
         />
         <StatCard
           label="Missing Reports"
           value={missing}
-          color={missing > 0 ? 'var(--status-warn)' : 'var(--status-done)'}
+          color={countTone(missing)}
         />
         <StatCard
           label="Opening Soon"
           value={openingSoon}
-          color={openingSoon > 0 ? 'var(--status-warn)' : 'var(--text-muted)'}
+          color={countTone(openingSoon, TONE.warn, TONE.muted)}
           sub="within 30 days"
         />
       </div>

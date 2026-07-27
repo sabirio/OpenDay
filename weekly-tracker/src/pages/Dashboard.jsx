@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useDashboardModel } from "../hooks/useDashboardModel";
 import { getProgressSnapshot } from "../hooks/useDashboardOrchestration";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
@@ -148,9 +149,16 @@ function PortfolioOverview({
 }
 
 function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
+  // Supports deep-linking a specific project into Dashboard (e.g. from Home's
+  // priority queue) via ?project=<id> — read once on mount, same convention
+  // as the snag pages' useSearchParams usage. Not synced back to the URL on
+  // in-page selection changes; this is one-way entry, not full URL state.
+  const [searchParams] = useSearchParams();
+  const linkedProjectId = searchParams.get("project");
+
   const [activeView, setActiveView] = useState("overview");
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [mobileView, setMobileView] = useState("master");
+  const [selectedProjectId, setSelectedProjectId] = useState(() => linkedProjectId);
+  const [mobileView, setMobileView] = useState(() => (linkedProjectId ? "detail" : "master"));
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [dismissedAlertIds, setDismissedAlertIds] = useState(new Set());
