@@ -1,7 +1,8 @@
 import { formatDate } from '../../utils/reportUtils';
 import { getOpeningUrgencyColor, getReportAgeColor } from '../../config/statusColors';
 import { daysOverdueCount } from '../../hooks/useOpeningReadinessPresentation';
-import { SchedBadge, RiskBadge } from './DashboardWidgets';
+import { SchedBadge } from './DashboardWidgets';
+import { RiskBadge } from '../RiskGauge';
 import { useStatusMatrixRows } from '../../hooks/useStatusMatrixRows';
 
 function reportTag({ latestReport, daysSinceReport }) {

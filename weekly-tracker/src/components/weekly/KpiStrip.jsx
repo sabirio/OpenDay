@@ -1,4 +1,6 @@
-import { StatusBadge, InfoLabel } from './shared';
+import { InfoLabel } from './shared';
+import StatusBadge from '../shared/StatusBadge.jsx';
+import { schedStatusToTone } from '../../config/statusColors';
 
 export default function KpiStrip({ project, report, overallProgress, portfolioKpis, projectReportCount, onMissingClick }) {
   if (!project) return null;
@@ -21,7 +23,9 @@ export default function KpiStrip({ project, report, overallProgress, portfolioKp
     },
     {
       label: 'Schedule',
-      node: <StatusBadge value={report?.projectScheduleStatus} />,
+      node: report?.projectScheduleStatus
+        ? <StatusBadge tone={schedStatusToTone(report.projectScheduleStatus)}>{report.projectScheduleStatus}</StatusBadge>
+        : <span style={{ color: 'var(--text-muted)' }}>—</span>,
     },
     {
       label: 'Current Phase',

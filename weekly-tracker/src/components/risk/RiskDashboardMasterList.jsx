@@ -1,4 +1,6 @@
 import Icon from '../shared/Icon';
+import StatusBadge from '../shared/StatusBadge.jsx';
+import { riskLevelToTone } from '../../config/statusColors';
 
 const LEVEL_FILTERS = [
   { id: 'all', label: 'All' },
@@ -77,7 +79,7 @@ export default function RiskDashboardMasterList({
         >
           <span className="master-row-top">
             <strong>All Risks</strong>
-            <span className="risk-master-level is-critical">{summaryStats.CRITICAL} critical</span>
+            <StatusBadge tone="danger">{summaryStats.CRITICAL} CRITICAL</StatusBadge>
           </span>
           <span className="master-row-name">Portfolio risk overview</span>
           <span className="master-row-bottom">
@@ -102,7 +104,7 @@ export default function RiskDashboardMasterList({
             >
               <span className="master-row-top">
                 <strong title={row.project.storeCode || undefined}>{row.project.storeCode || 'Project code not set'}</strong>
-                <span className={`risk-master-level is-${row.riskScore.level.toLowerCase()}`}>{row.riskScore.level}</span>
+                <StatusBadge tone={riskLevelToTone(row.riskScore.level)}>{row.riskScore.level}</StatusBadge>
               </span>
               <span className="master-row-name" title={row.project.shoppingMallName || undefined}>
                 {row.project.shoppingMallName || 'Project name not set'}

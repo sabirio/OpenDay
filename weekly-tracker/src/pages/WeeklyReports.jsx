@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/shared/Toast.jsx";
 import MasterDetailLayout from "../components/shared/MasterDetailLayout";
 import Icon from "../components/shared/Icon";
+import StatusBadge from "../components/shared/StatusBadge.jsx";
 import PrintHeader from "../components/print/PrintHeader";
 import WeeklyReportExportButton from "../components/weekly/WeeklyReportExportButton";
 import WeeklyReportsMasterList from "../components/weekly/WeeklyReportsMasterList";
@@ -282,7 +283,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 <div className="weekly-detail-title-row">
                   <h2>{selectedProject.storeCode || "Project"}{selectedProject.shoppingMallName ? ` — ${selectedProject.shoppingMallName}` : ""}</h2>
                   {selectedReportSummary && (
-                    <span className={`weekly-master-status is-${selectedReportSummary.status}`}>{selectedReportSummary.statusLabel}</span>
+                    <StatusBadge tone={selectedReportSummary.statusTone}>{selectedReportSummary.statusLabel}</StatusBadge>
                   )}
                 </div>
                 <div className="weekly-detail-meta">

@@ -1,4 +1,5 @@
 import Icon from '../shared/Icon';
+import StatusBadge from '../shared/StatusBadge.jsx';
 
 const QUICK_FILTERS = [
   { id: 'all', label: 'All' },
@@ -95,7 +96,7 @@ export default function WeeklyReportsMasterList({
             >
               <span className="master-row-top">
                 <strong title={row.projectCode || undefined}>{row.projectCode || 'Project code not set'}</strong>
-                <span className={`weekly-master-status is-${row.status}`}>{row.statusLabel}</span>
+                <StatusBadge tone={row.statusTone}>{row.statusLabel}</StatusBadge>
               </span>
               <span className="master-row-name" title={row.projectName || undefined}>
                 {row.projectName || 'Project name not set'}

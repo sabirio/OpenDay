@@ -1,5 +1,7 @@
 import { formatDate } from '../../utils/reportUtils';
 import { formatSignedRiskPoints } from '../../hooks/useRiskLevelPresentation';
+import StatusBadge from '../shared/StatusBadge.jsx';
+import { riskLevelToTone } from '../../config/statusColors';
 
 function DetailField({ label, children }) {
   return (
@@ -92,7 +94,7 @@ export function RiskSelectedDrivers({ row }) {
           {dimensions.map(([name, level]) => (
             <div key={name}>
               <span>{name}</span>
-              <strong className={`risk-master-level is-${String(level).toLowerCase()}`}>{level}</strong>
+              <StatusBadge tone={riskLevelToTone(level)}>{level}</StatusBadge>
             </div>
           ))}
         </div>

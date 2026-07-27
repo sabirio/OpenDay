@@ -23,7 +23,9 @@ import ContractorsTab from '../components/risk/ContractorsTab';
 import PmAlignmentTab from '../components/risk/PmAlignmentTab';
 import GanttSpiTab from '../components/risk/GanttSpiTab';
 import { RISK_COLORS } from '../config/riskConfig';
+import { riskLevelToTone } from '../config/statusColors';
 import { RISK_LEVELS } from '../hooks/useRiskLevelPresentation';
+import StatusBadge from '../components/shared/StatusBadge.jsx';
 import { useAuth } from '../auth/AuthContext';
 import PrintHeader from '../components/print/PrintHeader';
 import ExportButton from '../components/print/ExportButton';
@@ -221,9 +223,9 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
               <div className="risk-detail-title-row">
                 <h2>{detailTitle}</h2>
                 {selectedRow && (
-                  <span className={`risk-master-level is-${selectedRow.riskScore.level.toLowerCase()}`}>
+                  <StatusBadge tone={riskLevelToTone(selectedRow.riskScore.level)}>
                     {selectedRow.riskScore.level}
-                  </span>
+                  </StatusBadge>
                 )}
               </div>
               <div className="risk-detail-meta">

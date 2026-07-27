@@ -1,7 +1,8 @@
 import { useProjectDetailDrawerModel } from '../../hooks/useProjectDetailDrawerModel';
 import { formatDate } from '../../utils/reportUtils';
 import { getScheduleRiskLabel } from '../../hooks/useScheduleRiskPresentation';
-import { SchedBadge, RiskBadge } from './DashboardWidgets';
+import { SchedBadge } from './DashboardWidgets';
+import { RiskBadge } from '../RiskGauge';
 
 function displayValue(value, fallback = 'Not set') {
   return value === null || value === undefined || value === '' ? fallback : value;

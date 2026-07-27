@@ -1,23 +1,3 @@
-// Only ever fed report.projectScheduleStatus (a 3-value enum: On Track/At
-// Risk/Critical, plus legacy 'Delayed') — all covered by SCHED_COLOR, so no
-// WP-status fallback is needed here.
-const SCHED_COLOR = {
-  'On Track': 'var(--status-done)',
-  'Critical': 'var(--status-alert)',
-  'Delayed':  'var(--status-alert)',
-  'At Risk':  'var(--status-warn)',
-};
-
-export function StatusBadge({ value }) {
-  if (!value || value === '-') return <span style={{ color: 'var(--text-muted)' }}>—</span>;
-  const color = SCHED_COLOR[value] || 'var(--text-muted)';
-  return (
-    <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: 'var(--accent-subtle)', color, border: '1px solid var(--border)' }}>
-      {value}
-    </span>
-  );
-}
-
 export function InfoLabel({ label, children }) {
   return (
     <div>

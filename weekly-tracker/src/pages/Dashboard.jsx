@@ -12,6 +12,7 @@ import ContractorsTab from "../components/dashboard/ContractorsTab";
 import DashboardMasterList from "../components/dashboard/DashboardMasterList";
 import DashboardProjectOverview from "../components/dashboard/DashboardProjectOverview";
 import MasterDetailLayout from "../components/shared/MasterDetailLayout";
+import StatusBadge from "../components/shared/StatusBadge.jsx";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { useAllRows } from "../hooks/useAllRows";
 import { SPI_STATUS } from "../config/statusColors";
@@ -327,7 +328,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
               : `${projects.length} projects · portfolio health, reporting and operational attention`}
           </div>
         </div>
-        {selectedRow && <span className="dashboard-lifecycle-badge">{selectedRow.project.projectStatus || 'Status not set'}</span>}
+        {selectedRow && <StatusBadge tone="neutral">{selectedRow.project.projectStatus || 'Status not set'}</StatusBadge>}
       </div>
       {selectedRow && (
         <div className="dashboard-detail-actions">

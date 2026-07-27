@@ -535,11 +535,13 @@ body {
 
 
 /* Project Dashboard polish: operational KPI row, desktop-fit matrix, controls, tabs. */
+/* Phase 3 chrome reduction: both consumers (PortfolioHealthSummary,
+   PortfolioScopeSummary in SummaryPanel.jsx) always render inside a
+   .dashboard-detail-section, which already supplies the border/background/
+   padding — this class previously repeated the identical bg-surface fill
+   with its own radius/padding, a no-payoff nested box. Now title-only. */
 .dashboard-kpi-cluster {
   min-width: 0;
-  padding: 18px;
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface-alpha);
 }
 
 .dashboard-kpi-cluster-title {
@@ -1717,20 +1719,6 @@ button.weekly-phase-row {
 .data-table td { color: var(--text-body); }
 .data-table tbody tr:hover { background: var(--bg-elevated); }
 .data-table tbody tr.row--alert { background: var(--status-alert-bg); }
-
-
-/* ============================================================
-   STATUS BADGE
-   ============================================================ */
-.status-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  background: var(--chip-bg-green);
-  color: var(--chip-fg-green);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
 
 
 /* ============================================================
@@ -3719,17 +3707,6 @@ button.weekly-phase-row {
   font-weight: 750;
 }
 
-.master-lifecycle {
-  flex-shrink: 0;
-  padding: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 0.625rem;
-  font-weight: 650;
-}
-
 .master-row-name {
   margin-top: 3px;
   color: var(--text-primary);
@@ -3809,17 +3786,6 @@ button.weekly-phase-row {
   margin-top: 3px;
   color: var(--text-muted);
   font-size: 0.75rem;
-}
-
-.dashboard-lifecycle-badge {
-  flex-shrink: 0;
-  padding: 3px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 0.6875rem;
-  font-weight: 650;
 }
 
 .dashboard-detail-actions {
@@ -4307,28 +4273,6 @@ button.weekly-phase-row {
   min-height: 84px;
 }
 
-.weekly-master-status {
-  flex-shrink: 0;
-  padding: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 0.625rem;
-  font-weight: 700;
-}
-
-.weekly-master-status.is-missing {
-  border-color: color-mix(in srgb, var(--status-warn) 35%, var(--border));
-  background: var(--status-warn-bg);
-  color: var(--status-warn);
-}
-
-.weekly-master-status.is-submitted {
-  background: var(--status-done-bg);
-  color: var(--status-done);
-}
-
 .weekly-master-context {
   align-items: flex-start;
 }
@@ -4590,43 +4534,6 @@ button.weekly-phase-row {
 .risk-portfolio-row {
   min-height: 88px;
   background: var(--bg-elevated);
-}
-
-.risk-master-level {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  padding: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 0.625rem;
-  font-weight: 750;
-  text-transform: uppercase;
-}
-
-.risk-master-level.is-critical {
-  border-color: color-mix(in srgb, var(--status-alert) 35%, var(--border));
-  background: var(--status-alert-bg);
-  color: var(--status-alert);
-}
-
-.risk-master-level.is-high {
-  border-color: color-mix(in srgb, var(--status-alert) 24%, var(--border));
-  background: var(--status-alert-bg);
-  color: var(--status-alert);
-}
-
-.risk-master-level.is-medium {
-  border-color: color-mix(in srgb, var(--status-warn) 35%, var(--border));
-  background: var(--status-warn-bg);
-  color: var(--status-warn);
-}
-
-.risk-master-level.is-low {
-  background: var(--status-done-bg);
-  color: var(--status-done);
 }
 
 .risk-detail-header {

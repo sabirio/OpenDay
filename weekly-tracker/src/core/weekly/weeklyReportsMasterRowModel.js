@@ -18,6 +18,7 @@ export function describeReportContext(report, isMissing) {
   return {
     status: isMissing ? "missing" : "submitted",
     statusLabel: isMissing ? "Missing" : "Submitted",
+    statusTone: isMissing ? "caution" : "positive",
     reportingContext: [weekLabel, reportDate ? formatDate(reportDate) : null].filter(Boolean).join(" · "),
     attentionLabel: attentionLabel || null,
   };
@@ -44,6 +45,7 @@ export function buildWeeklyReportsMasterRows(allRows) {
         projectName,
         status: "missing",
         statusLabel: "Missing",
+        statusTone: "caution",
         reportingContext: "No contractor report",
         attentionLabel: null,
       };

@@ -1,5 +1,6 @@
-import { RISK_LEVEL_COLORS } from '../../config/statusColors';
+import { schedStatusToTone } from '../../config/statusColors';
 import { minOf, maxOf, spanOrOne, scaleToRange, valueToSparkY, labelStep } from '../../hooks/useChartMathPresentation';
+import StatusBadge from '../shared/StatusBadge.jsx';
 
 const T = {
   bgSurface:  'var(--bg-surface)',
@@ -144,33 +145,7 @@ export function TextBlock({ label, value }) {
   );
 }
 
-const SCHED_STYLES = {
-  // UI-consistency fix (2026-07-16): was a hardcoded green, the only status
-  // badge in the app not using a design-system token — every other "On
-  // Track" badge (shared.jsx, SiteVisitComparison.jsx) already uses
-  // var(--status-done), this monochrome+orange theme's "good" color.
-  'On Track': { color: 'var(--status-done)', background: 'var(--status-done-bg)', border: '1px solid var(--border)' },
-  'Critical': { color: 'var(--status-alert)', background: 'var(--status-alert-bg)', border: '1px solid var(--border)' },
-  'Delayed':  { color: 'var(--status-alert)', background: 'var(--status-alert-bg)', border: '1px solid var(--border)' },
-  'At Risk':  { color: 'var(--status-warn)',  background: 'var(--status-warn-bg)',  border: '1px solid var(--border)' },
-};
-const SCHED_FALLBACK = { color: 'var(--text-muted)', background: 'var(--bg-elevated)', border: '1px solid var(--border)' };
-
 export function SchedBadge({ status }) {
-  const s = SCHED_STYLES[status] || SCHED_FALLBACK;
-  return (
-    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, ...s }}>
-      {status || '—'}
-    </span>
-  );
-}
-
-export function RiskBadge({ level }) {
-  const RL = RISK_LEVEL_COLORS;
-  const c = RL[level] || RL.UNKNOWN;
-  return (
-    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>
-      {level}
-    </span>
-  );
+  if (!status) return <StatusBadge tone="muted">—</StatusBadge>;
+  return <StatusBadge tone={schedStatusToTone(status)}>{status}</StatusBadge>;
 }

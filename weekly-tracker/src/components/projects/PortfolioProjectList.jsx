@@ -1,5 +1,6 @@
 import { pageRange, pageWindow } from "../../hooks/usePortfolioPaginationPresentation";
 import ProjectFilters from "./ProjectFilters";
+import StatusBadge from "../shared/StatusBadge.jsx";
 
 function ProjectRow({ project, selected, onSelect }) {
   const projectName = project.shoppingMallName || project.street || "Project name not set";
@@ -16,7 +17,7 @@ function ProjectRow({ project, selected, onSelect }) {
     >
       <span className="master-row-top">
         <strong title={project.storeCode || undefined}>{project.storeCode || "Project code not set"}</strong>
-        <span className="master-lifecycle">{project.projectStatus || "Status not set"}</span>
+        <StatusBadge tone="neutral">{project.projectStatus || "Status not set"}</StatusBadge>
       </span>
       <span className="master-row-name" title={projectName}>{projectName}</span>
       <span className="master-row-bottom">
