@@ -535,13 +535,6 @@ body {
 
 
 /* Project Dashboard polish: operational KPI row, desktop-fit matrix, controls, tabs. */
-.dashboard-kpi-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
 .dashboard-kpi-cluster {
   min-width: 0;
   padding: 18px;
@@ -782,7 +775,6 @@ body {
 }
 
 @media (max-width: 1080px) {
-  .dashboard-kpi-row { grid-template-columns: 1fr; }
   .dashboard-donut-wrap { grid-template-columns: 1fr; }
   /* .status-matrix-scroll/-table's overflow-x:auto + min-width are now
      unconditional (Phase 5) — the table's own explicit px column widths
@@ -3850,6 +3842,14 @@ button.weekly-phase-row {
   min-width: 0;
   padding: 0 18px;
   overflow-x: auto;
+  /* Phase 2 tab-bar fix: an explicit overflow-x with no overflow-y set is
+     computed by the UA as overflow-y: auto too (CSS Overflow spec's
+     "visible is contagious" rule doesn't apply once one axis is non-
+     visible) — any sub-pixel content-height rounding from the tab row's
+     fractional line-height (0.75rem * 1.2) was then enough to trigger a
+     phantom vertical scrollbar. Horizontal-only scroll is the only
+     intended behavior here, so make that explicit. */
+  overflow-y: hidden;
   border-bottom: 1px solid var(--border);
   background: var(--bg-surface);
 }
@@ -3966,6 +3966,31 @@ button.weekly-phase-row {
   font-size: 0.6875rem;
 }
 
+/* Level-1 attention strip (Phase 2) — compact, canonical-KPI-driven chip
+   row using the shared .status-badge primitive. No card chrome; the badges
+   themselves carry the visual weight, matching the "restrained color, not
+   decoration" status discipline. */
+.dashboard-attention-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 2px 0 4px;
+}
+
+.dashboard-attention-strip.is-clear {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-attention-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
 .dashboard-attention-list {
   display: grid;
 }
@@ -4010,18 +4035,13 @@ button.weekly-phase-row {
   height: 28px;
 }
 
-.dashboard-portfolio-overview .dashboard-detail-section .dashboard-kpi-row {
-  margin-bottom: 0;
-}
-
 .dashboard-portfolio-tools {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
   gap: 20px;
 }
 
-.dashboard-portfolio-tools h3,
-.dashboard-snapshot-control > label {
+.dashboard-portfolio-tools h3 {
   display: block;
   margin: 0 0 10px;
   color: var(--text-primary);
@@ -4029,9 +4049,31 @@ button.weekly-phase-row {
   font-weight: 750;
 }
 
-.dashboard-snapshot-control {
-  padding-left: 20px;
-  border-left: 1px solid var(--border);
+/* Snapshot moved out of the Reporting/Scope grid into its own closed-by-
+   default disclosure (Phase 2 hierarchy fix — a read-only historical tool
+   is Level-3 context, not a signal that deserves permanent screen space). */
+.dashboard-snapshot-disclosure {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-size: 0.75rem;
+}
+
+.dashboard-snapshot-disclosure > summary {
+  color: var(--text-secondary);
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dashboard-snapshot-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dashboard-snapshot-disclosure[open] > summary {
+  margin-bottom: 10px;
+  color: var(--text-primary);
 }
 
 .dashboard-snapshot-control p {

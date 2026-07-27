@@ -1,6 +1,6 @@
 import { PHASES } from "../../config/masterTaskLibrary";
 import { TEMPLATES } from "../../config/projectTemplates";
-import { getOpeningColor } from "../../config/thresholds";
+import { getOpeningUrgencyColor } from "../../config/statusColors";
 import { formatDate, daysUntil } from "../../utils/reportUtils";
 import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
 import { describeProjectLocation, formatArea, formatMoney } from "../../hooks/useProjectInfoPresentation";
@@ -79,7 +79,7 @@ export default function ProjectDetailPane({ project, projects, activeTab }) {
   const toast = useToast();
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
-  const openingColor = getOpeningColor(daysLeft);
+  const openingColor = getOpeningUrgencyColor(daysLeft);
   const location = describeProjectLocation(project);
   const hasForecast = project.constructionCompletionDate || project.forecastOpeningDate;
   const template = TEMPLATES.find((item) => item.id === project.templateType)?.label || project.templateType;

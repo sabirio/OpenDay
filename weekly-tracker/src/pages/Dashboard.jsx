@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { useDashboardModel } from "../hooks/useDashboardModel";
 import { getProgressSnapshot } from "../hooks/useDashboardOrchestration";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
-import SummaryPanel, { ReportingSummary } from "../components/dashboard/SummaryPanel";
+import { PortfolioHealthSummary, PortfolioScopeSummary, ReportingSummary } from "../components/dashboard/SummaryPanel";
+import DashboardAttentionStrip from "../components/dashboard/DashboardAttentionStrip";
 import StatusMatrix from "../components/dashboard/StatusMatrix";
 import ProjectHeatmap from "../components/dashboard/ProjectHeatmap";
 import ProgressTab from "../components/dashboard/ProgressTab";
@@ -93,11 +94,13 @@ function PortfolioOverview({
 }) {
   return (
     <div className="dashboard-portfolio-overview">
+      {/* LEVEL 1 — decision signals: is anything wrong, what needs attention */}
+      <DashboardAttentionStrip kpis={kpis} />
       <PortfolioAlerts alerts={spiAlerts} onDismiss={onDismissAlert} />
 
+      {/* LEVEL 2 — portfolio/project health: overall health, reporting cadence */}
       <section className="dashboard-detail-section">
-        <h3>Portfolio Scope & Health</h3>
-        <SummaryPanel kpis={kpis} rows={spiRows} allRows={allRows} />
+        <PortfolioHealthSummary rows={spiRows} allRows={allRows} />
       </section>
 
       <section className="dashboard-detail-section dashboard-portfolio-tools">
@@ -105,12 +108,21 @@ function PortfolioOverview({
           <h3>Reporting</h3>
           <ReportingSummary kpis={kpis} reportsTotal={reportsTotal} svKpis={svKpis} lastVisitDate={lastVisitDate} />
         </div>
+        <PortfolioScopeSummary kpis={kpis} />
+      </section>
+
+      {/* LEVEL 3 — static/context: scope is already above (grouped with
+          Reporting rather than its own bordered box); Snapshot is a
+          read-only historical tool, not a signal, so it's a closed-by-
+          default disclosure unless a snapshot is actively being viewed. */}
+      <details className="dashboard-snapshot-disclosure" open={Boolean(snapshotWeek)}>
+        <summary>Snapshot — view a past week&apos;s progress</summary>
         <div className="dashboard-snapshot-control">
-          <label htmlFor="dashboard-snapshot-week">Snapshot</label>
-          <p>View a past week&apos;s progress. Snapshot values are read-only.</p>
+          <p>Snapshot values are read-only.</p>
           <div>
             <input
               id="dashboard-snapshot-week"
+              aria-label="Snapshot week"
               className="ds-input"
               type="week"
               max={currentISOWeek()}
@@ -124,7 +136,7 @@ function PortfolioOverview({
             )}
           </div>
         </div>
-      </section>
+      </details>
 
       {snapshotWeek && (
         <div className="dashboard-snapshot-banner" role="status">

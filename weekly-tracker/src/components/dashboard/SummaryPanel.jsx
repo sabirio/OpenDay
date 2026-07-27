@@ -70,12 +70,13 @@ function SmallDonut({ counts, total }) {
 }
 
 /**
- * Main Workspace headline signals — portfolio scope + health. "Evidence
- * Flow" (reporting activity) lives in ReportingSummary below instead:
- * useful context, but secondary to "are my projects on track" (Phase 4A
- * Main Workspace vs. Inspector split).
+ * Level-2 portfolio health signal (the donut) plus its Monte Carlo warning
+ * — split from the former combined "Portfolio Scope & Health" section so
+ * Dashboard.jsx can position this ahead of the Level-3 static Scope cluster
+ * (Phase 2 information-hierarchy fix). Same canonical model/hook as before,
+ * no new calculation.
  */
-export default function SummaryPanel({ kpis, rows, allRows = [] }) {
+export function PortfolioHealthSummary({ rows, allRows = [] }) {
   const { analytics, donutCounts, donutTotal } = useDashboardSummaryPanelModel(rows, allRows);
 
   return (
@@ -98,29 +99,36 @@ export default function SummaryPanel({ kpis, rows, allRows = [] }) {
         </div>
       )}
 
-      <div className="dashboard-kpi-row">
-        <div className="dashboard-kpi-cluster">
-          <div className="dashboard-kpi-cluster-title">Portfolio Scope</div>
-          <div className="dashboard-kpi-mini-grid">
-            <KpiCard label="Total Projects" value={kpis.total} color="var(--text-secondary)" />
-            <KpiCard label="Active" value={kpis.active} color="var(--status-done)" sub={`${kpis.total - kpis.active} closed`} />
+      <div className="dashboard-kpi-cluster dashboard-health-card">
+        <div className="dashboard-kpi-cluster-title">Portfolio Health</div>
+        {donutTotal > 0 ? <SmallDonut counts={donutCounts} total={donutTotal} /> : (
+          <div className="empty-state" style={{ padding: 12 }}>
+            <div className="empty-state__title">No health signal yet</div>
           </div>
-          <div className="dashboard-kpi-meta">
-            <span>{kpis.newOpening} new opening</span>
-            <span>{kpis.rebuilding} rebuilding</span>
-          </div>
-        </div>
-
-        <div className="dashboard-kpi-cluster dashboard-health-card">
-          <div className="dashboard-kpi-cluster-title">Portfolio Health</div>
-          {donutTotal > 0 ? <SmallDonut counts={donutCounts} total={donutTotal} /> : (
-            <div className="empty-state" style={{ padding: 12 }}>
-              <div className="empty-state__title">No health signal yet</div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </>
+  );
+}
+
+/**
+ * Level-3 static portfolio scope counts (total/active/new-opening/
+ * rebuilding) — reference metadata, not a decision signal. Demoted below
+ * Health/Reporting in Dashboard.jsx's Phase 2 hierarchy.
+ */
+export function PortfolioScopeSummary({ kpis }) {
+  return (
+    <div className="dashboard-kpi-cluster">
+      <div className="dashboard-kpi-cluster-title">Portfolio Scope</div>
+      <div className="dashboard-kpi-mini-grid">
+        <KpiCard label="Total Projects" value={kpis.total} color="var(--text-secondary)" />
+        <KpiCard label="Active" value={kpis.active} color="var(--status-done)" sub={`${kpis.total - kpis.active} closed`} />
+      </div>
+      <div className="dashboard-kpi-meta">
+        <span>{kpis.newOpening} new opening</span>
+        <span>{kpis.rebuilding} rebuilding</span>
+      </div>
+    </div>
   );
 }
 

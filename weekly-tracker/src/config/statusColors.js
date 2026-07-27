@@ -2,6 +2,14 @@
 // so values automatically adapt to dark/light theme.
 
 // ─── Risk level ───────────────────────────────────────────────────────────────
+// Phase 2 status consolidation: config/riskConfig.js used to independently
+// define a byte-for-byte-identical LOW/MEDIUM/HIGH/CRITICAL color table
+// (RISK_COLORS) — it now re-exports this one instead. This remains the
+// single canonical risk-level → color mapping; engines/riskEngine.js
+// re-exports riskConfig's RISK_COLORS and stamps it onto every computed
+// risk score, so this table's values are load-bearing for existing engine
+// output shape, not purely cosmetic — do not change the color values here
+// without checking that consumer.
 export const RISK_LEVEL_COLORS = {
   CRITICAL: { text: 'var(--status-alert)', bg: 'var(--status-alert-bg)', border: 'var(--border)' },
   HIGH:     { text: 'var(--status-warn)',  bg: 'var(--status-warn-bg)',  border: 'var(--border)' },
