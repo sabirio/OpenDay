@@ -92,7 +92,7 @@ export function ActivityHeatmap({ projectRows, weekCount = 16 }) {
     { color: 'var(--text-secondary)',t: 'Submitted' },
   ];
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div className="ds-data-surface">
       <div style={{ display: 'inline-block', minWidth: LW + weeks.length * (CW + G) }}>
         <div style={{ display: 'flex', marginLeft: LW, marginBottom: 5 }}>
           {weeks.map((w, i) => (

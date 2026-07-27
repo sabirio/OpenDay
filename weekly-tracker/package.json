@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/dev/assertLocalDevTarget.mjs",
     "dev": "vite",
+    "prelocal:dev": "node scripts/dev/assertLocalDevTarget.mjs",
     "local:dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
@@ -14,18 +16,21 @@
     "test:unit": "node src/tests/runAll.mjs",
     "check:architecture": "node src/tests/architectureGuard.test.mjs",
     "test:e2e": "playwright test tests/e2e/p0-real-flow.spec.js",
-    "test:e2e:all": "playwright test",
+    "test:e2e:all": "node scripts/certification/runFullE2E.mjs",
     "test:e2e:ci": "playwright test tests/e2e/p0-real-flow.spec.js",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:demo-seed": "playwright test tests/e2e/22-persistent-demo-scenario.spec.js --headed",
     "cert:reset": "npm run cert:reset:local",
     "cert:reset:local": "node scripts/certification/resetAndDeploy.mjs && node scripts/certification/fixtures.mjs",
-    "cert:reset:ui": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/seed-test-users.mjs",
+    "cert:reset:ui": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/applyImportFoundationPhase2Local.mjs && node scripts/seed-test-users.mjs",
     "cert:verify-fixture-password": "node scripts/certification/verifyFixturePasswordPersistence.mjs",
+    "cert:seed:contractor-workspace": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/contractorWorkspaceFixtures.mjs",
+    "cert:reset:import-phase2": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/applyImportFoundationPhase2Local.mjs",
     "test:db": "node scripts/certification/certifyContractorReport.mjs && node scripts/certification/certifySiteVisit.mjs && node scripts/certification/certifyProgressHistory.mjs",
     "test:rls": "node scripts/certification/certifyRls.mjs",
     "test:storage": "node scripts/certification/certifyStorage.mjs",
+    "test:import-phase2": "npm run cert:reset:import-phase2 && node scripts/certification/certifyImportPhase2.mjs",
     "test:certification": "npm run cert:reset && npm run test:db && npm run test:rls && npm run test:storage"
   },
   "dependencies": {
@@ -35,6 +40,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^6.30.3",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz",
     "zod": "^4.4.3"
   },
   "devDependencies": {

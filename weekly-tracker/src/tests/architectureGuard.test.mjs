@@ -69,6 +69,8 @@ for (const file of allFiles) {
 // reportWeights.js header comments for the full audit.
 const ALLOWED_LEGACY_IMPORTERS = new Set([
   'pages/WeeklyReports.jsx',           // legacy-report display branch (isWPReport() gate)
+  'core/contractorReport/adaptContractorReportToLegacy.js', // decodeLegacyWpTaskId (P0 fix, ganttTasks.length===0 rows only)
+  'core/contractorReport/buildContractorReportSubmission.js', // encodeLegacyWpTaskId (P0 fix, ganttTasks.length===0 branch only)
   'components/contractor/formHelpers.js',
   'components/contractor/LegacyWPSection.jsx',
   'components/contractor/ReportingWorkPackagesSection.jsx',

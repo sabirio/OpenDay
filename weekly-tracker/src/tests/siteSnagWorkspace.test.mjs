@@ -43,7 +43,11 @@ check('Sidebar defines expandable Site Works with Site Visit and Field Snag List
 check('Site Snag is a standalone top-level sidebar item, not nested in Site Works', permissions.includes("label: 'Site Snag'") && !siteWorksBlock.includes('Site Snag'));
 check('active Site Works child opens and marks its group active', sidebar.includes('toggleState.pathname === pathname ? toggleState.expanded : childActive') && sidebar.includes("sidebar-nav-group${childActive ? ' active' : ''}"));
 check('legacy project-scoped Field Snag route still exists as a compatibility redirect', app.indexOf('/projects/:projectId/snags/field') > -1 && app.indexOf('/projects/:projectId/snags/field') < app.indexOf('/projects/:projectId/snags/:snagId'));
-check('Site Snag exposes Overview, Plan and Observations', ['Overview', 'Plan', 'Observations'].every((label) => sitePage.includes(`label: '${label}'`)));
+// P0 master-detail rework: Overview's counts moved into Observations' quick-
+// filter chips (see snagLifecycleUi.test.mjs's SNAG_QUICK_VIEWS checks and
+// siteSnagWorkspace's byTrade/byStakeholder checks above, both still true) —
+// Site Snag is now a two-mode workspace, not three.
+check('Site Snag exposes Observations and Plan modes (Overview folded into Observations\' quick filters)', ['Observations', 'Plan'].every((label) => sitePage.includes(`label: '${label}'`)) && !sitePage.includes("label: 'Overview'"));
 check('Site Snag promotes only Open Field Snag List for capture', sitePage.includes('Open Field Snag List') && !sitePage.includes('Add Observation') && !sitePage.includes('CaptureSetup'));
 check('viewport no longer selects Site Snag vs Field Snag List', !sitePage.includes('useIsMobile') && !sitePage.includes('SnagFieldShell') && fieldPage.includes('<SnagFieldShell'));
 check('Field Snag List uses route query for Plan/List mode', fieldShell.includes("query.get('tab')") && fieldShell.includes('setQuery('));

@@ -21,8 +21,8 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
         <h2 style={{ fontSize: 16, color: 'var(--text-primary)', margin: 0 }}>Project Status Matrix</h2>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Sorted by priority · click row to open project</div>
       </div>
-      <div className="status-matrix-scroll">
-        <table className="dashboard-table status-matrix-table">
+      <div className="ds-data-surface status-matrix-scroll">
+        <table className="ds-table ds-table--dense status-matrix-table">
           <thead>
             <tr>
               <th>Store</th>
@@ -33,7 +33,7 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan="12" style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>No matching projects.</td></tr>
+              <tr><td colSpan="12" className="ds-table-empty">No matching projects.</td></tr>
             ) : matrixRows.map((row) => {
               const { project, latestReport, color, daysToOpening, daysSinceReport, riskLevel, missingReport, phase, displayProgress, noSnapData, delta } = row;
               const schedStatus = latestReport?.projectScheduleStatus;
@@ -46,7 +46,16 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
                   data-testid="dashboard-project-row"
                   data-project-id={String(project.id)}
                   onClick={snapshotMode ? undefined : () => onSelect(String(project.id))}
-                  style={{ cursor: snapshotMode ? 'default' : 'pointer', background: isOpen ? 'var(--status-done-bg)' : undefined, transition: 'background 0.15s' }}
+                  onKeyDown={snapshotMode ? undefined : (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelect(String(project.id));
+                    }
+                  }}
+                  tabIndex={snapshotMode ? undefined : 0}
+                  aria-selected={snapshotMode ? undefined : isOpen}
+                  className={isOpen ? 'is-selected' : undefined}
+                  style={{ cursor: snapshotMode ? 'default' : 'pointer', transition: 'background 0.15s' }}
                 >
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -82,7 +91,7 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
                   <td>{latestReport?.supportRequired ? <span style={{ fontSize: 12, fontWeight: 700, color: latestReport.supportRequired === 'Yes' ? 'var(--status-warn)' : 'var(--status-done)' }}>{latestReport.supportRequired}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                   <td>{alerts.some(a => String(a.pid) === String(project.id)) ? <span style={{ padding: '2px 8px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: 'var(--status-alert-bg)', color: 'var(--status-alert)', border: '1px solid var(--border)' }}>Yes</span> : <span style={{ fontSize: 12, color: 'var(--status-done)', fontWeight: 600 }}>No</span>}</td>
                   <td style={{ fontSize: 12, fontWeight: 600, color: dToC, whiteSpace: 'nowrap' }}>{project.targetOpeningDate ? formatDate(project.targetOpeningDate) : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
-                  <td style={{ fontWeight: 700, fontSize: 12, color: dToC, whiteSpace: 'nowrap' }}>
+                  <td className="ds-cell-number ds-cell-nowrap" style={{ fontWeight: 700, fontSize: 12, color: dToC }}>
                     {daysToOpening === null ? '—' : daysToOpening < 0 ? `${daysOverdueCount(daysToOpening)}d OVR` : daysToOpening === 0 ? 'Today' : `${daysToOpening}d`}
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>

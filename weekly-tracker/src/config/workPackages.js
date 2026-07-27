@@ -255,6 +255,28 @@ export function makeEmptyPMWPStatuses() {
   return result;
 }
 
+// ─── Structured WP-row id encoding (P0 data-integrity fix) ────────────────────
+// contractor_report_wps.wp_id is a single flat text column; this legacy form's
+// workPackageStatuses is two levels deep (WP group id -> task name). These are
+// the single encode/decode pair used by both buildContractorReportSubmission.js
+// (write) and adaptContractorReportToLegacy.js (read) so the two can never
+// drift apart. Prefixed and double-colon-delimited so it can never collide
+// with a canonical masterTaskLibrary.js / retailFitoutV2.js wp_id (those only
+// ever use single dots, e.g. "walls.framing").
+const LEGACY_WP_ID_PREFIX = 'legacy::';
+
+export function encodeLegacyWpTaskId(wpId, taskName) {
+  return `${LEGACY_WP_ID_PREFIX}${wpId}::${taskName}`;
+}
+
+export function decodeLegacyWpTaskId(compositeId) {
+  if (typeof compositeId !== 'string' || !compositeId.startsWith(LEGACY_WP_ID_PREFIX)) return null;
+  const rest = compositeId.slice(LEGACY_WP_ID_PREFIX.length);
+  const sepIndex = rest.indexOf('::');
+  if (sepIndex === -1) return null;
+  return { wpId: rest.slice(0, sepIndex), taskName: rest.slice(sepIndex + 2) };
+}
+
 // ─── Progress computation ─────────────────────────────────────────────────────
 
 export function computePackageProgress(wpStatuses, wpId) {

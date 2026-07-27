@@ -11,7 +11,7 @@ const projectId=fixture.projects.PROJECT_A;
 async function assertNoHorizontalOverflow(page,width){await page.setViewportSize({width,height:800});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy()}
 async function switchUser(page,credentials){await page.evaluate(()=>localStorage.clear());await page.reload();await login(page,credentials)}
 
-test('local mobile field workflow: reject, correct, resubmit, close and reopen',async({page})=>{
+test('local mobile field workflow: reject, correct, resubmit and terminal close',async({page})=>{
   await page.setViewportSize({width:375,height:812});
   await login(page,pm);
   await page.goto(`/projects/${projectId}/snags/new`);
@@ -29,22 +29,22 @@ test('local mobile field workflow: reject, correct, resubmit, close and reopen',
   await switchUser(page,contractor);await page.goto(detailUrl);
   await page.getByRole('button',{name:'Start work'}).click();
   await expect(page.getByText('In progress',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Submit for review'}).click();
+  await page.getByRole('button',{name:'Ready for review'}).click();
   await expect(page.getByText('Ready for review',{exact:true})).toBeVisible();
   await switchUser(page,pm);await page.goto(detailUrl);
-  await page.getByLabel('Reject correction reason').fill('Alignment still outside tolerance');
-  await page.getByRole('button',{name:'Reject correction'}).click();
+  await page.getByLabel(/Reason for rejection/).fill('Alignment still outside tolerance');
+  await page.getByRole('button',{name:/Reject — send back to Contractor/}).click();
   await expect(page.getByText('In progress',{exact:true})).toBeVisible();
   await switchUser(page,contractor);await page.goto(detailUrl);
   await expect(page.getByText('Alignment still outside tolerance')).toBeVisible();
-  await page.getByRole('button',{name:'Submit for review'}).click();
+  await page.getByRole('button',{name:'Ready for review'}).click();
   await expect(page.getByText('Ready for review',{exact:true})).toBeVisible();
   await switchUser(page,pm);await page.goto(detailUrl);
-  await page.getByRole('button',{name:'Accept and close'}).click();
+  await page.getByRole('button',{name:'Approve & close'}).click();
   await expect(page.getByText('Closed',{exact:true})).toBeVisible();
-  await page.getByLabel('Reopen snag reason').fill('Post-review verification required');
-  await page.getByRole('button',{name:'Reopen snag'}).click();
-  await expect(page.getByText('In progress',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:/Reopen/})).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText('Closed',{exact:true})).toBeVisible();
   await page.setViewportSize({width:1280,height:800});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
 });

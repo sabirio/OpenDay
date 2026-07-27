@@ -14,6 +14,7 @@ import { constructionRetailV1 } from "./domains/construction/templates/construct
 import "./styles/snags.css";
 import "./styles/plans.css";
 import "./styles/snagFieldMode.css";
+import "./styles/import.css";
 
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Home             = lazy(() => import("./pages/Home"));
@@ -35,10 +36,11 @@ const SnagFieldPage    = lazy(() => import("./pages/snags/SnagFieldPage"));
 const FieldSnagSelect  = lazy(() => import("./pages/snags/FieldSnagSelect"));
 const LegacyFieldSnagRedirect = lazy(() => import("./pages/snags/LegacyFieldSnagRedirect"));
 const SnagCreatePage   = lazy(() => import("./pages/snags/SnagCreatePage"));
-const SnagDetailPage   = lazy(() => import("./pages/snags/SnagDetailPage"));
 const SnagProjectSelectPage = lazy(() => import("./pages/snags/SnagProjectSelectPage"));
 const PlanManagementPage = lazy(() => import("./pages/plans/PlanManagementPage"));
 const PlanViewerPage = lazy(() => import("./pages/plans/PlanViewerPage"));
+const ImportProjectsPage = lazy(() => import("./pages/import/ImportProjectsPage"));
+const LegacyImportProjectsRedirect = lazy(() => import("./pages/import/LegacyImportProjectsRedirect"));
 
 const CONSTRUCTION_TEMPLATE = {
   phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
@@ -325,7 +327,7 @@ function App() {
           path="/contractor-select"
           element={
             <ProtectedRoute resource="contractor_report">
-              <ContractorSelect projects={projects} />
+              <ContractorSelect projects={projects} reports={reports} />
             </ProtectedRoute>
           }
         />
@@ -404,6 +406,16 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  {/* Import is a Portfolio-owned operation (Projects IA v1) — its
+                      canonical route lives under /projects; the old top-level
+                      /import/projects URL redirects here so existing deep
+                      links/bookmarks keep working (see the legacy route below). */}
+                  <Route path="/projects/import" element={<ProtectedRoute resource="projects_import"><ImportProjectsPage onProjectsChanged={loadProjects}/></ProtectedRoute>} />
+                  {/* Legacy path — protected the same as the canonical route so a
+                      forged/unauthorized direct hit is rejected before any
+                      redirect happens (no route-based permission bypass),
+                      matching the /projects/:projectId/snags/field precedent below. */}
+                  <Route path="/import/projects" element={<ProtectedRoute resource="projects_import"><LegacyImportProjectsRedirect/></ProtectedRoute>} />
                   <Route path="/snags" element={<ProtectedRoute resource="snags"><SnagProjectSelectPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/field-snag" element={<ProtectedRoute resource="snags"><FieldSnagSelect projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
@@ -412,7 +424,7 @@ function App() {
                       see above). This keeps old deep links working. */}
                   <Route path="/projects/:projectId/snags/field" element={<ProtectedRoute resource="snags"><LegacyFieldSnagRedirect/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/new" element={<ProtectedRoute resource="snags"><SnagCreatePage/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagDetailPage/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans" element={<ProtectedRoute resource="snags"><PlanManagementPage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans/:planId" element={<ProtectedRoute resource="snags"><PlanViewerPage/></ProtectedRoute>} />
                   <Route

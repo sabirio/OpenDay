@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Sidebar from "./Sidebar";
+import Icon from "./shared/Icon";
 
 function Layout({ children }) {
   // Sidebar is a fixed 240px column on desktop but becomes an off-canvas
@@ -36,7 +37,7 @@ function Layout({ children }) {
         aria-expanded={navOpen}
         onClick={() => setNavOpen((open) => !open)}
       >
-        <span aria-hidden="true">{navOpen ? '✕' : '☰'}</span>
+        <Icon name={navOpen ? 'close' : 'menu'} size={18} />
       </button>
       {navOpen && (
         <div

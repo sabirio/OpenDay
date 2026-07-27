@@ -1,28 +1,38 @@
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import SiteSnagObservations from '../../components/snags/site/SiteSnagObservations.jsx';
-import SiteSnagOverview from '../../components/snags/site/SiteSnagOverview.jsx';
 import SiteSnagPlanView from '../../components/snags/site/SiteSnagPlanView.jsx';
+import SnagDetailPage from './SnagDetailPage.jsx';
+import MasterDetailLayout from '../../components/shared/MasterDetailLayout.jsx';
 import { useSnagWorkspace } from '../../hooks/snags/useSnagWorkspace.js';
 
-const SECTIONS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'plan', label: 'Plan' },
+const MODES = [
   { id: 'observations', label: 'Observations' },
+  { id: 'plan', label: 'Plan' },
 ];
 
 export default function SnagListPage({ projects = [] }) {
-  const { projectId } = useParams();
+  const { projectId, snagId } = useParams();
+  const navigate = useNavigate();
   const [query] = useSearchParams();
   const workspace = useSnagWorkspace(projectId);
   const project = projects.find((item) => String(item.id) === String(projectId));
-  const requestedSection = query.get('view');
-  const section = SECTIONS.some((item) => item.id === requestedSection) ? requestedSection : 'overview';
+  const requestedMode = query.get('view');
+  const mode = MODES.some((item) => item.id === requestedMode) ? requestedMode : 'observations';
+  // Selection lives entirely in the URL (:snagId) — mobileView is derived from
+  // it rather than kept as separate state, so there is no way for the two to
+  // desync (e.g. after the detail page's own "Back to Site Snag" link clears
+  // snagId from the URL).
+  const mobileView = snagId ? 'detail' : 'master';
 
-  const sectionUrl = (nextSection) => {
+  function modeUrl(nextMode) {
     const next = new URLSearchParams();
-    if (nextSection !== 'overview') next.set('view', nextSection);
+    if (nextMode !== 'observations') next.set('view', nextMode);
     return `/projects/${projectId}/snags${next.size ? `?${next}` : ''}`;
-  };
+  }
+
+  function selectObservation(snag) {
+    navigate(`/projects/${projectId}/snags/${snag.id}`);
+  }
 
   return (
     <div className="snag-page site-snag-page">
@@ -35,19 +45,43 @@ export default function SnagListPage({ projects = [] }) {
         {workspace.model.canCreate ? <Link className="btn btn-primary snag-primary-action" to={`/field-snag/${projectId}`}>Open Field Snag List</Link> : null}
       </header>
 
-      <nav className="site-snag-tabs" aria-label="Site Snag sections">
-        {SECTIONS.map((item) => (
-          <Link key={item.id} to={sectionUrl(item.id)} className={section === item.id ? 'active' : undefined} aria-current={section === item.id ? 'page' : undefined}>
+      <nav className="detail-pane-tabs site-snag-mode-tabs" role="tablist" aria-label="Site Snag modes">
+        {MODES.map((item) => (
+          <Link
+            key={item.id}
+            to={modeUrl(item.id)}
+            role="tab"
+            aria-selected={mode === item.id}
+            className={mode === item.id ? 'detail-tab is-active' : 'detail-tab'}
+          >
             {item.label}
           </Link>
         ))}
       </nav>
 
-      <div className="site-snag-panel" data-section={section}>
-        {section === 'overview' ? <SiteSnagOverview status={workspace.status} error={workspace.error} items={workspace.items} catalog={workspace.catalog} reload={workspace.reload} /> : null}
-        {section === 'plan' ? <SiteSnagPlanView projectId={projectId} catalog={workspace.catalog} /> : null}
-        {section === 'observations' ? <SiteSnagObservations projectId={projectId} {...workspace} /> : null}
-      </div>
+      {mode === 'plan' ? (
+        <SiteSnagPlanView projectId={projectId} catalog={workspace.catalog} />
+      ) : (
+        <MasterDetailLayout
+          className="site-snag-master-detail"
+          mobileView={mobileView}
+          master={
+            <SiteSnagObservations
+              projectId={projectId}
+              selectedSnagId={snagId}
+              onSelect={selectObservation}
+              {...workspace}
+            />
+          }
+          detail={
+            snagId ? (
+              <SnagDetailPage />
+            ) : (
+              <div className="master-list-empty site-snag-detail-empty">Select an Observation to view its details.</div>
+            )
+          }
+        />
+      )}
     </div>
   );
 }

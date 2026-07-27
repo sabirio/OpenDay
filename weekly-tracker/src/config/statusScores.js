@@ -29,6 +29,21 @@ export function getWPStatusScore(status) {
   return WP_STATUS_SCORES[status] ?? 0;
 }
 
+// Legacy display-status vocabulary -> canonical contractor_report_wps.status
+// column vocabulary (snake_case, shared with the Gantt path). Inverse of
+// adaptContractorReportToLegacy.js's STATUS_TO_LEGACY map. 'Not Applicable'
+// has no DB equivalent — callers must exclude those entries before mapping,
+// same as comparisonResult() already excludes them from comparison metrics.
+const LEGACY_STATUS_TO_DB = {
+  'Not Started': 'not_started',
+  'In Progress': 'in_progress',
+  Completed: 'completed',
+};
+
+export function legacyStatusToDbStatus(status) {
+  return LEGACY_STATUS_TO_DB[status] || 'not_started';
+}
+
 export function compareWPTaskStatus(pmStatus, gcStatus) {
   if (!pmStatus || !gcStatus) return null;
   const pmScore = getWPStatusScore(pmStatus);

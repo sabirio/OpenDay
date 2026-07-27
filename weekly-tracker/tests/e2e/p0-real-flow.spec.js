@@ -100,6 +100,7 @@ async function createProjectViaUi(page) {
   const modal = page.locator('.modal, [role="dialog"]').first();
   await expect(modal).toBeVisible({ timeout: 10_000 });
 
+  await modal.getByRole('button', { name: 'Mall', exact: true }).click();
   await modal.locator('input[name="storeCode"]').fill(STORE_CODE);
   await modal.locator('input[name="shoppingMallName"]').fill(MALL_NAME);
   await modal.locator('input[name="city"]').fill('E2E City');
@@ -112,11 +113,10 @@ async function createProjectViaUi(page) {
 
   await modal.locator('button', { hasText: /create project|save/i }).last().click();
   await expect(modal).toBeHidden({ timeout: 20_000 });
-  // PrintHeader.jsx renders "Project: {code} — {name}" in a `.print-only`
-  // element (display:none on screen, only shown via @media print) — a plain
-  // getByText(STORE_CODE) can match that hidden node first in DOM order.
-  // Intersect with :visible so this only matches the real on-screen content.
-  await expect(page.getByText(STORE_CODE).and(page.locator(':visible')).first()).toBeVisible({ timeout: 20_000 });
+  // The Portfolio Master is paginated, so locate the new project through its
+  // canonical search instead of assuming it lands on the current page.
+  await page.getByPlaceholder('Search projects...').fill(STORE_CODE);
+  await expect(page.getByTestId('portfolio-master-project').filter({ hasText: STORE_CODE })).toBeVisible({ timeout: 20_000 });
 
   const { data, error } = await adminDb
     .from('projects')
@@ -329,16 +329,14 @@ async function assertPortfolioUi(page) {
 
   await page.goto('/projects');
   await page.waitForLoadState('networkidle');
-  await page.getByText(STORE_CODE).first().click();
-  const detailModal = page.locator('.modal, [role="dialog"]').first();
-  await expect(detailModal).toBeVisible({ timeout: 10_000 });
+  await page.getByPlaceholder('Search projects...').fill(STORE_CODE);
+  await page.getByTestId('portfolio-master-project').filter({ hasText: STORE_CODE }).click();
+  // Project details render inline in the Portfolio master-detail workspace
+  // (no modal/overlay), so the sidebar's Sign out button is never covered.
+  const detailsPane = page.locator('.detail-pane');
+  await expect(detailsPane).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText(/contractor report/i).first()).toBeVisible({ timeout: 10_000 });
 
-  // This modal's full-screen .modal-overlay backdrop covers the sidebar's
-  // Sign out button — close it before logging out. ProjectDetailModal.jsx
-  // does not close on Escape (verified live), so use its real close button.
-  await detailModal.locator('.close-button').click();
-  await expect(detailModal).not.toBeVisible({ timeout: 5_000 });
   await logout(page);
 }
 

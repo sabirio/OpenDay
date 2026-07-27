@@ -15,16 +15,49 @@ function normalizePhasesFromDB(phases) {
   return phases.map(p => LEGACY_PHASE_MAP[p] ?? p);
 }
 
-function validateProject(project, requireId = false) {
+export function validateProject(project, requireId = false) {
   if (requireId && !project?.id) throw new Error('Project ID is required');
   if (!project?.storeCode?.trim()) throw new Error('Store code is required');
-  if (!project?.shoppingMallName?.trim()) throw new Error('Shopping mall name is required');
   if (!project?.country?.trim()) throw new Error('Country is required');
-  const dateFields = ['constructionStartDate', 'constructionEndDate', 'targetOpeningDate'];
+
+  // Location Type is optional at the DB level (frozen design: TEXT NULL, no
+  // enum), but when a project declares one, the Mall/Street invariant is
+  // enforced the same way Import v1's own integrity floor enforces it —
+  // shopping_mall_name must never hold a street address or vice versa.
+  if (project?.locationType === 'Mall' && !project?.shoppingMallName?.trim()) {
+    throw new Error('Shopping Mall Name is required for a Mall location');
+  }
+  if (project?.locationType === 'Street' && !project?.street?.trim()) {
+    throw new Error('Street Address is required for a Street location');
+  }
+
+  const dateFields = ['constructionStartDate', 'constructionEndDate', 'targetOpeningDate', 'actualConstructionStartDate', 'actualConstructionCompletionDate', 'actualOpeningDate'];
   for (const f of dateFields) {
     if (project[f] && isNaN(Date.parse(project[f]))) {
       throw new Error(`Invalid date for ${f}: ${project[f]}`);
     }
+  }
+
+  const areaFields = ['storeSizeSqm', 'salesAreaSqm', 'backOfHouseAreaSqm'];
+  for (const f of areaFields) {
+    if (project[f] !== '' && project[f] != null && Number(project[f]) < 0) {
+      throw new Error(`${f} cannot be negative`);
+    }
+  }
+  if (project?.salesAreaSqm !== '' && project?.salesAreaSqm != null && project?.storeSizeSqm !== '' && project?.storeSizeSqm != null
+    && Number(project.salesAreaSqm) > Number(project.storeSizeSqm)) {
+    throw new Error('Sales Area cannot exceed Total Area');
+  }
+
+  const moneyFields = ['budget', 'actualCost'];
+  for (const f of moneyFields) {
+    if (project[f] !== '' && project[f] != null && Number(project[f]) < 0) {
+      throw new Error(`${f} cannot be negative`);
+    }
+  }
+  const hasMoney = (project?.budget !== '' && project?.budget != null) || (project?.actualCost !== '' && project?.actualCost != null);
+  if (hasMoney && !project?.currencyCode?.trim()) {
+    throw new Error('Currency is required when Budget or Actual Cost is set');
   }
 }
 
@@ -34,7 +67,7 @@ function validateProject(project, requireId = false) {
  * toDB is the inverse but intentionally OMITS those computed fields so a
  * normal UI update() can never overwrite ganttService's calculations.
  */
-function fromDB(row) {
+export function fromDB(row) {
   return {
     id: row.id,
     storeCode: row.store_code,
@@ -70,15 +103,43 @@ function fromDB(row) {
     ganttEngineVersion:         row.gantt_engine_version         ?? null,
     constructionCompletionDate: row.construction_completion_date || null,
     forecastOpeningDate:        row.forecast_opening_date        || null,
+    // ── Retail Historical Project Profile v1 (migration 037) — same schema
+    // serves live creation/editing AND historical import (Capture Once, Use
+    // Everywhere). PM-editable here; actual_* dates are observed historical
+    // facts, never engine-recalculated, and must not be confused with the
+    // forecast fields above. ──────────────────────────────────────────────
+    locationType:                     row.location_type                     || null,
+    storeConcept:                     row.store_concept                     || null,
+    // ?? (not ||) for every numeric field below — a genuine 0 (e.g. a kiosk
+    // with no back-of-house split) must never be coerced to null/"unknown".
+    salesAreaSqm:                     row.sales_area_sqm                    ?? null,
+    backOfHouseAreaSqm:               row.back_of_house_area_sqm            ?? null,
+    actualConstructionStartDate:      row.actual_construction_start_date      || null,
+    actualConstructionCompletionDate: row.actual_construction_completion_date || null,
+    actualOpeningDate:                row.actual_opening_date                 || null,
+    budget:                           row.budget                            ?? null,
+    actualCost:                       row.actual_cost                       ?? null,
+    currencyCode:                     row.currency_code                     || null,
   };
 }
 
-function toDB(project) {
+export function toDB(project) {
+  // Mall/Street mutual exclusivity enforced at the write boundary — mirrors
+  // the same invariant the trusted Import commit RPC enforces (migration
+  // 039's integrity floor). Whichever field doesn't apply to the declared
+  // location_type is written as NULL, so a stale value from a prior
+  // selection (e.g. the user switched Street -> Mall without clearing the
+  // old address) can never be silently resubmitted. A project with no
+  // location_type at all (legacy rows predating migration 037) is left
+  // untouched — this only applies once a location_type is actually set.
+  const locationType = project.locationType || null;
+  const shoppingMallName = locationType === 'Street' ? null : (project.shoppingMallName || null);
+  const street = locationType === 'Mall' ? null : (project.street || null);
   return {
     store_code: project.storeCode || null,
-    shopping_mall_name: project.shoppingMallName || null,
+    shopping_mall_name: shoppingMallName,
     city: project.city || null,
-    street: project.street || null,
+    street: street,
     state: project.state || null,
     country: project.country || null,
     sales_market: project.salesMarket || null,
@@ -100,9 +161,25 @@ function toDB(project) {
     template_id: project.templateId  || null,
     // ── Gantt setup fields (PM-editable) ───────────────────────────────────
     template_type:  project.templateType  || null,
-    store_size_sqm: project.storeSizeSqm  || null,
+    store_size_sqm: project.storeSizeSqm === '' || project.storeSizeSqm == null ? null : project.storeSizeSqm,
     // NOTE: gantt_generated_at, construction_completion_date, forecast_opening_date
     // are intentionally excluded — they are owned by ganttService only.
+    // ── Retail Historical Project Profile v1 (migration 037) — same schema
+    // as Import; ?? (not ||) on every numeric field since a genuine 0 (e.g.
+    // no back-of-house split) must never be coerced away. actual_* dates are
+    // observed historical facts entered here exactly like any other planned
+    // field — never engine-recalculated, never touching the forecast columns
+    // above. ────────────────────────────────────────────────────────────────
+    location_type: locationType,
+    store_concept: project.storeConcept || null,
+    sales_area_sqm: project.salesAreaSqm === '' || project.salesAreaSqm == null ? null : project.salesAreaSqm,
+    back_of_house_area_sqm: project.backOfHouseAreaSqm === '' || project.backOfHouseAreaSqm == null ? null : project.backOfHouseAreaSqm,
+    actual_construction_start_date: project.actualConstructionStartDate || null,
+    actual_construction_completion_date: project.actualConstructionCompletionDate || null,
+    actual_opening_date: project.actualOpeningDate || null,
+    budget: project.budget === '' || project.budget == null ? null : project.budget,
+    actual_cost: project.actualCost === '' || project.actualCost == null ? null : project.actualCost,
+    currency_code: project.currencyCode || null,
   };
 }
 

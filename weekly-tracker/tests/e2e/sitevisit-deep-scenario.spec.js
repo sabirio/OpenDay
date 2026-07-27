@@ -51,17 +51,14 @@ test.describe('PM Site Visit — deeper live scenario (Phase 7)', () => {
     // not a defect. Record what actually happened instead of forcing PASS.
     console.log(`Discrepancy badge visible after setting Completed: ${discAppeared}`);
 
-    // ── Previous / Next navigation ──────────────────────────────────────
-    const nextBtn = page.locator('button', { hasText: 'Next' });
-    const prevBtn = page.locator('button', { hasText: 'Previous' });
-    const nextEnabled = await nextBtn.isEnabled().catch(() => false);
-    if (nextEnabled) {
-      await nextBtn.click();
-      await page.waitForTimeout(300);
-      await expect(prevBtn).toBeEnabled();
-      await prevBtn.click();
-      await page.waitForTimeout(300);
-    }
+    // ── Continuous list (no Previous/Next paging) ───────────────────────
+    // All filtered tasks render simultaneously now — a second task row
+    // (when the fixture scope has more than one) proves the list isn't
+    // paged behind a single-item navigator anymore.
+    await expect(page.locator('button', { hasText: 'Next' })).toHaveCount(0);
+    await expect(page.locator('button', { hasText: 'Previous' })).toHaveCount(0);
+    const visibleRowCount = await taskRow.count();
+    console.log(`Task rows rendered simultaneously under 'all' filter: ${visibleRowCount}`);
 
     // ── Autosave -> refresh -> recovery restores current WP + filter ────
     await discrepantBtn.click();

@@ -45,6 +45,21 @@ test.describe('Navigation & Routing', () => {
     await logout(page);
   });
 
+  test('Import Projects is not a standalone top-level nav item (Projects IA v1 — it is a Portfolio action, not a peer of Portfolio)', async ({ page }) => {
+    await login(page, CREDENTIALS.admin);
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    const importNavLink = page.locator('nav a', { hasText: /^Import Projects$/i });
+    await expect(importNavLink).toHaveCount(0);
+
+    // Unrelated sidebar items remain intact — removing Import didn't break the rest of the nav.
+    await expect(page.locator('nav a', { hasText: /^Portfolio$/i })).toHaveCount(1);
+    await expect(page.locator('nav a', { hasText: /weekly.?reports?/i })).toHaveCount(1);
+
+    await logout(page);
+  });
+
   test('/gantt route redirects or shows not found', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/gantt');

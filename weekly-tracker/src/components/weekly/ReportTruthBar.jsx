@@ -49,7 +49,8 @@ export default function ReportTruthBar({
   const vsPlan = vsPlanLabel(progressComparison, selectedProgress);
 
   return (
-    <section className="weekly-truth-bar" aria-label="Report truth summary">
+    <div className="ds-data-surface weekly-truth-scroll">
+      <section className="weekly-truth-bar" aria-label="Report truth summary">
       <div className="weekly-truth-group weekly-truth-group-progress" aria-label="Progress signals">
         <TruthCell label="Progress" value={`${overallProgress}%`} tone="accent" />
         <TruthCell
@@ -80,6 +81,7 @@ export default function ReportTruthBar({
         <TruthCell label="Add. works" value={additionalWorksCount} sub={additionalWorksList?.total || null} tone={additionalWorksCount > 0 ? 'warning' : 'quiet'} />
         <TruthCell label="Missing reports" value={missingReports} tone={missingReports > 0 ? 'critical' : 'quiet'} />
       </div>
-    </section>
+      </section>
+    </div>
   );
 }

@@ -16,6 +16,7 @@ function PmAlignmentTab({
   filterStore, setFilterStore, filterContractor, setFilterContractor,
   filterReport, setFilterReport,
   pmAlignReportOptions, pmAlignRows, allRows,
+  showFilters = true,
 }) {
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -23,15 +24,17 @@ function PmAlignmentTab({
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "var(--text-primary)" }}>PM Site Visit Verification</div>
         <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>Contractor-reported statuses vs PM observations · overstatements show where GC claimed more progress than PM verified</div>
 
-        <FilterBar
-          stores={allStoreCodes}
-          contractors={allContractorNames}
-          filterStore={filterStore}
-          setFilterStore={v => { setFilterStore(v); setFilterReport(""); }}
-          filterContractor={filterContractor}
-          setFilterContractor={setFilterContractor}
-          showContractor={false}
-        />
+        {showFilters && (
+          <FilterBar
+            stores={allStoreCodes}
+            contractors={allContractorNames}
+            filterStore={filterStore}
+            setFilterStore={v => { setFilterStore(v); setFilterReport(""); }}
+            filterContractor={filterContractor}
+            setFilterContractor={setFilterContractor}
+            showContractor={false}
+          />
+        )}
 
         {pmAlignReportOptions.length > 0 && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
@@ -102,8 +105,8 @@ function PmAlignmentTab({
                     </div>
                   </div>
                   {items.length > 0 && (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <div className="ds-data-surface">
+                      <table className="ds-table ds-table--dense" style={{ minWidth: 660 }}>
                         <thead>
                           <tr style={{ borderBottom: `2px solid var(--border)` }}>
                             {["Work Item", "Contractor Status", "PM Observed", "Mismatch Type", "Severity"].map(h => (

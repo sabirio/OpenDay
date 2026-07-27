@@ -11,6 +11,14 @@ import { getWPById, getPhaseById } from '../../config/masterTaskLibrary.js';
 import { getWPByIdV2, retailFitoutV2 } from '../../domains/construction/templates/retailFitoutV2.js';
 import { getWPGrouping, isZonedTemplate } from '../projects/grouping/getWPGrouping.js';
 import { clampProgressPct } from '../../engines/progressEngine.js';
+// Audited, intentional legacy-fallback import (P0 data-integrity fix) —
+// tracked in src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS.
+// decodeLegacyWpTaskId is the read-side counterpart of
+// buildContractorReportSubmission.js's encodeLegacyWpTaskId (write-side) —
+// see that file for why contractor_report_wps.wp_id needs a composite key
+// for legacy (non-Gantt) reports.
+// eslint-disable-next-line no-restricted-imports
+import { decodeLegacyWpTaskId } from '../../config/workPackages.js';
 
 const STATUS_TO_LEGACY = {
   completed: "Completed",
@@ -54,6 +62,23 @@ function toFiniteProgress(value, label) {
 function buildWorkPackageStatuses(wps, templateType = null) {
   const acc = {};
   for (const wp of (wps || [])) {
+    // Legacy (non-Gantt) reports store a composite wp_id ("legacy::<wpGroupId>
+    // ::<taskName>") since masterTaskLibrary.js/retailFitoutV2.js have no
+    // entries for the old workPackages.js vocabulary — decode straight back
+    // to the group id + task name the legacy PM/GC comparison UI expects,
+    // bypassing the canonical-catalog lookup entirely for these rows.
+    const legacy = decodeLegacyWpTaskId(wp.wp_id);
+    if (legacy) {
+      const { wpId: groupId, taskName } = legacy;
+      if (!acc[groupId]) acc[groupId] = {};
+      acc[groupId][taskName] = {
+        status: toLegacyStatus(wp.status),
+        progress: toFiniteProgress(wp.progress_pct, `contractor_report_wps.progress_pct (wp_id=${wp.wp_id})`),
+        comment: wp.comment || "",
+      };
+      continue;
+    }
+
     const meta    = isZonedTemplate(templateType) ? getWPByIdV2(wp.wp_id) : getWPById(wp.wp_id);
     const grouping = getWPGrouping(templateType, wp.wp_id);
     const groupId = grouping?.categoryId || grouping?.phaseId || wp.wp_id;

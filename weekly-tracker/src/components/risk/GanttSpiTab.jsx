@@ -23,8 +23,8 @@ function GanttSpiTab({ ganttSpiLoading, ganttMetricsMap, allRows, projectTrends,
         {ganttMetricsMap.size === 0 ? (
           <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No Gantt data found. Generate a Gantt for your projects to see SPI analytics.</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="ds-data-surface">
+            <table className="ds-table ds-table--dense">
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)' }}>
                   {['Project', 'SPI', 'Status', 'Critical Path', 'Last Visit', 'Trend (8w)'].map(h => (
@@ -99,8 +99,8 @@ function GanttSpiTab({ ganttSpiLoading, ganttMetricsMap, allRows, projectTrends,
                   {warnCount > 0 && <span style={{ color: 'var(--status-warn)', fontSize: 12, fontWeight: 700 }}>{warnCount} warning</span>}
                 </div>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div className="ds-data-surface">
+                <table className="ds-table ds-table--dense">
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       {['WP', 'Visit Date', 'GC%', 'PM%', 'Delta', 'Status'].map(h => (

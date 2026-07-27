@@ -34,12 +34,12 @@ function levelBorderColor(level) {
 
 export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div className="ds-data-surface risk-register-scroll">
+      <table className="ds-table ds-table--dense risk-register-table">
         <thead>
-          <tr style={{ borderBottom: "2px solid var(--border)" }}>
+          <tr>
             {["Project", "Health", "Risk Score", "Level", "Top Risk Driver", "Pred. Delay", "Trend", "Contractor"].map(h => (
-              <th key={h} style={{ textAlign: "left", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{h}</th>
+              <th key={h} className={h === "Risk Score" || h === "Pred. Delay" ? "ds-cell-number ds-cell-nowrap" : "ds-cell-nowrap"}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -57,11 +57,18 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
               <tr
                 key={project.id}
                 onClick={() => setExpandedRow(isExp ? null : project.id)}
-                style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", background: isExp ? "var(--status-done-bg)" : "transparent" }}
-                onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = "var(--accent-subtle)"; }}
-                onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = "transparent"; }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setExpandedRow(isExp ? null : project.id);
+                  }
+                }}
+                tabIndex={0}
+                aria-expanded={isExp}
+                className={isExp ? "is-selected" : undefined}
+                style={{ cursor: "pointer" }}
               >
-                <td style={{ padding: "10px 10px", color: borderColor }}>
+                <td style={{ color: borderColor }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text-primary)" }}>{project.storeCode}</div>
                     <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{project.shoppingMallName}</div>
@@ -69,27 +76,27 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                 </td>
 
                 {/* Health */}
-                <td style={{ padding: "10px 10px" }}><HealthBadge {...health} /></td>
+                <td><HealthBadge {...health} /></td>
 
                 {/* Risk Score + Confidence */}
-                <td style={{ padding: "10px 10px" }}>
+                <td className="ds-cell-number">
                   <div style={{ width: 44, height: 28, borderRadius: 8, background: c.bg, border: `1px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: c.text }}>{riskScore.score}</div>
                   <div style={{ fontSize: 9, fontWeight: 700, color: confidence.color, textTransform: "uppercase", textAlign: "center", marginTop: 3 }}>{confidence.level}</div>
                 </td>
 
                 {/* Level */}
-                <td style={{ padding: "10px 10px" }}><RiskBadge level={riskScore.level} /></td>
+                <td><RiskBadge level={riskScore.level} /></td>
 
                 {/* Top driver */}
-                <td style={{ padding: "10px 10px", fontSize: 12, color: "var(--text-secondary)" }}>{topFactor ? topFactor.name : "—"}</td>
+                <td style={{ fontSize: 12, color: "var(--text-secondary)" }}>{topFactor ? topFactor.name : "—"}</td>
 
                 {/* Pred. Delay */}
-                <td style={{ padding: "10px 10px", fontSize: 12, fontWeight: 700, color: schedDev?.predictedDelayDays > 0 ? "var(--status-alert)" : "var(--status-done)" }}>
+                <td className="ds-cell-number ds-cell-nowrap" style={{ fontSize: 12, fontWeight: 700, color: schedDev?.predictedDelayDays > 0 ? "var(--status-alert)" : "var(--status-done)" }}>
                   {schedDev?.predictedDelayDays > 0 ? `+${schedDev.predictedDelayDays}d` : "On track"}
                 </td>
 
                 {/* Trend */}
-                <td style={{ padding: "10px 10px" }}>
+                <td>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span style={{ fontSize: 16, color: trend.color }}>{trend.icon}</span>
                     <MiniRiskSparkline points={evolution} />
@@ -97,7 +104,7 @@ export function RiskTable({ sortedByRisk, expandedRow, setExpandedRow }) {
                 </td>
 
                 {/* Contractor */}
-                <td style={{ padding: "10px 10px" }}>
+                <td>
                   <div style={{ display: "flex", gap: 8 }}>
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Perf</div>

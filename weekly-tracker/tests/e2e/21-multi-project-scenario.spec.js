@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { CREDENTIALS, login, logout } from './helpers.js';
+import { CONTRACTOR_REPORT_DATES, CREDENTIALS, login, logout } from './helpers.js';
 
 /**
  * Multi-project scenario tests.
@@ -42,6 +42,7 @@ async function createTestProject(page, { storeCode, mallName, country, targetOpe
   const modal = page.locator('.modal, [role="dialog"]').first();
   await expect(modal).toBeVisible({ timeout: 5_000 });
 
+  await modal.getByRole('button', { name: 'Mall', exact: true }).click();
   await modal.locator('input[name="storeCode"]').fill(storeCode);
   await modal.locator('input[name="shoppingMallName"]').fill(mallName);
   await modal.locator('input[name="country"]').fill(country);
@@ -58,9 +59,8 @@ async function createTestProject(page, { storeCode, mallName, country, targetOpe
 async function submitContractorReport(page, { scheduleStatus = 'On Track', supportRequired = 'No', activitiesBlocked = 'No', comment = 'E2E test report' } = {}) {
   await page.waitForLoadState('networkidle');
 
-  const today = new Date().toISOString().split('T')[0];
   const dateInput = page.locator('[data-testid="reporting-date"]');
-  if (await dateInput.count() > 0) await dateInput.fill(today);
+  if (await dateInput.count() > 0) await dateInput.fill(CONTRACTOR_REPORT_DATES.MULTI_PROJECT_SCENARIO);
 
   const wpToggle = page.locator('[data-testid="wp-toggle"]').first();
   if (await wpToggle.count() > 0) {
@@ -97,7 +97,12 @@ async function submitContractorReport(page, { scheduleStatus = 'On Track', suppo
     // Submit stays disabled while the photo's async upload is in flight.
     await expect(saveBtn).toBeEnabled({ timeout: 30_000 });
     await saveBtn.click();
-    await expect(page.locator('text=Report submitted')).toBeVisible({ timeout: 20_000 });
+    // Exact heading match, not a substring — ReportHeaderCard.jsx's own
+    // "N reports submitted total" stat (always present once any prior report
+    // exists for the project) contains "report submitted" as a substring and
+    // would satisfy a loose text= locator regardless of this submission's
+    // actual outcome (confirmed via PHASE 5E.2A trace/screenshot audit).
+    await expect(page.getByRole('heading', { name: 'Report submitted', exact: true })).toBeVisible({ timeout: 20_000 });
     return true;
   }
   return false;
@@ -160,7 +165,7 @@ test.describe('Multi-project scenario', () => {
 
     for (const code of Object.values(PROJECT_NAMES)) {
       // Projects may or may not be in current page view — just verify no crash
-      page.locator('table tbody tr, [data-testid="project-row"]').filter({ hasText: code });
+      page.locator('[data-testid="portfolio-master-project"], [data-testid="project-row"]').filter({ hasText: code });
     }
 
     await logout(page);
@@ -223,14 +228,16 @@ test.describe('Multi-project scenario', () => {
     const cards = page.locator('.contractor-project-card');
     test.skip(await cards.count() === 0, 'No projects assigned to contractor for multi-project test');
 
-    await cards.first().locator('button.btn-primary').click();
+    await cards.first().getByRole('button', { name: 'Submit Report' }).click();
     await expect(page).toHaveURL(/\/contractor-report\//);
+    await expect(page.locator('[data-testid="contractor-report-form"]')).toBeVisible();
 
     const submitted = await submitContractorReport(page, {
       comment: `Multi-project E2E ${TS}`,
     });
     expect(submitted).toBe(true);
 
+    await page.goto('/contractor-select');
     await logout(page);
   });
 
@@ -262,7 +269,7 @@ test.describe('Multi-project scenario', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     const rowCount = await rows.count();
     test.skip(rowCount === 0, 'No projects on dashboard for multi-project drawer test');
 
@@ -271,7 +278,7 @@ test.describe('Multi-project scenario', () => {
     for (let i = 0; i < Math.min(rowCount, 5); i++) {
       await rows.nth(i).click();
       await page.waitForTimeout(400);
-      const drawer = page.locator('[data-testid="project-detail-drawer"]');
+      const drawer = page.locator('.dashboard-project-overview');
       if (!await drawer.isVisible().catch(() => false)) continue;
 
       openedCount++;
@@ -292,7 +299,7 @@ test.describe('Multi-project scenario', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     const rowCount = await rows.count();
     test.skip(rowCount === 0, 'No projects for opening readiness multi-project test');
 
@@ -302,12 +309,12 @@ test.describe('Multi-project scenario', () => {
     for (let i = 0; i < Math.min(rowCount, 10); i++) {
       await rows.nth(i).click();
       await page.waitForTimeout(400);
-      const drawer = page.locator('[data-testid="project-detail-drawer"]');
+      const drawer = page.locator('.dashboard-project-overview');
       if (!await drawer.isVisible().catch(() => false)) continue;
 
-      const openingBlock = drawer.locator('[data-testid="opening-readiness-status"]');
+      const openingBlock = drawer.locator('.dashboard-detail-field').filter({ hasText: 'Opening readiness' });
       if (await openingBlock.isVisible()) {
-        const badge = drawer.locator('[data-testid="opening-risk-badge"]');
+        const badge = openingBlock.locator('dd');
         if (await badge.isVisible()) withDateFound = true;
 
         const noDate = openingBlock.locator('text=No target date set');
@@ -331,7 +338,7 @@ test.describe('Multi-project scenario', () => {
 
     await page.goto('/');
     await page.waitForLoadState('networkidle');
-    const dashboardCount = await page.locator('[data-testid="dashboard-project-row"]').count();
+    const dashboardCount = await page.locator('[data-testid="dashboard-master-project"]').count();
 
     await page.goto('/weekly-reports');
     await page.waitForLoadState('networkidle');

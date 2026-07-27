@@ -152,6 +152,27 @@ export function getDefaultProgressForGanttStatus(status, currentProgress) {
 }
 
 /**
+ * Effective 0-100 progress for one legacy (workPackages.js vocabulary) WP
+ * task entry: an explicit numeric progress > 0 always wins; otherwise falls
+ * back to the status's canonical WP_STATUS_SCORES score. This is
+ * config/workPackages.js's computePackageProgress() "effective progress"
+ * rule (`entry.progress > 0 ? entry.progress / 100 : score`), at single-task
+ * granularity — used by buildContractorReportSubmission.js's legacy
+ * (non-Gantt) WP-row synthesis, so contractor_report_wps.progress_pct
+ * reflects the same status the contractor picked even though the legacy
+ * task-row UI never sets a numeric progress value itself (unlike
+ * calculateActivityProgress(), which is deliberately not reused here since
+ * it treats an explicit 0 as "reported zero progress", not "unset").
+ * @param {string} status
+ * @param {number} [explicitProgress]
+ * @returns {number}
+ */
+export function resolveLegacyTaskEffectiveProgressPct(status, explicitProgress) {
+  if (explicitProgress > 0) return clampProgressPct(explicitProgress);
+  return clampProgressPct((WP_STATUS_SCORES[status] ?? 0) * 100);
+}
+
+/**
  * Classifies a WP task status into a display tier, using the same score
  * cutoffs PhaseStepper.jsx/PhaseTimeline.jsx/sharedUtils.js independently
  * reimplemented (score>=1 done, >=0.5 good, >=0.3 warn, else muted) —

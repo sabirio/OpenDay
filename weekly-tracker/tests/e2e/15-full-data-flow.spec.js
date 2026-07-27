@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { CREDENTIALS, login, logout } from './helpers.js';
+import { CONTRACTOR_REPORT_DATES, CREDENTIALS, login, logout } from './helpers.js';
 
 /**
  * Full end-to-end data flow test.
@@ -36,6 +36,7 @@ test.describe('Full data flow', () => {
     // .modal-overlay backdrop) stays open and blocks the later logout()'s Sign
     // out click. Use the same reliable name-attribute selectors as
     // 02-projects.spec.js's own passing "creates a new project" test.
+    await modal.getByRole('button', { name: 'Mall', exact: true }).click();
     await modal.locator('input[name="shoppingMallName"]').fill(uniqueName);
     await modal.locator('input[name="storeCode"]').fill(`ST${Date.now().toString().slice(-4)}`);
     await modal.locator('input[name="city"]').fill('E2E City');
@@ -64,8 +65,7 @@ test.describe('Full data flow', () => {
     await expect(page).toHaveURL(/\/contractor-report\//);
     await page.waitForLoadState('networkidle');
 
-    const today = new Date().toISOString().split('T')[0];
-    await page.locator('[data-testid="reporting-date"]').fill(today);
+    await page.locator('[data-testid="reporting-date"]').fill(CONTRACTOR_REPORT_DATES.FULL_DATA_FLOW);
 
     // Activate first WP
     const wpToggle = page.locator('[data-testid="wp-toggle"]').first();
@@ -79,8 +79,7 @@ test.describe('Full data flow', () => {
     const textareas = page.locator('[data-testid="contractor-report-form"] textarea');
     await textareas.nth(0).fill('1) Flow test next-week A\n2) B\n3) C');
     await textareas.nth(1).fill('1) Flow test week+2 A\n2) B\n3) C');
-    await textareas.nth(2).fill('No issues');
-    await textareas.nth(3).fill('Full data flow test submission');
+    await textareas.nth(2).fill('Full data flow test submission — no pending issues');
 
     await page.locator('input[type="file"][accept="image/*"]').setInputFiles({
       name: 'flow-test.png',
@@ -114,14 +113,14 @@ test.describe('Full data flow', () => {
     await page.goto('/projects');
     await page.waitForLoadState('networkidle');
 
-    const rowCount = await page.locator('table tbody tr').count();
+    const rowCount = await page.getByTestId('portfolio-master-project').count();
     test.skip(rowCount === 0, 'No projects for PM site visit flow test');
 
-    await page.locator('table tbody tr').first().locator('button').first().click();
-    await expect(page.locator('.modal')).toBeVisible();
+    await page.getByTestId('portfolio-master-project').first().click();
+    await expect(page.locator('.detail-pane')).toBeVisible();
 
-    const siteVisitBtn = page.locator('.modal button', { hasText: /site visit/i });
-    test.skip(await siteVisitBtn.count() === 0, 'No Site Visit button in project modal');
+    const siteVisitBtn = page.getByRole('link', { name: /site visit/i });
+    test.skip(await siteVisitBtn.count() === 0, 'No Site Visit button in project details pane');
 
     const [svPage] = await Promise.all([
       page.context().waitForEvent('page'),
@@ -141,6 +140,8 @@ test.describe('Full data flow', () => {
       await svPage.waitForTimeout(300);
     }
 
+    // Current PM workflow requires at least one explicit field observation.
+    await svPage.locator('[data-testid="pm-status-btn-completed"]').first().click();
     await svPage.locator('[data-testid="pm-schedule-btn-On Track"]').click();
     await svPage.locator('[data-testid="pm-declaration-checkbox"]').click();
     await svPage.locator('[data-testid="save-site-visit-report"]').click();
@@ -148,47 +149,32 @@ test.describe('Full data flow', () => {
     await expect(svPage.locator('text=Site Visit Recorded')).toBeVisible({ timeout: 20_000 });
 
     // Verify comparison summary is shown
-    await expect(svPage.locator('[data-testid="summary-items-assessed"]')).toBeVisible();
-    await expect(svPage.locator('[data-testid="summary-matches"]')).toBeVisible();
-    await expect(svPage.locator('[data-testid="summary-discrepancies"]')).toBeVisible();
+    await expect(svPage.locator('[data-testid="summary-confirmed"]')).toBeVisible();
+    await expect(svPage.locator('[data-testid="summary-discrepancy"]')).toBeVisible();
     await expect(svPage.locator('[data-testid="summary-pm-ahead"]')).toBeVisible();
 
     await svPage.close();
 
-    // The project detail modal (opened on `page` at the top of this test, to
-    // launch the Site Visit popup) is still open here and its full-screen
-    // .modal-overlay backdrop covers the sidebar's Sign out button — close it
-    // before logging out. ProjectDetailModal.jsx does not close on Escape
-    // (verified live), so use its real close button.
-    await page.locator('.modal .close-button').click();
-    await expect(page.locator('.modal')).not.toBeVisible({ timeout: 5_000 });
+    // Project details render inline in the Portfolio master-detail workspace
+    // (no modal/overlay), so the sidebar's Sign out button is never covered.
     await logout(page);
   });
 
-  test('dashboard project drawer opens and shows contractor report block', async ({ page }) => {
+  test('dashboard project detail opens and shows reporting context', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     const rowCount = await rows.count();
     test.skip(rowCount === 0, 'No project rows on dashboard');
 
     await rows.first().click();
     await page.waitForTimeout(500);
 
-    // Check that a drawer/panel opened
-    const drawer = page.locator('[class*="drawer"], aside, [role="dialog"]').first();
-    const drawerVisible = await drawer.isVisible().catch(() => false);
-
-    if (!drawerVisible) {
-      // Try clicking any button within the row
-      await rows.first().locator('button').first().click();
-      await page.waitForTimeout(500);
-    }
-
-    // At minimum, we should still be on the dashboard
-    await expect(page).toHaveURL(/\//);
+    const detail = page.locator('.dashboard-project-overview');
+    await expect(detail).toBeVisible();
+    await expect(detail.locator('.dashboard-detail-field').filter({ hasText: 'Reports submitted' })).toBeVisible();
 
     await logout(page);
   });

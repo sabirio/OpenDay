@@ -1,0 +1,184 @@
+/* Import Projects workflow — Phase 3 UI. Reuses design-system.css tokens
+   (--bg-surface, --border, --accent, --status-*, .card/.btn/.ds-table/
+   .ds-input/.ds-select/.collapsible-*) for everything generic; only the
+   layout shapes specific to this workflow live here. */
+
+.import-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-5, 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.import-back { display: block; color: var(--text-muted); margin-bottom: 6px; }
+.import-header h1 { margin: 0 0 4px; font-size: 1.5rem; }
+.import-header p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+
+/* ── Step indicator ───────────────────────────────────────────────────── */
+.import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.import-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg-input);
+}
+.import-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--border);
+  font-size: 0.7rem;
+}
+.import-step--active { color: var(--accent); background: var(--accent-subtle); }
+.import-step--active .import-step-index { background: var(--accent); color: var(--text-inverse); }
+.import-step--done .import-step-index { background: var(--status-done); color: var(--text-inverse); }
+
+/* ── Upload ───────────────────────────────────────────────────────────── */
+.import-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 200px;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px;
+  cursor: pointer;
+}
+.import-dropzone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.import-dropzone--dragover { border-color: var(--accent); background: var(--accent-subtle); color: var(--accent); }
+.import-file-summary { display: flex; flex-wrap: wrap; gap: 16px; font-size: 0.85rem; color: var(--text-secondary); }
+.import-file-summary strong { color: var(--text-primary); }
+
+.import-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+}
+.import-alert--danger { background: var(--status-alert-bg); color: var(--status-alert); }
+.import-alert--warning { background: var(--status-warn-bg); color: var(--status-warn); }
+.import-alert--info { background: var(--accent-subtle); color: var(--accent); }
+
+/* ── Mapping ──────────────────────────────────────────────────────────── */
+.import-mapping-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px 16px;
+  align-items: center;
+}
+.import-mapping-header { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.import-mapping-source { font-size: 0.875rem; color: var(--text-primary); word-break: break-word; }
+.import-mapping-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 999px);
+  white-space: nowrap;
+}
+.import-mapping-tag--suggested { background: var(--accent-subtle); color: var(--accent); }
+.import-mapping-tag--manual { background: var(--status-warn-bg); color: var(--status-warn); }
+.import-mapping-tag--ignored { background: var(--bg-input); color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .import-mapping-grid { grid-template-columns: 1fr; }
+  .import-mapping-header:nth-child(3) { display: none; }
+}
+
+/* ── Preview summary ──────────────────────────────────────────────────── */
+.import-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.import-summary-card { padding: 14px 16px; }
+.import-summary-card .value { font-size: 1.5rem; font-weight: 700; display: block; }
+.import-summary-card .label { font-size: 0.75rem; color: var(--text-muted); }
+.import-summary-card--success .value { color: var(--status-done); }
+.import-summary-card--neutral .value { color: var(--text-secondary); }
+.import-summary-card--danger .value { color: var(--status-alert); }
+.import-summary-card--warning .value { color: var(--status-warn); }
+
+.import-filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.import-filter-chip {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: var(--radius-full, 999px);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.import-filter-chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
+
+/* ── Preview rows: table on desktop, cards on narrow viewports ───────── */
+/* Status is the most important column — pin it so it stays visible while the
+   rest of the row scrolls horizontally on narrower desktop widths. */
+.import-status-col {
+  position: sticky;
+  left: 0;
+  background: var(--bg-surface);
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.import-row-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.import-row-status--success { background: var(--status-done-bg); color: var(--status-done); }
+.import-row-status--neutral { background: var(--bg-input); color: var(--text-secondary); }
+.import-row-status--danger { background: var(--status-alert-bg); color: var(--status-alert); }
+.import-row-status--warning { background: var(--status-warn-bg); color: var(--status-warn); }
+
+.import-preview-cards { display: flex; flex-direction: column; gap: 10px; }
+.import-preview-card { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.import-preview-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.import-preview-card-code { font-weight: 700; }
+.import-preview-card-meta { font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 4px 12px; }
+
+.import-row-detail { margin-top: 8px; font-size: 0.82rem; }
+.import-row-detail ul { margin: 4px 0 0; padding-left: 18px; }
+.import-row-detail li { margin-bottom: 2px; }
+
+/* ── Result ───────────────────────────────────────────────────────────── */
+.import-result-hero { text-align: center; padding: 28px 16px; }
+.import-result-hero h2 { margin: 8px 0 4px; }
+.import-result-counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 12px; }
+.import-result-counts .value { font-size: 1.4rem; font-weight: 700; display: block; }
+.import-result-counts .label { font-size: 0.75rem; color: var(--text-muted); }
+
+@media (max-width: 480px) {
+  .import-page { padding: 12px; }
+  .import-result-counts { gap: 12px; }
+}

@@ -8,59 +8,51 @@ import { CREDENTIALS, login, logout } from './helpers.js';
  */
 
 async function openFirstDrawer(page) {
-  const rows = page.locator('[data-testid="dashboard-project-row"]');
+  const rows = page.locator('[data-testid="dashboard-master-project"]');
   const count = await rows.count();
   if (count === 0) return null;
 
   for (let i = 0; i < Math.min(count, 5); i++) {
     await rows.nth(i).click();
     await page.waitForTimeout(400);
-    const drawer = page.locator('[data-testid="project-detail-drawer"]');
+    const drawer = page.locator('.dashboard-project-overview');
     if (await drawer.isVisible().catch(() => false)) return drawer;
   }
   return null;
 }
 
 test.describe('Executive Project Summary (Drawer)', () => {
-  test('project detail drawer opens and shows all 4 summary blocks', async ({ page }) => {
+  test('project detail workspace shows the four current executive concerns', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for executive summary test');
 
     const drawer = await openFirstDrawer(page);
     test.skip(!drawer, 'Could not open project drawer');
 
-    // All 4 summary blocks must be present
-    await expect(drawer.locator('[data-testid="contractor-status-summary"]')).toBeVisible();
-    await expect(drawer.locator('[data-testid="pm-site-visit-summary"]')).toBeVisible();
-    await expect(drawer.locator('[data-testid="risk-status-summary"]')).toBeVisible();
-    await expect(drawer.locator('[data-testid="opening-readiness-status"]')).toBeVisible();
+    for (const label of ['Canonical progress', 'PM comparison', 'Overall risk', 'Opening readiness']) {
+      await expect(drawer.locator('.dashboard-detail-field').filter({ hasText: label })).toBeVisible();
+    }
 
     await logout(page);
   });
 
-  test('contractor-status-summary block shows progress % and report count', async ({ page }) => {
+  test('detail workspace shows progress percentage and report count', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for contractor-status test');
 
     const drawer = await openFirstDrawer(page);
     test.skip(!drawer, 'Could not open project drawer');
 
-    const block = drawer.locator('[data-testid="contractor-status-summary"]');
-    await expect(block).toBeVisible();
-
-    const text = await block.innerText();
-    // Should contain a progress % and "Total reports" label
-    expect(text).toMatch(/\d+%/); // progress percentage
-    expect(text).not.toContain('NaN');
-    expect(text).not.toContain('undefined');
+    await expect(drawer.locator('.dashboard-detail-field').filter({ hasText: 'Canonical progress' })).toContainText(/\d+%/);
+    await expect(drawer.locator('.dashboard-detail-field').filter({ hasText: 'Reports submitted' })).toContainText(/\d+/);
 
     await logout(page);
   });
@@ -70,19 +62,17 @@ test.describe('Executive Project Summary (Drawer)', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for risk level badge test');
 
     const drawer = await openFirstDrawer(page);
     test.skip(!drawer, 'Could not open project drawer');
 
-    const riskBlock = drawer.locator('[data-testid="risk-status-summary"]');
+    const riskBlock = drawer.locator('.dashboard-detail-section').filter({ hasText: 'Latest Risks' });
     await expect(riskBlock).toBeVisible();
 
-    const badge = drawer.locator('[data-testid="risk-level-badge"]');
-    await expect(badge).toBeVisible();
-    const level = await badge.innerText();
-    expect(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'UNKNOWN']).toContain(level.trim());
+    const riskField = riskBlock.locator('.dashboard-detail-field').filter({ hasText: 'Overall risk' });
+    await expect(riskField).toContainText(/LOW|MEDIUM|HIGH|CRITICAL|UNKNOWN/i);
 
     // The block should NOT contain detailed risk score numbers (those are in Risk Dashboard)
     const blockText = await riskBlock.innerText();
@@ -97,7 +87,7 @@ test.describe('Executive Project Summary (Drawer)', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects to test PM site visit block');
 
     // Find a project with no site visits (most newly created test projects)
@@ -105,10 +95,10 @@ test.describe('Executive Project Summary (Drawer)', () => {
     for (let i = 0; i < Math.min(await rows.count(), 10); i++) {
       await rows.nth(i).click();
       await page.waitForTimeout(400);
-      const drawer = page.locator('[data-testid="project-detail-drawer"]');
+      const drawer = page.locator('.dashboard-project-overview');
       if (!await drawer.isVisible().catch(() => false)) continue;
 
-      const pmBlock = drawer.locator('[data-testid="pm-site-visit-summary"]');
+      const pmBlock = drawer.locator('.dashboard-detail-field').filter({ hasText: 'PM comparison' });
       if (!await pmBlock.isVisible()) {
         const close = drawer.locator('button', { hasText: /close/i });
         if (await close.count() > 0) await close.click();
@@ -119,7 +109,7 @@ test.describe('Executive Project Summary (Drawer)', () => {
       if (await noVisitText.isVisible()) {
         found = true;
         // Verify no discrepancy-count appears when no visits
-        await expect(drawer.locator('[data-testid="discrepancy-count"]')).not.toBeVisible();
+        await expect(pmBlock).toContainText('No site visit');
         break;
       }
 
@@ -141,23 +131,26 @@ test.describe('Executive Project Summary (Drawer)', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for discrepancy-count test');
 
     let discrepancyFound = false;
     for (let i = 0; i < Math.min(await rows.count(), 10); i++) {
       await rows.nth(i).click();
       await page.waitForTimeout(400);
-      const drawer = page.locator('[data-testid="project-detail-drawer"]');
+      const drawer = page.locator('.dashboard-project-overview');
       if (!await drawer.isVisible().catch(() => false)) continue;
 
-      const discBlock = drawer.locator('[data-testid="discrepancy-count"]');
+      const discBlock = drawer.locator('.dashboard-detail-field').filter({ hasText: 'PM comparison' });
       if (await discBlock.isVisible()) {
-        const val = parseInt(await discBlock.innerText(), 10);
-        expect(Number.isFinite(val)).toBe(true);
-        expect(val).toBeGreaterThanOrEqual(0);
-        discrepancyFound = true;
-        break;
+        const text = await discBlock.innerText();
+        if (/discrepanc/i.test(text)) {
+          const val = Number(text.match(/\d+/)?.[0]);
+          expect(Number.isFinite(val)).toBe(true);
+          expect(val).toBeGreaterThanOrEqual(0);
+          discrepancyFound = true;
+          break;
+        }
       }
 
       const close = drawer.locator('button', { hasText: /close/i });
@@ -177,7 +170,7 @@ test.describe('Executive Project Summary (Drawer)', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for executive view test');
 
     const drawer = await openFirstDrawer(page);
@@ -194,31 +187,32 @@ test.describe('Executive Project Summary (Drawer)', () => {
     expect(drawerText).not.toContain('pm site visit verification');
 
     // Should contain executive-level section labels
-    expect(drawerText).toContain('contractor report');
-    expect(drawerText).toContain('pm site visit');
-    expect(drawerText).toContain('risk summary');
+    expect(drawerText).toContain('recent reports');
+    expect(drawerText).toContain('pm comparison');
+    expect(drawerText).toContain('latest risks');
     expect(drawerText).toContain('opening readiness');
 
     await logout(page);
   });
 
-  test('drawer closes on Escape key', async ({ page }) => {
+  test('inline detail selection persists when Escape is pressed', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for Escape close test');
 
     await rows.first().click();
     await page.waitForTimeout(400);
 
-    const drawer = page.locator('[data-testid="project-detail-drawer"]');
+    const drawer = page.locator('.dashboard-project-overview');
     test.skip(!await drawer.isVisible().catch(() => false), 'Drawer did not open');
 
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
-    await expect(drawer).not.toBeVisible({ timeout: 3_000 });
+    await expect(drawer).toBeVisible();
+    await expect(rows.first()).toHaveAttribute('aria-pressed', 'true');
 
     await logout(page);
   });
@@ -228,7 +222,7 @@ test.describe('Executive Project Summary (Drawer)', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for NaN check in drawer');
 
     const drawer = await openFirstDrawer(page);

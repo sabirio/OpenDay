@@ -72,17 +72,9 @@ export default function WeeklyReportExportButton({
   return (
     <button
       type="button"
-      className="no-print"
+      className="btn btn-primary no-print"
       onClick={handleClick}
       disabled={busy}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '7px 13px', borderRadius: 8, minHeight: 36,
-        background: busy ? 'var(--bg-elevated)' : 'var(--accent)',
-        color: busy ? 'var(--text-muted)' : 'var(--text-inverse)',
-        border: 'none', cursor: busy ? 'default' : 'pointer',
-        fontSize: 13, fontWeight: 700,
-      }}
     >
       {busy ? 'Generating PDF…' : <>⬇ Export PDF</>}
     </button>

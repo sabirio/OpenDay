@@ -6,8 +6,8 @@ function HeatmapTab({ sortedByRisk }) {
     <div className="dashboard-summary-card">
       <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4, color: "var(--text-primary)" }}>Portfolio Risk Heatmap</div>
       <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 20 }}>Risk level by project × 14 dimensions · sorted by overall score</div>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ borderCollapse: "separate", borderSpacing: "3px 3px" }}>
+      <div className="ds-data-surface">
+        <table className="specialized-data-grid" style={{ borderCollapse: "separate", borderSpacing: "3px 3px" }}>
           <thead>
             <tr>
               <th style={{ textAlign: "left", padding: "4px 8px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", minWidth: 110 }}>Project</th>

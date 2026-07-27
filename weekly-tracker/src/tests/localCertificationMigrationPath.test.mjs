@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { assertLocalTarget } from '../../scripts/certification/localTargetGuard.mjs';
 
 let pass = 0, fail = 0;
@@ -15,6 +15,8 @@ function accepts(overrides = {}) {
 
 const deploy = readFileSync(new URL('../../scripts/certification/resetAndDeploy.mjs', import.meta.url), 'utf8');
 const snagLocal = readFileSync(new URL('../../scripts/certification/applySnagListLocal.mjs', import.meta.url), 'utf8');
+const contractorReportLegacyWpScopeLocal = readFileSync(new URL('../../scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs', import.meta.url), 'utf8');
+const importFoundationPhase2Local = readFileSync(new URL('../../scripts/certification/applyImportFoundationPhase2Local.mjs', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -27,6 +29,8 @@ const f03 = readFileSync(new URL('../../scripts/verify-f03-scope-narrowing.mjs',
 const backfill = readFileSync(new URL('../migrations/backfillProgressHistory.js', import.meta.url), 'utf8');
 const storageDelete = readFileSync(new URL('../../scripts/storage/deleteOrphans.mjs', import.meta.url), 'utf8');
 const contract = JSON.parse(readFileSync(new URL('../../../scripts/contracts/canonical-security-contract.json', import.meta.url), 'utf8'));
+const contractorWorkspaceFixture = readFileSync(new URL('../../scripts/certification/contractorWorkspaceFixtures.mjs', import.meta.url), 'utf8');
+const migrationFiles = readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql'));
 
 console.log('\nlocalCertificationMigrationPath - target and fixture safety');
 check('IPv4 loopback accepted', accepts());
@@ -58,12 +62,54 @@ const migrationNumbers = contract.canonicalMigrationPath.included.map(name => Nu
 check('canonical path ordering is strictly increasing', migrationNumbers.every((value, index) => index === 0 || value > migrationNumbers[index - 1]));
 check('normal local dev script does not reset database', packageJson.scripts['local:dev'] === 'vite');
 check('cert reset script is explicitly local destructive workflow', packageJson.scripts['cert:reset'] === 'npm run cert:reset:local' && /resetAndDeploy\.mjs/.test(packageJson.scripts['cert:reset:local']));
-check('UI certification reset keeps the Snag extension explicit', packageJson.scripts['cert:reset:ui'] === 'npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/seed-test-users.mjs');
+check('UI certification reset keeps every post-canonical extension explicit and ordered', packageJson.scripts['cert:reset:ui'] === 'npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/applyImportFoundationPhase2Local.mjs && node scripts/seed-test-users.mjs');
+check('Contractor Workspace seed keeps the Snag extension explicit, same precedent as cert:reset:ui', packageJson.scripts['cert:seed:contractor-workspace'] === 'npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/contractorWorkspaceFixtures.mjs');
 check('local Snag extension uses the canonical local guard before psql', snagLocal.indexOf('assertLocalTarget') < snagLocal.indexOf("execFileSync('psql'"));
 check('local Snag extension pins and verifies the approved 030-035 batch', ['030_snag_list_foundation.sql', '031_snag_reassignment_semantics.sql', '032_snag_project_contractors_rpc.sql', '033_snag_private_plan_pinning.sql', '034_snag_secure_evidence_lifecycle.sql', '035_snag_canonical_field_capture.sql'].every(file => snagLocal.includes(file)) && /createHash\('sha256'\)/.test(snagLocal));
 check('local Snag hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(snagLocal));
+check('local Contractor Report legacy WP scope extension uses the canonical local guard before psql', contractorReportLegacyWpScopeLocal.indexOf('assertLocalTarget') < contractorReportLegacyWpScopeLocal.indexOf("execFileSync('psql'"));
+check('local Contractor Report legacy WP scope extension pins and verifies the approved 036 migration', contractorReportLegacyWpScopeLocal.includes('036_contractor_report_legacy_wp_scope.sql') && /createHash\('sha256'\)/.test(contractorReportLegacyWpScopeLocal));
+check('local Contractor Report legacy WP scope hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(contractorReportLegacyWpScopeLocal));
+check('local Import Foundation v1 Phase 2 extension uses the canonical local guard before psql', importFoundationPhase2Local.indexOf('assertLocalTarget') < importFoundationPhase2Local.indexOf("execFileSync('psql'"));
+check('local Import Foundation v1 Phase 2 extension pins and verifies the approved 037-040 batch', ['037_retail_historical_project_profile.sql', '038_import_foundation_commit_layer.sql', '039_import_foundation_integrity_hardening.sql', '040_import_planned_construction_end.sql'].every(file => importFoundationPhase2Local.includes(file)) && /createHash\('sha256'\)/.test(importFoundationPhase2Local));
+check('local Import Foundation v1 Phase 2 hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(importFoundationPhase2Local));
+
+// Structural migration-completeness guard: the fresh-install path is a
+// multi-part composition (canonical contract's 000-029 + applySnagListLocal.mjs's
+// separately-approved 030-035 batch + applyContractorReportLegacyWpScopeLocal.mjs's
+// separately-approved 036 migration) rather than one single list. This proves
+// their UNION still covers every migration file that belongs on the
+// fresh-install path (all files except the contract's own documented
+// excludedHistorical/excludedSkipOnFresh sets) — so a future migration
+// (037+) added to src/migrations/ without being added to ANY of these lists
+// fails this check immediately, instead of only being discovered by a
+// silently incomplete local reset (as 030-035 was before that fix).
+const excludedHistorical = new Set(contract.canonicalMigrationPath.excludedHistorical.files);
+const excludedSkipOnFresh = new Set(contract.canonicalMigrationPath.excludedSkipOnFresh.files);
+const expectedFreshInstallSet = migrationFiles.filter(f => !excludedHistorical.has(f) && !excludedSkipOnFresh.has(f));
+const snagBatchFiles = [...snagLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const contractorReportLegacyWpScopeBatchFiles = [...contractorReportLegacyWpScopeLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const importFoundationPhase2BatchFiles = [...importFoundationPhase2Local.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles]);
+check('fresh-install migration set is exactly covered by canonical contract (000-029) + approved Snag batch (030-035) + approved Contractor Report legacy WP scope migration (036) + approved Import Foundation v1 Phase 2 batch (037-040), no gaps',
+  expectedFreshInstallSet.every(f => coveredSet.has(f)));
+check('fresh-install coverage contains no unexpected extras beyond the expected set',
+  [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
+check('at least one migration beyond 029 is covered (guards against this check being vacuously true)', snagBatchFiles.length >= 6);
+check('migration 036 is covered by the Contractor Report legacy WP scope batch (guards against this check being vacuously true)', contractorReportLegacyWpScopeBatchFiles.length >= 1);
+check('migrations 037-040 are covered by the Import Foundation v1 Phase 2 batch (guards against this check being vacuously true)', importFoundationPhase2BatchFiles.length >= 4);
+
+// Fixture DATA must never apply/repair schema — that is the reset+extension
+// pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by
+// cert:seed:contractor-workspace above. The fixture may only validate.
+check('Contractor Workspace fixture does not apply migration files (no psql -f / migrationsDir usage)',
+  !/-f['",\s]/.test(contractorWorkspaceFixture) && !/migrationsDir/.test(contractorWorkspaceFixture));
+check('Contractor Workspace fixture validates required schema and fails clearly instead of repairing it',
+  /to_regclass\('public\.snags'\)/.test(contractorWorkspaceFixture) && /FAIL: Contractor Workspace fixture requires the current local schema/.test(contractorWorkspaceFixture));
 check('fixture password supports LOCAL_FIXTURE_PASSWORD with safe local fallback', /LOCAL_FIXTURE_PASSWORD/.test(fixturePassword) && /DEFAULT_LOCAL_FIXTURE_PASSWORD/.test(fixturePassword));
 check('cert fixtures synchronize password for existing Auth users', /updateUserById\(existing\.id/.test(fixtures) && /password:\s*PASSWORD/.test(fixtures));
+check('cert fixtures keep deterministic profile names on repeated resets (handle_new_user() trigger sets an email-prefix name first)', /name = EXCLUDED\.name/.test(fixtures));
+check('Contractor Workspace fixture keeps deterministic profile names on repeated resets, same fix as the base fixtures', /name = EXCLUDED\.name/.test(contractorWorkspaceFixture));
 check('cert fixture password regression script exists', /verifyFixturePasswordPersistence\.mjs/.test(packageJson.scripts['cert:verify-fixture-password']));
 check('Playwright guard runs before web server declaration', playwright.indexOf('assertLocalTarget') < playwright.indexOf('webServerCommand'));
 check('Playwright requires fixture preflight before Vite', /playwrightPreflight\.mjs && npm\.cmd run dev/.test(playwright));

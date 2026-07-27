@@ -1,3 +1,9 @@
+/**
+ * Main Workspace headline signals — "where is risk" at a glance (avg
+ * health + the 4 risk-level counts). Avg Score/Open<30d/PM Mismatch live in
+ * SupportingRiskKpis below instead: useful context, but secondary to the
+ * headline risk levels (Phase 4B Main Workspace vs. Inspector split).
+ */
 export default function RiskSummaryKpis({ summaryStats, riskColors }) {
   const avgHealthColor = summaryStats.avgHealth >= 75
     ? "var(--status-done)"
@@ -25,6 +31,20 @@ export default function RiskSummaryKpis({ summaryStats, riskColors }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Inspector "Supporting" section — average risk score, near-term openings,
+ * and PM/GC mismatch count. Useful context, but secondary to the headline
+ * risk-level counts above.
+ */
+export function SupportingRiskKpis({ summaryStats }) {
+  if (summaryStats.avgScore == null && !summaryStats.opening30 && !summaryStats.pmMismatch) return null;
+
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
       <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
         <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{summaryStats.avgScore}</div>
         <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Risk</div>

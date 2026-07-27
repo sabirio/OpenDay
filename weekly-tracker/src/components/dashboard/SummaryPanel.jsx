@@ -69,10 +69,14 @@ function SmallDonut({ counts, total }) {
   );
 }
 
-export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], svKpis, lastVisitDate }) {
+/**
+ * Main Workspace headline signals — portfolio scope + health. "Evidence
+ * Flow" (reporting activity) lives in ReportingSummary below instead:
+ * useful context, but secondary to "are my projects on track" (Phase 4A
+ * Main Workspace vs. Inspector split).
+ */
+export default function SummaryPanel({ kpis, rows, allRows = [] }) {
   const { analytics, donutCounts, donutTotal } = useDashboardSummaryPanelModel(rows, allRows);
-  const siteVisitValue = svKpis?.totalVisits ?? 0;
-  const siteVisitSub = siteVisitValue > 0 && lastVisitDate ? `Last ${formatDate(lastVisitDate)}` : 'No visits yet';
 
   return (
     <>
@@ -107,14 +111,6 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], s
           </div>
         </div>
 
-        <div className="dashboard-kpi-cluster">
-          <div className="dashboard-kpi-cluster-title">Evidence Flow</div>
-          <div className="dashboard-kpi-mini-grid">
-            <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)" sub={`${reportsTotal} total`} />
-            <KpiCard label="Site Visits" value={siteVisitValue} color="var(--text-secondary)" sub={siteVisitSub} />
-          </div>
-        </div>
-
         <div className="dashboard-kpi-cluster dashboard-health-card">
           <div className="dashboard-kpi-cluster-title">Portfolio Health</div>
           {donutTotal > 0 ? <SmallDonut counts={donutCounts} total={donutTotal} /> : (
@@ -125,5 +121,23 @@ export default function SummaryPanel({ kpis, reportsTotal, rows, allRows = [], s
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Inspector "Reporting" section — reporting activity/evidence-flow
+ * context. Secondary to Main Workspace's headline scope/health signals,
+ * so it lives in the narrow rail rather than competing for primary
+ * reading-path space.
+ */
+export function ReportingSummary({ kpis, reportsTotal, svKpis, lastVisitDate }) {
+  const siteVisitValue = svKpis?.totalVisits ?? 0;
+  const siteVisitSub = siteVisitValue > 0 && lastVisitDate ? `Last ${formatDate(lastVisitDate)}` : 'No visits yet';
+
+  return (
+    <div className="dashboard-kpi-mini-grid">
+      <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)" sub={`${reportsTotal} total`} />
+      <KpiCard label="Site Visits" value={siteVisitValue} color="var(--text-secondary)" sub={siteVisitSub} />
+    </div>
   );
 }

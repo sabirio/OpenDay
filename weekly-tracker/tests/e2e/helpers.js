@@ -9,6 +9,32 @@
  * (run it before any auth-dependent E2E run — it's idempotent, safe to re-run).
  */
 
+/**
+ * Deterministic, collision-free "reporting date" values for specs that
+ * submit a contractor report to fixture project 910001 as CREDENTIALS
+ * .contractor (gc@openday.fit). The database correctly enforces one report
+ * per project + contractor + reporting date; three specs independently
+ * filling in wall-clock "today" meant whichever ran second legitimately hit
+ * that constraint and its confirmation heading never appeared — a real
+ * fixture collision, not a performance or timeout issue (see the PHASE 5E.2/
+ * 5E.3 investigation). Fixed, far-past, mutually distinct offsets make every
+ * affected spec's submission unique regardless of execution order, repeat
+ * runs, or which specs happen to run together — add a new distinct offset
+ * here for any future spec that submits a contractor report to this same
+ * project + contractor combination.
+ */
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+}
+
+export const CONTRACTOR_REPORT_DATES = {
+  FULL_DATA_FLOW: daysAgo(101),
+  PERSISTENCE_STRESS: daysAgo(102),
+  MULTI_PROJECT_SCENARIO: daysAgo(103),
+};
+
 export const CREDENTIALS = {
   admin: {
     email:    process.env.E2E_ADMIN_EMAIL    ?? 'admin@openday.fit',

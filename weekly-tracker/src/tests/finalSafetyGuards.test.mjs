@@ -28,7 +28,33 @@ const suppressions = walk(srcRoot)
 // suppression already reviewed/accepted for auth/AuthContext.jsx's `useAuth`
 // (a context+hook pair in one file is the standard React pattern this rule
 // otherwise flags).
-check('suppression inventory is exactly the reviewed 21 entries', suppressions.length === 21);
+//
+// Site Visit phase-collapse UX (2026-07-22): 22nd entry is
+// components/sitevisit/SiteVisitPhaseSection.jsx's auto-collapse effect,
+// using the exact same react-hooks/exhaustive-deps suppression already
+// reviewed/accepted for components/contractor/GanttWPSection.jsx's
+// PhaseSection (identical pattern: intentionally react only to `allComplete`
+// changing, not to `open`/`toggle`, so manually re-opening a completed phase
+// doesn't immediately re-trigger the auto-close).
+//
+// Contractor Workspace / My Work (2026-07-22): 23rd entry is
+// hooks/useContractorWorkspace.js's data-load effect, using the exact same
+// react-hooks/set-state-in-effect suppression already reviewed/accepted for
+// App.jsx's loadProjects() effect (a genuine async network fetch — the
+// textbook legitimate effect use, not a synchronous local-state computation
+// that could be moved to render).
+//
+// Contractor Report / Site Visit P0 data-integrity fix (2026-07-23): 24th and
+// 25th entries are core/contractorReport/buildContractorReportSubmission.js
+// and core/contractorReport/adaptContractorReportToLegacy.js's no-restricted-imports
+// suppressions for config/workPackages.js's encodeLegacyWpTaskId/
+// decodeLegacyWpTaskId — the exact same audited legacy-fallback pattern
+// already reviewed/accepted for every other file in
+// architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS (e.g.
+// components/contractor/WorkPackageProgressSection.jsx), gated the same way
+// behind `ganttTasks.length === 0`. Needed so a legacy (non-Gantt) contractor
+// report's WP statuses stop being silently dropped from contractor_report_wps.
+check('suppression inventory is exactly the reviewed 25 entries', suppressions.length === 25);
 check('every suppression is a single-line exception', suppressions.every(row => /eslint-disable-(?:next-line|line)|@ts-(?:ignore|expect-error)/.test(row.text)));
 check('no blanket eslint-disable exists', suppressions.every(row => !/^\/\/\s*eslint-disable\s*$/.test(row.text)));
 

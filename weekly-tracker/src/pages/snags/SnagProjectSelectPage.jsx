@@ -1,2 +1,28 @@
-import {Link} from 'react-router-dom';
-export default function SnagProjectSelectPage({projects=[]}){return <div className="snag-page"><header><h1>Site Snag</h1><p>Select an accessible project to review its Observation workspace.</p></header>{projects.length===0?<div className="empty-state"><h2>No accessible projects</h2><p>Your project access determines which Site Snag workspaces are available.</p></div>:<div className="snag-project-list">{projects.map(project=><Link key={project.id} to={`/projects/${project.id}/snags`}><strong>{project.storeCode||`Project ${project.id}`}</strong><span>{project.shoppingMallName||project.city||'Open Site Snag workspace'}</span></Link>)}</div>}</div>}
+import ProjectSelectList from '../../components/shared/ProjectSelectList.jsx';
+
+export default function SnagProjectSelectPage({ projects = [] }) {
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1>Site Snag</h1>
+          <p>Select an accessible project to review its Observation workspace.</p>
+        </div>
+      </div>
+
+      {projects.length === 0 ? (
+        <div className="empty-state" role="status">
+          <h2 className="empty-state__title">No accessible projects</h2>
+          <p className="empty-state__text">Your project access determines which Site Snag workspaces are available.</p>
+        </div>
+      ) : (
+        <ProjectSelectList
+          projects={projects}
+          buildHref={(project) => `/projects/${project.id}/snags`}
+          ctaLabel="Open Site Snag →"
+          ariaLabelPrefix="Open Site Snag for"
+        />
+      )}
+    </div>
+  );
+}

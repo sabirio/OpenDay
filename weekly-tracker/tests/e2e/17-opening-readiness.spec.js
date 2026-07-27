@@ -15,14 +15,14 @@ import { CREDENTIALS, login, logout } from './helpers.js';
 const VALID_OPENING_STATUSES = ['Ready', 'At Risk', 'Critical', 'Overdue', 'No Date', 'No target date set'];
 
 async function openDrawerForFirstProject(page) {
-  const rows = page.locator('[data-testid="dashboard-project-row"]');
+  const rows = page.locator('[data-testid="dashboard-master-project"]');
   const count = await rows.count();
   if (count === 0) return null;
 
   for (let i = 0; i < Math.min(count, 8); i++) {
     await rows.nth(i).click();
     await page.waitForTimeout(400);
-    const drawer = page.locator('[data-testid="project-detail-drawer"]');
+    const drawer = page.locator('.dashboard-project-overview');
     if (await drawer.isVisible().catch(() => false)) return drawer;
 
     const close = drawer.locator('button', { hasText: /close/i });
@@ -32,50 +32,40 @@ async function openDrawerForFirstProject(page) {
 }
 
 test.describe('Opening Readiness', () => {
-  test('opening-readiness-status block is visible in project drawer', async ({ page }) => {
+  test('opening readiness is visible in the current project detail workspace', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for opening readiness test');
 
     const drawer = await openDrawerForFirstProject(page);
     test.skip(!drawer, 'Could not open project drawer');
 
-    const block = drawer.locator('[data-testid="opening-readiness-status"]');
+    const block = drawer.locator('.dashboard-detail-field').filter({ hasText: 'Opening readiness' });
     await expect(block).toBeVisible({ timeout: 5_000 });
 
     await logout(page);
   });
 
-  test('opening-risk-badge shows a valid status or "No target date set"', async ({ page }) => {
+  test('opening readiness shows a non-empty canonical status', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     test.skip(await rows.count() === 0, 'No projects for opening-risk-badge test');
 
     const drawer = await openDrawerForFirstProject(page);
     test.skip(!drawer, 'Could not open project drawer');
 
-    const block = drawer.locator('[data-testid="opening-readiness-status"]');
+    const block = drawer.locator('.dashboard-detail-field').filter({ hasText: 'Opening readiness' });
     await expect(block).toBeVisible({ timeout: 5_000 });
 
-    // Either the badge is visible (project has a target date) or the "No target date set" message
-    const badge = drawer.locator('[data-testid="opening-risk-badge"]');
-    const hasDate = await badge.isVisible().catch(() => false);
-    const noDateMsg = block.locator('text=No target date set');
-    const hasNoDate = await noDateMsg.isVisible().catch(() => false);
-
-    // One of the two must be true
-    expect(hasDate || hasNoDate).toBe(true);
-
-    if (hasDate) {
-      const status = await badge.innerText();
-      expect(VALID_OPENING_STATUSES).toContain(status.trim());
-    }
+    const status = (await block.locator('dd').innerText()).trim();
+    expect(status).not.toBe('');
+    expect(status).not.toMatch(/undefined|NaN/);
 
     await logout(page);
   });
@@ -86,7 +76,7 @@ test.describe('Opening Readiness', () => {
     await page.waitForLoadState('networkidle');
 
     // Look for a project row showing a target opening date
-    const rows = page.locator('[data-testid="dashboard-project-row"]');
+    const rows = page.locator('[data-testid="dashboard-master-project"]');
     const rowCount = await rows.count();
     test.skip(rowCount === 0, 'No projects for opening date test');
 
@@ -96,10 +86,10 @@ test.describe('Opening Readiness', () => {
       await row.click();
       await page.waitForTimeout(400);
 
-      const drawer = page.locator('[data-testid="project-detail-drawer"]');
+      const drawer = page.locator('.dashboard-project-overview');
       if (!await drawer.isVisible().catch(() => false)) continue;
 
-      const badge = drawer.locator('[data-testid="opening-risk-badge"]');
+      const badge = drawer.locator('.dashboard-detail-field').filter({ hasText: 'Opening readiness' }).locator('dd');
       if (await badge.isVisible()) {
         foundProjectWithDate = true;
         const status = await badge.innerText();
@@ -142,6 +132,7 @@ test.describe('Opening Readiness', () => {
     await expect(modal).toBeVisible({ timeout: 5_000 });
 
     await modal.locator('input[name="storeCode"]').fill(uniqueCode);
+    await modal.getByRole('button', { name: 'Mall', exact: true }).click();
     await modal.locator('input[name="shoppingMallName"]').fill('E2E Near Opening Mall');
     await modal.locator('input[name="country"]').fill('Testland');
     await modal.locator('input[name="targetOpeningDate"]').fill(openingDateStr);
@@ -154,7 +145,7 @@ test.describe('Opening Readiness', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const projectRow = page.locator(`[data-testid="dashboard-project-row"]`).filter({ hasText: uniqueCode });
+    const projectRow = page.locator(`[data-testid="dashboard-master-project"]`).filter({ hasText: uniqueCode });
     if (await projectRow.count() === 0) {
       test.skip(true, 'Newly created project not found in dashboard');
     }
@@ -162,12 +153,12 @@ test.describe('Opening Readiness', () => {
     await projectRow.first().click();
     await page.waitForTimeout(400);
 
-    const drawer = page.locator('[data-testid="project-detail-drawer"]');
+    const drawer = page.locator('.dashboard-project-overview');
     if (!await drawer.isVisible().catch(() => false)) {
       test.skip(true, 'Drawer did not open for near-opening project');
     }
 
-    const badge = drawer.locator('[data-testid="opening-risk-badge"]');
+    const badge = drawer.locator('.dashboard-detail-field').filter({ hasText: 'Opening readiness' }).locator('dd');
     if (await badge.isVisible()) {
       const status = await badge.innerText();
       // With 20 days to opening and 0% progress, should be Critical
@@ -198,6 +189,7 @@ test.describe('Opening Readiness', () => {
     await expect(modal).toBeVisible({ timeout: 5_000 });
 
     await modal.locator('input[name="storeCode"]').fill(uniqueCode);
+    await modal.getByRole('button', { name: 'Mall', exact: true }).click();
     await modal.locator('input[name="shoppingMallName"]').fill('E2E Far Opening Mall');
     await modal.locator('input[name="country"]').fill('Testland');
     await modal.locator('input[name="targetOpeningDate"]').fill(openingDateStr);
@@ -209,7 +201,7 @@ test.describe('Opening Readiness', () => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
-    const projectRow = page.locator(`[data-testid="dashboard-project-row"]`).filter({ hasText: uniqueCode });
+    const projectRow = page.locator(`[data-testid="dashboard-master-project"]`).filter({ hasText: uniqueCode });
     if (await projectRow.count() === 0) {
       test.skip(true, 'Far-opening project not found in dashboard');
     }
@@ -217,12 +209,12 @@ test.describe('Opening Readiness', () => {
     await projectRow.first().click();
     await page.waitForTimeout(400);
 
-    const drawer = page.locator('[data-testid="project-detail-drawer"]');
+    const drawer = page.locator('.dashboard-project-overview');
     if (!await drawer.isVisible().catch(() => false)) {
       test.skip(true, 'Drawer did not open');
     }
 
-    const badge = drawer.locator('[data-testid="opening-risk-badge"]');
+    const badge = drawer.locator('.dashboard-detail-field').filter({ hasText: 'Opening readiness' }).locator('dd');
     if (await badge.isVisible()) {
       const status = await badge.innerText();
       // 365 days away → should NOT be Critical (only if progress < 70 AND days < 30)

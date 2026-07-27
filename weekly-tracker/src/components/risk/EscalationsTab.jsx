@@ -17,10 +17,10 @@ function EscalationsTab({ allEscalations }) {
           <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 6 }}>No risks have been repeatedly reported without resolution</div>
         </div>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table className="dashboard-table" style={{ minWidth: 780 }}>
+        <div className="ds-data-surface">
+          <table className="ds-table ds-table--dense" style={{ minWidth: 780 }}>
             <thead>
-              <tr><th>Project</th><th>Category</th><th>Issue</th><th>Reports / Days</th><th>Latest Owner</th><th>First Seen</th><th>Last Seen</th><th>Level</th></tr>
+              <tr><th>Project</th><th>Category</th><th>Issue</th><th style={{ textAlign: "right" }}>Reports / Days</th><th>Latest Owner</th><th>First Seen</th><th>Last Seen</th><th>Level</th></tr>
             </thead>
             <tbody>
               {allEscalations.map((e, i) => {
@@ -28,13 +28,13 @@ function EscalationsTab({ allEscalations }) {
                 return (
                   <tr key={i}>
                     <td><div style={{ fontWeight: 700, color: "var(--text-primary)" }}>{e.project.storeCode}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{e.project.shoppingMallName}</div></td>
-                    <td><span style={{ display: "inline-flex", alignItems: "center", verticalAlign: "middle" }}><Glyph name={typeIconName} /></span> <span style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "capitalize" }}>{e.type}</span></td>
+                    <td style={{ whiteSpace: "nowrap" }}><span style={{ display: "inline-flex", alignItems: "center", verticalAlign: "middle" }}><Glyph name={typeIconName} /></span> <span style={{ fontSize: 12, color: "var(--text-secondary)", textTransform: "capitalize" }}>{e.type}</span></td>
                     <td><div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{e.label}</div><div style={{ fontSize: 11, color: "var(--text-muted)" }}>{e.description}</div></td>
-                    <td style={{ fontSize: 18, fontWeight: 800, color: RISK_COLORS[e.severity].text }}>{e.weeks}</td>
-                    <td style={{ fontSize: 13, color: "var(--text-secondary)" }}>{e.latestOwner || "—"}</td>
-                    <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{e.firstSeen ? new Date(e.firstSeen).toLocaleDateString("en-GB") : "—"}</td>
-                    <td style={{ fontSize: 12, color: "var(--text-muted)" }}>{e.lastSeen  ? new Date(e.lastSeen).toLocaleDateString("en-GB")  : "—"}</td>
-                    <td><RiskBadge level={e.severity} /></td>
+                    <td style={{ fontSize: 18, fontWeight: 800, color: RISK_COLORS[e.severity].text, textAlign: "right", whiteSpace: "nowrap" }}>{e.weeks}</td>
+                    <td style={{ fontSize: 13, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>{e.latestOwner || "—"}</td>
+                    <td style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{e.firstSeen ? new Date(e.firstSeen).toLocaleDateString("en-GB") : "—"}</td>
+                    <td style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{e.lastSeen  ? new Date(e.lastSeen).toLocaleDateString("en-GB")  : "—"}</td>
+                    <td style={{ whiteSpace: "nowrap" }}><RiskBadge level={e.severity} /></td>
                   </tr>
                 );
               })}

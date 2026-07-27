@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { useCaptureCatalog, useSnagCommand, useSnagDetail, useSnagProductCommand } from '../../hooks/snags/useSnagController.js';
-import { buildSnagListModel, resolvePreferredStakeholder, selectSnagNavigation, snagErrorMessage, SNAG_PRIORITIES } from '../../hooks/snags/useSnagPresentation.js';
+import { buildSnagListModel, formatPublishNoticeMessage, resolvePreferredStakeholder, selectSnagNavigation, snagErrorMessage, SNAG_PRIORITIES } from '../../hooks/snags/useSnagPresentation.js';
 import { SnagPriority, SnagStatus } from '../../components/snags/SnagStatus.jsx';
 import EvidenceSection from '../../components/snags/EvidenceSection.jsx';
+import SnagHistory from '../../components/snags/SnagHistory.jsx';
 import { useIsMobile } from '../../hooks/shared/useViewport.js';
 
 function planReturnUrl(projectId, snag) {
@@ -21,13 +22,16 @@ function withCreatedParam(url, snagIdValue) {
   return `${url}${url.includes('?') ? '&' : '?'}created=${snagIdValue}`;
 }
 
-// This page is a focused Observation capture/edit surface: one primary
-// working card (form + evidence), not a management console. Lifecycle
-// actions (publish/duplicate/archive/assign/status transitions) and the
-// audit trail (comments, history) are deliberately not exposed here — the
-// underlying commands, services, and event/comment persistence are
-// untouched and still reachable from Site Snag's management workspace
-// (batch publish) and remain available for a future review workspace.
+// This page is a focused Observation capture/edit/review surface: one
+// primary working card (form + evidence + lifecycle actions + history), not
+// a management console. Publish/duplicate/archive/reassign remain reachable
+// only from Site Snag's management workspace (batch publish). The
+// ASSIGNED -> IN_PROGRESS -> READY_FOR_REVIEW -> CLOSED lifecycle (P0 fix:
+// previously implemented only in the workflow engine and command RPC, with
+// zero UI surface) is exposed here via the same canonical `actions` set
+// (getAvailableSnagActions, through buildSnagListModel) every other action
+// on this page already uses — no second status machine, no new statuses,
+// no new RPC, no direct import of workflow/service internals.
 export default function SnagDetailPage() {
   const { projectId, snagId } = useParams();
   const [query] = useSearchParams();
@@ -39,10 +43,16 @@ export default function SnagDetailPage() {
   const catalog = useCaptureCatalog(projectId);
   const [details, setDetails] = useState(null);
   const [location, setLocation] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
   const [captureForm, setCaptureForm] = useState({ title: '', description: '', tradeId: '', stakeholderId: '', priority: 'MEDIUM', dueDate: '' });
+  const [publishNotice, setPublishNotice] = useState(null);
   const actor = useMemo(() => ({ id: user?.id, role }), [user?.id, role]);
   const command = useSnagCommand(() => detail.reload());
   const product = useSnagProductCommand(result => result?.snag ? detail.reload() : null);
+  // Single-observation Publish (P0: Site Snag master-detail rework) — routes
+  // through the exact same batchPublish command the list's bulk publish bar
+  // uses, just with a one-item snagIds collection. No second publish command.
+  const publish = useSnagProductCommand(() => detail.reload());
 
   if (detail.status === 'loading') return <div className="snag-page" role="status">Loading snag...</div>;
   if (detail.status === 'error') {
@@ -54,7 +64,7 @@ export default function SnagDetailPage() {
     );
   }
 
-  const { snag, evidence } = detail.data;
+  const { snag, evidence, events } = detail.data;
   const navOrder = routerLocation.state?.navOrder;
   const nav = selectSnagNavigation(navOrder, snagId);
   const goToObservation = id => navigate(`/projects/${projectId}/snags/${id}`, {
@@ -84,6 +94,7 @@ export default function SnagDetailPage() {
       await command.execute({ type, actor, projectId, snagId, expectedVersion: snag.version, payload }, `${type}:${snag.version}`);
       setDetails(null);
       setLocation(null);
+      setRejectReason('');
     } catch (error) {
       if (error.code === 'VERSION_CONFLICT') {
         await detail.reload();
@@ -94,8 +105,7 @@ export default function SnagDetailPage() {
   const detailForm = details || { title: snag.title, description: snag.description || '', priority: snag.priority, dueDate: snag.dueDate || '' };
   const locationForm = location || { zoneId: snag.location?.zoneId || '', level: snag.location?.level || '', room: snag.location?.room || '', text: snag.location?.text || '' };
 
-  async function completeCapturedObservation(event) {
-    event.preventDefault();
+  function captureFormPayload() {
     const payload = {
       title: captureForm.title || snag.title,
       description: captureForm.description || snag.description,
@@ -104,14 +114,34 @@ export default function SnagDetailPage() {
     if (captureForm.tradeId || snag.tradeId) payload.tradeId = captureForm.tradeId || snag.tradeId;
     if (captureForm.stakeholderId || snag.stakeholderId) payload.stakeholderId = captureForm.stakeholderId || snag.stakeholderId;
     if (captureForm.dueDate) payload.dueDate = captureForm.dueDate;
+    return payload;
+  }
+
+  async function completeCapturedObservation(event) {
+    event.preventDefault();
     await product.execute({
       type: 'completeCapture',
       projectId,
       snagId,
       expectedVersion: snag.version,
-      payload,
+      payload: captureFormPayload(),
     });
     navigate(captureReturn ? withCreatedParam(captureReturn, snag.id) : `/projects/${projectId}/snags`);
+  }
+
+  // Saves any in-progress capture-form edits first (so Publish never fires
+  // against stale trade/stakeholder/description values), then publishes —
+  // same batchPublish command the list's bulk bar uses, one-item collection.
+  async function saveAndPublish() {
+    await product.execute({
+      type: 'completeCapture',
+      projectId,
+      snagId,
+      expectedVersion: snag.version,
+      payload: captureFormPayload(),
+    });
+    const result = await publish.execute({ type: 'batchPublish', projectId, snagIds: [snag.id] });
+    setPublishNotice(formatPublishNoticeMessage(result));
   }
 
   return (
@@ -128,6 +158,7 @@ export default function SnagDetailPage() {
             <SnagStatus status={snag.status} label={model.statusLabel} tone={model.statusTone} />
             <SnagPriority priority={snag.priority} label={model.priorityLabel} />
             <span>{model.dueStateLabel}</span>
+            {drawingReturn ? <Link className="snag-view-on-plan" to={drawingReturn}>View on plan</Link> : null}
           </div>
         </div>
       </header>
@@ -140,10 +171,55 @@ export default function SnagDetailPage() {
         </nav>
       ) : null}
 
-      {command.error || product.error ? (
+      {command.error || product.error || publish.error ? (
         <div className="snag-error" role="alert">
-          {snagErrorMessage(command.error || product.error)}
+          {snagErrorMessage(command.error || product.error || publish.error)}
         </div>
+      ) : null}
+
+      {actions.has('startSnagWork') || actions.has('markSnagReadyForReview') || actions.has('approveAndCloseSnag') || actions.has('rejectSnag') ? (
+        <section className="snag-detail-section snag-lifecycle-actions" aria-labelledby="lifecycle-heading">
+          <h2 id="lifecycle-heading">{canManage ? 'Review' : 'Next step'}</h2>
+
+          {actions.has('startSnagWork') ? (
+            <div className="snag-lifecycle-action">
+              <p>This Observation is assigned to you. Start work once you're on it.</p>
+              <button type="button" className="btn btn-primary" disabled={command.pending} onClick={() => execute('startSnagWork')}>
+                {command.pending ? 'Starting…' : 'Start work'}
+              </button>
+            </div>
+          ) : null}
+
+          {actions.has('markSnagReadyForReview') ? (
+            <div className="snag-lifecycle-action">
+              <p>Add correction evidence below if you have it, then submit for PM review.</p>
+              <button type="button" className="btn btn-primary" disabled={command.pending} onClick={() => execute('markSnagReadyForReview')}>
+                {command.pending ? 'Submitting…' : 'Ready for review'}
+              </button>
+            </div>
+          ) : null}
+
+          {actions.has('approveAndCloseSnag') ? (
+            <div className="snag-lifecycle-action">
+              <p>Review the evidence below, then approve to close this Observation.</p>
+              <button type="button" className="btn btn-primary" disabled={command.pending} onClick={() => execute('approveAndCloseSnag')}>
+                {command.pending ? 'Approving…' : 'Approve & close'}
+              </button>
+            </div>
+          ) : null}
+
+          {actions.has('rejectSnag') ? (
+            <form className="snag-inline-form snag-reject-form" onSubmit={event => { event.preventDefault(); if (!rejectReason.trim()) return; execute('rejectSnag', { reason: rejectReason.trim() }); }}>
+              <label>
+                Reason for rejection (required, sent back to the Contractor)
+                <textarea className="ds-textarea" rows="2" required value={rejectReason} onChange={event => setRejectReason(event.target.value)} placeholder="What still needs to be corrected?" />
+              </label>
+              <button type="submit" className="btn btn-danger" disabled={command.pending || !rejectReason.trim()}>
+                {command.pending ? 'Sending back…' : 'Reject — send back to Contractor'}
+              </button>
+            </form>
+          ) : null}
+        </section>
       ) : null}
 
       {isCaptured && canManage ? (
@@ -200,7 +276,11 @@ export default function SnagDetailPage() {
 
           <EvidenceSection projectId={projectId} snag={snag} items={evidence} role={role} canAdd={canAddEvidence} onRefresh={detail.reload} />
 
-          <button type="submit" form="capture-form" className="btn btn-primary" disabled={product.pending}>{product.pending ? 'Saving...' : 'Done - keep Captured'}</button>
+          {publishNotice ? <p className="snag-publish-notice" role="alert">{publishNotice}</p> : null}
+          <div className="snag-capture-actions">
+            <button type="submit" form="capture-form" className="btn" disabled={product.pending || publish.pending}>{product.pending ? 'Saving...' : 'Done - keep Captured'}</button>
+            <button type="button" className="btn btn-primary" disabled={product.pending || publish.pending} onClick={saveAndPublish}>{publish.pending ? 'Publishing...' : 'Publish'}</button>
+          </div>
         </section>
       ) : (
         <section className="observation-capture-card" aria-labelledby="edit-heading">
@@ -239,6 +319,8 @@ export default function SnagDetailPage() {
           ) : null}
         </section>
       )}
+
+      <SnagHistory events={events} />
     </div>
   );
 }

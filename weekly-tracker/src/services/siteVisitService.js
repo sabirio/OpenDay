@@ -74,6 +74,17 @@ function mapRow(row) {
     overallNote:            row.overall_note,
     visitedBy:              row.visited_by,
     pmScheduleAssessment:   row.pm_schedule_assessment,
+    // P0 fix: these four were previously only readable via the raw
+    // snake_case spread above (row.reference_report_id, etc.) — every other
+    // consumer of this mapped shape (ComparisonResultsView.jsx,
+    // SiteVisitComparison.jsx) reads the camelCase form, so without an
+    // explicit mapping here a legacy site visit's own reference report,
+    // PM work-package statuses, declaration, and photos were unreadable by
+    // the screens that immediately render right after submit.
+    referenceReportId:       row.reference_report_id,
+    pmWorkPackageStatuses:   row.pm_work_package_statuses,
+    declarationConfirmed:    row.declaration_confirmed,
+    photoUrls:               row.photo_urls,
     // Drop and warn on individual malformed WP observations (P1.3) rather than
     // letting a corrupted gc_progress/observed_progress/discrepancy_delta
     // reach siteVisitEngine's discrepancy math unchecked.
@@ -101,17 +112,38 @@ export async function getAll() {
 // Legacy compatibility — used by SiteVisitReport.jsx when no Gantt tasks are loaded.
 // referenceReportId here is from the `reports` table (old weekly format), which is a
 // different table from `contractor_reports` that site_visits.contractor_report_id references.
-// Passing it would cause a FK violation, so we omit the FK field in this path.
+// Passing it would cause a FK violation on the contractor_report_id FK, so that
+// column is intentionally left null in this path — reference_report_id (no FK
+// constraint) is the correct column for it instead, see below.
+//
+// P0 fix: this previously inserted only project_id/visited_by/visit_date/
+// photo_urls, silently discarding pmScheduleAssessment, declarationConfirmed,
+// referenceReportId, pmWorkPackageStatuses and the form's `observations` note
+// (SiteVisitReport.jsx's submit() already builds `visit` with every one of
+// these fields via `{ ...form }` — they were simply never read here). The
+// success screen still said "Site Visit Recorded" even though the PM's
+// declaration, schedule assessment, and WP comparison notes vanished. Every
+// field below already has a canonical column on site_visits (verified via
+// \d site_visits) — no schema change needed.
 export async function create(visit) {
   const visitedBy = visit.visitedBy || await getCurrentUserId();
+  const referenceReportId = visit.referenceReportId ? Number(visit.referenceReportId) : null;
   const { data, error } = await supabase
     .from('site_visits')
     .insert([{
-      project_id:   visit.projectId,
-      visited_by:   visitedBy,
-      visit_date:   visit.visitDate || new Date().toISOString().split('T')[0],
-      overall_note: visit.overallNote || null,
-      photo_urls:   visit.photoUrls || [],
+      project_id:               visit.projectId,
+      visited_by:               visitedBy,
+      visit_date:               visit.visitDate || new Date().toISOString().split('T')[0],
+      photo_urls:               visit.photoUrls || [],
+      // `observations` (not overall_note) is the column the legacy success
+      // view (ComparisonResultsView.jsx) actually reads back for this path —
+      // overall_note is the atomic-RPC/Gantt path's own column and is left
+      // untouched here, matching "Gantt path unchanged".
+      observations:             visit.observations || null,
+      pm_schedule_assessment:   visit.pmScheduleAssessment || null,
+      declaration_confirmed:    visit.declarationConfirmed === true,
+      reference_report_id:      Number.isFinite(referenceReportId) ? referenceReportId : null,
+      pm_work_package_statuses: visit.pmWorkPackageStatuses || {},
     }])
     .select()
     .single();

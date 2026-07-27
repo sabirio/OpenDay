@@ -99,7 +99,7 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
                       ) : byPhase.map(({ phase, items: phItems }) => (
                         <div key={phase} style={{ marginBottom: 14 }}>
                           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 7 }}>{phase}</div>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: 8, overflow: 'hidden' }}>
+                          <table className="ds-table ds-table--dense" style={{ borderRadius: 8, overflow: 'hidden' }}>
                             <thead>
                               <tr style={{ background: 'var(--overlay-dim)' }}>
                                 {cols.map((h, ci) => (

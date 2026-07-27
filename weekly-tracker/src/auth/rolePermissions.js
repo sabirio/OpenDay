@@ -11,13 +11,13 @@ export const ROLES = {
 // Resource keys must match the `resource` prop passed to <ProtectedRoute>.
 export const PERMISSIONS = {
   Admin: ['all'],  // 'all' is a wildcard — see permissionEngine.canAccess()
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags'],
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import'],
   Contractor: ['contractor_report', 'snags'],
   Viewer: ['dashboard', 'snags'],
 };
 
 // Resources only Admin can access (via 'all' wildcard, but useful as documentation)
-export const ADMIN_ONLY_RESOURCES = ['admin_users'];
+export const ADMIN_ONLY_RESOURCES = ['admin_users', 'admin_contractor_workspace'];
 
 // Where each role lands after a successful login
 export const ROLE_REDIRECTS = {
@@ -31,6 +31,11 @@ export const ROLE_REDIRECTS = {
 export const NAV_ITEMS = [
   { to: '/home',               label: 'Home',             resource: 'dashboard'      },
   { to: '/',                   label: 'Project Dashboard', resource: 'dashboard'      },
+  // Import Projects is deliberately NOT a top-level nav item — it's a
+  // Portfolio-owned operation (Projects IA v1), reached via the "Import
+  // Projects" action on the Portfolio page (/projects), not its own product
+  // module. Its canonical route (/projects/import) and permission
+  // ('projects_import') are unchanged; only its sidebar presence moved.
   { to: '/projects',           label: 'Portfolio',        resource: 'projects'       },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
   { to: '/snags',              label: 'Site Snag',        resource: 'snags'          },
@@ -45,6 +50,13 @@ export const NAV_ITEMS = [
   { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine'    },
   { to: '/weight-audit',       label: 'Weight Audit',     resource: 'weight_audit'   },
   { to: '/admin/users',        label: 'Users',            resource: 'admin_users'    },
+  // Nav-only visibility gate — deliberately a different resource than the
+  // 'contractor_report' one that actually guards /contractor-select's
+  // <ProtectedRoute> in App.jsx. Contractors/PMs keep reaching that route
+  // through their existing entry points unchanged; 'admin_contractor_workspace'
+  // isn't in any non-Admin PERMISSIONS list, so only Admin's 'all' wildcard
+  // lets this sidebar link render (same mechanism as the Users item above).
+  { to: '/contractor-select',  label: 'Contractor Workspace', resource: 'admin_contractor_workspace' },
   // Template Editor (/admin/template-editor) route still exists but is hidden from
   // the nav until its save path (onSave -> templatesApi) is wired. See PROJECT_MEMORY.md.
 ];

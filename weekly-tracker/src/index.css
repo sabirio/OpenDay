@@ -28,21 +28,23 @@ body {
    ============================================================ */
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  block-size: 100dvh;
+  min-block-size: 0;
   background: var(--bg-page);
-  align-items: flex-start;
+  align-items: stretch;
+  overflow: hidden;
 }
 
 
 /* ── Sidebar ─────────────────────────────────────────────── */
 .sidebar {
-  width: 216px;
+  width: 208px;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
-  padding: 20px 12px;
+  padding: 16px 10px;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -50,14 +52,14 @@ body {
 }
 
 .sidebar-brand {
-  padding: 8px 4px 18px;
+  padding: 6px 6px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
 }
 
 .sidebar-brand span {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 750;
   color: var(--text-primary);
   letter-spacing: 0;
@@ -72,18 +74,23 @@ body {
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-/* NavLink from react-router — .active class auto-applied */
+/* NavLink from react-router — .active class auto-applied. Icon inherits
+   color via currentColor, so the active/hover treatment below colors icon
+   and label together with no separate icon rule needed. */
 .sidebar a {
-  padding: 9px 11px;
+  min-height: var(--control-height-md);
+  padding: 0 10px;
   border-radius: var(--radius-md);
   text-decoration: none;
   color: var(--text-secondary);
   font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   transition: background 0.12s, color 0.12s;
-  display: block;
 }
 .sidebar a:hover {
   background: var(--bg-elevated);
@@ -93,22 +100,21 @@ body {
   background: var(--accent-subtle);
   color: var(--accent);
   font-weight: 600;
-  border-left: none;
 }
 
 .sidebar-nav-group {
   display: grid;
-  gap: 3px;
+  gap: 2px;
 }
 
 .sidebar-nav-group-toggle {
   width: 100%;
-  min-height: 38px;
-  padding: 9px 11px;
+  min-height: var(--control-height-md);
+  padding: 0 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -126,8 +132,16 @@ body {
   color: var(--text-primary);
 }
 
+.sidebar-nav-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .sidebar-nav-group-chevron {
-  font-size: 0.875rem;
+  flex-shrink: 0;
+  color: var(--text-muted);
   transition: transform 0.18s ease-out;
 }
 
@@ -137,7 +151,7 @@ body {
 
 .sidebar-nav-children {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   padding-left: 10px;
 }
 
@@ -153,9 +167,11 @@ body {
 /* ── Main content ────────────────────────────────────────── */
 .main-content {
   flex: 1;
-  padding: 36px 40px;
-  overflow-x: auto;
+  align-self: stretch;
+  padding: var(--space-6) var(--space-8);
+  overflow: auto;
   min-width: 0;
+  min-height: 0;
 }
 
 
@@ -166,16 +182,16 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   gap: 20px;
   flex-wrap: wrap;
 }
 
 .page-header h1 {
-  font-size: 1.875rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .page-header p,
@@ -183,6 +199,78 @@ body {
   font-size: 0.813rem;
   color: var(--text-muted);
   margin-top: 4px;
+}
+
+
+/* ============================================================
+   SPLIT WORKSPACE — shared Main Workspace + Inspector layout.
+   Phase 4A (2026-07-25): a canonical, feature-agnostic pattern —
+   .split-workspace owns geometry only, never business content, so
+   Weekly Reports/Risk Dashboard/Portfolio can reuse it later without
+   a second grid definition. (Weekly Reports currently hand-rolls an
+   equivalent pattern — .weekly-overview-console/-main/-side — left
+   untouched this phase; a future migration could point it at this
+   instead of maintaining two copies.)
+
+   Inspector uses `position: sticky`, not a fixed-height/overflow
+   trick — it stays visible while Main Workspace's own content
+   scrolls with the page, with no calc(100vh - magic-number) coupling
+   to main-content's padding (the kind of fragile dependency Phase 2
+   introduced for Portfolio and had to patch after a padding change).
+   Below Dashboard's existing 1080px breakpoint (where its KPI row
+   and status table already adapt) Inspector stacks below Workspace —
+   two compressed columns stop being readable before then.
+   ============================================================ */
+.split-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.workspace {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+
+/* Grid items default to min-width:auto, so a wide-content child (e.g. a
+   KPI row that doesn't wrap) would otherwise force .workspace's own
+   (implicit, single) column wider than the space .split-workspace gave it
+   — discovered on Weekly Reports' ReportTruthBar during Phase 4B, which
+   has no internal overflow handling of its own (unlike Dashboard's Status
+   Matrix, which already scrolls internally). Fixed once here so every
+   Workspace/Inspector consumer inherits the protection. */
+.workspace > *,
+.inspector > * {
+  min-width: 0;
+}
+
+.inspector {
+  min-width: 0;
+  display: grid;
+  gap: 20px;
+  position: sticky;
+  top: var(--space-6);
+}
+
+.inspector-section-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.inspector-section + .inspector-section {
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 1080px) {
+  .split-workspace { grid-template-columns: 1fr; }
+  .inspector { position: static; }
 }
 
 
@@ -446,43 +534,10 @@ body {
 }
 
 
-/* ============================================================
-   DASHBOARD TABLE
-   ============================================================ */
-.dashboard-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 14px;
-}
-
-.dashboard-table th,
-.dashboard-table td {
-  padding: 12px 14px;
-  text-align: left;
-  white-space: nowrap;
-  border-bottom: 1px solid var(--border);
-}
-
-.dashboard-table th {
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.dashboard-table td {
-  color: var(--text-body);
-  font-size: 0.875rem;
-}
-
-.dashboard-table tbody tr:hover { background: var(--bg-elevated); }
-
 /* Project Dashboard polish: operational KPI row, desktop-fit matrix, controls, tabs. */
 .dashboard-kpi-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -568,45 +623,32 @@ body {
   pointer-events: none;
 }
 
-.dashboard-search-field input,
-.dashboard-status-select {
-  height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 0.8125rem;
-  outline: none;
-}
-
-.dashboard-search-field input {
-  width: 100%;
-  padding: 0 12px 0 36px;
-}
-
-.dashboard-status-select {
-  padding: 0 12px;
-  cursor: pointer;
-}
+/* Search input/status select now use canonical .ds-input/.ds-select
+   (Phase 4A) — only the wrapper/icon positioning above stays local;
+   .ds-input already provides width:100%. */
 
 .status-matrix-card {
   overflow: hidden;
 }
 
+/* Phase 5D: unconditional overflow-x:auto — with explicit px column widths
+   below, the table's own intrinsic width (980px) now determines when
+   scrolling is actually needed, so the previous "only below 1080px"
+   breakpoint-gated toggle is redundant (one less breakpoint to track). */
 .status-matrix-scroll {
   max-width: 100%;
-  overflow-x: visible;
+  overflow-x: auto;
 }
 
 .status-matrix-table {
   table-layout: fixed;
+  min-width: 980px;
   margin-top: 0;
 }
 
 .status-matrix-table th,
 .status-matrix-table td {
-  padding: 10px 8px;
-  white-space: normal;
+  padding: var(--table-cell-padding-y) 8px;
   vertical-align: middle;
 }
 
@@ -619,18 +661,46 @@ body {
   font-size: 0.78rem;
 }
 
-.status-matrix-table th:nth-child(1)  { width: 8%; }
-.status-matrix-table th:nth-child(2)  { width: 12%; }
-.status-matrix-table th:nth-child(3)  { width: 11%; }
-.status-matrix-table th:nth-child(4)  { width: 9%; }
-.status-matrix-table th:nth-child(5)  { width: 8%; }
-.status-matrix-table th:nth-child(6)  { width: 6%; }
-.status-matrix-table th:nth-child(7)  { width: 7%; }
-.status-matrix-table th:nth-child(8)  { width: 6%; }
-.status-matrix-table th:nth-child(9)  { width: 10%; }
-.status-matrix-table th:nth-child(10) { width: 6%; }
-.status-matrix-table th:nth-child(11) { width: 9%; }
-.status-matrix-table th:nth-child(12) { width: 8%; }
+/* Phase 5: explicit px widths replace the previous 12-way percentage split
+   on this table-layout:fixed table — percentages of a fixed-layout table
+   don't respect content minimums, which is exactly why Store/Project (was
+   8% ≈ 78px of the 980px-min table) felt cramped for 2-line store codes.
+   Store gets real room (140px); Blocked/Support/Alert/Days Left give up a
+   few px each since their content (Yes/No/—/counts) never needed as much
+   as a uniform percentage split gave them. Sum = 980px, matching the
+   table's own min-width above. */
+.status-matrix-table th:nth-child(1)  { width: 140px; }   /* Store */
+.status-matrix-table th:nth-child(2)  { width: 110px; }   /* Phase */
+.status-matrix-table th:nth-child(3)  { width: 108px; }   /* Progress */
+.status-matrix-table th:nth-child(4)  { width: 80px;  }   /* Schedule */
+.status-matrix-table th:nth-child(5)  { width: 78px;  }   /* Risk */
+.status-matrix-table th:nth-child(6)  { width: 50px;  }   /* Blocked */
+.status-matrix-table th:nth-child(7)  { width: 56px;  }   /* Support */
+.status-matrix-table th:nth-child(8)  { width: 50px;  }   /* Alert */
+.status-matrix-table th:nth-child(9)  { width: 92px;  }   /* Target Opening */
+.status-matrix-table th:nth-child(10) { width: 56px;  }   /* Days Left */
+.status-matrix-table th:nth-child(11) { width: 82px;  }   /* Latest Report */
+.status-matrix-table th:nth-child(12) { width: 78px;  }   /* Report Status */
+
+/* white-space decided per-column on the data cells (th text is short
+   already); Store/Phase/Progress may wrap (2-line store codes, phase
+   names), everything else — badges, dates, counts — stays on one line. */
+.status-matrix-table td:nth-child(1),
+.status-matrix-table td:nth-child(2),
+.status-matrix-table td:nth-child(3) {
+  white-space: normal;
+}
+.status-matrix-table td:nth-child(4),
+.status-matrix-table td:nth-child(5),
+.status-matrix-table td:nth-child(6),
+.status-matrix-table td:nth-child(7),
+.status-matrix-table td:nth-child(8),
+.status-matrix-table td:nth-child(9),
+.status-matrix-table td:nth-child(10),
+.status-matrix-table td:nth-child(11),
+.status-matrix-table td:nth-child(12) {
+  white-space: nowrap;
+}
 
 .status-matrix-phase {
   color: var(--text-body);
@@ -714,8 +784,10 @@ body {
 @media (max-width: 1080px) {
   .dashboard-kpi-row { grid-template-columns: 1fr; }
   .dashboard-donut-wrap { grid-template-columns: 1fr; }
-  .status-matrix-scroll { overflow-x: auto; }
-  .status-matrix-table { min-width: 980px; }
+  /* .status-matrix-scroll/-table's overflow-x:auto + min-width are now
+     unconditional (Phase 5) — the table's own explicit px column widths
+     make scrolling trigger naturally whenever available width is
+     insufficient, without needing this breakpoint. */
 }
 
 /* ============================================================
@@ -835,8 +907,7 @@ body {
 }
 
 .weekly-command-panel,
-.weekly-truth-console,
-.weekly-project-context {
+.weekly-truth-console {
   position: relative;
   padding: 22px;
   background: var(--bg-surface-alpha);
@@ -891,22 +962,19 @@ body {
   font-size: 0.8125rem;
 }
 
-.weekly-project-context {
-  padding: 16px 22px;
-}
-
-.weekly-project-context .weekly-project-header {
-  margin-bottom: 0;
-}
-
 .weekly-truth-console {
   padding: 12px;
 }
 
+.weekly-truth-scroll {
+  width: 100%;
+}
+
 .weekly-truth-bar {
   display: grid;
-  grid-template-columns: minmax(360px, 1.35fr) minmax(140px, 0.45fr) minmax(420px, 1.2fr);
-  gap: 10px;
+  grid-template-columns: minmax(270px, 1.2fr) minmax(100px, 0.4fr) minmax(310px, 1.25fr);
+  gap: 8px;
+  min-width: 700px;
 }
 
 .weekly-truth-group {
@@ -916,28 +984,28 @@ body {
 }
 
 .weekly-truth-group-progress {
-  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  grid-template-columns: repeat(3, minmax(84px, 1fr));
 }
 
 .weekly-truth-group-validation {
-  grid-template-columns: minmax(130px, 1fr);
+  grid-template-columns: minmax(96px, 1fr);
 }
 
 .weekly-truth-group-issues {
-  grid-template-columns: repeat(5, minmax(84px, 1fr));
+  grid-template-columns: repeat(5, minmax(54px, 1fr));
 }
 
 .weekly-truth-cell {
-  min-height: 72px;
-  padding: 10px 12px;
+  min-height: 58px;
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
   border-radius: var(--radius-md);
   border: 0;
   background: var(--bg-elevated);
 }
 
 .weekly-truth-group-progress .weekly-truth-cell {
-  min-height: 88px;
-  padding: 13px 14px;
+  min-height: 66px;
+  padding: 10px;
   background: var(--bg-elevated);
 }
 
@@ -958,7 +1026,7 @@ body {
 }
 
 .weekly-truth-group-progress .weekly-truth-value {
-  font-size: 1.35rem;
+  font-size: 1.125rem;
 }
 
 .weekly-truth-sub {
@@ -1015,37 +1083,22 @@ body {
   box-shadow: var(--focus-ring);
 }
 
-.weekly-overview-console {
-  display: grid;
-  grid-template-columns: minmax(0, 2.15fr) minmax(300px, 0.85fr);
-  gap: 18px;
-  align-items: start;
-}
-
+/* .weekly-overview-console/-side retired (Phase 4B) — the canonical
+   .split-workspace/.workspace/.inspector now own this geometry, applied to
+   the whole page rather than just the Overview tab. .weekly-overview-main
+   stays: still used standalone inside .workspace for the Overview tab's
+   own content grouping (no longer paired with a sibling side column). */
 .weekly-overview-main {
   display: grid;
   gap: 16px;
   min-width: 0;
 }
 
-.weekly-overview-side {
-  display: grid;
-  gap: 16px;
-  min-width: 0;
-}
-
-.weekly-action-panel {
-  position: sticky;
-  top: 96px;
-  min-height: 280px;
-  max-height: 430px;
-  overflow: auto;
-  padding: 18px;
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface-alpha);
-}
-
+/* .weekly-action-panel's sticky/scroll/card-look geometry retired (Phase
+   4B) — ActionRequiredPanel now renders inside a plain .inspector-section,
+   which gets sticky positioning and spacing from the shared Inspector
+   instead of its own independent scroll region. Only its content styling
+   (h2 and below) remains. */
 .weekly-action-panel h2 {
   margin: 0 0 14px;
   color: var(--text-primary);
@@ -1108,16 +1161,18 @@ body {
   font-size: 0.8125rem;
 }
 
-.weekly-compact-trend,
 .weekly-phase-board {
   margin-bottom: 0;
   border: 0;
   background: var(--bg-surface-alpha);
 }
 
+/* .weekly-compact-trend's card look (padding/radius/background) retired
+   (Phase 4B) — it now renders inside a plain .inspector-section, so it
+   shouldn't carry its own nested card surface. */
 .weekly-compact-trend {
-  padding: 18px;
-  border-radius: var(--radius-lg);
+  margin-bottom: 0;
+  border: 0;
 }
 
 .weekly-compact-trend.is-empty {
@@ -1148,26 +1203,37 @@ body {
 
 .weekly-phase-table {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
-  gap: 8px;
+  min-width: 620px;
+  border-top: 1px solid var(--border);
+}
+
+.weekly-phase-columns,
+.weekly-phase-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 84px 72px 116px;
+  align-items: center;
+  column-gap: 12px;
+}
+
+.weekly-phase-columns {
+  min-height: 32px;
+  padding: 0 var(--table-cell-padding-x);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .weekly-phase-row {
   position: relative;
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr);
-  grid-template-areas:
-    "marker title"
-    "marker meta"
-    "marker status";
-  gap: 5px 10px;
-  align-items: start;
   width: 100%;
-  min-height: 118px;
-  padding: 12px;
+  min-height: 44px;
+  padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
   color: var(--text-secondary);
   text-align: left;
   font: inherit;
@@ -1179,14 +1245,14 @@ button.weekly-phase-row {
 
 .weekly-phase-row.is-active {
   background: var(--accent-subtle);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 48%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .weekly-phase-marker {
-  grid-area: marker;
-  width: 8px;
-  height: 100%;
-  min-height: 72px;
+  position: absolute;
+  left: 0;
+  width: 3px;
+  height: 20px;
   border-radius: var(--radius-full);
   background: var(--border-strong);
 }
@@ -1206,7 +1272,6 @@ button.weekly-phase-row {
 }
 
 .weekly-phase-title {
-  grid-area: title;
   min-width: 0;
 }
 
@@ -1230,13 +1295,10 @@ button.weekly-phase-row {
 }
 
 .weekly-phase-pct {
-  grid-area: meta;
   font-weight: 800;
 }
 
 .weekly-phase-delta {
-  grid-area: meta;
-  justify-self: end;
   margin-top: 0;
 }
 
@@ -1246,10 +1308,8 @@ button.weekly-phase-row {
 }
 
 .weekly-phase-status {
-  grid-area: status;
-  align-self: end;
   justify-self: start;
-  padding: 4px 8px;
+  padding: 2px 7px;
   border-radius: var(--radius-full);
   background: var(--bg-elevated);
   text-transform: capitalize;
@@ -1571,40 +1631,6 @@ button.weekly-phase-row {
   line-height: 1.55;
 }
 
-/* Project table card wrapper */
-.projects-table-card {
-  display: flex;
-  justify-content: center;
-}
-.projects-table-card > div { width: 100%; }
-
-.projects-table-card .dashboard-table {
-  width: 100%;
-  margin: 0;
-  table-layout: fixed;
-}
-.projects-table-card .dashboard-table th,
-.projects-table-card .dashboard-table td {
-  padding: 10px 12px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.projects-table-card .dashboard-table tbody tr:hover { background: var(--bg-elevated); }
-
-/* Column widths — unchanged */
-.projects-table-card .dashboard-table th:nth-child(1)  { width: 110px; }
-.projects-table-card .dashboard-table th:nth-child(2)  { width: 220px; }
-.projects-table-card .dashboard-table th:nth-child(3)  { width: 90px;  }
-.projects-table-card .dashboard-table th:nth-child(4)  { width: 140px; }
-.projects-table-card .dashboard-table th:nth-child(5)  { width: 100px; }
-.projects-table-card .dashboard-table th:nth-child(6),
-.projects-table-card .dashboard-table th:nth-child(7),
-.projects-table-card .dashboard-table th:nth-child(8)  { width: 95px;  }
-.projects-table-card .dashboard-table th:nth-child(9)  { width: 110px; }
-.projects-table-card .dashboard-table th:nth-child(10) { width: 75px;  }
-.projects-table-card .dashboard-table th:nth-child(11) { width: 160px; }
-
 /* Status cells */
 .status-active  { background: var(--chip-bg-green);  color: var(--chip-fg-green); border-radius: var(--radius-full); padding: 2px 8px; font-size: 0.75rem; font-weight: 600; }
 .status-closed  { background: var(--chip-bg-gray);   color: var(--chip-fg-gray);  border-radius: var(--radius-full); padding: 2px 8px; font-size: 0.75rem; font-weight: 600; }
@@ -1641,20 +1667,6 @@ button.weekly-phase-row {
 }
 .secondary-button:hover { background: var(--border-strong); }
 
-/* Small action button */
-.small-button {
-  background: var(--chip-bg-cyan);
-  color: var(--chip-fg-cyan);
-  border: none;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 0.8125rem;
-  transition: opacity 0.15s;
-}
-.small-button:hover { opacity: 0.8; }
-
 /* Text / ghost button */
 .text-button {
   background: transparent;
@@ -1669,43 +1681,10 @@ button.weekly-phase-row {
 }
 .text-button:hover { background: var(--accent-subtle); }
 
-/* Shared utility buttons */
-.btn-primary {
-  padding: 10px 20px;
-  background: var(--accent);
-  color: var(--text-inverse);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.btn-primary:hover { opacity: 0.85; }
-
-.btn-ghost {
-  padding: 10px 20px;
-  background: var(--border);
-  color: var(--text-body);
-  border: none;
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.btn-ghost:hover { background: var(--border-strong); color: var(--text-primary); }
-
-.btn-ghost-sm {
-  padding: 6px 14px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.btn-ghost-sm:hover { border-color: var(--border-strong); color: var(--text-primary); }
+/* .btn-primary/.btn-ghost/.btn-ghost-sm previously had a second, different
+   definition here (Phase 3, 2026-07-25) — same selectors as
+   design-system.css's canonical versions, loaded later so it silently won
+   the cascade. Removed; design-system.css is now the sole source. */
 
 
 /* ============================================================
@@ -1806,27 +1785,33 @@ button.weekly-phase-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--overlay-dim);
 }
 
 .modal-header h2 {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .close-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   background: transparent;
   border: none;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
-  font-size: 1.75rem;
+  font-size: 1.25rem;
   cursor: pointer;
   line-height: 1;
-  transition: color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
-.close-button:hover { color: var(--text-primary); }
+.close-button:hover { background: var(--bg-elevated); color: var(--text-primary); }
 
 
 /* ============================================================
@@ -2215,10 +2200,12 @@ button.weekly-phase-row {
 .contractor-header {
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);
-  padding: 14px 28px;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 .contractor-header-brand {
   display: flex;
@@ -2232,6 +2219,7 @@ button.weekly-phase-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 .contractor-role-badge {
   padding: 3px 10px;
@@ -2244,6 +2232,10 @@ button.weekly-phase-row {
 .contractor-user-name {
   font-size: 0.8125rem;
   color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
 }
 
 .contractor-select-main {
@@ -2275,11 +2267,86 @@ button.weekly-phase-row {
   line-height: 2;
 }
 
+.contractor-admin-selector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: var(--bg-surface-alpha);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.contractor-admin-selector label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+.contractor-admin-selector select {
+  min-height: 38px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+.contractor-admin-selector-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.contractor-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.contractor-summary-tile {
+  background: var(--bg-surface-alpha);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.contractor-summary-tile:hover { border-color: var(--accent-active); }
+.contractor-summary-tile[aria-pressed="true"] {
+  border-color: var(--accent-active);
+  background: var(--accent-subtle);
+}
+.contractor-summary-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.contractor-summary-label {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.contractor-section-label {
+  margin: 0 0 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
 .contractor-project-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
+.contractor-project-grid + .contractor-section-label { margin-top: 28px; }
 .contractor-project-card {
   background: var(--bg-surface-alpha);
   border: 1px solid var(--border);
@@ -2311,14 +2378,21 @@ button.weekly-phase-row {
   font-size: 0.8125rem;
   color: var(--text-secondary);
 }
-.contractor-project-detail {
+.contractor-work-status {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.contractor-work-status-strong {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.contractor-project-actions {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  gap: 8px;
+  margin-top: 6px;
 }
-.contractor-project-btn { margin-top: 6px; width: 100%; }
+.contractor-project-btn { width: 100%; }
 
 
 /* ============================================================
@@ -2618,11 +2692,6 @@ button.weekly-phase-row {
   .weekly-report-truth-grid { grid-template-columns: 1fr; }
   .weekly-report-links { grid-template-columns: 1fr; }
   .weekly-comparison-kpis { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
-  .weekly-truth-bar { grid-template-columns: 1fr; }
-  .weekly-truth-group-progress,
-  .weekly-truth-group-issues {
-    grid-template-columns: repeat(3, minmax(120px, 1fr));
-  }
   .weekly-overview-console { grid-template-columns: 1fr; }
   .weekly-action-panel {
     position: static;
@@ -2633,7 +2702,6 @@ button.weekly-phase-row {
   .weekly-reports-toolbar-fields { width: 100%; }
   .weekly-reports-toolbar .dashboard-filter-group { flex: 1 1 220px; }
   .weekly-reports-toolbar .dashboard-filter-group select { width: 100%; }
-  .weekly-phase-row { grid-template-columns: 10px minmax(0, 1fr); }
 }
 
 /* ── Sidebar: off-canvas drawer below 640px ─────────────────
@@ -2791,8 +2859,7 @@ button.weekly-phase-row {
   }
   .weekly-command-panel,
   .weekly-comparison-section,
-  .weekly-truth-console,
-  .weekly-project-context {
+  .weekly-truth-console {
     padding: 16px;
   }
   .weekly-reports-toolbar {
@@ -2801,18 +2868,6 @@ button.weekly-phase-row {
   .weekly-toolbar-actions {
     width: 100%;
   }
-  .weekly-truth-bar {
-    grid-template-columns: 1fr;
-  }
-  .weekly-truth-group-progress,
-  .weekly-truth-group-validation,
-  .weekly-truth-group-issues {
-    grid-template-columns: 1fr;
-  }
-  .weekly-truth-cell {
-    min-height: 66px;
-  }
-  .weekly-phase-table { grid-template-columns: 1fr; }
   .weekly-comparison-kpis {
     grid-template-columns: 1fr;
   }
@@ -2894,7 +2949,7 @@ button.weekly-phase-row {
 .site-visit-filters button, .site-visit-nav-actions button, .site-visit-review button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--field-border-strong); border-radius: 8px; background: var(--field-bg-card); color: var(--field-text-body); text-transform: capitalize; }
 .site-visit-filters button[aria-pressed="true"] { border-color: var(--field-accent-sitevisit); background: var(--field-info-bg); color: var(--field-info-fg-dark); font-weight: 700; }
 .site-visit-current-item { min-width: 0; padding: 12px 0; }
-.site-visit-group-label { margin-bottom: 5px; color: var(--field-text-label); font-size: .75rem; font-weight: 700; overflow-wrap: anywhere; }
+.site-visit-task-list { min-width: 0; padding-top: 4px; }
 .site-visit-nav-actions, .site-visit-review div { display: flex; justify-content: space-between; gap: 10px; }
 .site-visit-nav-actions button { min-width: 110px; }
 .site-visit-nav-actions button:disabled { opacity: .45; }
@@ -2945,4 +3000,1907 @@ button.weekly-phase-row {
 .toast-dismiss:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+/* -- Project Benchmark v1 (Project detail: Information | Benchmark) ------ */
+.benchmark-view-header { margin-bottom: 16px; }
+.benchmark-view-title { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin: 0 0 4px; }
+.benchmark-view-subtitle { font-size: 0.85rem; color: var(--text-secondary); margin: 0; }
+.benchmark-view-note { font-size: 0.75rem; color: var(--text-muted); margin: 4px 0 0; }
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.benchmark-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  background: var(--bg-elevated);
+  padding: 16px;
+  min-width: 0;
+}
+
+.benchmark-card--unavailable { color: var(--text-muted); }
+
+.benchmark-card-title { font-size: 0.85rem; font-weight: 750; color: var(--text-primary); margin-bottom: 10px; }
+
+.benchmark-unavailable-heading { font-size: 0.8125rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; }
+.benchmark-unavailable-text { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; }
+
+.benchmark-stat-label { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 2px; }
+.benchmark-stat-value { font-size: 1.05rem; font-weight: 800; color: var(--text-primary); margin-bottom: 10px; }
+.benchmark-stat-secondary { font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px; }
+
+.benchmark-sample-size { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; }
+
+.benchmark-your-project { border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 6px; }
+/* Median is the benchmark headline (UX audit v1, §7/§10) — "Your project"
+   must read as clearly secondary, not compete with it. A prior pass colored
+   the "Your project" VALUE with the accent — on this dark background a
+   saturated accent number is at least as eye-catching as Median's neutral
+   bold text, so the two ended up tied (or Your Project even winning) rather
+   than Median staying the primary anchor (visual-hierarchy confirmation,
+   commit 02b0466 follow-up). The accent now marks only the label (a
+   restrained cue for "this is about the current project"), while the value
+   itself is deliberately smaller/lighter than Median's — a legibility
+   distinction, not a judgment color. */
+.benchmark-your-project .benchmark-stat-label { color: var(--accent); }
+.benchmark-your-project .benchmark-stat-value {
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+.benchmark-comparison { font-size: 0.8125rem; font-weight: 600; color: var(--text-primary); }
+.benchmark-comparison-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+.benchmark-not-available-yet { font-size: 0.8125rem; color: var(--text-muted); font-style: italic; }
+
+.benchmark-hint { font-size: 0.6875rem; color: var(--text-muted); margin-bottom: 8px; }
+
+.benchmark-disclosure-toggle {
+  border: none; background: transparent; color: var(--accent);
+  font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 4px 0;
+}
+.benchmark-disclosure-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.benchmark-disclosure-panel { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.benchmark-criteria-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 0.75rem; color: var(--text-secondary); padding: 3px 0;
+}
+.benchmark-criteria-row span:last-child { color: var(--text-primary); font-weight: 600; text-align: right; }
+
+@media (max-width: 720px) {
+  .benchmark-grid { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 480px) { .toast-stack { width: calc(100vw - 24px); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } }
+
+/* ============================================================
+   PORTFOLIO — canonical Master -> Detail consumer
+   ============================================================ */
+.portfolio-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.portfolio-page > .page-header {
+  flex-shrink: 0;
+  margin-bottom: 14px;
+}
+
+.portfolio-master-detail {
+  background: var(--bg-surface);
+}
+
+.portfolio-master-header {
+  padding-bottom: 10px;
+}
+
+.portfolio-filter-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.portfolio-master-header .master-search .ds-input {
+  width: 100%;
+  padding-left: 10px;
+}
+
+.portfolio-filter-primary {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.portfolio-filter-disclosure {
+  flex-shrink: 0;
+}
+
+.portfolio-filter-disclosure > summary {
+  height: var(--control-height-sm);
+  padding: 0 8px;
+  font-size: 0.6875rem;
+  list-style: none;
+}
+
+.portfolio-filter-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.portfolio-filter-disclosure > summary.is-active {
+  border-color: var(--border-strong);
+  color: var(--accent);
+}
+
+.portfolio-secondary-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.portfolio-secondary-filters label {
+  min-width: 0;
+}
+
+.portfolio-secondary-filters label > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 650;
+}
+
+.portfolio-secondary-filters .ds-select {
+  height: var(--control-height-sm);
+  padding-inline: 8px 22px;
+  font-size: 0.6875rem;
+}
+
+.portfolio-filter-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.portfolio-filter-summary .btn-ghost-sm {
+  min-height: 24px;
+  padding-inline: 6px;
+  font-size: 0.625rem;
+}
+
+.master-list-row.portfolio-master-row {
+  min-height: 72px;
+  padding: 8px 14px;
+}
+
+.master-list-row.portfolio-master-row.is-selected {
+  padding-left: 17px;
+}
+
+.portfolio-master-row .master-row-bottom {
+  justify-content: flex-start;
+}
+
+.portfolio-pagination {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+.portfolio-pagination-summary { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+.portfolio-pagination-controls { display: flex; align-items: center; gap: 4px; }
+.portfolio-page-button {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.portfolio-page-button:hover { background: var(--bg-elevated); }
+.portfolio-page-button.is-active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+.portfolio-page-button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+.portfolio-detail-header {
+  justify-content: space-between;
+}
+
+.portfolio-detail-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.portfolio-detail-actions .btn {
+  min-height: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0 10px;
+  font-size: 0.6875rem;
+}
+
+.portfolio-back-to-master {
+  display: none;
+}
+
+.portfolio-detail-tabpanel {
+  min-width: 0;
+  min-height: 100%;
+  padding: 16px;
+}
+
+.project-detail-sheet {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.project-detail-section {
+  min-width: 0;
+  padding: 16px 18px;
+}
+
+.project-detail-section + .project-detail-section {
+  border-top: 1px solid var(--border);
+}
+
+.project-detail-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.project-detail-section-heading h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.project-detail-section-heading p {
+  max-width: 58ch;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.project-detail-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+  margin: 0;
+}
+
+.project-detail-kv-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.7fr) minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.project-detail-kv-row dt {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.project-detail-kv-row dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.project-detail-kv-row dd.is-empty {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.project-detail-value-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.625rem;
+  font-weight: 500;
+}
+
+.project-detail-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-detail-link-actions .btn {
+  height: var(--control-height-sm);
+  padding-inline: 10px;
+  font-size: 0.6875rem;
+}
+
+.portfolio-detail-empty {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+}
+
+.project-editor-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(90vh, 820px);
+}
+
+.project-editor-body {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+@media (max-width: 1180px) {
+  .portfolio-detail-header {
+    flex-wrap: wrap;
+  }
+
+  .project-detail-kv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-detail-actions {
+    width: 100%;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .portfolio-page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .portfolio-back-to-master {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .project-detail-kv-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-detail-section-heading {
+    display: block;
+  }
+
+  .project-detail-section-heading p {
+    margin-top: 4px;
+    text-align: left;
+  }
+
+  .portfolio-detail-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portfolio-detail-actions .btn-primary {
+    grid-column: 1 / -1;
+  }
+
+  .project-editor-modal {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 20px);
+  }
+
+  .project-editor-body {
+    padding: 16px;
+  }
+}
+
+.specialized-data-grid {
+  font-variant-numeric: tabular-nums;
+}
+
+.specialized-data-grid tr:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+
+.risk-register-table {
+  min-width: 820px;
+}
+
+.risk-register-table tbody > tr:not(.is-selected) {
+  background: transparent;
+}
+
+
+/* ============================================================
+   MASTER -> DETAIL
+   Shared geometry only. Consumers provide all headings, controls, rows,
+   tabs and domain content. The panes inherit their available block size
+   from the application shell and establish independent scroll regions via
+   the constrained flex chain (flex:1 + min-height:0).
+   ============================================================ */
+.master-detail {
+  display: grid;
+  grid-template-columns: clamp(320px, 28vw, 390px) minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.master-pane,
+.detail-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+
+.master-pane {
+  border-right: 1px solid var(--border);
+}
+
+.master-pane-header,
+.detail-pane-header,
+.detail-pane-tabs {
+  flex-shrink: 0;
+}
+
+.master-pane-list,
+.detail-pane-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+
+/* ============================================================
+   PROJECT DASHBOARD — Phase 5A Master -> Detail consumer
+   ============================================================ */
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-page-header {
+  flex-shrink: 0;
+  margin-bottom: 14px;
+}
+
+.dashboard-current-date {
+  align-self: center;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.dashboard-master-detail {
+  background: var(--bg-surface);
+}
+
+.master-pane-header {
+  padding: 13px 14px 11px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.master-pane-title {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.master-search {
+  position: relative;
+  display: block;
+}
+
+.master-search > svg {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 10px;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.master-search .ds-input {
+  height: var(--control-height-sm);
+  padding-left: 32px;
+  font-size: 0.75rem;
+}
+
+.master-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.master-filter-select-wrap {
+  flex: 0 0 auto;
+}
+
+.master-filter-select {
+  width: 82px;
+  height: var(--control-height-sm);
+  padding: 0 22px 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.master-quick-filters {
+  display: flex;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.master-quick-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--control-height-sm);
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: 600 0.6875rem/1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.master-quick-filter span {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+}
+
+.master-quick-filter:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.master-quick-filter.is-active {
+  border-color: var(--border);
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.master-quick-filter:focus-visible,
+.master-list-row:focus-visible,
+.detail-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.master-list-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.master-list-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 76px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease-out;
+}
+
+.master-list-row:hover {
+  background: var(--bg-elevated);
+}
+
+.master-list-row.is-selected {
+  padding-left: 17px;
+  background: var(--accent-subtle);
+}
+
+.master-list-row.is-selected::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--accent);
+  content: "";
+}
+
+.master-list-row--portfolio {
+  min-height: 58px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.master-row-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.master-row-main strong,
+.master-row-top strong,
+.master-row-name,
+.master-row-bottom > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.master-row-main strong {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.master-row-main span {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.master-row-count {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.master-row-top,
+.master-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.master-row-top strong {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.master-lifecycle {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 650;
+}
+
+.master-row-name {
+  margin-top: 3px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.master-row-bottom {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.master-row-bottom > span:first-child {
+  min-width: 0;
+}
+
+.master-health {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-weight: 650;
+}
+
+.master-health.is-positive { color: var(--status-done); }
+.master-health.is-warning { color: var(--status-warn); }
+.master-health.is-critical { color: var(--status-alert); }
+
+.master-list-empty {
+  padding: 28px 18px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.detail-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.dashboard-back-to-master {
+  display: none;
+}
+
+.dashboard-detail-identity {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dashboard-detail-identity > div {
+  min-width: 0;
+}
+
+.dashboard-detail-title,
+.dashboard-detail-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-detail-title {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.dashboard-detail-meta {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-lifecycle-badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+.dashboard-detail-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-detail-actions .btn {
+  min-height: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0 10px;
+  font-size: 0.6875rem;
+}
+
+.detail-pane-tabs {
+  display: flex;
+  gap: 20px;
+  min-width: 0;
+  padding: 0 18px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.detail-tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 10px 0 9px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: 600 0.75rem/1.2 var(--font-sans);
+  cursor: pointer;
+}
+
+.detail-tab:hover {
+  color: var(--text-primary);
+}
+
+.detail-tab.is-active {
+  color: var(--accent);
+}
+
+.detail-tab.is-active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  content: "";
+}
+
+.detail-pane-content {
+  background: var(--bg-base);
+}
+
+.dashboard-detail-tabpanel {
+  min-width: 0;
+  min-height: 100%;
+  padding: 16px;
+}
+
+.dashboard-project-overview,
+.dashboard-portfolio-overview {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dashboard-project-overview {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-detail-section {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.dashboard-detail-section > h3,
+.dashboard-section-heading h3 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+
+.dashboard-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin: 0;
+}
+
+.dashboard-detail-field {
+  min-width: 0;
+}
+
+.dashboard-detail-field dt {
+  margin-bottom: 3px;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard-detail-field dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.dashboard-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dashboard-section-heading h3 {
+  margin-bottom: 2px;
+}
+
+.dashboard-section-heading p,
+.dashboard-section-heading > span {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.dashboard-attention-list {
+  display: grid;
+}
+
+.dashboard-attention-row {
+  display: grid;
+  grid-template-columns: 92px minmax(72px, 0.6fr) minmax(100px, 1fr) auto minmax(120px, 1fr) 28px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+
+.dashboard-attention-row > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-attention-row strong {
+  color: var(--text-primary);
+}
+
+.dashboard-attention-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--status-warn);
+  font-weight: 700;
+}
+
+.dashboard-attention-row.is-critical .dashboard-attention-status {
+  color: var(--status-alert);
+}
+
+.dashboard-attention-row .btn-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.dashboard-portfolio-overview .dashboard-detail-section .dashboard-kpi-row {
+  margin-bottom: 0;
+}
+
+.dashboard-portfolio-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
+  gap: 20px;
+}
+
+.dashboard-portfolio-tools h3,
+.dashboard-snapshot-control > label {
+  display: block;
+  margin: 0 0 10px;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+
+.dashboard-snapshot-control {
+  padding-left: 20px;
+  border-left: 1px solid var(--border);
+}
+
+.dashboard-snapshot-control p {
+  margin: -6px 0 8px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.dashboard-snapshot-control > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-snapshot-control .ds-input {
+  max-width: 180px;
+  height: var(--control-height-sm);
+  font-size: 0.75rem;
+}
+
+.dashboard-snapshot-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-subtle);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.dashboard-snapshot-banner strong {
+  color: var(--accent);
+}
+
+.dashboard-snapshot-banner .btn-icon {
+  margin-left: auto;
+}
+
+.dashboard-content-heading {
+  margin-bottom: 4px;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.dashboard-content-subtitle {
+  margin-bottom: 18px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-project-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-detail-actions .btn-secondary {
+    display: none;
+  }
+
+  .dashboard-attention-row {
+    grid-template-columns: 82px minmax(70px, 0.6fr) minmax(100px, 1fr) auto 28px;
+  }
+
+  .dashboard-attention-row > span:nth-child(5) {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-page {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .master-detail {
+    display: block;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .master-pane,
+  .detail-pane {
+    overflow: visible;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .master-pane-list,
+  .detail-pane-content {
+    overflow: visible;
+  }
+
+  .master-detail[data-mobile-view="master"] .detail-pane {
+    display: none;
+  }
+
+  .master-detail[data-mobile-view="detail"] .master-pane {
+    display: none;
+  }
+
+  .dashboard-back-to-master {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .detail-pane-header {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-detail-identity {
+    flex-basis: calc(100% - 110px);
+  }
+
+  .dashboard-detail-actions {
+    width: 100%;
+    padding-left: 98px;
+  }
+
+  .dashboard-portfolio-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-snapshot-control {
+    padding: 16px 0 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-current-date {
+    display: none;
+  }
+
+  .dashboard-page-header {
+    margin-bottom: 12px;
+  }
+
+  .master-pane-header {
+    padding: 12px;
+  }
+
+  .master-list-row {
+    min-height: 80px;
+    padding: 11px 12px;
+  }
+
+  .master-list-row.is-selected {
+    padding-left: 15px;
+  }
+
+  .detail-pane-header {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .dashboard-detail-identity {
+    flex-basis: calc(100% - 94px);
+  }
+
+  .dashboard-detail-actions {
+    padding-left: 0;
+  }
+
+  .dashboard-detail-actions .btn {
+    flex: 1;
+  }
+
+  .detail-pane-tabs {
+    gap: 16px;
+    padding: 0 12px;
+  }
+
+  .dashboard-detail-tabpanel {
+    padding: 12px;
+  }
+
+  .dashboard-detail-section {
+    padding: 12px;
+  }
+
+  .dashboard-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dashboard-attention-row {
+    grid-template-columns: 78px minmax(68px, 0.7fr) minmax(90px, 1fr) 28px;
+  }
+
+  .dashboard-attention-row > span:nth-child(4),
+  .dashboard-attention-row > span:nth-child(5) {
+    display: none;
+  }
+}
+
+/* ============================================================
+   WEEKLY REPORTS — Phase 5B Master -> Detail consumer
+   The shared .master-detail primitive remains the sole pane geometry owner.
+   ============================================================ */
+.weekly-reports-surface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.weekly-page-title {
+  flex-shrink: 0;
+  margin: 0 0 14px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.weekly-master-project-select {
+  width: 92px;
+}
+
+.weekly-master-row {
+  min-height: 84px;
+}
+
+.weekly-master-status {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.weekly-master-status.is-missing {
+  border-color: color-mix(in srgb, var(--status-warn) 35%, var(--border));
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+}
+
+.weekly-master-status.is-submitted {
+  background: var(--status-done-bg);
+  color: var(--status-done);
+}
+
+.weekly-master-context {
+  align-items: flex-start;
+}
+
+.weekly-master-attention {
+  flex-shrink: 0;
+  color: var(--status-warn);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.weekly-detail-header {
+  align-items: flex-start;
+}
+
+.weekly-back-to-master {
+  display: none;
+}
+
+.weekly-back-to-master svg {
+  transform: rotate(180deg);
+}
+
+.weekly-detail-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.weekly-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.weekly-detail-title-row h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weekly-detail-meta {
+  display: flex;
+  gap: 6px 12px;
+  min-width: 0;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  flex-wrap: wrap;
+}
+
+.weekly-detail-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.weekly-detail-actions .btn {
+  min-height: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0 10px;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.weekly-detail-actions .btn-secondary.is-active {
+  border-color: var(--status-done);
+  background: var(--status-done-bg);
+  color: var(--status-done);
+}
+
+.weekly-report-select-wrap {
+  display: grid;
+  gap: 3px;
+}
+
+.weekly-report-select-wrap > span {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.weekly-report-select-wrap .ds-select {
+  width: 138px;
+  height: var(--control-height-sm);
+  font-size: 0.6875rem;
+}
+
+.weekly-detail-tabpanel {
+  min-width: 0;
+  min-height: 100%;
+  padding: 16px;
+}
+
+.weekly-detail-tabpanel .weekly-truth-console {
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.weekly-overview-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.7fr);
+  gap: 12px;
+}
+
+.weekly-detail-section {
+  min-width: 0;
+  padding: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.weekly-detail-gantt {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1180px) {
+  .weekly-detail-header {
+    flex-wrap: wrap;
+  }
+
+  .weekly-detail-actions {
+    width: 100%;
+  }
+
+  .weekly-overview-context {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .weekly-reports-surface {
+    height: auto;
+    overflow: visible;
+  }
+
+  .weekly-back-to-master {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .weekly-detail-identity {
+    flex-basis: calc(100% - 90px);
+  }
+
+  .weekly-detail-actions {
+    padding-left: 76px;
+  }
+}
+
+@media (max-width: 640px) {
+  .weekly-page-title p {
+    display: none;
+  }
+
+  .weekly-detail-identity {
+    flex-basis: calc(100% - 82px);
+  }
+
+  .weekly-detail-actions {
+    padding-left: 0;
+    overflow-x: auto;
+  }
+
+  .weekly-detail-actions .btn {
+    flex: 0 0 auto;
+  }
+
+  .weekly-report-select-wrap .ds-select {
+    width: 128px;
+  }
+
+  .weekly-detail-tabpanel {
+    padding: 12px;
+  }
+}
+
+/* ============================================================
+   RISK DASHBOARD — Phase 5C Master -> Detail consumer
+   ============================================================ */
+.risk-dashboard-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.risk-page-header {
+  flex-shrink: 0;
+  margin-bottom: 14px;
+}
+
+.risk-master-header {
+  display: grid;
+  gap: 8px;
+}
+
+.risk-master-filters {
+  margin-top: 0;
+}
+
+.risk-forecast-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+.risk-forecast-control > span {
+  margin-right: 3px;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.risk-forecast-control button {
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: 600 0.6875rem/1 var(--font-sans);
+  cursor: pointer;
+}
+
+.risk-forecast-control button:hover {
+  background: var(--bg-elevated);
+}
+
+.risk-forecast-control button[aria-pressed="true"] {
+  border-color: var(--border);
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.risk-forecast-control button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.risk-master-row {
+  min-height: 82px;
+}
+
+.risk-portfolio-row {
+  min-height: 88px;
+  background: var(--bg-elevated);
+}
+
+.risk-master-level {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.risk-master-level.is-critical {
+  border-color: color-mix(in srgb, var(--status-alert) 35%, var(--border));
+  background: var(--status-alert-bg);
+  color: var(--status-alert);
+}
+
+.risk-master-level.is-high {
+  border-color: color-mix(in srgb, var(--status-alert) 24%, var(--border));
+  background: var(--status-alert-bg);
+  color: var(--status-alert);
+}
+
+.risk-master-level.is-medium {
+  border-color: color-mix(in srgb, var(--status-warn) 35%, var(--border));
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+}
+
+.risk-master-level.is-low {
+  background: var(--status-done-bg);
+  color: var(--status-done);
+}
+
+.risk-detail-header {
+  align-items: flex-start;
+}
+
+.risk-back-to-master {
+  display: none;
+}
+
+.risk-back-to-master svg {
+  transform: rotate(180deg);
+}
+
+.risk-detail-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.risk-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.risk-detail-title-row h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.risk-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.risk-detail-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.risk-detail-actions .btn {
+  min-height: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0 10px;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.risk-detail-tabpanel {
+  min-width: 0;
+  min-height: 100%;
+  padding: 16px;
+}
+
+.risk-portfolio-overview,
+.risk-portfolio-stack,
+.risk-selected-overview,
+.risk-selected-drivers {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.risk-portfolio-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(250px, 0.75fr);
+  gap: 18px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.risk-portfolio-summary > div + div {
+  padding-left: 18px;
+  border-left: 1px solid var(--border);
+}
+
+.risk-portfolio-summary h3,
+.risk-detail-section h3 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 750;
+}
+
+.risk-selected-overview {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.risk-selected-drivers {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+}
+
+.risk-selected-drivers .risk-detail-section:last-child {
+  grid-column: 1 / -1;
+}
+
+.risk-detail-section {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.risk-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.risk-detail-field {
+  min-width: 0;
+}
+
+.risk-detail-field dt {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 650;
+}
+
+.risk-detail-field dd {
+  overflow: hidden;
+  margin: 3px 0 0;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+}
+
+.risk-reason-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.risk-reason-list li,
+.risk-driver-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.risk-reason-list li:first-child,
+.risk-driver-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.risk-reason-list strong,
+.risk-driver-row strong {
+  flex-shrink: 0;
+  color: var(--text-primary);
+}
+
+.risk-driver-list {
+  display: grid;
+}
+
+.risk-dimension-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.risk-dimension-grid > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 0;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+
+.risk-dimension-grid > div > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.risk-action-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.risk-action-list > div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+
+.risk-action-list strong {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.risk-action-list span,
+.risk-detail-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
+.risk-detail-tabpanel .dashboard-summary-card {
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .risk-portfolio-summary,
+  .risk-selected-overview,
+  .risk-selected-drivers {
+    grid-template-columns: 1fr;
+  }
+
+  .risk-selected-drivers .risk-detail-section:last-child {
+    grid-column: auto;
+  }
+
+  .risk-portfolio-summary > div + div {
+    padding: 14px 0 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .risk-dashboard-page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .risk-master-detail {
+    display: block;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .risk-master-detail .master-pane,
+  .risk-master-detail .detail-pane {
+    overflow: visible;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  .risk-master-detail .master-pane-list,
+  .risk-master-detail .detail-pane-content {
+    overflow: visible;
+  }
+
+  .risk-master-detail[data-mobile-view="master"] .detail-pane {
+    display: none;
+  }
+
+  .risk-master-detail[data-mobile-view="detail"] .master-pane {
+    display: none;
+  }
+
+  .risk-back-to-master {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .risk-page-header p {
+    display: none;
+  }
+
+  .risk-detail-header {
+    flex-wrap: wrap;
+  }
+
+  .risk-detail-identity {
+    flex-basis: calc(100% - 82px);
+  }
+
+  .risk-detail-actions {
+    width: 100%;
+    padding-left: 72px;
+  }
+
+  .risk-detail-tabpanel {
+    padding: 12px;
+  }
+
+  .risk-detail-grid,
+  .risk-dimension-grid {
+    grid-template-columns: 1fr;
+  }
+}
