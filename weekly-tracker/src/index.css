@@ -3073,6 +3073,12 @@ button.weekly-phase-row {
   margin-bottom: 14px;
 }
 
+.portfolio-page-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .portfolio-master-detail {
   background: var(--bg-surface);
 }
@@ -3368,6 +3374,15 @@ button.weekly-phase-row {
   .portfolio-back-to-master {
     display: inline-flex;
     flex-shrink: 0;
+  }
+
+  /* Phase 5 responsive fix: portfolio-management actions (Add/Import/
+     Export) are not actions on the selected project — while a project's
+     detail is focused in the mobile single-pane view, hide them so the
+     detail the user just opened isn't pushed below the fold. Still fully
+     reachable by going back to the master list. */
+  .portfolio-page[data-mobile-view="detail"] .portfolio-page-actions {
+    display: none;
   }
 }
 

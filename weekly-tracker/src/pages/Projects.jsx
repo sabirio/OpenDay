@@ -327,14 +327,22 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   }
 
   return (
-    <div className="portfolio-page">
+    <div className="portfolio-page" data-mobile-view={mobileView}>
       {/* -- Page header -------------------------------------------------------- */}
       <div className="page-header">
         <div>
           <h1>Portfolio</h1>
           <p>Manage projects and generate contractor report links.</p>
         </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {/* Phase 5 responsive fix: these are portfolio-management actions, not
+            actions on the selected project — below the master/detail mobile
+            breakpoint they used to sit above the open project's detail as 3
+            stacked full-width buttons, pushing the actual detail (what the
+            user just tapped to see) below the fold. Hidden via
+            .portfolio-page-actions while a project's detail is focused on
+            mobile; still fully reachable by going back to the master list,
+            same as before. Desktop is unaffected (no media query match). */}
+        <div className="portfolio-page-actions">
           <button
             className="btn btn-primary"
             onClick={() => { setNewProject(emptyProject); originalProjectRef.current = emptyProject; setEditingProjectId(null); setShowForm(true); }}
