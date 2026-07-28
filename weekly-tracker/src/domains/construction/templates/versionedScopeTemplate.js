@@ -5,6 +5,10 @@ import {
   V2_TEMPLATE_TYPE,
 } from './retailFitoutV2.js';
 import { DEPENDENCY_RULES_V2 } from '../../../config/dependencyRulesV2.js';
+import {
+  MASTER_CATALOG_DEFAULT_SCOPE_WORK_PACKAGE_IDS,
+  MASTER_CATALOG_GROUPS,
+} from './retailFitoutMasterCatalog.js';
 
 export const SCOPE_TEMPLATE_SCHEMA_VERSION = 1;
 // Slice 5C — Master Catalog contract foundation. schemaVersion 2 is a
@@ -59,6 +63,57 @@ export function materializeRetailFitoutV2TemplateData() {
       workPackageCount: ALL_WORK_PACKAGES_V2.length,
       workPackageIdSha256: RETAIL_FITOUT_V2_WP_ID_SHA256,
     },
+  };
+}
+
+// Slice 5D — the approved 221-WP Master Catalog candidate. SAME family/
+// family_id lineage as v1 (`RETAIL_FITOUT_V2_FAMILY`/`RETAIL_FITOUT_V2_FAMILY_ID`)
+// — this is the next VERSION of the existing retail-fitout-v2 family, not a
+// new family. `RETAIL_FITOUT_MASTER_CATALOG_VERSION` is the DATABASE
+// templates.version (2) — a separate axis from `MASTER_CATALOG_SCHEMA_VERSION`
+// (data.schemaVersion, also 2 for this candidate, by coincidence of numbering
+// only). This candidate is materialized as `is_active: false` at the
+// migration layer (042/043) — never switched to the active/default template
+// in this slice.
+export const RETAIL_FITOUT_MASTER_CATALOG_TEMPLATE_ID = 'e4ef4d98-5688-4d12-9fca-2d7cded88d29';
+export const RETAIL_FITOUT_MASTER_CATALOG_VERSION = 2;
+export const RETAIL_FITOUT_MASTER_CATALOG_LABEL = 'Retail Fit-Out (Master Catalog)';
+
+// Frozen certification fingerprints (Slice 5D Phase 13) — recomputed and
+// asserted unchanged by masterCatalogContent.test.mjs. Same method as
+// RETAIL_FITOUT_V2_WP_ID_SHA256: SHA-256 of the newline-joined ordered id
+// list. SEMANTIC covers only fields this slice actually defines (schemaVersion,
+// zone/category id+label, WP id+label+catalogClass, explicit defaultScope) —
+// deliberately excludes weights/durations/dependencies/blockers/readiness/
+// schedule markers/applicabilityTags, none of which are set in this slice.
+export const RETAIL_FITOUT_MASTER_CATALOG_WP_ID_SHA256 =
+  'f83c160a1bb8eb9a86b6c8ebd77a4e00adb84b4978113c0f7b01333f59c66082';
+export const RETAIL_FITOUT_MASTER_CATALOG_DEFAULT_SCOPE_SHA256 =
+  '0be78bc9f59052a2d1d6f1549a19320f8eeef44b2e837f26c06462dc7fbbecc0';
+export const RETAIL_FITOUT_MASTER_CATALOG_SEMANTIC_SHA256 =
+  '542bf262694c8cc345be3dd1606af512eb92af7b42e730512d65191fb9243fc4';
+
+/**
+ * Deterministic materializer for the approved 221-WP Master Catalog
+ * candidate, mirroring materializeRetailFitoutV2TemplateData()'s role for
+ * v1. Deliberately OMITS weightMode/fixedWeight (zones), durationPct (work
+ * packages), and any blocker/readiness/schedule-marker metadata — none of
+ * that has been designed/approved yet (Slice 5D scope boundary), and there
+ * is no neutral non-semantic placeholder for those fields that wouldn't
+ * silently imply calculation semantics. `dependencies: []` IS the approved
+ * neutral placeholder for "not yet designed" at the template-data level
+ * (schema-valid, structurally required as an array, semantically empty).
+ * `applicabilityTags` is likewise omitted everywhere (not yet approved).
+ */
+export function materializeRetailFitoutMasterCatalogTemplateData() {
+  return {
+    schemaVersion: MASTER_CATALOG_SCHEMA_VERSION,
+    model: ZONED_SCOPE_MODEL,
+    templateType: V2_TEMPLATE_TYPE,
+    label: RETAIL_FITOUT_MASTER_CATALOG_LABEL,
+    zones: clone(MASTER_CATALOG_GROUPS),
+    dependencies: [],
+    defaultScope: { workPackageIds: [...MASTER_CATALOG_DEFAULT_SCOPE_WORK_PACKAGE_IDS] },
   };
 }
 
