@@ -117,6 +117,15 @@ test.describe('Shared dialog primitive (components/shared/Modal.jsx)', () => {
     await mallName.press('Backspace');
     await expect(mallName).toHaveValue('Mega Cente');
 
+    // Field 3: Store Concept — remains a single free-text input after moving
+    // into the location/context section for Slice 1.
+    const storeConcept = dialog.locator('input[name="storeConcept"]');
+    await storeConcept.click();
+    await storeConcept.pressSequentially('Flagship', { delay: 30 });
+    await expect(storeConcept, 'Store Concept should retain focus through continuous typing').toHaveValue('Flagship');
+    const storeConceptStillFocused = await storeConcept.evaluate((el) => el === document.activeElement);
+    expect(storeConceptStillFocused, 'focus should still be on Store Concept after continuous typing').toBeTruthy();
+
     // Close without triggering the dirty-state prompt path (not what this test covers).
     page.once('dialog', (d) => d.dismiss().catch(() => {}));
     await page.keyboard.press('Escape');

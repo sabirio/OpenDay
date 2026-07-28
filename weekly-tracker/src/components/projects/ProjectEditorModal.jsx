@@ -122,6 +122,25 @@ export default function ProjectEditorModal({
                   <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Select a Location Type to enter the mall name or street address.</div>
                 )}
               </div>
+
+              <div style={{ marginTop: 12 }}>
+                <Field label="Store Concept">
+                  <input
+                    name="storeConcept"
+                    list="store-concept-suggestions"
+                    value={project.storeConcept || ""}
+                    onChange={onChange}
+                    className="ds-input"
+                    placeholder="e.g. Flagship"
+                  />
+                  {/* Suggestions only — free text, no enum, matches the frozen
+                      Retail Project Profile decision (store_concept is a plain
+                      TEXT column with zero DB-level enforcement). */}
+                  <datalist id="store-concept-suggestions">
+                    {STORE_CONCEPT_SUGGESTIONS.map((opt) => <option key={opt} value={opt} />)}
+                  </datalist>
+                </Field>
+              </div>
             </div>
           </FormSection>
 
@@ -144,19 +163,21 @@ export default function ProjectEditorModal({
               fields above or with the engine-owned forecast fields
               (construction_completion_date/forecast_opening_date), which have
               no input here at all and remain exclusively ganttService-written. */}
-          <FormSection title="Actual Dates" accentColor="var(--status-done)">
-            <FieldRow>
-              <Field label="Actual Construction Start">
-                <input type="date" name="actualConstructionStartDate" value={project.actualConstructionStartDate || ""} onChange={onChange} className="ds-input" />
-              </Field>
-              <Field label="Actual Construction Completion">
-                <input type="date" name="actualConstructionCompletionDate" value={project.actualConstructionCompletionDate || ""} onChange={onChange} className="ds-input" />
-              </Field>
-              <Field label="Actual Opening">
-                <input type="date" name="actualOpeningDate" value={project.actualOpeningDate || ""} onChange={onChange} className="ds-input" />
-              </Field>
-            </FieldRow>
-          </FormSection>
+          {editingProjectId && (
+            <FormSection title="Actual Dates" accentColor="var(--status-done)">
+              <FieldRow>
+                <Field label="Actual Construction Start">
+                  <input type="date" name="actualConstructionStartDate" value={project.actualConstructionStartDate || ""} onChange={onChange} className="ds-input" />
+                </Field>
+                <Field label="Actual Construction Completion">
+                  <input type="date" name="actualConstructionCompletionDate" value={project.actualConstructionCompletionDate || ""} onChange={onChange} className="ds-input" />
+                </Field>
+                <Field label="Actual Opening">
+                  <input type="date" name="actualOpeningDate" value={project.actualOpeningDate || ""} onChange={onChange} className="ds-input" />
+                </Field>
+              </FieldRow>
+            </FormSection>
+          )}
 
           <FormSection title="Areas" accentColor="var(--accent)">
             <FieldRow>
@@ -339,36 +360,22 @@ export default function ProjectEditorModal({
                   ))}
                 </div>
               </Field>
-              <Field label="Store Concept">
-                <input
-                  name="storeConcept"
-                  list="store-concept-suggestions"
-                  value={project.storeConcept || ""}
-                  onChange={onChange}
-                  className="ds-input"
-                  placeholder="e.g. Flagship"
-                />
-                {/* Suggestions only — free text, no enum, matches the frozen
-                    Retail Project Profile decision (store_concept is a plain
-                    TEXT column with zero DB-level enforcement). */}
-                <datalist id="store-concept-suggestions">
-                  {STORE_CONCEPT_SUGGESTIONS.map((opt) => <option key={opt} value={opt} />)}
-                </datalist>
-              </Field>
-              <Field label="Project Status">
-                <div style={{ display: "flex", gap: 8 }}>
-                  {["Active", "Completed"].map((label) => (
-                    <button key={label} type="button"
-                      onClick={() => onProjectPatch((p) => ({ ...p, projectStatus: label }))}
-                      style={{
-                        flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease",
-                        border: `1.5px solid ${project.projectStatus === label ? "var(--accent)" : "var(--border)"}`,
-                        background: project.projectStatus === label ? "var(--accent-subtle)" : "var(--accent-subtle)",
-                        color: project.projectStatus === label ? "var(--accent)" : "var(--text-muted)",
-                      }}>{label}</button>
-                  ))}
-                </div>
-              </Field>
+              {editingProjectId && (
+                <Field label="Project Status">
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {["Active", "Completed"].map((label) => (
+                      <button key={label} type="button"
+                        onClick={() => onProjectPatch((p) => ({ ...p, projectStatus: label }))}
+                        style={{
+                          flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease",
+                          border: `1.5px solid ${project.projectStatus === label ? "var(--accent)" : "var(--border)"}`,
+                          background: project.projectStatus === label ? "var(--accent-subtle)" : "var(--accent-subtle)",
+                          color: project.projectStatus === label ? "var(--accent)" : "var(--text-muted)",
+                        }}>{label}</button>
+                    ))}
+                  </div>
+                </Field>
+              )}
             </FieldRow>
           </FormSection>
 

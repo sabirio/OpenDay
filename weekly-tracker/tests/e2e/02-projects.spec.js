@@ -4,6 +4,7 @@ import { CREDENTIALS, login, logout } from './helpers.js';
 
 const UNIQUE_CODE = `TEST-${Date.now()}`;
 const UNIQUE_STREET_CODE = `TEST-ST-${Date.now()}`;
+const UNIQUE_SLICE_CODE = `TEST-SLICE1-${Date.now()}`;
 
 test.describe('Portfolio page', () => {
   test.beforeEach(async ({ page }) => {
@@ -60,6 +61,33 @@ test.describe('Portfolio page', () => {
     await page.getByRole('button', { name: 'Add New Project' }).click();
     // Form should appear with Store Code field
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
+  });
+
+  test('create mode hides actual facts and status, preserves planned dates, and places Store Concept after the resolved location', async ({ page }) => {
+    await page.getByRole('button', { name: 'Add New Project' }).click();
+    const dialog = page.getByRole('dialog');
+
+    await expect(dialog.locator('input[name="actualConstructionStartDate"]')).toHaveCount(0);
+    await expect(dialog.locator('input[name="actualConstructionCompletionDate"]')).toHaveCount(0);
+    await expect(dialog.locator('input[name="actualOpeningDate"]')).toHaveCount(0);
+    await expect(dialog.getByText('Project Status', { exact: true })).toHaveCount(0);
+
+    await expect(dialog.locator('input[name="constructionStartDate"]')).toBeVisible();
+    await expect(dialog.locator('input[name="constructionEndDate"]')).toBeVisible();
+    await expect(dialog.locator('input[name="targetOpeningDate"]')).toBeVisible();
+
+    const concept = dialog.locator('input[name="storeConcept"]');
+    await dialog.getByRole('button', { name: 'Mall', exact: true }).click();
+    const mall = dialog.locator('input[name="shoppingMallName"]');
+    await expect(mall).toBeVisible();
+    expect(await mall.evaluate((el, other) => Boolean(el.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING), await concept.elementHandle()),
+      'Store Concept should follow Shopping Mall Name in DOM order').toBeTruthy();
+
+    await dialog.getByRole('button', { name: 'Street', exact: true }).click();
+    const street = dialog.locator('input[name="street"]');
+    await expect(street).toBeVisible();
+    expect(await street.evaluate((el, other) => Boolean(el.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING), await concept.elementHandle()),
+      'Store Concept should follow Street Address in DOM order').toBeTruthy();
   });
 
   test('creates a new Mall project and selecting its row shows Location Type + Location correctly', async ({ page }) => {
@@ -153,12 +181,53 @@ test.describe('Portfolio page', () => {
     await expect(rows).toHaveCount(rowCount);
   });
 
-  test('opens edit form from the project details pane', async ({ page }) => {
+  test('edit mode retains Actual Dates and Project Status editing', async ({ page }) => {
     await page.locator('[data-testid="portfolio-master-project"]').first().click();
     await expect(page.locator('.detail-pane')).toBeVisible();
 
     await page.locator('.portfolio-detail-header button', { hasText: 'Edit Project' }).click();
-    await expect(page.locator('input[name="storeCode"]')).toBeVisible();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('input[name="storeCode"]')).toBeVisible();
+    await expect(dialog.locator('input[name="actualConstructionStartDate"]')).toBeVisible();
+    await expect(dialog.locator('input[name="actualConstructionCompletionDate"]')).toBeVisible();
+    await expect(dialog.locator('input[name="actualOpeningDate"]')).toBeVisible();
+    await expect(dialog.getByText('Project Status', { exact: true })).toBeVisible();
+  });
+
+  test('create persists Active status, planned dates, and Store Concept while actual dates remain blank', async ({ page }) => {
+    await page.getByRole('button', { name: 'Add New Project' }).click();
+    const createDialog = page.getByRole('dialog');
+
+    await createDialog.locator('input[name="storeCode"]').fill(UNIQUE_SLICE_CODE);
+    await createDialog.locator('input[name="country"]').fill('Testland');
+    await createDialog.getByRole('button', { name: 'Mall', exact: true }).click();
+    await createDialog.locator('input[name="shoppingMallName"]').fill('Slice One Mall');
+    await createDialog.locator('input[name="storeConcept"]').fill('Flagship');
+    await createDialog.locator('input[name="constructionStartDate"]').fill('2026-08-01');
+    await createDialog.locator('input[name="constructionEndDate"]').fill('2026-10-15');
+    await createDialog.locator('input[name="targetOpeningDate"]').fill('2026-11-01');
+    await createDialog.getByRole('button', { name: 'Create Project' }).click();
+    await expect(createDialog).toBeHidden({ timeout: 15_000 });
+
+    const row = page.locator('[data-testid="portfolio-master-project"]', { hasText: UNIQUE_SLICE_CODE });
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await expect(row).toContainText('Active');
+    await row.click();
+    await page.locator('.portfolio-detail-header button', { hasText: 'Edit Project' }).click();
+
+    const editDialog = page.getByRole('dialog');
+    await expect(editDialog.locator('input[name="constructionStartDate"]')).toHaveValue('2026-08-01');
+    await expect(editDialog.locator('input[name="constructionEndDate"]')).toHaveValue('2026-10-15');
+    await expect(editDialog.locator('input[name="targetOpeningDate"]')).toHaveValue('2026-11-01');
+    await expect(editDialog.locator('input[name="storeConcept"]')).toHaveValue('Flagship');
+    await expect(editDialog.locator('input[name="actualConstructionStartDate"]')).toHaveValue('');
+    await expect(editDialog.locator('input[name="actualConstructionCompletionDate"]')).toHaveValue('');
+    await expect(editDialog.locator('input[name="actualOpeningDate"]')).toHaveValue('');
+    await expect(editDialog.getByRole('button', { name: 'Active', exact: true })).toBeVisible();
+
+    page.once('dialog', dialog => dialog.accept());
+    await editDialog.getByRole('button', { name: 'Delete Project' }).click();
+    await expect(editDialog).toBeHidden({ timeout: 15_000 });
   });
 
   test('Add New Project does not show an Actual Cost input', async ({ page }) => {
