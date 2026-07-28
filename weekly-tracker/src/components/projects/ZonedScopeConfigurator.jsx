@@ -1,13 +1,7 @@
 import { useState } from 'react';
-import { retailFitoutV2, CATEGORY_LIBRARY, V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2';
 import { computeZoneWeights } from '../../hooks/useZoneWeights';
 import { resolveProjectAreaContext } from '../../hooks/useProjectAreaPresentation';
-
-const ALL_ZONE_IDS = retailFitoutV2.zones.map(z => z.id);
-const ALL_CATEGORY_IDS = retailFitoutV2.zones.flatMap(z => z.categories.map(c => c.id));
-const ALL_WP_IDS = Object.values(CATEGORY_LIBRARY).flatMap(cat => cat.workPackages.map(wp => wp.id));
-
-const ZONE_LABELS = { common: 'Common Areas', sales: 'Sales Floor', boh: 'Back of House' };
+import { buildProjectScopeConfiguratorModel } from '../../hooks/useProjectScopeEntryPresentation';
 
 /**
  * Scope configurator for the zoned retail fit-out v2 template — fully
@@ -19,15 +13,27 @@ const ZONE_LABELS = { common: 'Common Areas', sales: 'Sales Floor', boh: 'Back o
  * explicit legacy compatibility. This component only displays the resolved
  * context and consumes it for the existing weight preview.
  */
-export default function ZonedScopeConfigurator({ project, initialScope, onSave, onClose }) {
-  const [activeZoneIds, setActiveZoneIds] = useState(new Set(initialScope?.zones ?? ALL_ZONE_IDS));
-  const [activeCategoryIds, setActiveCategoryIds] = useState(new Set(initialScope?.categories ?? ALL_CATEGORY_IDS));
-  const [activeWPIds, setActiveWPIds] = useState(new Set(initialScope?.workPackages ?? ALL_WP_IDS));
-  const [expandedZones, setExpandedZones] = useState(new Set(ALL_ZONE_IDS));
+export default function ZonedScopeConfigurator({ project, scopeTemplate, initialScope, onSave, onClose }) {
+  const configurator = buildProjectScopeConfiguratorModel({
+    ...project,
+    scopeTemplate: scopeTemplate ?? project?.scopeTemplate,
+  });
+  const zones = configurator?.zones ?? [];
+  const allZoneIds = zones.map(zone => zone.id);
+  const allCategoryIds = zones.flatMap(zone => zone.categories.map(category => category.id));
+  const allWPIds = zones.flatMap(zone =>
+    zone.categories.flatMap(category => category.workPackages.map(wp => wp.id)));
+  const categoriesById = new Map(zones.flatMap(zone =>
+    zone.categories.map(category => [category.id, category])));
+
+  const [activeZoneIds, setActiveZoneIds] = useState(new Set(initialScope?.zones ?? allZoneIds));
+  const [activeCategoryIds, setActiveCategoryIds] = useState(new Set(initialScope?.categories ?? allCategoryIds));
+  const [activeWPIds, setActiveWPIds] = useState(new Set(initialScope?.workPackages ?? allWPIds));
+  const [expandedZones, setExpandedZones] = useState(new Set(allZoneIds));
   const [expandedCategories, setExpandedCategories] = useState(new Set());
 
   const areaContext = resolveProjectAreaContext(project);
-  const zoneWeights = computeZoneWeights(retailFitoutV2, areaContext.zoneAreas, [...activeZoneIds]);
+  const zoneWeights = computeZoneWeights(configurator?.data, areaContext.zoneAreas, [...activeZoneIds]);
 
   const displayArea = value => value == null
     ? 'Not set'
@@ -50,7 +56,7 @@ export default function ZonedScopeConfigurator({ project, initialScope, onSave, 
   }
 
   function categoryWPIds(categoryId) {
-    return (CATEGORY_LIBRARY[categoryId]?.workPackages ?? []).map(wp => wp.id);
+    return (categoriesById.get(categoryId)?.workPackages ?? []).map(wp => wp.id);
   }
 
   function zoneCategoryIds(zone) {
@@ -135,7 +141,7 @@ export default function ZonedScopeConfigurator({ project, initialScope, onSave, 
 
   function handleSave() {
     onSave({
-      template: V2_TEMPLATE_TYPE,
+      template: configurator.templateType,
       zones: [...activeZoneIds],
       categories: [...activeCategoryIds],
       workPackages: [...activeWPIds],
@@ -144,6 +150,7 @@ export default function ZonedScopeConfigurator({ project, initialScope, onSave, 
 
   return (
     <div
+      className="project-scope-configurator-overlay"
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={onClose}
     >
@@ -151,23 +158,24 @@ export default function ZonedScopeConfigurator({ project, initialScope, onSave, 
         role="dialog"
         aria-modal="true"
         aria-labelledby="zoned-scope-title"
+        className="project-scope-configurator"
         style={{ background: 'var(--bg-surface)', borderRadius: 16, boxShadow: 'var(--shadow-lg)', width: '90vw', maxWidth: 680, maxHeight: '88vh', display: 'flex', flexDirection: 'column', border: '1px solid var(--border)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div className="project-scope-configurator-header" style={{ padding: '18px 24px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div>
-            <div id="zoned-scope-title" style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Configure Zoned Scope</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Retail Fit-Out (Zoned) — select active zones, categories, and work packages</div>
+            <div id="zoned-scope-title" style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Configure Project Scope</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Select the construction work packages required for this project.</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} aria-label="Close project scope configurator" style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
-        <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
+        <div className="project-scope-area-context" style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
             Area context
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+          <div className="project-scope-area-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
             {[
               ['Total Area', areaContext.totalArea],
               ['Sales Area', areaContext.salesArea],
@@ -190,7 +198,7 @@ export default function ZonedScopeConfigurator({ project, initialScope, onSave, 
 
         {/* Zone tree */}
         <div style={{ overflowY: 'auto', padding: '14px 24px', flex: 1 }}>
-          {retailFitoutV2.zones.map(zone => {
+          {zones.map(zone => {
             const zoneActive = activeZoneIds.has(zone.id);
             const catIds = zoneCategoryIds(zone);
             const activeCatCount = catIds.filter(id => activeCategoryIds.has(id)).length;
@@ -213,7 +221,7 @@ export default function ZonedScopeConfigurator({ project, initialScope, onSave, 
                     style={{ cursor: 'pointer', width: 15, height: 15 }}
                   />
                   <span style={{ fontWeight: 700, fontSize: 13, color: zoneActive ? 'var(--status-done)' : 'var(--text-primary)', flex: 1 }}>
-                    {ZONE_LABELS[zone.id] ?? zone.id}
+                    {zone.label ?? zone.id}
                     <span style={{ fontWeight: 500, color: 'var(--text-muted)', marginLeft: 6, fontSize: 11 }}>
                       ({zone.weightMode === 'fixed' ? 'fixed' : 'by area'})
                     </span>
@@ -232,7 +240,7 @@ export default function ZonedScopeConfigurator({ project, initialScope, onSave, 
                       const activeWpCount = wpIds.filter(id => activeWPIds.has(id)).length;
                       const catIndeterminate = catActive && activeWpCount < wpIds.length && activeWpCount > 0;
                       const catExpanded = expandedCategories.has(category.id);
-                      const lib = CATEGORY_LIBRARY[category.id];
+                      const lib = categoriesById.get(category.id);
 
                       return (
                         <div key={category.id} style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
@@ -285,11 +293,11 @@ export default function ZonedScopeConfigurator({ project, initialScope, onSave, 
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div className="project-scope-configurator-footer" style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
             {activeWPIds.size} work packages · {activeCategoryIds.size} categories · {activeZoneIds.size} zones
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="project-scope-configurator-actions" style={{ display: 'flex', gap: 10 }}>
             <button className="secondary-button" onClick={onClose}>Cancel</button>
             <button className="primary-button" onClick={handleSave} disabled={activeZoneIds.size === 0}>Save Scope</button>
           </div>

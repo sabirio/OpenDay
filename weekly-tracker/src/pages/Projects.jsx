@@ -29,6 +29,10 @@ import {
   resolveEffectiveV2ZoneAreas,
   resolveProjectArea,
 } from "../hooks/useProjectAreaPresentation";
+import {
+  initializeNewProjectScope,
+  PROJECT_SCOPE_NOT_CONFIGURED,
+} from "../hooks/useProjectScopeEntryPresentation";
 
 const PORTFOLIO_PAGE_SIZE = 50;
 
@@ -62,7 +66,10 @@ const emptyProject = {
   contractorEmail: "",
   projectType: "New Opening",
   projectStatus: "Active",
-  templateType: 'standard_with_demo',
+  templateType: V2_TEMPLATE_TYPE,
+  templateId: null,
+  scopeTemplate: null,
+  scope: null,
   storeSizeSqm: '',
   phases: [],
 };
@@ -97,6 +104,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const [activeDetailTab, setActiveDetailTab] = useState("overview");
   const [gcModal, setGcModal]                 = useState(null); // project being invited
   const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
+  const [isInitializingProject, setIsInitializingProject] = useState(false);
   const [gcEmail, setGcEmail]             = useState('');
   const [initialGcEmail, setInitialGcEmail] = useState(''); // snapshot at open time, for GcInvitationModal's dirty-state check
   const [gcInviteStatus, setGcInviteStatus] = useState('idle'); // idle|sending|sent|error
@@ -148,6 +156,26 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     setEditingProjectId(project.id);
     setConflict(null);
     setShowForm(true);
+  }
+
+  async function openNewProject() {
+    if (isInitializingProject) return;
+    setIsInitializingProject(true);
+    try {
+      const draft = await initializeNewProjectScope(emptyProject);
+      setNewProject(draft);
+      originalProjectRef.current = draft;
+      setEditingProjectId(null);
+      setConflict(null);
+      setShowForm(true);
+    } catch (err) {
+      console.error('Failed to initialize project scope:', err);
+      toast.error(err?.message === PROJECT_SCOPE_NOT_CONFIGURED
+        ? PROJECT_SCOPE_NOT_CONFIGURED
+        : 'Project scope could not be loaded. Please try again.');
+    } finally {
+      setIsInitializingProject(false);
+    }
   }
 
   // Only checks for a conflict when editing an existing project — new
@@ -352,9 +380,10 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         <div className="portfolio-page-actions">
           <button
             className="btn btn-primary"
-            onClick={() => { setNewProject(emptyProject); originalProjectRef.current = emptyProject; setEditingProjectId(null); setShowForm(true); }}
+            onClick={openNewProject}
+            disabled={isInitializingProject}
           >
-            Add New Project
+            {isInitializingProject ? 'Preparing Project…' : 'Add New Project'}
           </button>
           {canImportProjects && (
             <Link to="/projects/import" className="btn btn-secondary">
@@ -478,6 +507,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         newProject.templateType === V2_TEMPLATE_TYPE ? (
           <ZonedScopeConfigurator
             project={newProject}
+            scopeTemplate={newProject.scopeTemplate}
             initialScope={newProject.scope}
             onSave={(scope) => {
               setNewProject(p => ({ ...p, scope: mergeProjectScopeSelection(p, scope) }));

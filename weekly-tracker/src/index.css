@@ -3350,6 +3350,38 @@ button.weekly-phase-row {
   overflow-y: auto;
 }
 
+.project-scope-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.project-scope-entry-summary {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-scope-entry-summary strong {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.project-scope-entry-summary span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.project-scope-entry-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 @media (max-width: 1180px) {
   .portfolio-detail-header {
     flex-wrap: wrap;
@@ -3416,6 +3448,57 @@ button.weekly-phase-row {
 
   .project-editor-body {
     padding: 16px;
+  }
+
+  .project-scope-entry {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .project-scope-entry-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-scope-entry-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .project-scope-configurator-overlay {
+    padding: 10px;
+  }
+
+  .project-scope-configurator {
+    width: 100% !important;
+    max-height: calc(100dvh - 20px) !important;
+  }
+
+  .project-scope-configurator-header,
+  .project-scope-area-context {
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+  }
+
+  .project-scope-area-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .project-scope-configurator-footer {
+    align-items: stretch !important;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px !important;
+  }
+
+  .project-scope-configurator-actions {
+    width: 100%;
+  }
+
+  .project-scope-configurator-actions button {
+    flex: 1;
   }
 }
 

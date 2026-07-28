@@ -4,6 +4,10 @@ import { TEMPLATES } from "../../config/projectTemplates";
 import { PROJECT_TYPE_OPTIONS, LOCATION_TYPE_OPTIONS, STORE_CONCEPT_SUGGESTIONS } from "../../config/projectVocabulary";
 import Modal from "../shared/Modal";
 import { clearProjectScopeSelection } from "../../hooks/useProjectAreaPresentation";
+import {
+  buildProjectScopeEntryModel,
+  usesUnifiedProjectScopeEntry,
+} from "../../hooks/useProjectScopeEntryPresentation";
 
 export default function ProjectEditorModal({
   project,
@@ -20,6 +24,11 @@ export default function ProjectEditorModal({
   isDirty = false,
 }) {
   if (!project) return null;
+  const unifiedScopeEntry = usesUnifiedProjectScopeEntry(project, {
+    isEditing: Boolean(editingProjectId),
+  });
+  const scopeEntry = buildProjectScopeEntryModel(project);
+  const scopeConfigured = project.scope?.workPackages != null;
 
   // Cancel/x are explicit close actions, same as Escape/backdrop — should
   // carry the same dirty-state protection rather than bypassing it.
@@ -237,40 +246,67 @@ export default function ProjectEditorModal({
             </FieldRow>
           </FormSection>
 
-          <FormSection title="Construction Template" accentColor="var(--accent)">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {TEMPLATES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    if (t.id === project.templateType) return;
-                    // An explicit template switch invalidates the previous
-                    // template's entire scope shape, unchanged from before.
-                    onProjectPatch((p) => ({ ...p, templateType: t.id, scope: null }));
-                  }}
-                  style={{
-                    flex: "1 1 200px", textAlign: "left", padding: "10px 14px", borderRadius: 10, cursor: "pointer",
-                    border: `1.5px solid ${project.templateType === t.id ? "var(--status-done)" : "var(--border)"}`,
-                    background: project.templateType === t.id ? "var(--status-done-bg)" : "var(--accent-subtle)",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 700, color: project.templateType === t.id ? "var(--status-done)" : "var(--text-primary)" }}>
-                    {t.icon} {t.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{t.description}</div>
-                </button>
-              ))}
-            </div>
-          </FormSection>
+          {unifiedScopeEntry ? (
+            <FormSection title="Project Scope" accentColor="var(--accent)">
+              <div className="project-scope-entry">
+                <div className="project-scope-entry-summary">
+                  <strong>{scopeEntry.selectedWorkPackageCount} work packages selected</strong>
+                  <span>
+                    Sales {scopeEntry.salesAreaLabel}
+                    <span aria-hidden="true"> · </span>
+                    Back of House {scopeEntry.backOfHouseAreaLabel}
+                  </span>
+                </div>
+                <div className="project-scope-entry-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={onOpenScopeConfigurator}
+                  >
+                    Configure Project Scope
+                  </button>
+                  {scopeConfigured && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost-sm"
+                      onClick={() => onProjectPatch((p) => ({ ...p, scope: clearProjectScopeSelection(p) }))}
+                    >
+                      Reset to full scope
+                    </button>
+                  )}
+                </div>
+              </div>
+            </FormSection>
+          ) : (
+            <>
+              <FormSection title="Construction Template" accentColor="var(--accent)">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {TEMPLATES.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        if (t.id === project.templateType) return;
+                        // Legacy edit compatibility: an explicit template
+                        // switch invalidates the previous template's scope.
+                        onProjectPatch((p) => ({ ...p, templateType: t.id, scope: null }));
+                      }}
+                      style={{
+                        flex: "1 1 200px", textAlign: "left", padding: "10px 14px", borderRadius: 10, cursor: "pointer",
+                        border: `1.5px solid ${project.templateType === t.id ? "var(--status-done)" : "var(--border)"}`,
+                        background: project.templateType === t.id ? "var(--status-done-bg)" : "var(--accent-subtle)",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 700, color: project.templateType === t.id ? "var(--status-done)" : "var(--text-primary)" }}>
+                        {t.icon} {t.label}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{t.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </FormSection>
 
-          {/* A legacy project may have an area-only scope object. "Configured"
-              still means a WP selection was saved, not merely that scope
-              exists. */}
-          {(() => {
-            const scopeConfigured = project.scope?.workPackages != null;
-            return (
               <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
                 <button
                   type="button"
@@ -295,8 +331,8 @@ export default function ProjectEditorModal({
                   </button>
                 )}
               </div>
-            );
-          })()}
+            </>
+          )}
 
           <FormSection title="Project" accentColor="var(--status-done)">
             <FieldRow>

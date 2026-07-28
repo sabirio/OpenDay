@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { selectDefaultScopeTemplate } from '../domains/construction/templates/versionedScopeTemplate.js';
 
 export function fromDBTemplate(row) {
   if (!row) return null;
@@ -31,6 +32,14 @@ export async function fetchApplicableTemplateRecords(family) {
     .order('version', { ascending: false });
   if (error) throw error;
   return (data ?? []).map(fromDBTemplate);
+}
+
+export async function resolveDefaultScopeTemplateForCurrentCompany(family) {
+  const [companyId, records] = await Promise.all([
+    getCurrentCompanyId(),
+    fetchApplicableTemplateRecords(family),
+  ]);
+  return selectDefaultScopeTemplate(records, { family, companyId });
 }
 
 export async function fetchTemplateRecordsByIds(ids) {

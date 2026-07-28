@@ -4,7 +4,6 @@ import { validateArray, validateOne } from '../schemas/validate';
 import { isoWeekToMonday } from '../utils/scheduleUtils';
 import {
   RETAIL_FITOUT_V2_FAMILY,
-  selectDefaultScopeTemplate,
 } from '../domains/construction/templates/versionedScopeTemplate.js';
 
 const LEGACY_PHASE_MAP = {
@@ -280,9 +279,9 @@ export async function getProgressSnapshot(isoWeekStr) {
 export async function create(project) {
   validateProject(project);
   const {
-    fetchApplicableTemplateRecords,
     fetchTemplateRecordById,
     getCurrentCompanyId,
+    resolveDefaultScopeTemplateForCurrentCompany,
   } = await import('./templateService.js');
   const payload = toDB(project, { preserveLegacyZoneAreas: false });
   const companyId = payload.company_id ?? await getCurrentCompanyId();
@@ -293,11 +292,7 @@ export async function create(project) {
   // global OpenDay default otherwise. RLS ensures another company's private
   // template is never among these candidates.
   if (!payload.template_id && payload.template_type === RETAIL_FITOUT_V2_FAMILY) {
-    const candidates = await fetchApplicableTemplateRecords(RETAIL_FITOUT_V2_FAMILY);
-    pinnedTemplate = selectDefaultScopeTemplate(candidates, {
-      family: RETAIL_FITOUT_V2_FAMILY,
-      companyId,
-    });
+    pinnedTemplate = await resolveDefaultScopeTemplateForCurrentCompany(RETAIL_FITOUT_V2_FAMILY);
     if (!pinnedTemplate) {
       throw new Error('No applicable active Retail Fit-Out V2 scope template is configured');
     }
@@ -343,7 +338,12 @@ export async function update(id, project) {
     .select()
     .single();
   if (error) throw error;
-  return fromDB(data);
+  const saved = fromDB(data);
+  const { fetchTemplateRecordById } = await import('./templateService.js');
+  return {
+    ...saved,
+    scopeTemplate: await fetchTemplateRecordById(saved.templateId),
+  };
 }
 
 export async function remove(id) {
