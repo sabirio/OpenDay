@@ -43,6 +43,7 @@ export default function WorkPackageProgressSection({
   prevReport,
   onLegacyChange,
   templateType = null,
+  project = null,
 }) {
   if (ganttLoading) {
     return (
@@ -53,7 +54,7 @@ export default function WorkPackageProgressSection({
   }
 
   if (ganttTasks.length > 0 && isZonedTemplate(templateType)) {
-    const zones = groupGanttTasksByZone(ganttTasks, templateType);
+    const zones = groupGanttTasksByZone(ganttTasks, templateType, project);
     return [...zones.entries()].map(([zoneId, zone]) => (
       <ZoneBlock
         key={zoneId}

@@ -2,8 +2,8 @@
 // Converts ganttResult into pixel positions for the SVG renderer.
 
 import { filterRulesForWPs } from '../config/dependencyRules.js';
-import { filterRulesForWPsV2 } from '../config/dependencyRulesV2.js';
 import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2.js';
+import { resolveProjectScopeTemplate } from '../domains/construction/templates/versionedScopeTemplate.js';
 import { diffDays } from './dateMath.js';
 
 // Re-exported (not redefined) so existing consumers of this module
@@ -70,7 +70,7 @@ export function calculateLayout(
   keyDates = {},
   discrepancies = [],
   collapseState = {},
-  templateType = null
+  projectOrTemplateType = null
 ) {
   if (!ganttResult || ganttResult.length === 0) return null;
 
@@ -164,7 +164,17 @@ export function calculateLayout(
   const timelineHeaders = buildTimelineHeaders(timelineStart, timelineEnd, viewMode, dateToX, pixelsPerDay);
 
   // ── Dependency arrows ────────────────────────────────────────────────────
-  const arrows = buildArrows(tasks, ganttResult, templateType);
+  const templateType = typeof projectOrTemplateType === 'string'
+    ? projectOrTemplateType
+    : projectOrTemplateType?.templateType;
+  const scopeTemplate = templateType === V2_TEMPLATE_TYPE
+    ? resolveProjectScopeTemplate(
+        typeof projectOrTemplateType === 'string'
+          ? { templateType }
+          : projectOrTemplateType
+      )
+    : null;
+  const arrows = buildArrows(tasks, ganttResult, scopeTemplate?.dependencies ?? null);
 
   // ── Key date vertical lines ──────────────────────────────────────────────
   const keyDateLines = buildKeyDateLines(keyDates, dateToX);
@@ -231,12 +241,15 @@ function buildTimelineHeaders(timelineStart, timelineEnd, viewMode, dateToX, pix
 
 // ─── Dependency arrows ────────────────────────────────────────────────────────
 
-function buildArrows(tasks, ganttResult, templateType = null) {
+function buildArrows(tasks, ganttResult, versionedDependencies = null) {
   const wpIds = ganttResult.map(w => w.id);
   // F-11: pick the dependency-rule set matching this project's template —
   // was previously always the v1 set, so a v2 project's WP ids never
   // matched any rule and zero arrows were ever drawn.
-  const rules = templateType === V2_TEMPLATE_TYPE ? filterRulesForWPsV2(wpIds) : filterRulesForWPs(wpIds);
+  const wpIdSet = new Set(wpIds);
+  const rules = versionedDependencies
+    ? versionedDependencies.filter(rule => wpIdSet.has(rule.from) && wpIdSet.has(rule.to))
+    : filterRulesForWPs(wpIds);
   const taskMap = Object.fromEntries(tasks.map(t => [t.id, t]));
 
   const arrows = [];

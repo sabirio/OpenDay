@@ -21,7 +21,12 @@ export function computeCanonicalProgress(snapshot) {
   const wpCum = computeWPCumulativeStatuses(snapshot.contractorReports);
   const legCum = computeCumulativeStatuses(snapshot.contractorReports);
   const template = snapshot.project.templateType === V2_TEMPLATE_TYPE
-    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(snapshot.project), snapshot.project.scope?.zones ?? null, snapshot.project.scope?.categories ?? null)
+    ? buildV2ProgressTemplate(
+        resolveEffectiveV2ZoneAreas(snapshot.project),
+        snapshot.project.scope?.zones ?? null,
+        snapshot.project.scope?.categories ?? null,
+        snapshot.template,
+      )
     : (snapshot.template && isTemplateValid(snapshot.template) ? snapshot.template : null);
   const legacy = calculateProjectProgressResult(wpCum, legCum, snapshot.scope.workPackageIds, template, snapshot.project.scope?.weightOverrides ?? null);
   const contractorProgress = snapshot.contractorReports.length ? clampProgressPct(legacy.progress) : null;

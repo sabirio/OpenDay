@@ -11,10 +11,10 @@ export { isGanttStale };
 import { computeSPIFromTasks, computeCriticalHealth } from '../../engines/spiEngine';
 import { getSPIStatus } from '../../config/statusColors';
 import { DEPENDENCY_RULES } from '../../config/dependencyRules';
-import { DEPENDENCY_RULES_V2 } from '../../config/dependencyRulesV2';
 import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
 import { WORK_PACKAGES as GANTT_WPS } from '../../config/masterTaskLibrary';
-import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE as V2_TEMPLATE_ID } from '../../domains/construction/templates/retailFitoutV2';
+import { V2_TEMPLATE_TYPE as V2_TEMPLATE_ID } from '../../domains/construction/templates/retailFitoutV2';
+import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
 import {
   upsertGanttTasks,
   archiveGanttTasks,
@@ -30,22 +30,33 @@ import {
   resolveProjectArea,
 } from '../projects/areas/resolveProjectArea';
 
-const V2_COMPLETION_MARKER = 'common.commissioning.integrated_systems_test';
-const V2_OPENING_MARKER = 'common.handover.keys_possession';
-
 /**
  * Builds the v2 (zoned) Gantt WP set + schedule for one project. Isolated
  * from the v1 path in generateAndSaveGantt/regenerateGantt below — v1
  * projects never call this.
  */
 function buildV2GanttResult(projectStart, targetOpeningDate, storeSizeSqm, templateOptions) {
-  const { zoneAreas = {}, activeZoneIds = null, activeCategoryIds = null, selectedWPIds = null } = templateOptions;
-  const wps = buildProjectWPsV2(zoneAreas, projectStart, targetOpeningDate, storeSizeSqm, {
-    activeZoneIds, activeCategoryIds, selectedWPIds,
+  const {
+    zoneAreas = {},
+    activeZoneIds = null,
+    activeCategoryIds = null,
+    selectedWPIds = null,
+    scopeTemplate = null,
+  } = templateOptions;
+  const resolved = resolveProjectScopeTemplate({
+    templateType: V2_TEMPLATE_ID,
+    templateId: scopeTemplate?.id ?? null,
+    scopeTemplate,
   });
-  const ganttResult = calculateGantt(wps, DEPENDENCY_RULES_V2, projectStart);
+  const wps = buildProjectWPsV2(zoneAreas, projectStart, targetOpeningDate, storeSizeSqm, {
+    activeZoneIds, activeCategoryIds, selectedWPIds, scopeTemplate: resolved,
+  });
+  const ganttResult = calculateGantt(wps, resolved.dependencies, projectStart);
   const { constructionCompletionDate, projectedOpeningDate } = calculateKeyDates(
-    ganttResult, V2_COMPLETION_MARKER, V2_OPENING_MARKER, null
+    ganttResult,
+    resolved.schedule?.completionMarkerWpId,
+    resolved.schedule?.openingMarkerWpId,
+    null
   );
   return { ganttResult, constructionCompletionDate, projectedOpeningDate };
 }
@@ -140,6 +151,7 @@ export async function regenerateGantt(projectId) {
         activeZoneIds:     scope.zones?.length > 0 ? scope.zones : null,
         activeCategoryIds: scope.categories?.length > 0 ? scope.categories : null,
         selectedWPIds:     scope.workPackages?.length > 0 ? scope.workPackages : null,
+        scopeTemplate:     project.scopeTemplate,
       }
     ));
   } else {
@@ -238,7 +250,8 @@ export async function loadAllGanttMetrics(projectIds) {
 
   const scopeWPIdsMap = new Map();
   for (const p of allProjects || []) {
-    const wpList = p.template_type === V2_TEMPLATE_ID ? ALL_WORK_PACKAGES_V2 : GANTT_WPS;
+    const resolved = resolveProjectScopeTemplate(p);
+    const wpList = p.template_type === V2_TEMPLATE_ID ? resolved.workPackages : GANTT_WPS;
     scopeWPIdsMap.set(p.id, getScopeWPIds(p.scope ?? null, wpList));
   }
 

@@ -28,6 +28,11 @@ Run this canonical path on a new Supabase database. Do not run historical migrat
 | 17 | `src/migrations/025_atomic_write_commands.sql` | Adds Tier-1 request idempotency, atomic Contractor Report wrapper and atomic PM Site Visit command with versioned history/discrepancy metadata. |
 | 18 | `src/migrations/026_grant_authenticated_table_privileges.sql` | Grants `authenticated` the base `SELECT/INSERT/UPDATE/DELETE` table privileges every RLS policy since `010`/`020` already assumed exist. Without this, a genuinely fresh database has RLS policies but no underlying GRANT for them to filter, so every direct PostgREST call fails with `42501` regardless of policy correctness — production has always had this at the platform level (project-creation defaults), just never as a migration in this repo. Found by Sprint 4.5 runtime certification, 2026-07-10 (DEFECT-03). `write_command_requests` is deliberately excluded — see the migration's own header. |
 
+| 19 | `src/migrations/027_contractor_report_wp_validation.sql` | Validates canonical contractor-report work-package identity at the atomic write boundary. |
+| 20 | `src/migrations/028_production_security_reconciliation.sql` | Reconciles the canonical security helpers and policies used by local certification. |
+| 21 | `src/migrations/029_production_acl_followup.sql` | Captures the remaining canonical ACL and function grants required by the application. |
+| 22 | `src/migrations/041_versioned_scope_templates.sql` | Adds company/global versioned scope-template routing, referenced-version immutability, project pin integrity, tenant-aware template RLS, and the exact certified global Retail Fit-Out V2 version. Existing projects and scope JSON are not backfilled. |
+
 ### Existing databases
 
 Do not replay the fresh-install path blindly on production. Apply only missing migrations, in numeric order, after checking which files were already applied. `010_rls_by_roles.sql` is idempotent and may be re-run to replace stale permissive policies, but it intentionally drops and recreates policies on the covered tables.

@@ -69,6 +69,31 @@ where `canonicalWorkPackages` = `masterTaskLibrary.WORK_PACKAGES` or `constructi
 
 **A3 update (2026-07-06) — time-to-close awareness:** `constructionRetailV1.js`'s blocker WPs now also carry `typicalClearDays` (int, typical close-out duration) and `responsibleRole` (`'GC'|'PM'|'Landlord'`) — same canonical source as `openingBlocker`, no `masterTaskLibrary.js` propagation needed for the same reason as above. `computeOpeningReadiness()` now also keeps each blocker's real `wp.id` (not just phaseId+label) so it can place blockers in `dependencyRules.js`'s dependency graph and compute `requiredDays`/`slack`/`verdict`/`criticalChain` via a critical-path-method longest-path calculation — see `src/engines/openingReadinessEngine.js` header comments and `src/engines/__tests__/openingReadinessEngine.test.mjs` for the algorithm and worked examples. Also fixed in the same pass: a blocker WP with no report data at all (`status` is `null`/`undefined`) now counts as an active blocker (effectively "Not Started") instead of being silently skipped — previously this understated both the blocker count and requiredDays for any project where the contractor hadn't yet reported on that phase.
 
+## Versioned project scope-template contract (2026-07-28)
+
+- `templates.family` is the stable routing family; `family_id` remains the
+  immutable version-lineage UUID. `company_id = NULL` is the global OpenDay
+  default, while a non-null value is private to that company.
+- New `retail-fitout-v2` projects resolve the active company template first
+  and the active global template second, then persist that exact
+  `projects.template_id`. `template_type` remains for routing compatibility,
+  while project-specific selections and overrides remain in `project.scope`.
+- `resolveProjectScopeTemplate()` is the canonical read path. A valid V2 pin
+  resolves persisted `templates.data`; an historical V2 project without a
+  valid persisted V2 pin deliberately uses the certified static compatibility
+  definition. No historical project is inferred, rewritten, or silently
+  upgraded.
+- Once any project references a template version, its semantic data, family,
+  ownership, lineage, and version are immutable at the database boundary.
+  Editing creates a new version; changing the active default affects only new
+  projects.
+- V2 work-package IDs are historical identities shared by Gantt, contractor
+  reports, site visits, and evidence. Version creation never silently renames
+  an existing identity.
+- `retailFitoutV2.js` and `dependencyRulesV2.js` remain the deterministic
+  bootstrap definition and explicit legacy compatibility source. Runtime
+  semantics for pinned projects come from the resolved persisted version.
+
 ## Retail Fit-Out v2 — zoned (zone → category → work-package) template (2026-07-07)
 
 A second, fully isolated template model was added end-to-end: seeding, dependencies, scope,
@@ -79,7 +104,8 @@ behavior** — every v1 test (pre-existing + new) still passes unchanged.
 
 | File | Role |
 |---|---|
-| `domains/construction/templates/retailFitoutV2.js` | Single source of truth: `CATEGORY_LIBRARY`, `retailFitoutV2` (zones→categories, weights), `ALL_WORK_PACKAGES_V2`, `getWPByIdV2()`. 91 WPs across 23 categories across 3 zones (common/sales/boh). |
+| `domains/construction/templates/retailFitoutV2.js` | Certified bootstrap and legacy-unpinned compatibility definition: `CATEGORY_LIBRARY`, `retailFitoutV2` (zones→categories, weights), `ALL_WORK_PACKAGES_V2`, `getWPByIdV2()`. 91 WPs across 23 categories across 3 zones (common/sales/boh). |
+| `domains/construction/templates/versionedScopeTemplate.js` | Deterministic persisted-data materializer, V2 shape checks, company/global default selection, and the canonical pinned/legacy project resolver used by runtime adapters. |
 | `config/dependencyRulesV2.js` | Real (non-flat) FS dependency chain — see file header for the full common/per-zone/cross-zone sequence description. |
 | `core/projects/weights/computeZoneWeights.js` | `zoneWeight = 0.65 * (zoneArea / (salesArea+bohArea))`, common fixed at 35%. Pre-existing from an earlier session, verified unchanged. |
 | `core/projects/weights/buildV2ProgressTemplate.js` | Converts zone areas + active zones/categories into the `{workPackages, phases}` shape `progressEngine.calculateProjectProgress()` already accepts as a custom `template` — **the only integration point needed; `progressEngine.js` itself is untouched.** Each category becomes one synthetic "phase" (`progressWeight = zoneWeight% × categoryShare%`); each WP's `phaseId` is set to its **category** id. |

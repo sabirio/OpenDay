@@ -192,6 +192,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
                   activeZoneIds: newProject.scope?.zones ?? null,
                   activeCategoryIds: newProject.scope?.categories ?? null,
                   selectedWPIds: newProject.scope?.workPackages ?? null,
+                  scopeTemplate: savedProject.scopeTemplate,
                 }
               : (scopeWPIds?.length > 0 ? { selectedWPIds: scopeWPIds } : {});
             await generateAndSaveGantt(

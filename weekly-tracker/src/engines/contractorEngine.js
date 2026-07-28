@@ -4,7 +4,8 @@ import { computePmAlignmentItems, summarizeAlignmentItems } from "./pmAlignmentE
 import { computeScheduleDeviation } from "./riskEngine";
 import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
 import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
-import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
+import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
+import { resolveProjectScopeTemplate } from "../domains/construction/templates/versionedScopeTemplate.js";
 import { buildV2ProgressTemplate } from "../core/projects/weights/buildV2ProgressTemplate";
 import { resolveEffectiveV2ZoneAreas } from "../core/projects/areas/resolveProjectArea";
 
@@ -60,9 +61,10 @@ export function computeContractorScores(project, projReports, projSiteVisits, re
   // pinned-custom-v1-template resolution (that needs templatesById, unavailable
   // here), but scope/v2/weightOverrides are all resolvable from `project` alone.
   const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
-  const scopeWPIds = getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS);
+  const scopeTemplate = resolveProjectScopeTemplate(project);
+  const scopeWPIds = getScopeWPIds(project?.scope, isV2 ? scopeTemplate.workPackages : GANTT_WPS);
   const v2Template = isV2
-    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null)
+    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null, scopeTemplate)
     : null;
   const wpCum  = computeWPCumulativeStatuses(projReports);
   const legCum = computeCumulativeStatuses(projReports) || {};

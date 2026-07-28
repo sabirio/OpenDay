@@ -23,7 +23,8 @@ import { computeContractorScores } from '../../engines/contractorEngine';
 import { computeProjectHealth } from '../../engines/projectHealthEngine';
 import { computeOpeningReadiness } from '../../engines/openingReadinessEngine';
 import { WORK_PACKAGES as GANTT_WPS } from '../../config/masterTaskLibrary';
-import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2';
+import { V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2';
+import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
 import { buildV2OpeningReadinessOptions } from '../projects/scope/buildV2OpeningReadinessOptions';
 import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
@@ -61,14 +62,15 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   const latestReport = sorted[sorted.length - 1] || null;
 
   const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
-  const scopeWPIds = canonicalScopeWPIds ?? getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS);
+  const resolvedScopeTemplate = resolveProjectScopeTemplate(project, { templatesById });
+  const scopeWPIds = canonicalScopeWPIds ?? getScopeWPIds(project?.scope, isV2 ? resolvedScopeTemplate.workPackages : GANTT_WPS);
   const phaseWeightOverrides = project?.scope?.weightOverrides ?? null;
   // v2 has no pinned-template concept (templateId/templatesById is a v1-only,
   // TemplateEditor-driven mechanism) — its "template" is instead built fresh
   // from the project's own zone areas/scope via buildV2ProgressTemplate.
   const gatedTemplate = isV2 ? null : resolveGatedTemplate(project, templatesById, activeTemplateFallback);
   const v2ProgressTemplate = isV2
-    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null)
+    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null, resolvedScopeTemplate)
     : null;
 
   const progress = wpCumulativeStatuses
@@ -82,7 +84,7 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   // readiness is computed before riskScore (A3) so computeProjectRiskScore can
   // read readiness.verdict — the single source of truth for "can we actually
   // close everything in time" — rather than re-deriving it from scratch.
-  const v2ReadinessOptions = isV2 ? buildV2OpeningReadinessOptions() : null;
+  const v2ReadinessOptions = isV2 ? buildV2OpeningReadinessOptions(resolvedScopeTemplate) : null;
   const readiness       = computeOpeningReadiness(wpCumulativeStatuses, project.targetOpeningDate ?? null, scopeWPIds, v2ReadinessOptions, referenceDate);
   const riskScore       = computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness, referenceDate, riskCompatibilityInput);
   const riskLevel       = riskScore.level;

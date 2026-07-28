@@ -77,6 +77,7 @@ export async function getLastReport(projectId) {
 // core/contractorReport/contractorReportScreensModel.js) ───────────────────────
 
 export async function fetchAllContractorReportsRaw() {
+  const { fetchTemplateRecordsByIds } = await import('./templateService.js');
   const [reportsRes, wpsRes, projectsRes] = await Promise.all([
     supabase
       .from('contractor_reports')
@@ -87,20 +88,27 @@ export async function fetchAllContractorReportsRaw() {
       .select('*'),
     supabase
       .from('projects')
-      .select('id, template_type'),
+      .select('id, template_type, template_id'),
   ]);
   if (reportsRes.error) throw reportsRes.error;
   if (wpsRes.error) throw wpsRes.error;
   if (projectsRes.error) throw projectsRes.error;
 
+  const templatesById = await fetchTemplateRecordsByIds((projectsRes.data ?? []).map(project => project.template_id));
   return {
     reports:  reportsRes.data || [],
     wps:      wpsRes.data || [],
-    projects: projectsRes.data || [],
+    projects: (projectsRes.data ?? []).map(project => ({
+      templateType: project.template_type,
+      templateId: project.template_id,
+      scopeTemplate: templatesById.get(project.template_id) ?? null,
+      ...project,
+    })),
   };
 }
 
 export async function fetchContractorReportsForProjectRaw(projectId) {
+  const { fetchTemplateRecordById } = await import('./templateService.js');
   const [{ data: reports, error }, { data: projectRow, error: projectError }] = await Promise.all([
     supabase
       .from('contractor_reports')
@@ -109,7 +117,7 @@ export async function fetchContractorReportsForProjectRaw(projectId) {
       .order('report_date', { ascending: false }),
     supabase
       .from('projects')
-      .select('template_type')
+      .select('template_type, template_id')
       .eq('id', projectId)
       .single(),
   ]);
@@ -117,9 +125,13 @@ export async function fetchContractorReportsForProjectRaw(projectId) {
   if (projectError) throw projectError;
 
   const reports_ = reports || [];
-  const templateType = projectRow?.template_type;
+  const project = {
+    templateType: projectRow?.template_type,
+    templateId: projectRow?.template_id,
+    scopeTemplate: await fetchTemplateRecordById(projectRow?.template_id),
+  };
   const reportIds = reports_.map((report) => report.id);
-  if (reportIds.length === 0) return { reports: [], wps: [], templateType };
+  if (reportIds.length === 0) return { reports: [], wps: [], project };
 
   const { data: wps, error: wpsError } = await supabase
     .from('contractor_report_wps')
@@ -127,5 +139,5 @@ export async function fetchContractorReportsForProjectRaw(projectId) {
     .in('report_id', reportIds);
   if (wpsError) throw wpsError;
 
-  return { reports: reports_, wps: wps || [], templateType };
+  return { reports: reports_, wps: wps || [], project };
 }

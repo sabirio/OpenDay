@@ -57,7 +57,7 @@ check('fixture project ID is deterministic', /910001/.test(seedSql));
 check('all fixture passwords satisfy auth minimum', [...seed.matchAll(/password: '([^']+)'/g)].every(([, value]) => value.length >= 6));
 check('deploy reads canonical contract', /canonical-security-contract\.json/.test(deploy));
 check('deploy guard runs before reset or psql', deploy.indexOf('assertLocalTarget') < deploy.indexOf("execSync('npx"));
-check('canonical path ends at 029', contract.canonicalMigrationPath.included.at(-1) === '029_production_acl_followup.sql');
+check('canonical path ends at 041', contract.canonicalMigrationPath.included.at(-1) === '041_versioned_scope_templates.sql');
 const migrationNumbers = contract.canonicalMigrationPath.included.map(name => Number(name.slice(0, 3)));
 check('canonical path ordering is strictly increasing', migrationNumbers.every((value, index) => index === 0 || value > migrationNumbers[index - 1]));
 check('normal local dev script does not reset database', packageJson.scripts['local:dev'] === 'vite');
@@ -75,7 +75,7 @@ check('local Import Foundation v1 Phase 2 extension pins and verifies the approv
 check('local Import Foundation v1 Phase 2 hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(importFoundationPhase2Local));
 
 // Structural migration-completeness guard: the fresh-install path is a
-// multi-part composition (canonical contract's 000-029 + applySnagListLocal.mjs's
+// multi-part composition (canonical contract's 000-029 and 041 + applySnagListLocal.mjs's
 // separately-approved 030-035 batch + applyContractorReportLegacyWpScopeLocal.mjs's
 // separately-approved 036 migration) rather than one single list. This proves
 // their UNION still covers every migration file that belongs on the
@@ -91,7 +91,7 @@ const snagBatchFiles = [...snagLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].
 const contractorReportLegacyWpScopeBatchFiles = [...contractorReportLegacyWpScopeLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const importFoundationPhase2BatchFiles = [...importFoundationPhase2Local.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles]);
-check('fresh-install migration set is exactly covered by canonical contract (000-029) + approved Snag batch (030-035) + approved Contractor Report legacy WP scope migration (036) + approved Import Foundation v1 Phase 2 batch (037-040), no gaps',
+check('fresh-install migration set is exactly covered by canonical contract (000-029, 041) + approved Snag batch (030-035) + approved Contractor Report legacy WP scope migration (036) + approved Import Foundation v1 Phase 2 batch (037-040), no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));

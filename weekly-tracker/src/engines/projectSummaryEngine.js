@@ -13,7 +13,8 @@ import { calculatePhaseProgress } from './progressEngine';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
 import { classifyDiscrepancy } from './discrepancyEngine';
 import { computeOpeningReadiness } from './openingReadinessEngine';
-import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2';
+import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2';
+import { resolveProjectScopeTemplate } from '../domains/construction/templates/versionedScopeTemplate.js';
 import { buildV2OpeningReadinessOptions } from '../core/projects/scope/buildV2OpeningReadinessOptions';
 
 const GANTT_PHASE_COLORS = [
@@ -37,9 +38,10 @@ function phaseProgressFromGanttStatuses(wpStatuses) {
 
 function resolveOpeningReadinessInputs(project) {
   const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
+  const scopeTemplate = resolveProjectScopeTemplate(project);
   return {
-    scopeWPIds: getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS),
-    templateOptions: isV2 ? buildV2OpeningReadinessOptions() : null,
+    scopeWPIds: getScopeWPIds(project?.scope, isV2 ? scopeTemplate.workPackages : GANTT_WPS),
+    templateOptions: isV2 ? buildV2OpeningReadinessOptions(scopeTemplate) : null,
   };
 }
 

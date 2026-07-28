@@ -24,7 +24,8 @@
       "026_grant_authenticated_table_privileges.sql",
       "027_contractor_report_wp_validation.sql",
       "028_production_security_reconciliation.sql",
-      "029_production_acl_followup.sql"
+      "029_production_acl_followup.sql",
+      "041_versioned_scope_templates.sql"
     ],
     "excludedHistorical": {
       "files": ["001_initial_schema.sql", "001_gantt_system.sql", "002_gantt_system.sql", "003_task_groups.sql", "004_site_visit_pm_assessment.sql", "005_site_visit_gc_status.sql", "006_project_scope.sql", "007_progress_history.sql", "008_progress_history_rls.sql", "009_gantt_engine_version.sql"],

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { fetchTemplateRecordById, fetchTemplateRecordsByIds } from './templateService.js';
 
 // ─── Generate & save (pure I/O primitives — orchestration lives in
 // core/gantt/ganttOrchestrationModel.js) ───────────────────────────────────────
@@ -31,11 +32,16 @@ export async function archiveGanttTasks(projectId, wpIds) {
 export async function fetchProjectForGanttRegeneration(projectId) {
   const { data, error } = await supabase
     .from('projects')
-    .select('template_type, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, sales_area_sqm, back_of_house_area_sqm, scope')
+    .select('template_type, template_id, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, sales_area_sqm, back_of_house_area_sqm, scope')
     .eq('id', projectId)
     .single();
   if (error) throw error;
-  return data;
+  return {
+    ...data,
+    templateType: data.template_type,
+    templateId: data.template_id,
+    scopeTemplate: await fetchTemplateRecordById(data.template_id),
+  };
 }
 
 /**
@@ -58,10 +64,20 @@ export async function fetchGanttMetricsRawData(projectIds) {
 
   const { data: allProjects } = await supabase
     .from('projects')
-    .select('id,scope,template_type')
+    .select('id,scope,template_type,template_id')
     .in('id', projectIds);
 
-  return { allTasks, allVisits, allProjects };
+  const templatesById = await fetchTemplateRecordsByIds((allProjects ?? []).map(project => project.template_id));
+  return {
+    allTasks,
+    allVisits,
+    allProjects: (allProjects ?? []).map(project => ({
+      ...project,
+      templateType: project.template_type,
+      templateId: project.template_id,
+      scopeTemplate: templatesById.get(project.template_id) ?? null,
+    })),
+  };
 }
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────

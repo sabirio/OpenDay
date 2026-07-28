@@ -16,7 +16,7 @@ import { validateTemplate, explainFromSnapshot, explainLive, taskProgressFromSta
 import { constructionRetailV1 } from '../../domains/construction/templates/constructionRetailV1.js';
 import { getScopedGanttWorkPackagesV2, isZonedTemplate } from '../projects/grouping/getWPGrouping.js';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate.js';
-import { ALL_WORK_PACKAGES_V2 } from '../../domains/construction/templates/retailFitoutV2.js';
+import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
 import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea.js';
 
 const EXPLAIN_TEMPLATE_V1 = { workPackages: GANTT_WPS, phases: constructionRetailV1.phases };
@@ -98,7 +98,7 @@ function buildPreviousMergedStatuses({ prevReport, selectedReport, projectReport
   return mergeOldDerivedStatuses(reportsUpToPrev.map(deriveWPStatusesFromOldReport));
 }
 
-function buildExplainResult({ selectedReport, mergedStatuses, engineOutputs, selectedProject, overallProgress, isV2, v2ProgressTemplate }) {
+function buildExplainResult({ selectedReport, mergedStatuses, engineOutputs, selectedProject, overallProgress, isV2, v2ProgressTemplate, scopeTemplate }) {
   if (!isWPReport(selectedReport) || !mergedStatuses) return null;
 
   try {
@@ -110,7 +110,7 @@ function buildExplainResult({ selectedReport, mergedStatuses, engineOutputs, sel
     }
 
     const scopeWPIds = isV2
-      ? getScopeWPIds(selectedProject?.scope, ALL_WORK_PACKAGES_V2)
+      ? getScopeWPIds(selectedProject?.scope, scopeTemplate.workPackages)
       : getScopeWPIds(selectedProject?.scope, GANTT_WPS);
     return explainLive(explainTemplate, scopeWPIds, taskProgress, overallProgress);
   } catch {
@@ -136,10 +136,11 @@ export function buildWeeklyReportReviewModel({
   const additionalWorksList = computeAdditionalWorksSummary(sortReportsAscending(projectReports));
   const scope = selectedProject?.scope ?? null;
   const isV2 = isZonedTemplate(selectedProject?.templateType);
+  const scopeTemplate = resolveProjectScopeTemplate(selectedProject);
   const v2ProgressTemplate = isV2
-    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(selectedProject), scope?.zones ?? null, scope?.categories ?? null)
+    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(selectedProject), scope?.zones ?? null, scope?.categories ?? null, scopeTemplate)
     : null;
-  const scopedGanttWPs = isV2 ? getScopedGanttWorkPackagesV2(scope) : getScopedGanttWorkPackages(scope);
+  const scopedGanttWPs = isV2 ? getScopedGanttWorkPackagesV2(scope, scopeTemplate) : getScopedGanttWorkPackages(scope);
   const displayWorkPackages = isWPReport(selectedReport) ? scopedGanttWPs : legacyWorkPackages;
   const mergedStatuses = buildMergedStatuses({ selectedReport, projectReports, scopedGanttWPs, legacyWorkPackages });
   const prevMergedStatuses = buildPreviousMergedStatuses({ prevReport, selectedReport, projectReports });
@@ -148,7 +149,7 @@ export function buildWeeklyReportReviewModel({
   const progressSeries = computeProgressSeries(selectedProject?.progressHistory ?? []);
 
   const fullPhaseList = isWPReport(selectedReport)
-    ? (isV2 ? getScopedGanttWorkPackagesV2(null) : getScopedGanttWorkPackages(null))
+    ? (isV2 ? getScopedGanttWorkPackagesV2(null, scopeTemplate) : getScopedGanttWorkPackages(null))
     : legacyWorkPackages;
   const scopePhaseIds = displayWorkPackages.map(p => p.id);
   const overrides = scope?.weightOverrides;
@@ -175,6 +176,7 @@ export function buildWeeklyReportReviewModel({
     overallProgress,
     isV2,
     v2ProgressTemplate,
+    scopeTemplate,
   });
 
   return {

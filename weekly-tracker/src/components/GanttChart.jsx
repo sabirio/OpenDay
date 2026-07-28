@@ -447,9 +447,8 @@ export default function GanttChart({
       constructionStartDate: project?.constructionStartDate ?? keyDates?.constructionStartDate,
       constructionEndDate:   project?.constructionEndDate   ?? keyDates?.constructionEndDate,
     };
-    return calculateLayout(tasks, zoom, containerW, enrichedKeyDates, discrepancies, collapseState, project?.templateType);
-  }, [layoutProp, tasks, zoom, containerW, keyDates, discrepancies, collapseState,
-      project?.constructionStartDate, project?.constructionEndDate, project?.templateType]);
+    return calculateLayout(tasks, zoom, containerW, enrichedKeyDates, discrepancies, collapseState, project);
+  }, [layoutProp, tasks, zoom, containerW, keyDates, discrepancies, collapseState, project]);
 
   // Scroll to today on mount / zoom change.
   //
