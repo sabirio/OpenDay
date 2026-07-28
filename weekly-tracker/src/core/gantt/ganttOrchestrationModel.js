@@ -11,7 +11,7 @@ export { isGanttStale };
 import { computeSPIFromTasks, computeCriticalHealth } from '../../engines/spiEngine';
 import { getSPIStatus } from '../../config/statusColors';
 import { DEPENDENCY_RULES } from '../../config/dependencyRules';
-import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
+import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds';
 import { WORK_PACKAGES as GANTT_WPS } from '../../config/masterTaskLibrary';
 import { V2_TEMPLATE_TYPE as V2_TEMPLATE_ID } from '../../domains/construction/templates/retailFitoutV2';
 import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
@@ -142,6 +142,19 @@ export async function regenerateGantt(projectId) {
   let ganttResult, constructionCompletionDate, projectedOpeningDate;
   if (isV2) {
     const scope = project.scope || {};
+    // Slice 5C: WP-level selection (selectedWPIds) is schema-version-aware —
+    // resolveProjectScopeSelection owns that branch entirely (schemaVersion 1
+    // keeps the exact legacy "empty array = unset/full" shortcut;
+    // schemaVersion 2 is explicit-only), so this call site never re-decides
+    // null/empty/schemaVersion meaning itself. Zone/category filtering
+    // (activeZoneIds/activeCategoryIds) is a separate, pre-existing concept
+    // this slice does not touch.
+    const schemaVersion = project.scopeTemplate?.data?.schemaVersion;
+    const selectedWPIds = resolveProjectScopeSelection({
+      scope,
+      workPackages: resolveProjectScopeTemplate(project).workPackages,
+      schemaVersion,
+    });
     ({ ganttResult, constructionCompletionDate, projectedOpeningDate } = buildV2GanttResult(
       project.construction_start_date,
       projectEndDate,
@@ -150,7 +163,7 @@ export async function regenerateGantt(projectId) {
         zoneAreas:         resolveEffectiveV2ZoneAreas(project),
         activeZoneIds:     scope.zones?.length > 0 ? scope.zones : null,
         activeCategoryIds: scope.categories?.length > 0 ? scope.categories : null,
-        selectedWPIds:     scope.workPackages?.length > 0 ? scope.workPackages : null,
+        selectedWPIds,
         scopeTemplate:     project.scopeTemplate,
       }
     ));
@@ -251,8 +264,13 @@ export async function loadAllGanttMetrics(projectIds) {
   const scopeWPIdsMap = new Map();
   for (const p of allProjects || []) {
     const resolved = resolveProjectScopeTemplate(p);
-    const wpList = p.template_type === V2_TEMPLATE_ID ? resolved.workPackages : GANTT_WPS;
-    scopeWPIdsMap.set(p.id, getScopeWPIds(p.scope ?? null, wpList));
+    const isV2 = p.template_type === V2_TEMPLATE_ID;
+    const wpList = isV2 ? resolved.workPackages : GANTT_WPS;
+    scopeWPIdsMap.set(p.id, resolveProjectScopeSelection({
+      scope: p.scope ?? null,
+      workPackages: wpList,
+      schemaVersion: isV2 ? resolved?.data?.schemaVersion : undefined,
+    }));
   }
 
   const tasksByProject = new Map();

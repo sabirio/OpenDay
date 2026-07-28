@@ -7,6 +7,12 @@ import {
 import { DEPENDENCY_RULES_V2 } from '../../../config/dependencyRulesV2.js';
 
 export const SCOPE_TEMPLATE_SCHEMA_VERSION = 1;
+// Slice 5C — Master Catalog contract foundation. schemaVersion 2 is a
+// distinct, explicit contract for comprehensive-catalog templates (Catalog +
+// Default Scope + applicability/classification metadata) — NOT a silent
+// extension of schemaVersion 1's semantics. See config/TEMPLATE_MODEL.md's
+// "Master Catalog contract foundation — schemaVersion 2" section.
+export const MASTER_CATALOG_SCHEMA_VERSION = 2;
 export const ZONED_SCOPE_MODEL = 'zoned';
 export const RETAIL_FITOUT_V2_FAMILY = V2_TEMPLATE_TYPE;
 export const RETAIL_FITOUT_V2_FAMILY_ID = '8fd1ec34-81b7-4e2f-aafd-ae8d610f77f8';
@@ -67,8 +73,175 @@ export function isVersionedV2TemplateData(data) {
   );
 }
 
+/**
+ * Shared physical-shape check (Slice 5C): schemaVersion 1 and schemaVersion 2
+ * templates use the identical zones -> categories -> workPackages layout —
+ * only schemaVersion 2 additionally requires `defaultScope`. Structural
+ * extraction helpers (getScopeTemplateWorkPackages/Dependencies/Grouping,
+ * resolveV2TemplateData, resolveProjectScopeTemplate's pinned branch) gate on
+ * THIS, not on isVersionedV2TemplateData alone — otherwise a project pinned
+ * to a real schemaVersion 2 template would silently fail this v1-only check
+ * and fall back to the static legacy catalog, which is a correctness bug,
+ * not a version-semantics decision (schemaVersion itself is read separately,
+ * e.g. by resolveProjectScopeSelection, so this sharing never blurs the
+ * "do not silently extend schemaVersion 1 semantics" contract rule).
+ */
+function isZonedTemplateShape(data) {
+  return Boolean(
+    data
+    && data.model === ZONED_SCOPE_MODEL
+    && data.templateType === V2_TEMPLATE_TYPE
+    && Array.isArray(data.zones)
+    && Array.isArray(data.dependencies)
+  );
+}
+
+/**
+ * Structural (shape) check for a schemaVersion 2 Master Catalog template —
+ * same zoned physical layout as schemaVersion 1, plus a required
+ * `defaultScope.workPackageIds` array. Deliberately mirrors
+ * isVersionedV2TemplateData's shape rather than reusing/relaxing it, per the
+ * "do not silently extend schemaVersion 1 semantics" contract rule — a v1
+ * template can never satisfy this, and vice versa.
+ */
+export function isMasterCatalogTemplateData(data) {
+  return Boolean(
+    data
+    && data.schemaVersion === MASTER_CATALOG_SCHEMA_VERSION
+    && data.model === ZONED_SCOPE_MODEL
+    && data.templateType === V2_TEMPLATE_TYPE
+    && Array.isArray(data.zones)
+    && Array.isArray(data.dependencies)
+    && data.defaultScope
+    && typeof data.defaultScope === 'object'
+    && !Array.isArray(data.defaultScope)
+    && Array.isArray(data.defaultScope.workPackageIds)
+  );
+}
+
+/**
+ * One canonical template-contract discriminator (Phase 8): the schema
+ * version is always explicit and read from `data.schemaVersion` — never
+ * inferred from the presence/absence of a field like `defaultScope`.
+ * Returns null when `data` matches neither known contract.
+ */
+export function getTemplateContractVersion(data) {
+  if (isMasterCatalogTemplateData(data)) return MASTER_CATALOG_SCHEMA_VERSION;
+  if (isVersionedV2TemplateData(data)) return SCOPE_TEMPLATE_SCHEMA_VERSION;
+  return null;
+}
+
+const CATALOG_CLASSES = new Set(['core', 'optional', 'specialized']);
+
+// Approved controlled vocabulary for applicabilityTags (Slice 5C Phase 7).
+// Structure/vocabulary only — this metadata does not drive any selection or
+// recommendation logic in this slice.
+const APPLICABILITY_TAG_VOCAB = {
+  projectType: new Set(['new_fitout', 'refurbishment', 'relocation', 'minor_refresh']),
+  location: new Set(['mall', 'street', 'large_format']),
+  retailProfile: new Set(['fashion', 'electronics', 'beauty', 'jewelry', 'grocery', 'specialty']),
+  system: new Set([
+    'sprinklered', 'smoke_extraction', 'vrf_vrv', 'chilled_water', 'bms',
+    'self_checkout', 'digital_signage', 'refrigeration', 'food_service',
+    'high_security', 'customer_wc',
+  ]),
+};
+
+function collectCatalogWorkPackages(data) {
+  // Version-agnostic on purpose (v1 and v2 share the same zones/categories/
+  // workPackages physical layout) — deliberately not reusing
+  // getScopeTemplateWorkPackages, which gates on isVersionedV2TemplateData
+  // (schemaVersion 1 only) and would reject v2 data outright.
+  return (data.zones ?? []).flatMap(zone =>
+    (zone.categories ?? []).flatMap(category =>
+      (category.workPackages ?? []).map(wp => ({ ...wp, zoneId: zone.id, categoryId: category.id }))
+    )
+  );
+}
+
+/**
+ * Deep semantic validation for a schemaVersion 2 template, beyond the
+ * structural check in isMasterCatalogTemplateData. Mirrors the
+ * {severity, code, message} issue-list convention already used by
+ * engines/templateValidationEngine.js's validateTemplate() for the legacy
+ * flat-template shape.
+ *
+ * Validates: defaultScope.workPackageIds are unique and every id exists in
+ * this same template's catalog; catalogClass (where present) is one of
+ * core/optional/specialized; applicabilityTags (where present) use only the
+ * approved controlled vocabulary. An empty defaultScope.workPackageIds list
+ * is NOT an error — Phase 5's contract explicitly allows it.
+ */
+export function validateMasterCatalogTemplateData(data) {
+  if (!isMasterCatalogTemplateData(data)) {
+    return [{ severity: 'error', code: 'INVALID_SHAPE', message: 'Not a structurally valid schemaVersion 2 Master Catalog template.' }];
+  }
+
+  const issues = [];
+  const catalogWPs = collectCatalogWorkPackages(data);
+  const catalogIds = new Set(catalogWPs.map(wp => wp.id));
+
+  const seenDefaultIds = new Set();
+  for (const id of data.defaultScope.workPackageIds) {
+    if (seenDefaultIds.has(id)) {
+      issues.push({ severity: 'error', code: 'DUP_DEFAULT_SCOPE_ID', message: `Duplicate defaultScope work package id "${id}".` });
+    }
+    seenDefaultIds.add(id);
+    if (!catalogIds.has(id)) {
+      issues.push({ severity: 'error', code: 'UNKNOWN_DEFAULT_SCOPE_ID', message: `defaultScope references unknown work package id "${id}".` });
+    }
+  }
+
+  for (const wp of catalogWPs) {
+    if (wp.catalogClass !== undefined && !CATALOG_CLASSES.has(wp.catalogClass)) {
+      issues.push({ severity: 'error', code: 'INVALID_CATALOG_CLASS', message: `Work package "${wp.id}" has invalid catalogClass "${wp.catalogClass}".` });
+    }
+
+    if (wp.applicabilityTags !== undefined) {
+      const tags = wp.applicabilityTags;
+      if (typeof tags !== 'object' || tags === null || Array.isArray(tags)) {
+        issues.push({ severity: 'error', code: 'INVALID_APPLICABILITY_TAGS', message: `Work package "${wp.id}" applicabilityTags must be an object.` });
+      } else {
+        for (const [dimension, values] of Object.entries(tags)) {
+          const vocab = APPLICABILITY_TAG_VOCAB[dimension];
+          if (!vocab) {
+            issues.push({ severity: 'error', code: 'UNKNOWN_APPLICABILITY_DIMENSION', message: `Work package "${wp.id}" applicabilityTags has unknown dimension "${dimension}".` });
+            continue;
+          }
+          if (!Array.isArray(values)) {
+            issues.push({ severity: 'error', code: 'INVALID_APPLICABILITY_TAGS', message: `Work package "${wp.id}" applicabilityTags.${dimension} must be an array.` });
+            continue;
+          }
+          for (const value of values) {
+            if (!vocab.has(value)) {
+              issues.push({ severity: 'error', code: 'UNKNOWN_APPLICABILITY_VALUE', message: `Work package "${wp.id}" applicabilityTags.${dimension} has unsupported value "${value}".` });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
+export function isMasterCatalogTemplateValid(data) {
+  return validateMasterCatalogTemplateData(data).every(issue => issue.severity !== 'error');
+}
+
+/**
+ * Canonical default-selection source of truth for a schemaVersion 2
+ * template: `defaultScope.workPackageIds`. There is no second,
+ * independently-persisted "defaultSelected" flag anywhere — presentation
+ * code derives per-WP default-selected state by membership in this list.
+ * Returns a fresh array (never the template's own array reference).
+ */
+export function getDefaultScopeWorkPackageIds(data) {
+  return isMasterCatalogTemplateData(data) ? [...data.defaultScope.workPackageIds] : [];
+}
+
 export function getScopeTemplateWorkPackages(data) {
-  if (!isVersionedV2TemplateData(data)) return [];
+  if (!isZonedTemplateShape(data)) return [];
   return data.zones.flatMap(zone =>
     (zone.categories ?? []).flatMap(category =>
       (category.workPackages ?? []).map(wp => ({
@@ -82,7 +255,7 @@ export function getScopeTemplateWorkPackages(data) {
 }
 
 export function getScopeTemplateDependencies(data) {
-  if (!isVersionedV2TemplateData(data)) return [];
+  if (!isZonedTemplateShape(data)) return [];
   return data.dependencies.map(rule => ({
     from: rule.from,
     to: rule.to,
@@ -92,7 +265,7 @@ export function getScopeTemplateDependencies(data) {
 }
 
 export function getScopeTemplateGrouping(data, wpId) {
-  if (!isVersionedV2TemplateData(data)) return null;
+  if (!isZonedTemplateShape(data)) return null;
   for (const zone of data.zones) {
     for (const category of (zone.categories ?? [])) {
       const wp = (category.workPackages ?? []).find(candidate => candidate.id === wpId);
@@ -113,8 +286,8 @@ export function getScopeTemplateGrouping(data, wpId) {
 }
 
 export function resolveV2TemplateData(projectOrTemplate = null) {
-  if (isVersionedV2TemplateData(projectOrTemplate)) return projectOrTemplate;
-  if (isVersionedV2TemplateData(projectOrTemplate?.data)) return projectOrTemplate.data;
+  if (isZonedTemplateShape(projectOrTemplate)) return projectOrTemplate;
+  if (isZonedTemplateShape(projectOrTemplate?.data)) return projectOrTemplate.data;
   if (projectOrTemplate?.templateType === V2_TEMPLATE_TYPE) {
     return resolveProjectScopeTemplate(projectOrTemplate)?.data
       ?? materializeRetailFitoutV2TemplateData();
@@ -156,7 +329,7 @@ export function resolveProjectScopeTemplate(project, context = {}) {
     : null;
   const pinned = normalizeTemplateRecord(pinnedCandidate);
 
-  if (pinned?.data && isVersionedV2TemplateData(pinned.data)) {
+  if (pinned?.data && isZonedTemplateShape(pinned.data)) {
     return {
       ...pinned,
       source: 'pinned',

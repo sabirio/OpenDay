@@ -5,7 +5,7 @@ import {
   getScopeTemplateWorkPackages,
   resolveV2TemplateData,
 } from '../../../domains/construction/templates/versionedScopeTemplate.js';
-import { getScopeWPIds } from '../scope/getScopeWPIds.js';
+import { resolveProjectScopeSelection } from '../scope/getScopeWPIds.js';
 
 /**
  * Single source of truth for "how should this work package's row be
@@ -56,7 +56,7 @@ export function isZonedTemplate(templateType) {
 export function getScopedGanttWorkPackagesV2(scope = null, projectOrTemplate = null) {
   const data = resolveV2TemplateData(projectOrTemplate);
   const workPackages = getScopeTemplateWorkPackages(data);
-  const scopedWPIds = getScopeWPIds(scope, workPackages); // null = full scope
+  const scopedWPIds = resolveProjectScopeSelection({ scope, workPackages, schemaVersion: data?.schemaVersion }); // null = full scope (schema v1); [] = explicitly empty (schema v2)
   const categoryIds = scope?.categories ?? null;                  // null = all categories
   const byCategory = new Map();
 

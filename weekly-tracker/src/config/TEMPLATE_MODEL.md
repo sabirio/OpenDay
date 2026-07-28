@@ -94,6 +94,85 @@ where `canonicalWorkPackages` = `masterTaskLibrary.WORK_PACKAGES` or `constructi
   bootstrap definition and explicit legacy compatibility source. Runtime
   semantics for pinned projects come from the resolved persisted version.
 
+## Master Catalog contract foundation — schemaVersion 2 (Slice 5C, 2026-07-28)
+
+Adds a second, explicit template **contract version** for `retail-fitout-v2`
+family templates — a distinct axis from the zoned/flat model above.
+`schemaVersion` (`templates.data.schemaVersion`) is the contract version,
+always read explicitly, never inferred from field presence:
+
+- **schemaVersion 1** (legacy, unchanged): today's certified 91-WP template
+  and every template like it. `getScopeWPIds()`'s existing "empty/null scope
+  = full template" shorthand is preserved byte-for-byte — this slice does not
+  touch it.
+- **schemaVersion 2** (Master Catalog): a distinct, explicit contract for
+  future comprehensive-catalog templates (e.g. the planned 221-WP Retail
+  Fit-Out catalog). **This slice adds only the contract — no schemaVersion 2
+  template with real catalog content exists yet.** No v1 template is
+  reinterpreted as v2, and no v1 semantics silently extend to it.
+
+### Three distinct concepts — do not conflate
+
+1. **Master Catalog** — the full set of work packages a schemaVersion 2
+   template defines (`data.zones[].categories[].workPackages[]`, same
+   zones→categories→workPackages physical shape as v1).
+2. **Default Scope** — `data.defaultScope.workPackageIds`, the template's own
+   canonical "what a brand-new project starts with" list. This is the
+   **single source of truth** for default selection — there is no parallel
+   `defaultSelected: true/false` flag persisted per WP; UI/presentation
+   derives default-selected state purely by membership in this array
+   (`getDefaultScopeWorkPackageIds()`).
+3. **Project Scope** — `project.scope.workPackages`, one project's own
+   selection, initialized from Default Scope at creation
+   (`buildNewProjectDraft`) and independently mutable afterward. Editing a
+   project's scope never mutates the template's `defaultScope` (verified:
+   `getDefaultScopeWorkPackageIds()` always returns a fresh array copy).
+
+### null / `[]` / explicit-ids semantics — schema-version-dependent, never ambiguous
+
+`resolveProjectScopeSelection({ scope, workPackages, schemaVersion })`
+(`core/projects/scope/getScopeWPIds.js`) is the **one** canonical resolver for
+this — engines, Gantt generation, and reports all call it instead of each
+deciding null/empty/schemaVersion meaning themselves:
+
+| schemaVersion | `scope` absent / `workPackages` absent | `scope.workPackages: []` | `scope.workPackages: [ids]` |
+|---|---|---|---|
+| 1 / legacy (unversioned) | full template (unchanged `getScopeWPIds` shorthand) | full template (unchanged shorthand) | exactly those ids |
+| 2 (Master Catalog) | **zero** selected | **zero** selected | exactly those ids (unknown ids dropped) |
+
+Schema v2 never uses emptiness as shorthand for "everything" — a real,
+explicit id list (`FULL_CATALOG` helper or equivalent) would be required to
+select the whole catalog, and this slice does not add one. "Reset to
+Default" (`resolveResetProjectScopeSelection`) always restores
+`defaultScope.workPackageIds`, never the full catalog and never a prior
+customization.
+
+### catalogClass and applicabilityTags — descriptive metadata only
+
+- `catalogClass: 'core' | 'optional' | 'specialized'` (optional, per WP) is
+  **purely descriptive** — "core" does **not** mean mandatory. It has no
+  effect on weights, Gantt scheduling, progress calculation, or whether a PM
+  can remove the WP from a project's scope.
+- `applicabilityTags` (optional, per WP; controlled vocabulary across
+  `projectType`/`location`/`retailProfile`/`system` dimensions — see
+  `versionedScopeTemplate.js`'s `APPLICABILITY_TAG_VOCAB`) is structure- and
+  vocabulary-validated only (`validateMasterCatalogTemplateData`). **It does
+  not drive any automatic scope selection or recommendation logic in this
+  slice** — that is explicitly reserved for a future, separately-approved
+  slice.
+
+### What this slice does NOT do
+
+No schemaVersion 2 template with real content exists after this slice — the
+next slice (after separate approval) materializes the approved Retail
+Fit-Out Master Catalog as a new immutable template version. This slice adds
+only: the schemaVersion 2 contract + validation (`isMasterCatalogTemplateData`,
+`validateMasterCatalogTemplateData`), migration 042 (additive `templates`
+CHECK-constraint widening, no RLS change, no row rewrite), the canonical
+resolver plumbing above, and a small deterministic 5-WP test fixture
+(`domains/construction/templates/masterCatalogSchemaV2.test.mjs`) — never the
+real catalog.
+
 ## Retail Fit-Out v2 — zoned (zone → category → work-package) template (2026-07-07)
 
 A second, fully isolated template model was added end-to-end: seeding, dependencies, scope,

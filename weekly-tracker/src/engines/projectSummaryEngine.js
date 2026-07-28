@@ -7,7 +7,7 @@
 // eslint-disable-next-line no-restricted-imports
 import { WORK_PACKAGES, WP_STATUS_SCORES, computePackageProgress } from '../config/workPackages';
 import { getPhasesInOrder, WORK_PACKAGES as GANTT_WPS } from '../config/masterTaskLibrary';
-import { getScopeWPIds } from '../core/projects/scope/getScopeWPIds';
+import { resolveProjectScopeSelection } from '../core/projects/scope/getScopeWPIds';
 import { DAY_MS, isMissingReport, SCHEDULE_STATUS } from '../utils/reportUtils';
 import { calculatePhaseProgress } from './progressEngine';
 import { computeProjectRiskScore, getRiskLevel } from './riskEngine';
@@ -40,7 +40,11 @@ function resolveOpeningReadinessInputs(project) {
   const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
   const scopeTemplate = resolveProjectScopeTemplate(project);
   return {
-    scopeWPIds: getScopeWPIds(project?.scope, isV2 ? scopeTemplate.workPackages : GANTT_WPS),
+    scopeWPIds: resolveProjectScopeSelection({
+      scope: project?.scope,
+      workPackages: isV2 ? scopeTemplate.workPackages : GANTT_WPS,
+      schemaVersion: isV2 ? scopeTemplate?.data?.schemaVersion : undefined,
+    }),
     templateOptions: isV2 ? buildV2OpeningReadinessOptions(scopeTemplate) : null,
   };
 }

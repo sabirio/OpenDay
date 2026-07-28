@@ -27,7 +27,7 @@ import { V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFit
 import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
 import { buildV2OpeningReadinessOptions } from '../projects/scope/buildV2OpeningReadinessOptions';
-import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
+import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds';
 import { isTemplateValid } from '../projects';
 import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea';
 
@@ -63,7 +63,11 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
 
   const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
   const resolvedScopeTemplate = resolveProjectScopeTemplate(project, { templatesById });
-  const scopeWPIds = canonicalScopeWPIds ?? getScopeWPIds(project?.scope, isV2 ? resolvedScopeTemplate.workPackages : GANTT_WPS);
+  const scopeWPIds = canonicalScopeWPIds ?? resolveProjectScopeSelection({
+    scope: project?.scope,
+    workPackages: isV2 ? resolvedScopeTemplate.workPackages : GANTT_WPS,
+    schemaVersion: isV2 ? resolvedScopeTemplate?.data?.schemaVersion : undefined,
+  });
   const phaseWeightOverrides = project?.scope?.weightOverrides ?? null;
   // v2 has no pinned-template concept (templateId/templatesById is a v1-only,
   // TemplateEditor-driven mechanism) — its "template" is instead built fresh

@@ -27,6 +27,7 @@
     "cert:verify-fixture-password": "node scripts/certification/verifyFixturePasswordPersistence.mjs",
     "cert:seed:contractor-workspace": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/contractorWorkspaceFixtures.mjs",
     "cert:reset:import-phase2": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/applyImportFoundationPhase2Local.mjs",
+    "cert:reset:master-catalog": "npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/applyImportFoundationPhase2Local.mjs && node scripts/certification/applyMasterCatalogSchemaV2Local.mjs",
     "test:db": "node scripts/certification/certifyContractorReport.mjs && node scripts/certification/certifySiteVisit.mjs && node scripts/certification/certifyProgressHistory.mjs",
     "test:rls": "node scripts/certification/certifyRls.mjs",
     "test:scope-templates": "node scripts/certification/certifyVersionedScopeTemplates.mjs",

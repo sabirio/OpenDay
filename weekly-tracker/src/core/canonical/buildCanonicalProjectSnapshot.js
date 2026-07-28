@@ -1,7 +1,7 @@
 import { WORK_PACKAGES as V1_WORK_PACKAGES } from '../../config/masterTaskLibrary.js';
 import { V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2.js';
 import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
-import { getScopeWPIds } from '../projects/scope/getScopeWPIds.js';
+import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds.js';
 import { CANONICAL_SOURCE_VERSION } from './types.js';
 import { normalizeFiniteNumber } from '../../engines/canonicalCoreEngine.js';
 import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea.js';
@@ -113,7 +113,11 @@ export function buildCanonicalProjectSnapshot(raw = {}, options = {}) {
     id: String(id),
     area: finiteNumber(area, `zones.${id}.area`, warnings, { min: 0, fallback: 0 }),
   }));
-  const resolvedScopeWPIds = getScopeWPIds(project.scope, workPackages);
+  const resolvedScopeWPIds = resolveProjectScopeSelection({
+    scope: project.scope,
+    workPackages,
+    schemaVersion: resolvedTemplate?.data?.schemaVersion,
+  });
   const scopeWPIds = (resolvedScopeWPIds || workPackages.map(wp => wp.id)).map(String);
   const activeSet = new Set(scopeWPIds);
   const canonicalWPs = workPackages.map(wp => ({ ...wp, active: activeSet.has(wp.id), notApplicable: !activeSet.has(wp.id) }));

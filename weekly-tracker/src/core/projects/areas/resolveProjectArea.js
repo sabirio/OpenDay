@@ -1,3 +1,8 @@
+import {
+  MASTER_CATALOG_SCHEMA_VERSION,
+  getDefaultScopeWorkPackageIds,
+} from '../../../domains/construction/templates/versionedScopeTemplate.js';
+
 export const PROJECT_AREA_BASIS = Object.freeze({
   TOTAL_AREA: 'TOTAL_AREA',
   SALES_AREA: 'SALES_AREA',
@@ -102,4 +107,27 @@ export function mergeProjectScopeSelection(project, selection) {
 export function clearProjectScopeSelection(project) {
   const legacyZoneAreas = getLegacyV2ZoneAreas(project);
   return legacyZoneAreas ? { zoneAreas: { ...legacyZoneAreas } } : null;
+}
+
+/**
+ * Schema-aware "Reset to Default" (Slice 5C Phase 11). For schemaVersion 1
+ * this is byte-for-byte the existing clearProjectScopeSelection() behavior —
+ * unchanged, resets to `null` (= the full pinned template). For schemaVersion
+ * 2, "default" is never "full catalog": it resets to an explicit selection
+ * materialized from the template's own canonical
+ * defaultScope.workPackageIds, matching how a new schema-v2 project is
+ * already initialized (newProjectScopeOrchestration.js). "Clear All" (an
+ * explicit empty selection) and "Select All" (the full catalog), if ever
+ * exposed, are deliberately separate operations from this one — this
+ * function only ever restores the template's defined default.
+ */
+export function resolveResetProjectScopeSelection(project, template) {
+  const isMasterCatalog = template?.data?.schemaVersion === MASTER_CATALOG_SCHEMA_VERSION;
+  if (!isMasterCatalog) return clearProjectScopeSelection(project);
+
+  const legacyZoneAreas = getLegacyV2ZoneAreas(project);
+  return {
+    ...(legacyZoneAreas ? { zoneAreas: { ...legacyZoneAreas } } : {}),
+    workPackages: getDefaultScopeWorkPackageIds(template.data),
+  };
 }

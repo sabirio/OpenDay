@@ -149,7 +149,11 @@ export function buildProjectWPsV2(zoneAreas, projectStart, targetOpeningDate, st
   const template = buildV2ProgressTemplate(zoneAreas, activeZoneIds, activeCategoryIds, templateData);
 
   let activeWPs = template.workPackages;
-  if (selectedWPIds && selectedWPIds.length > 0) {
+  // null = no filter (full scope); an array — even an explicitly empty one —
+  // is a real selection and must be applied as-is (schema v2's "[] means
+  // zero WPs" contract; see resolveProjectScopeSelection). Callers that mean
+  // "no selection, use everything" pass null, never [].
+  if (selectedWPIds !== null) {
     const set = new Set(selectedWPIds);
     activeWPs = activeWPs.filter(wp => set.has(wp.id));
   }

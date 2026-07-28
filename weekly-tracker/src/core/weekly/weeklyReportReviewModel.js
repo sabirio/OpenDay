@@ -11,7 +11,7 @@ import { computeCanonicalMissingSummary } from '../../engines/portfolioEngine.js
 import { computeSiteVisitData, computeSiteVisitKpis } from '../../engines/siteVisitEngine.js';
 import { SCHEDULE_CONFIG } from '../../config/scheduleConfig.js';
 import { getScopedGanttWorkPackages, WORK_PACKAGES as GANTT_WPS, getDefaultPhaseWeights } from '../../config/masterTaskLibrary.js';
-import { getScopeWPIds } from '../projects/scope/getScopeWPIds.js';
+import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds.js';
 import { validateTemplate, explainFromSnapshot, explainLive, taskProgressFromStatuses } from '../projects/index.js';
 import { constructionRetailV1 } from '../../domains/construction/templates/constructionRetailV1.js';
 import { getScopedGanttWorkPackagesV2, isZonedTemplate } from '../projects/grouping/getWPGrouping.js';
@@ -110,8 +110,8 @@ function buildExplainResult({ selectedReport, mergedStatuses, engineOutputs, sel
     }
 
     const scopeWPIds = isV2
-      ? getScopeWPIds(selectedProject?.scope, scopeTemplate.workPackages)
-      : getScopeWPIds(selectedProject?.scope, GANTT_WPS);
+      ? resolveProjectScopeSelection({ scope: selectedProject?.scope, workPackages: scopeTemplate.workPackages, schemaVersion: scopeTemplate?.data?.schemaVersion })
+      : resolveProjectScopeSelection({ scope: selectedProject?.scope, workPackages: GANTT_WPS });
     return explainLive(explainTemplate, scopeWPIds, taskProgress, overallProgress);
   } catch {
     return null;

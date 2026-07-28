@@ -3,7 +3,7 @@ import { computeWPCumulativeStatuses, computeCumulativeStatuses } from '../../ut
 import { calculateProjectProgressResult, calculateRawWPAverageProgress, resolveLegacyTaskEffectiveProgressPct } from '../../engines/progressEngine';
 import { getWPGrouping, isZonedTemplate } from '../projects/grouping/getWPGrouping';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
-import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
+import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds';
 import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
 import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea';
 // Audited, intentional legacy-fallback import (P0 data-integrity fix, see
@@ -112,7 +112,9 @@ export function buildContractorReportSubmission({
   const allReports = [...projectReports, mainReportPayload];
   const wpCum  = computeWPCumulativeStatuses(allReports);
   const legCum = computeCumulativeStatuses(allReports);
-  const scopeWPIds = isV2 ? getScopeWPIds(project.scope, scopeTemplate.workPackages) : null;
+  const scopeWPIds = isV2
+    ? resolveProjectScopeSelection({ scope: project.scope, workPackages: scopeTemplate.workPackages, schemaVersion: scopeTemplate?.data?.schemaVersion })
+    : null;
   const v2Template = isV2
     ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project.scope?.zones ?? null, project.scope?.categories ?? null, scopeTemplate)
     : null;
