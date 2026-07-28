@@ -18,7 +18,7 @@ import { retailFitoutV2, CATEGORY_LIBRARY } from '../../../domains/construction/
  * (contractorReportAdapter.js/ContractorReport.jsx's v2 submit path builds
  * it that way — see buildV2WorkPackageStatuses in contractorReportAdapter.js).
  *
- * @param {Record<string, number>} [zoneAreas] — project.scope.zoneAreas, e.g. { sales: 700, boh: 300 }
+ * @param {Record<string, number>} [zoneAreas] — effective inputs supplied by the project-area resolver
  * @param {string[]|null} [activeZoneIds] — null = every zone active (project.scope.zones)
  * @param {string[]|null} [activeCategoryIds] — null = every category active (project.scope.categories)
  * @returns {{ workPackages: Array<{id:string,label:string,phaseId:string,duration_pct:number}>, phases: Array<{id:string,label:string,progressWeight:number,order:number}> }}

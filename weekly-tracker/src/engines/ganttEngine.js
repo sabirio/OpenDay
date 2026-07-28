@@ -118,7 +118,7 @@ export function buildProjectWPs(templateId, projectStart, targetOpeningDate, sto
  * from getWPGrouping(), never from this stored value — see that file's doc
  * comment.
  *
- * @param {Record<string, number>} zoneAreas — project.scope.zoneAreas, e.g. { sales: 700, boh: 300 }
+ * @param {Record<string, number>} zoneAreas — effective inputs supplied by the project-area resolver
  * @param {Date|string} projectStart
  * @param {Date|string} targetOpeningDate
  * @param {number} storeSizeSqm

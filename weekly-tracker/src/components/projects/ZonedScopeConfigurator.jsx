@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { retailFitoutV2, CATEGORY_LIBRARY, V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2';
 import { computeZoneWeights } from '../../hooks/useZoneWeights';
+import { resolveProjectAreaContext } from '../../hooks/useProjectAreaPresentation';
 
 const ALL_ZONE_IDS = retailFitoutV2.zones.map(z => z.id);
 const ALL_CATEGORY_IDS = retailFitoutV2.zones.flatMap(z => z.categories.map(c => c.id));
@@ -14,19 +15,23 @@ const ZONE_LABELS = { common: 'Common Areas', sales: 'Sales Floor', boh: 'Back o
  * Zone -> category -> work-package, with a live zone-weight % preview
  * (computeZoneWeights) that reacts to which zones/areas are active.
  *
- * `areas` (project.scope.zoneAreas, e.g. { sales: 700, boh: 300 }) is
- * read-only here — it's edited in ProjectEditorModal.jsx's "Zone Areas (m²)"
- * section, not in this modal; the parent merges it back into `scope` on save
- * (see Projects.jsx) so saving a new selection here never wipes it out.
+ * Area inputs are resolved below React from canonical project facts, with
+ * explicit legacy compatibility. This component only displays the resolved
+ * context and consumes it for the existing weight preview.
  */
-export default function ZonedScopeConfigurator({ initialScope, areas = {}, onSave, onClose }) {
+export default function ZonedScopeConfigurator({ project, initialScope, onSave, onClose }) {
   const [activeZoneIds, setActiveZoneIds] = useState(new Set(initialScope?.zones ?? ALL_ZONE_IDS));
   const [activeCategoryIds, setActiveCategoryIds] = useState(new Set(initialScope?.categories ?? ALL_CATEGORY_IDS));
   const [activeWPIds, setActiveWPIds] = useState(new Set(initialScope?.workPackages ?? ALL_WP_IDS));
   const [expandedZones, setExpandedZones] = useState(new Set(ALL_ZONE_IDS));
   const [expandedCategories, setExpandedCategories] = useState(new Set());
 
-  const zoneWeights = computeZoneWeights(retailFitoutV2, areas, [...activeZoneIds]);
+  const areaContext = resolveProjectAreaContext(project);
+  const zoneWeights = computeZoneWeights(retailFitoutV2, areaContext.zoneAreas, [...activeZoneIds]);
+
+  const displayArea = value => value == null
+    ? 'Not set'
+    : `${new Intl.NumberFormat().format(value)} m²`;
 
   function toggleZoneExpanded(zoneId) {
     setExpandedZones(prev => {
@@ -143,16 +148,44 @@ export default function ZonedScopeConfigurator({ initialScope, areas = {}, onSav
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="zoned-scope-title"
         style={{ background: 'var(--bg-surface)', borderRadius: 16, boxShadow: 'var(--shadow-lg)', width: '90vw', maxWidth: 680, maxHeight: '88vh', display: 'flex', flexDirection: 'column', border: '1px solid var(--border)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Configure Zoned Scope</div>
+            <div id="zoned-scope-title" style={{ fontWeight: 700, fontSize: 16, color: 'var(--text-primary)' }}>Configure Zoned Scope</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Retail Fit-Out (Zoned) — select active zones, categories, and work packages</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1 }}>×</button>
+        </div>
+
+        <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+            Area context
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+            {[
+              ['Total Area', areaContext.totalArea],
+              ['Sales Area', areaContext.salesArea],
+              ['Back of House', areaContext.bohArea],
+            ].map(([label, value]) => (
+              <div key={label} style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{label}</div>
+                <div style={{ marginTop: 2, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {displayArea(value)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 7, fontSize: 11, color: 'var(--text-muted)' }}>
+            {areaContext.source === 'legacy-scope'
+              ? 'Historical scope areas are preserved for this existing project.'
+              : 'Derived from Project Areas. Edit area values once in the project form.'}
+          </div>
         </div>
 
         {/* Zone tree */}

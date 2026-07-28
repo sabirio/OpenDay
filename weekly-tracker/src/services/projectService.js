@@ -123,7 +123,7 @@ export function fromDB(row) {
   };
 }
 
-export function toDB(project) {
+export function toDB(project, { preserveLegacyZoneAreas = false } = {}) {
   // Mall/Street mutual exclusivity enforced at the write boundary — mirrors
   // the same invariant the trusted Import commit RPC enforces (migration
   // 039's integrity floor). Whichever field doesn't apply to the declared
@@ -157,7 +157,18 @@ export function toDB(project) {
     project_type: project.projectType || 'New Opening',
     project_status: project.projectStatus || 'Active',
     phases:      project.phases      || [],
-    scope:       project.scope       || null,
+    // Scope is persisted as selection/configuration only for new projects.
+    // Existing rows keep an explicit historical zoneAreas object verbatim;
+    // this is write-boundary compatibility, not an alternate calculation.
+    scope: (() => {
+      if (!project.scope || typeof project.scope !== 'object' || Array.isArray(project.scope)) return null;
+      const scope = { ...project.scope };
+      delete scope.zoneAreas;
+      if (preserveLegacyZoneAreas && project.scope.zoneAreas && typeof project.scope.zoneAreas === 'object' && !Array.isArray(project.scope.zoneAreas)) {
+        scope.zoneAreas = { ...project.scope.zoneAreas };
+      }
+      return Object.keys(scope).length > 0 ? scope : null;
+    })(),
     template_id: project.templateId  || null,
     // ── Gantt setup fields (PM-editable) ───────────────────────────────────
     template_type:  project.templateType  || null,
@@ -253,7 +264,7 @@ export async function getProgressSnapshot(isoWeekStr) {
 
 export async function create(project) {
   validateProject(project);
-  const payload = toDB(project);
+  const payload = toDB(project, { preserveLegacyZoneAreas: false });
   // Pin to the active template at creation time if not already set.
   if (!payload.template_id) {
     const { data: tpl } = await supabase
@@ -277,7 +288,7 @@ export async function create(project) {
 export async function update(id, project) {
   if (!id) throw new Error('Project ID is required for update');
   validateProject(project);
-  const payload = toDB(project);
+  const payload = toDB(project, { preserveLegacyZoneAreas: true });
   // template_id is immutable after creation — never overwrite on update.
   delete payload.template_id;
   const { data, error } = await supabase

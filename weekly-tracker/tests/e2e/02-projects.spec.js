@@ -5,6 +5,7 @@ import { CREDENTIALS, login, logout } from './helpers.js';
 const UNIQUE_CODE = `TEST-${Date.now()}`;
 const UNIQUE_STREET_CODE = `TEST-ST-${Date.now()}`;
 const UNIQUE_SLICE_CODE = `TEST-SLICE1-${Date.now()}`;
+const UNIQUE_AREA_CODE = `TEST-AREAS-${Date.now()}`;
 
 test.describe('Portfolio page', () => {
   test.beforeEach(async ({ page }) => {
@@ -224,6 +225,65 @@ test.describe('Portfolio page', () => {
     await expect(editDialog.locator('input[name="actualConstructionCompletionDate"]')).toHaveValue('');
     await expect(editDialog.locator('input[name="actualOpeningDate"]')).toHaveValue('');
     await expect(editDialog.getByRole('button', { name: 'Active', exact: true })).toBeVisible();
+
+    page.once('dialog', dialog => dialog.accept());
+    await editDialog.getByRole('button', { name: 'Delete Project' }).click();
+    await expect(editDialog).toBeHidden({ timeout: 15_000 });
+  });
+
+  test('new zoned project captures areas once and derives scope area context from canonical project fields', async ({ page }) => {
+    await page.getByRole('button', { name: 'Add New Project' }).click();
+    const createDialog = page.getByRole('dialog', { name: 'New Project' });
+
+    await createDialog.locator('input[name="storeCode"]').fill(UNIQUE_AREA_CODE);
+    await createDialog.locator('input[name="country"]').fill('Testland');
+    await createDialog.locator('input[name="storeSizeSqm"]').fill('1100');
+    await createDialog.locator('input[name="salesAreaSqm"]').fill('800');
+    await createDialog.locator('input[name="backOfHouseAreaSqm"]').fill('150');
+    await createDialog.locator('input[name="constructionStartDate"]').fill('2026-08-01');
+    await createDialog.locator('input[name="constructionEndDate"]').fill('2026-12-15');
+    await createDialog.getByText('Retail Fit-Out (Zoned)', { exact: false }).click();
+
+    await expect(createDialog.locator('input[name^="scope.zoneAreas."]')).toHaveCount(0);
+    await createDialog.getByRole('button', { name: /Configure Scope/i }).click();
+
+    let scopeDialog = page.getByRole('dialog', { name: 'Configure Zoned Scope' });
+    await expect(scopeDialog).toBeVisible();
+    await expect(scopeDialog.locator('input[type="number"]')).toHaveCount(0);
+    await expect(scopeDialog).toContainText(/1.100 m²/);
+    await expect(scopeDialog).toContainText('800 m²');
+    await expect(scopeDialog).toContainText('150 m²');
+    await expect(scopeDialog).toContainText('Derived from Project Areas');
+    await scopeDialog.getByRole('button', { name: 'Cancel' }).click();
+
+    await createDialog.locator('input[name="salesAreaSqm"]').fill('850');
+    await createDialog.locator('input[name="backOfHouseAreaSqm"]').fill('180');
+    await createDialog.getByRole('button', { name: /Configure Scope/i }).click();
+    scopeDialog = page.getByRole('dialog', { name: 'Configure Zoned Scope' });
+    await expect(scopeDialog).toContainText('850 m²');
+    await expect(scopeDialog).toContainText('180 m²');
+    await scopeDialog.getByRole('button', { name: 'Save Scope' }).click();
+
+    await createDialog.getByRole('button', { name: 'Create Project' }).click();
+    await expect(createDialog).toBeHidden({ timeout: 15_000 });
+
+    const row = page.locator('[data-testid="portfolio-master-project"]', { hasText: UNIQUE_AREA_CODE });
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await row.click();
+    await page.getByRole('button', { name: 'Edit Project' }).click();
+
+    const editDialog = page.getByRole('dialog', { name: 'Edit Project' });
+    await expect(editDialog.locator('input[name="storeSizeSqm"]')).toHaveValue('1100');
+    await expect(editDialog.locator('input[name="salesAreaSqm"]')).toHaveValue('850');
+    await expect(editDialog.locator('input[name="backOfHouseAreaSqm"]')).toHaveValue('180');
+    await expect(editDialog.locator('input[name^="scope.zoneAreas."]')).toHaveCount(0);
+
+    await editDialog.getByRole('button', { name: /Scope configured/i }).click();
+    scopeDialog = page.getByRole('dialog', { name: 'Configure Zoned Scope' });
+    await expect(scopeDialog).toContainText('850 m²');
+    await expect(scopeDialog).toContainText('180 m²');
+    await expect(scopeDialog.locator('input[type="number"]')).toHaveCount(0);
+    await scopeDialog.getByRole('button', { name: 'Cancel' }).click();
 
     page.once('dialog', dialog => dialog.accept());
     await editDialog.getByRole('button', { name: 'Delete Project' }).click();

@@ -31,7 +31,7 @@ const target = assertLocalTarget({ apiUrl: process.env.VITE_SUPABASE_URL, dbUrl:
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('REFUSING F-03 VERIFY: process-scoped local service key required.');
 const admin = createClient(target.apiUrl, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
-const BASE = 'http://localhost:5173';
+const BASE = 'http://127.0.0.1:5173';
 const ADMIN_CREDS = { email: 'admin@openday.fit', password: 'Admin123!' };
 
 let pass = 0, fail = 0;
@@ -67,8 +67,9 @@ try {
   await page.locator('input[name="shoppingMallName"]').fill('F03 Verify Mall');
   await page.locator('input[name="city"]').fill('Almaty');
   await page.locator('input[name="country"]').fill('Kazakhstan');
-  await page.locator('input[name="scope.zoneAreas.sales"]').fill('700');
-  await page.locator('input[name="scope.zoneAreas.boh"]').fill('300');
+  await page.locator('input[name="storeSizeSqm"]').fill('1000');
+  await page.locator('input[name="salesAreaSqm"]').fill('700');
+  await page.locator('input[name="backOfHouseAreaSqm"]').fill('300');
   await page.locator('input[name="constructionStartDate"]').fill('2026-08-01');
   await page.locator('input[name="targetOpeningDate"]').fill('2027-02-01');
   await page.getByRole('button', { name: /Create Project/i }).click();

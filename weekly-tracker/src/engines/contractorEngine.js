@@ -6,6 +6,7 @@ import { getScopeWPIds } from "../core/projects/scope/getScopeWPIds";
 import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
 import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
 import { buildV2ProgressTemplate } from "../core/projects/weights/buildV2ProgressTemplate";
+import { resolveEffectiveV2ZoneAreas } from "../core/projects/areas/resolveProjectArea";
 
 export function computeContractorScores(project, projReports, projSiteVisits, referenceDate = new Date()) {
   if (!projReports.length) {
@@ -61,7 +62,7 @@ export function computeContractorScores(project, projReports, projSiteVisits, re
   const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
   const scopeWPIds = getScopeWPIds(project?.scope, isV2 ? ALL_WORK_PACKAGES_V2 : GANTT_WPS);
   const v2Template = isV2
-    ? buildV2ProgressTemplate(project?.scope?.zoneAreas, project?.scope?.zones ?? null, project?.scope?.categories ?? null)
+    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null)
     : null;
   const wpCum  = computeWPCumulativeStatuses(projReports);
   const legCum = computeCumulativeStatuses(projReports) || {};

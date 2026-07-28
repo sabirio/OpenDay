@@ -2,9 +2,8 @@ import { Field, FieldRow, FormSection } from "./ProjectFormParts";
 import ConflictWarning from "../ConflictWarning";
 import { TEMPLATES } from "../../config/projectTemplates";
 import { PROJECT_TYPE_OPTIONS, LOCATION_TYPE_OPTIONS, STORE_CONCEPT_SUGGESTIONS } from "../../config/projectVocabulary";
-import { V2_TEMPLATE_TYPE } from "../../domains/construction/templates/retailFitoutV2";
-import { clamp } from "../../hooks/useChartMathPresentation";
 import Modal from "../shared/Modal";
+import { clearProjectScopeSelection } from "../../hooks/useProjectAreaPresentation";
 
 export default function ProjectEditorModal({
   project,
@@ -246,10 +245,8 @@ export default function ProjectEditorModal({
                   type="button"
                   onClick={() => {
                     if (t.id === project.templateType) return;
-                    // Switching templates invalidates any existing scope
-                    // selection — v1's {phases,workPackages} shape and v2's
-                    // {zones,categories,workPackages,zoneAreas} shape are not
-                    // interchangeable (see getScopeWPIds.js/ZonedScopeConfigurator.jsx).
+                    // An explicit template switch invalidates the previous
+                    // template's entire scope shape, unchanged from before.
                     onProjectPatch((p) => ({ ...p, templateType: t.id, scope: null }));
                   }}
                   style={{
@@ -268,11 +265,9 @@ export default function ProjectEditorModal({
             </div>
           </FormSection>
 
-          {/* project.scope may already be a non-null object (e.g. it holds
-              only zoneAreas, entered below, for a v2 project) without the
-              user ever having opened the scope configurator — "configured"
-              means a WP selection was actually saved (workPackages present),
-              not merely that the scope object exists. */}
+          {/* A legacy project may have an area-only scope object. "Configured"
+              still means a WP selection was saved, not merely that scope
+              exists. */}
           {(() => {
             const scopeConfigured = project.scope?.workPackages != null;
             return (
@@ -293,7 +288,7 @@ export default function ProjectEditorModal({
                 {scopeConfigured && (
                   <button
                     type="button"
-                    onClick={() => onProjectPatch((p) => ({ ...p, scope: p.scope?.zoneAreas ? { zoneAreas: p.scope.zoneAreas } : null }))}
+                    onClick={() => onProjectPatch((p) => ({ ...p, scope: clearProjectScopeSelection(p) }))}
                     style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}
                   >
                     Reset to full scope
@@ -302,47 +297,6 @@ export default function ProjectEditorModal({
               </div>
             );
           })()}
-
-          {project.templateType === V2_TEMPLATE_TYPE && (
-            <FormSection title="Zone Areas (m²)" accentColor="var(--accent)">
-              <FieldRow>
-                <Field label="Sales Floor Area">
-                  <input
-                    type="number"
-                    min="0"
-                    name="scope.zoneAreas.sales"
-                    value={project.scope?.zoneAreas?.sales ?? ''}
-                    onChange={(e) => {
-                      // Clamped to >=0 at entry (defense-in-depth, F-01) — the
-                      // engine (computeZoneWeights.js) is independently robust
-                      // to a negative value reaching it regardless.
-                      const v = e.target.value === '' ? '' : clamp(Number(e.target.value) || 0, 0, Infinity);
-                      onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, sales: v } } }));
-                    }}
-                    className="ds-input"
-                    placeholder="e.g. 700"
-                  />
-                </Field>
-                <Field label="Back of House Area">
-                  <input
-                    type="number"
-                    min="0"
-                    name="scope.zoneAreas.boh"
-                    value={project.scope?.zoneAreas?.boh ?? ''}
-                    onChange={(e) => {
-                      // Clamped to >=0 at entry (defense-in-depth, F-01) — the
-                      // engine (computeZoneWeights.js) is independently robust
-                      // to a negative value reaching it regardless.
-                      const v = e.target.value === '' ? '' : clamp(Number(e.target.value) || 0, 0, Infinity);
-                      onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, boh: v } } }));
-                    }}
-                    className="ds-input"
-                    placeholder="e.g. 300"
-                  />
-                </Field>
-              </FieldRow>
-            </FormSection>
-          )}
 
           <FormSection title="Project" accentColor="var(--status-done)">
             <FieldRow>

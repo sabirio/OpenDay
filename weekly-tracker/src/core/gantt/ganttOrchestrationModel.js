@@ -24,6 +24,11 @@ import {
   getProjectGantt,
 } from '../../services/ganttService';
 import { updateGanttDates } from '../../services/projectService';
+import {
+  PROJECT_AREA_BASIS,
+  resolveEffectiveV2ZoneAreas,
+  resolveProjectArea,
+} from '../projects/areas/resolveProjectArea';
 
 const V2_COMPLETION_MARKER = 'common.commissioning.integrated_systems_test';
 const V2_OPENING_MARKER = 'common.handover.keys_possession';
@@ -129,9 +134,9 @@ export async function regenerateGantt(projectId) {
     ({ ganttResult, constructionCompletionDate, projectedOpeningDate } = buildV2GanttResult(
       project.construction_start_date,
       projectEndDate,
-      project.store_size_sqm || 1000,
+      resolveProjectArea(project, PROJECT_AREA_BASIS.TOTAL_AREA) ?? 1000,
       {
-        zoneAreas:         scope.zoneAreas || {},
+        zoneAreas:         resolveEffectiveV2ZoneAreas(project),
         activeZoneIds:     scope.zones?.length > 0 ? scope.zones : null,
         activeCategoryIds: scope.categories?.length > 0 ? scope.categories : null,
         selectedWPIds:     scope.workPackages?.length > 0 ? scope.workPackages : null,

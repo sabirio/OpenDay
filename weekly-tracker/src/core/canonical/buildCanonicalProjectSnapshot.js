@@ -3,6 +3,7 @@ import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from '../../domains/constructi
 import { getScopeWPIds } from '../projects/scope/getScopeWPIds.js';
 import { CANONICAL_SOURCE_VERSION } from './types.js';
 import { normalizeFiniteNumber } from '../../engines/canonicalCoreEngine.js';
+import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea.js';
 
 const PROGRESS_KEYS = new Set(['progress', 'progress_pct', 'actual_progress', 'observed_progress', 'gc_progress', 'overall_progress', 'overallProgress']);
 
@@ -100,7 +101,7 @@ export function buildCanonicalProjectSnapshot(raw = {}, options = {}) {
   const contractorReports = normalizeAndSort(raw.contractorReports || raw.reports, 'contractorReports', ['reportingDate', 'report_date', 'submittedAt', 'submitted_at'], warnings);
   const siteVisits = normalizeAndSort(raw.siteVisits, 'siteVisits', ['visitDate', 'visit_date', 'submittedAt', 'submitted_at'], warnings);
   const progressHistory = normalizeAndSort(raw.progressHistory || project.progressHistory, 'progressHistory', ['recordedAt', 'recorded_at', 'reportingDate'], warnings);
-  const zoneAreas = project.scope?.zoneAreas || raw.zoneAreas || {};
+  const zoneAreas = resolveEffectiveV2ZoneAreas(project, { fallbackLegacyZoneAreas: raw.zoneAreas });
   const zones = Object.entries(zoneAreas).map(([id, area]) => ({
     id: String(id),
     area: finiteNumber(area, `zones.${id}.area`, warnings, { min: 0, fallback: 0 }),

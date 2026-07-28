@@ -165,6 +165,20 @@ check('unset actualCost is written as null', toDB({ storeCode: 'X' }).actual_cos
 check('clearing actualCost to "" is written as null (intentional clear, not a stale value)',
   toDB({ storeCode: 'X', actualCost: '' }).actual_cost === null);
 check('a real actualCost value round-trips unchanged', toDB({ storeCode: 'X', actualCost: 525000 }).actual_cost === 525000);
+check('new-project serialization removes duplicate scope zone-area numbers', (() => {
+  const out = toDB({
+    storeCode: 'X',
+    salesAreaSqm: 850,
+    backOfHouseAreaSqm: 180,
+    scope: { zones: ['common', 'sales', 'boh'], zoneAreas: { sales: 850, boh: 180 } },
+  });
+  return JSON.stringify(out.scope) === JSON.stringify({ zones: ['common', 'sales', 'boh'] });
+})());
+check('legacy update serialization preserves explicit historical scope zone areas', (() => {
+  const scope = { zones: ['common', 'sales', 'boh'], zoneAreas: { sales: 700, boh: 300 } };
+  const out = toDB({ storeCode: 'X', scope }, { preserveLegacyZoneAreas: true });
+  return JSON.stringify(out.scope) === JSON.stringify(scope);
+})());
 
 console.log('\ntoDB — forecast fields are never written by a normal save');
 

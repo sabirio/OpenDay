@@ -5,6 +5,7 @@ import { getWPGrouping, isZonedTemplate } from '../projects/grouping/getWPGroupi
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
 import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
 import { ALL_WORK_PACKAGES_V2 } from '../../domains/construction/templates/retailFitoutV2';
+import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea';
 // Audited, intentional legacy-fallback import (P0 data-integrity fix, see
 // AGENTS.md task history) — tracked in
 // src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS. Only used
@@ -112,7 +113,7 @@ export function buildContractorReportSubmission({
   const legCum = computeCumulativeStatuses(allReports);
   const scopeWPIds = isV2 ? getScopeWPIds(project.scope, ALL_WORK_PACKAGES_V2) : null;
   const v2Template = isV2
-    ? buildV2ProgressTemplate(project.scope?.zoneAreas, project.scope?.zones ?? null, project.scope?.categories ?? null)
+    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project.scope?.zones ?? null, project.scope?.categories ?? null)
     : null;
   const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template, project.scope?.weightOverrides ?? null).progress;
 

@@ -31,7 +31,7 @@ export async function archiveGanttTasks(projectId, wpIds) {
 export async function fetchProjectForGanttRegeneration(projectId) {
   const { data, error } = await supabase
     .from('projects')
-    .select('template_type, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, scope')
+    .select('template_type, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, sales_area_sqm, back_of_house_area_sqm, scope')
     .eq('id', projectId)
     .single();
   if (error) throw error;

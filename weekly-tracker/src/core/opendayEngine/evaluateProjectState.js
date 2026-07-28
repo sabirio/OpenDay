@@ -28,6 +28,7 @@ import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemp
 import { buildV2OpeningReadinessOptions } from '../projects/scope/buildV2OpeningReadinessOptions';
 import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
 import { isTemplateValid } from '../projects';
+import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea';
 
 // Mirrors WeeklyReports.jsx's gatedTemplate resolution (pinned template ->
 // fallback to the active template -> gated on isTemplateValid) so progress
@@ -67,7 +68,7 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   // from the project's own zone areas/scope via buildV2ProgressTemplate.
   const gatedTemplate = isV2 ? null : resolveGatedTemplate(project, templatesById, activeTemplateFallback);
   const v2ProgressTemplate = isV2
-    ? buildV2ProgressTemplate(project?.scope?.zoneAreas, project?.scope?.zones ?? null, project?.scope?.categories ?? null)
+    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null)
     : null;
 
   const progress = wpCumulativeStatuses

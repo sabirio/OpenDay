@@ -112,13 +112,12 @@ back-compat). Any code that reads/writes v2 WP statuses must resolve the groupin
    `isZonedTemplate(project.templateType)`; v1's `task.phaseId` path is untouched. Also added the
    missing `scopeWPIds`/v2 `template` arguments to the `calculateProjectProgressResult()` call, which
    previously always used v1 defaults regardless of project type.
-3. **`ProjectEditorModal.jsx`: "Scope configured" button false-positive.** Found live, via Playwright:
-   typing a Zone Area value patches `project.scope.zoneAreas`, which — because of the `{...p.scope}`
-   spread on a `null` scope — makes `project.scope` a truthy (but not-yet-configured) object. The
-   button's condition was `project.scope ? "configured" : "not configured"`, so simply entering a zone
-   area (before ever opening the scope picker) made it read "Scope configured (0 WPs)". Fixed to key
-   off `project.scope?.workPackages != null` instead; "Reset to full scope" now preserves `zoneAreas`
-   rather than wiping the whole `scope` object.
+3. **`ProjectEditorModal.jsx`: "Scope configured" button false-positive.** Found live, via Playwright.
+   The button keys off `project.scope?.workPackages != null`, so an area-only legacy scope object is
+   not mistaken for a saved WP selection. Canonical-area projects now enter Total/Sales/BOH once in
+   Project Areas; the shared area resolver supplies v2 weights and Gantt inputs without persisting
+   another numeric copy in `scope`. Existing projects with explicit historical `scope.zoneAreas`
+   retain those values through scope reset/edit for backward compatibility.
 
 4. **`projectSummaryEngine.js`: detail-summary readiness still used the v1 blocker graph.** `evaluateProjectState()`
    already passed v2 `ALL_WORK_PACKAGES_V2` + `buildV2OpeningReadinessOptions()` into

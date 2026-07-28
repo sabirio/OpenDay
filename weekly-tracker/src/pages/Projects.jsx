@@ -23,6 +23,12 @@ import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitout
 import { LOCATION_TYPE_OPTIONS } from "../config/projectVocabulary";
 import { computePageCount, clampPage, paginate } from "../hooks/usePortfolioPaginationPresentation";
 import MasterDetailLayout from "../components/shared/MasterDetailLayout";
+import {
+  mergeProjectScopeSelection,
+  PROJECT_AREA_BASIS,
+  resolveEffectiveV2ZoneAreas,
+  resolveProjectArea,
+} from "../hooks/useProjectAreaPresentation";
 
 const PORTFOLIO_PAGE_SIZE = 50;
 
@@ -182,7 +188,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
               : (scopeWPIds?.length > 0 ? 'custom' : newProject.templateType || 'standard_with_demo');
             const tOptions = isV2
               ? {
-                  zoneAreas: newProject.scope?.zoneAreas ?? {},
+                  zoneAreas: resolveEffectiveV2ZoneAreas(newProject),
                   activeZoneIds: newProject.scope?.zones ?? null,
                   activeCategoryIds: newProject.scope?.categories ?? null,
                   selectedWPIds: newProject.scope?.workPackages ?? null,
@@ -193,7 +199,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
               templateId,
               newProject.constructionStartDate,
               projectEndDate,
-              parseFloat(newProject.storeSizeSqm) || 1000,
+              resolveProjectArea(newProject, PROJECT_AREA_BASIS.TOTAL_AREA) ?? 1000,
               tOptions,
             );
           }
@@ -470,15 +476,10 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       {showScopeConfigurator && (
         newProject.templateType === V2_TEMPLATE_TYPE ? (
           <ZonedScopeConfigurator
+            project={newProject}
             initialScope={newProject.scope}
-            areas={newProject.scope?.zoneAreas ?? {}}
             onSave={(scope) => {
-              // ZonedScopeConfigurator only returns the zone/category/WP
-              // selection — merge back the zoneAreas the user entered
-              // separately in ProjectEditorModal's "Zone Areas" section
-              // (edited independently, in whichever order) so saving scope
-              // never wipes out already-entered areas.
-              setNewProject(p => ({ ...p, scope: { ...scope, zoneAreas: p.scope?.zoneAreas ?? {} } }));
+              setNewProject(p => ({ ...p, scope: mergeProjectScopeSelection(p, scope) }));
               setShowScopeConfigurator(false);
             }}
             onClose={() => setShowScopeConfigurator(false)}

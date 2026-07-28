@@ -17,6 +17,7 @@ import { constructionRetailV1 } from '../../domains/construction/templates/const
 import { getScopedGanttWorkPackagesV2, isZonedTemplate } from '../projects/grouping/getWPGrouping.js';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate.js';
 import { ALL_WORK_PACKAGES_V2 } from '../../domains/construction/templates/retailFitoutV2.js';
+import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea.js';
 
 const EXPLAIN_TEMPLATE_V1 = { workPackages: GANTT_WPS, phases: constructionRetailV1.phases };
 
@@ -136,7 +137,7 @@ export function buildWeeklyReportReviewModel({
   const scope = selectedProject?.scope ?? null;
   const isV2 = isZonedTemplate(selectedProject?.templateType);
   const v2ProgressTemplate = isV2
-    ? buildV2ProgressTemplate(scope?.zoneAreas, scope?.zones ?? null, scope?.categories ?? null)
+    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(selectedProject), scope?.zones ?? null, scope?.categories ?? null)
     : null;
   const scopedGanttWPs = isV2 ? getScopedGanttWorkPackagesV2(scope) : getScopedGanttWorkPackages(scope);
   const displayWorkPackages = isWPReport(selectedReport) ? scopedGanttWPs : legacyWorkPackages;
