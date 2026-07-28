@@ -29,6 +29,14 @@ export default function Modal({
   const panelRef = useRef(null);
   const previouslyFocusedRef = useRef(null);
 
+  // Mount/unmount only: grab initial focus, lock background scroll, and
+  // restore focus to whatever triggered the modal on close. This must NOT
+  // re-run on every render — callers routinely pass an inline onClose
+  // (a fresh function identity every render) and a freshly-computed isDirty
+  // boolean, so depending on those here previously stole focus back to the
+  // first focusable element (typically the close button) on every keystroke
+  // inside the modal, since typing in a controlled field re-renders the
+  // caller and therefore this Modal on every character.
   useEffect(() => {
     previouslyFocusedRef.current = document.activeElement;
     const panel = panelRef.current;
@@ -38,6 +46,18 @@ export default function Modal({
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, []);
+
+  // Separate effect for Escape/Tab handling: this one legitimately needs the
+  // current onClose/isDirty/dirtyMessage on every keystroke-triggered
+  // re-render, but re-subscribing a keydown listener (unlike the effect
+  // above) doesn't touch focus or scroll state, so it's safe for this one to
+  // re-run every render.
+  useEffect(() => {
     function requestClose() {
       if (isDirty && !window.confirm(dirtyMessage)) return;
       onClose();
@@ -63,11 +83,7 @@ export default function Modal({
     }
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      previouslyFocusedRef.current?.focus?.();
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose, isDirty, dirtyMessage]);
 
   function handleBackdropClick() {
