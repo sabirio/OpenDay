@@ -80,5 +80,61 @@ console.log('\ndiffDays / pixelsToDays / MIN_PIXELS — drag-resize helpers (Gan
   check('MIN_PIXELS is the documented 600px floor', MIN_PIXELS === 600);
 }
 
+console.log('\ncalculateLayout — Simplification Phase 2: unscheduled WPs (planned_start/end/duration null)');
+{
+  // Mixed list: scheduled, unscheduled, scheduled, unscheduled — must not
+  // throw, must not use epoch dates, must not corrupt the scheduled bars.
+  const mixed = [
+    { id: 'a', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: new Date('2026-08-01'), earlyFinish: new Date('2026-08-05'), duration_days: 4 },
+    { id: 'b', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: null, earlyFinish: null, duration_days: null },
+    { id: 'c', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: new Date('2026-08-10'), earlyFinish: new Date('2026-08-15'), duration_days: 5 },
+    { id: 'd', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: null, earlyFinish: null, duration_days: null },
+  ];
+  const layout = calculateLayout(mixed, 'month', 900, {}, [], {});
+  check('mixed scheduled/unscheduled list does not throw and returns a layout', layout !== null);
+
+  const byId = Object.fromEntries(layout.tasks.map(t => [t.id, t]));
+  check('unscheduled task b: hasSchedule=false', byId.b.hasSchedule === false);
+  check('unscheduled task b: x=null (no fake epoch position)', byId.b.x === null);
+  check('unscheduled task b: width=0 (no bar)', byId.b.width === 0);
+  check('unscheduled task d: hasSchedule=false', byId.d.hasSchedule === false);
+
+  check('scheduled task a: hasSchedule=true', byId.a.hasSchedule === true);
+  check('scheduled task a: has a real numeric x', typeof byId.a.x === 'number' && !Number.isNaN(byId.a.x));
+  check('scheduled task c: has a real numeric x', typeof byId.c.x === 'number' && !Number.isNaN(byId.c.x));
+  check('scheduled task c starts after scheduled task a (unscheduled b/d did not shift positions)',
+    byId.c.x > byId.a.x + byId.a.width);
+
+  // Timeline bounds must be derived only from the two real WP dates
+  // (2026-08-01 .. 2026-08-15, padded -2/+5), not pulled toward 1970 by the
+  // unscheduled rows' epoch coercion.
+  check('timelineStart is anchored near the real scheduled window, not 1970 epoch',
+    layout.timelineStart.getUTCFullYear() === 2026);
+  check('timelineEnd is anchored near the real scheduled window, not 1970 epoch',
+    layout.timelineEnd.getUTCFullYear() === 2026);
+}
+
+console.log('\ncalculateLayout — entirely-unscheduled task list (no bars, no crash, no epoch fallback window)');
+{
+  const allUnscheduled = [
+    { id: 'x', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: null, earlyFinish: null, duration_days: null },
+    { id: 'y', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: null, earlyFinish: null, duration_days: null },
+  ];
+  const layout = calculateLayout(allUnscheduled, 'month', 900, {}, [], {});
+  check('all-unscheduled list does not throw', layout !== null);
+  check('all-unscheduled: both tasks present as rows (still visible)', layout.tasks.length === 2);
+  check('all-unscheduled: no task has a bar', layout.tasks.every(t => t.hasSchedule === false && t.width === 0));
+  check('all-unscheduled: timeline falls back to a window anchored on today, not epoch/Invalid Date',
+    !Number.isNaN(layout.timelineStart.getTime()) &&
+    Math.abs(layout.timelineStart.getFullYear() - new Date().getFullYear()) <= 1);
+  check('all-unscheduled: zero arrows (nothing has a position to connect)', layout.arrows.length === 0);
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

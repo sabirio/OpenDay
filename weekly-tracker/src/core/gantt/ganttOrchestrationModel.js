@@ -18,6 +18,7 @@ import { resolveProjectScopeTemplate } from '../../domains/construction/template
 import {
   upsertGanttTasks,
   archiveGanttTasks,
+  unarchiveGanttTasks,
   fetchProjectForGanttRegeneration,
   fetchGanttMetricsRawData,
   getProjectGanttFull,
@@ -61,6 +62,15 @@ function buildV2GanttResult(projectStart, targetOpeningDate, storeSizeSqm, templ
   return { ganttResult, constructionCompletionDate, projectedOpeningDate };
 }
 
+// Existing automatic v1/retail-fitout-v2 generation always hands this real
+// Dates (calculateGantt never returns a null earlyStart/earlyFinish) — this
+// guard only protects a future caller (e.g. an unscheduled materialization
+// path) that passes a WP with no computed dates through the same row shape,
+// so a null here becomes a null column instead of a TypeError.
+function toISODateOrNull(date) {
+  return date != null ? date.toISOString().split('T')[0] : null;
+}
+
 function toGanttTaskRows(projectId, ganttResult) {
   return ganttResult.map((wp, i) => ({
     project_id:      projectId,
@@ -68,8 +78,8 @@ function toGanttTaskRows(projectId, ganttResult) {
     wp_label:        wp.label,
     phase_id:        wp.phaseId,
     phase_label:     wp.phaseLabel,
-    planned_start:   wp.earlyStart.toISOString().split('T')[0],
-    planned_end:     wp.earlyFinish.toISOString().split('T')[0],
+    planned_start:   toISODateOrNull(wp.earlyStart),
+    planned_end:     toISODateOrNull(wp.earlyFinish),
     duration_days:   wp.duration_days,
     is_critical:     wp.isCritical,
     is_blocker:      wp.isBlocker,
@@ -197,8 +207,8 @@ export async function regenerateGantt(projectId) {
       wp_label:        wp.label,
       phase_id:        wp.phaseId,
       phase_label:     wp.phaseLabel,
-      planned_start:   wp.earlyStart.toISOString().split('T')[0],
-      planned_end:     wp.earlyFinish.toISOString().split('T')[0],
+      planned_start:   toISODateOrNull(wp.earlyStart),
+      planned_end:     toISODateOrNull(wp.earlyFinish),
       duration_days:   wp.duration_days,
       is_critical:     wp.isCritical,
       is_blocker:      wp.isBlocker,
@@ -244,6 +254,85 @@ export async function regenerateGantt(projectId) {
   });
 
   return ganttResult;
+}
+
+/**
+ * Materialize selected Scope as UNSCHEDULED project_gantt_tasks rows —
+ * "Scope exists before Schedule." Creates one active row per newly-selected
+ * WP with planned_start/planned_end/duration_days left null, un-archives any
+ * previously-removed WP that re-enters scope, and archives (never deletes)
+ * any row that falls out of scope — the same archival semantics
+ * regenerateGantt already uses.
+ *
+ * Deliberately does NOT call calculateGantt, resolve the Duration or
+ * Dependency reference models, or compute critical path/float/forecast —
+ * this is the identity-only half of the schedule lifecycle. Contractor-owned
+ * scheduling (assigning real dates) is a separate, later step this function
+ * does not perform.
+ *
+ * Idempotent by construction, not by best-effort field round-tripping: a WP
+ * id that already has a row is left completely untouched (no upsert is ever
+ * issued for it) unless it needs un-archiving, so repeated calls with an
+ * unchanged scope — or a scope where some WPs have since been given a real
+ * contractor-submitted schedule — can never destroy or overwrite existing
+ * planned/actual/progress data.
+ *
+ * Not called from any active code path yet (see generateAndSaveGantt /
+ * regenerateGantt above, which remain the only Gantt writers wired into
+ * Create Project / scope-change today). This is a standalone foundation for
+ * a future Contractor Scheduling slice.
+ *
+ * @param {string|number} projectId
+ * @param {Array<{id: string, label?: string, phaseId?: string, phaseLabel?: string}>} scopeWPs
+ *   The caller-resolved list of currently-selected WPs — resolving WP
+ *   identity/metadata from whichever scope template is active (v1,
+ *   retail-fitout-v2, or a future Master Catalog activation) is the scope
+ *   resolver's job, not this function's; this function only knows WP ids
+ *   and display metadata, never which catalog they came from.
+ * @returns {Promise<{created: number, unarchived: number, archived: number}>}
+ */
+export async function materializeUnscheduledScheduleFromScope(projectId, scopeWPs) {
+  const existingTasks = await getProjectGanttFull(projectId);
+  const existingById = new Map(existingTasks.map(t => [t.id, t]));
+
+  const newWPs = scopeWPs.filter(wp => !existingById.has(wp.id));
+  const reenteringWPIds = scopeWPs
+    .filter(wp => existingById.get(wp.id)?.is_archived)
+    .map(wp => wp.id);
+
+  if (newWPs.length > 0) {
+    const startSortOrder = existingTasks.length;
+    const rows = newWPs.map((wp, i) => ({
+      project_id:      projectId,
+      wp_id:           wp.id,
+      wp_label:        wp.label ?? null,
+      phase_id:        wp.phaseId ?? null,
+      phase_label:     wp.phaseLabel ?? null,
+      planned_start:   null,
+      planned_end:     null,
+      duration_days:   null,
+      is_critical:     false,
+      is_blocker:      false,
+      float_days:      0,
+      actual_progress: 0,
+      status:          'not_started',
+      is_archived:     false,
+      sort_order:      startSortOrder + i,
+    }));
+    await upsertGanttTasks(rows);
+  }
+
+  if (reenteringWPIds.length > 0) {
+    await unarchiveGanttTasks(projectId, reenteringWPIds);
+  }
+
+  const scopeWPIdSet = new Set(scopeWPs.map(wp => wp.id));
+  const toArchive = existingTasks.filter(t => !t.is_archived && !scopeWPIdSet.has(t.id));
+  if (toArchive.length > 0) {
+    await archiveGanttTasks(projectId, toArchive.map(t => t.id));
+  }
+
+  return { created: newWPs.length, unarchived: reenteringWPIds.length, archived: toArchive.length };
 }
 
 /**

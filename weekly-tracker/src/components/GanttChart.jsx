@@ -162,7 +162,7 @@ function WPTooltip({ task, onClose }) {
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
         <Row label="Phase"    value={task.phaseLabel} />
         <Row label="Planned"  value={`${fmtDate(task.earlyStart)} → ${fmtDate(task.earlyFinish)}`} />
-        <Row label="Duration" value={`${task.duration_days}d`} />
+        <Row label="Duration" value={task.duration_days != null ? `${task.duration_days}d` : '—'} />
         <Row label="Progress" value={`${task.actual_progress ?? 0}%`} bold />
         {task.actual_start && <Row label="Started" value={fmtDate(task.actual_start)} />}
 
@@ -694,8 +694,13 @@ export default function GanttChart({
       // Collapsed: show summary bar across the phase row
       const pTasks = layoutTasks.filter(t => t.phaseId === phase.id);
       if (!pTasks.length) return null;
-      const minX = minOf(pTasks.map(t => t.x));
-      const maxX = maxOf(pTasks.map(t => t.x + t.width));
+      // Unscheduled tasks have x/width = null/0, not real geometry — excluded
+      // from the bounds the same way WPBar skips drawing their individual bar.
+      // A phase that is entirely unscheduled has no summary bar to show.
+      const scheduledPTasks = pTasks.filter(t => t.hasSchedule);
+      if (!scheduledPTasks.length) return null;
+      const minX = minOf(scheduledPTasks.map(t => t.x));
+      const maxX = maxOf(scheduledPTasks.map(t => t.x + t.width));
       const avg  = calculateGanttPhaseAverageProgress(pTasks);
       const bY   = phase.y + (PHASE_ROW_H - BAR_H) / 2;
       const w    = clamp(maxX - minX, 4, Infinity);
@@ -811,8 +816,10 @@ export default function GanttChart({
                 fill="transparent" style={{ cursor: 'ew-resize' }} />
             )}
 
-            {/* WP bars */}
-            {layoutTasks.map(t => {
+            {/* WP bars — unscheduled tasks (no planned_start/planned_end)
+                keep their row in the left label list but draw no bar here;
+                there is no real x/width to place one at. */}
+            {layoutTasks.filter(t => t.hasSchedule).map(t => {
               let displayTask = t;
               if (dragVisual?.wpId === t.id) {
                 const { pixelsPerDay: ppd, timelineStart: tls } = layout;

@@ -19,6 +19,7 @@ import { register } from 'node:module';
 const ganttServiceStub = `
 export function upsertGanttTasks(rows) { (globalThis.__ganttTestUpsertCalls ??= []).push(rows); return Promise.resolve(); }
 export function archiveGanttTasks(projectId, ids) { (globalThis.__ganttTestArchiveCalls ??= []).push(ids); return Promise.resolve(); }
+export function unarchiveGanttTasks(projectId, ids) { (globalThis.__ganttTestUnarchiveCalls ??= []).push(ids); return Promise.resolve(); }
 export function fetchProjectForGanttRegeneration() { return Promise.resolve(globalThis.__ganttTestProject); }
 export function fetchGanttMetricsRawData() { return Promise.resolve({ allTasks: [], allVisits: [], allProjects: [] }); }
 export function getProjectGanttFull() { return Promise.resolve([]); }

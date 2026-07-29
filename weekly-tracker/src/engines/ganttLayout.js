@@ -82,14 +82,29 @@ export function calculateLayout(
     timelineStart = addDays(new Date(keyDates.constructionStartDate), -2);
     timelineEnd   = addDays(new Date(keyDates.constructionEndDate),    5);
   } else {
-    const allDates = ganttResult.flatMap(w => [w.earlyStart, w.earlyFinish]);
+    // Unscheduled WPs (earlyStart/earlyFinish null) must never enter the
+    // timeline-bounds computation — a null here is not "no opinion", it's
+    // "no date at all", so it is filtered out rather than coerced.
+    const allDates = ganttResult
+      .flatMap(w => [w.earlyStart, w.earlyFinish])
+      .filter(d => d != null);
     if (keyDates.targetOpeningDate)          allDates.push(new Date(keyDates.targetOpeningDate));
     if (keyDates.constructionCompletionDate) allDates.push(new Date(keyDates.constructionCompletionDate));
     if (keyDates.forecastOpeningDate)        allDates.push(new Date(keyDates.forecastOpeningDate));
-    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-    timelineStart = addDays(minDate, -2);
-    timelineEnd   = addDays(maxDate, 5);
+    // Nothing scheduled at all (e.g. a fully-unscheduled workspace) — fall
+    // back to a small window anchored on today rather than Math.min/max of
+    // an empty array (which would yield Infinity/-Infinity → Invalid Date).
+    // This is a chart-viewport default, not a fabricated task date.
+    if (allDates.length === 0) {
+      const today = new Date();
+      timelineStart = addDays(today, -2);
+      timelineEnd   = addDays(today, 5);
+    } else {
+      const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+      timelineStart = addDays(minDate, -2);
+      timelineEnd   = addDays(maxDate, 5);
+    }
   }
   const totalDays = diffDays(timelineStart, timelineEnd);
 
@@ -139,8 +154,14 @@ export function calculateLayout(
 
       for (const wp of phase.wps) {
         const y = rowIndex * ROW_HEIGHT;
-        const x = dateToX(wp.earlyStart);
-        const width = Math.max(2, wp.duration_days * pixelsPerDay);
+        // hasSchedule is the one canonical flag consumers (GanttChart.jsx,
+        // buildArrows below) must check before treating x/width as real bar
+        // geometry — an unscheduled WP still gets a row (label, status), but
+        // no bar and no dependency arrow, and no epoch/fake date stands in
+        // for its missing planned_start/planned_end.
+        const hasSchedule = wp.earlyStart != null && wp.earlyFinish != null && wp.duration_days != null;
+        const x = hasSchedule ? dateToX(wp.earlyStart) : null;
+        const width = hasSchedule ? Math.max(2, wp.duration_days * pixelsPerDay) : 0;
         const discrepancy = discMap[wp.id] || null;
 
         tasks.push({
@@ -148,6 +169,7 @@ export function calculateLayout(
           x,
           y,
           width,
+          hasSchedule,
           barY:        y + (ROW_HEIGHT - BAR_HEIGHT) / 2,
           barHeight:   BAR_HEIGHT,
           rowIndex,
@@ -257,6 +279,10 @@ function buildArrows(tasks, ganttResult, versionedDependencies = null) {
     const from = taskMap[rule.from];
     const to   = taskMap[rule.to];
     if (!from || !to) continue;
+    // An unscheduled endpoint has no real x/width — drawing an arrow to/from
+    // it would either use the null-position fallback or a stale one, both
+    // misleading. No dependency line for a task with no schedule yet.
+    if (!from.hasSchedule || !to.hasSchedule) continue;
 
     const path = generateArrowPath(from, to);
     arrows.push({

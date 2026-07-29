@@ -35,12 +35,19 @@ export function computeCalendarSpi(actualPct, expectedPct) {
  * Fraction (0–100) of a task that is planned to be complete by referenceDate,
  * based on its planned_start → planned_end window.
  *
+ * A task with no schedule (planned_start or planned_end missing) has no
+ * planned percentage at all — this must stay distinct from 0%/100%. Do not
+ * coerce a missing date with `new Date(null)`: that resolves to a *valid*
+ * 1970-01-01 epoch Date rather than Invalid Date, which would silently make
+ * an unscheduled task look 100%-planned-complete.
+ *
  * @param {string|Date|null|undefined} plannedStart
  * @param {string|Date|null|undefined} plannedEnd
  * @param {Date} [referenceDate]
- * @returns {number}
+ * @returns {number|null} null when the task has no valid planned schedule
  */
 export function computePlannedPct(plannedStart, plannedEnd, referenceDate = new Date()) {
+  if (plannedStart == null || plannedEnd == null) return null;
   const start = new Date(/** @type {string|Date} */ (plannedStart));
   const end   = new Date(/** @type {string|Date} */ (plannedEnd));
   const ref   = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
@@ -64,6 +71,12 @@ export function computePlannedPct(plannedStart, plannedEnd, referenceDate = new 
  * AND the schedule is well advanced (≥80% of planned window consumed). It does
  * NOT suppress genuine early-project SPI (avgPlanned < 80 → SPI still returned).
  *
+ * Unscheduled tasks (no planned_start/planned_end) are excluded from this
+ * calculation entirely — they have no plan to compare against, so neither
+ * their actual_progress nor a fabricated planned percentage should move the
+ * ratio. A project whose active tasks are all unscheduled has no schedule
+ * signal yet and returns null, same as an empty task list.
+ *
  * @param {GanttTask[]}   tasks         rows from project_gantt_tasks
  * @param {Date}          referenceDate defaults to today
  * @param {string[]|null} scopeWPIds    active WP ids from getScopeWPIds(project.scope, ...);
@@ -75,12 +88,16 @@ export function computePlannedPct(plannedStart, plannedEnd, referenceDate = new 
 export function computeSPIFromTasks(tasks, referenceDate = new Date(), scopeWPIds = null) {
   const active = tasks.filter(t => !t.is_archived && (!scopeWPIds || scopeWPIds.includes(/** @type {string} */ (t.wp_id))));
   if (active.length === 0) return null;
-  let sumActual = 0, sumPlanned = 0;
+  let sumActual = 0, sumPlanned = 0, scheduledCount = 0;
   for (const t of active) {
+    const planned = computePlannedPct(t.planned_start, t.planned_end, referenceDate);
+    if (planned == null) continue;
     sumActual  += (t.actual_progress ?? 0);
-    sumPlanned += computePlannedPct(t.planned_start, t.planned_end, referenceDate);
+    sumPlanned += planned;
+    scheduledCount++;
   }
-  const avgPlanned = sumPlanned / active.length;
+  if (scheduledCount === 0) return null;
+  const avgPlanned = sumPlanned / scheduledCount;
   if (avgPlanned < 1) return null;
   if (sumActual === 0 && avgPlanned >= 80) return null;
   return Math.round((sumActual / sumPlanned) * 100) / 100;
@@ -88,6 +105,15 @@ export function computeSPIFromTasks(tasks, referenceDate = new Date(), scopeWPId
 
 /**
  * How many critical-path tasks are behind plan.
+ *
+ * An unscheduled critical task (no planned_start/planned_end) has no plan to
+ * be behind or ahead of, so it is excluded from total/behind/ratio the same
+ * way computeSPIFromTasks excludes unscheduled tasks — it is neither
+ * "healthy" nor "behind", it is simply not part of the schedule-based signal
+ * yet. A critical set that is entirely unscheduled resolves to the same
+ * zeroed/healthy shape as "no critical tasks" (existing consumers already
+ * treat total === 0 as their own "no data" branch, see GanttSpiTab.jsx).
+ *
  * @param {GanttTask[]}   tasks         rows from project_gantt_tasks
  * @param {Date}          referenceDate defaults to today
  * @param {string[]|null} scopeWPIds    active WP ids from getScopeWPIds(project.scope, ...);
@@ -95,10 +121,12 @@ export function computeSPIFromTasks(tasks, referenceDate = new Date(), scopeWPId
  * @returns {CriticalHealth}
  */
 export function computeCriticalHealth(tasks, referenceDate = new Date(), scopeWPIds = null) {
-  const critical = tasks.filter(t => t.is_critical && !t.is_archived && (!scopeWPIds || scopeWPIds.includes(/** @type {string} */ (t.wp_id))));
+  const critical = tasks
+    .filter(t => t.is_critical && !t.is_archived && (!scopeWPIds || scopeWPIds.includes(/** @type {string} */ (t.wp_id))))
+    .filter(t => computePlannedPct(t.planned_start, t.planned_end, referenceDate) != null);
   if (critical.length === 0) return { total: 0, behind: 0, ratio: 0, label: 'healthy' };
   const behind = critical.filter(t => {
-    const planned = computePlannedPct(t.planned_start, t.planned_end, referenceDate);
+    const planned = /** @type {number} */ (computePlannedPct(t.planned_start, t.planned_end, referenceDate));
     return (t.actual_progress ?? 0) < planned - 5;
   }).length;
   return {
@@ -114,8 +142,13 @@ export function computeProjectTrendPoints(reports = [], tasks = []) {
 
   return (reports || []).map(r => {
     const refDate = new Date(r.report_date ?? r.reportingDate);
-    const planned = activeTasks.length > 0
-      ? activeTasks.reduce((s, t) => s + computePlannedPct(t.planned_start, t.planned_end, refDate), 0) / activeTasks.length
+    // Unscheduled tasks (computePlannedPct → null) are excluded from the
+    // average, not counted as 0 — same rationale as computeSPIFromTasks.
+    const scheduledPcts = activeTasks
+      .map(t => computePlannedPct(t.planned_start, t.planned_end, refDate))
+      .filter(pct => pct != null);
+    const planned = scheduledPcts.length > 0
+      ? scheduledPcts.reduce((s, pct) => s + pct, 0) / scheduledPcts.length
       : null;
     const actual = r.overall_progress ?? r.overallProgress ?? 0;
     const spi    = planned && planned >= 1 ? Math.round(actual / planned * 100) / 100 : null;

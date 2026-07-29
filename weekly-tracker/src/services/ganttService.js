@@ -27,6 +27,21 @@ export async function archiveGanttTasks(projectId, wpIds) {
 }
 
 /**
+ * Mark a set of WP rows un-archived (re-added to scope). Touches only
+ * is_archived — never planned/actual/duration columns, so a WP that already
+ * has schedule or progress data keeps it exactly as-is when it re-enters
+ * scope.
+ */
+export async function unarchiveGanttTasks(projectId, wpIds) {
+  const { error } = await supabase
+    .from('project_gantt_tasks')
+    .update({ is_archived: false })
+    .eq('project_id', projectId)
+    .in('wp_id', wpIds);
+  if (error) throw error;
+}
+
+/**
  * Fetch the project fields regenerateGantt needs to rebuild the schedule.
  */
 export async function fetchProjectForGanttRegeneration(projectId) {
