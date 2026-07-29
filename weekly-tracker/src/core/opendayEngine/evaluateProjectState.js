@@ -24,9 +24,8 @@ import { computeProjectHealth } from '../../engines/projectHealthEngine';
 import { computeOpeningReadiness } from '../../engines/openingReadinessEngine';
 import { WORK_PACKAGES as GANTT_WPS } from '../../config/masterTaskLibrary';
 import { V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2';
-import { resolveProjectScopeTemplate, MASTER_CATALOG_SCHEMA_VERSION } from '../../domains/construction/templates/versionedScopeTemplate.js';
-import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
-import { buildMasterCatalogProgressTemplate } from '../projects/weights/buildMasterCatalogProgressTemplate.js';
+import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
+import { resolveProjectProgressTemplate } from '../projects/weights/resolveProjectProgressTemplate.js';
 import { buildV2OpeningReadinessOptions } from '../projects/scope/buildV2OpeningReadinessOptions';
 import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds';
 import { isTemplateValid } from '../projects';
@@ -73,14 +72,16 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
   const phaseWeightOverrides = project?.scope?.weightOverrides ?? null;
   // v2 has no pinned-template concept (templateId/templatesById is a v1-only,
   // TemplateEditor-driven mechanism) — its "template" is instead built fresh
-  // from the project's own zone areas/scope via buildV2ProgressTemplate
-  // (legacy zoned, schemaVersion 1) or buildMasterCatalogProgressTemplate
-  // (Master Catalog, schemaVersion 2).
+  // from the project's own zone areas/scope via resolveProjectProgressTemplate(),
+  // which owns the schemaVersion-1-vs-2 template-shape decision internally.
   const gatedTemplate = isV2 ? null : resolveGatedTemplate(project, templatesById, activeTemplateFallback);
   const v2ProgressTemplate = isV2
-    ? (schemaVersion === MASTER_CATALOG_SCHEMA_VERSION
-        ? buildMasterCatalogProgressTemplate(resolveEffectiveV2ZoneAreas(project), resolvedScopeTemplate)
-        : buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null, resolvedScopeTemplate))
+    ? resolveProjectProgressTemplate({
+        scopeTemplate: resolvedScopeTemplate,
+        zoneAreas: resolveEffectiveV2ZoneAreas(project),
+        activeZoneIds: project?.scope?.zones ?? null,
+        activeCategoryIds: project?.scope?.categories ?? null,
+      })
     : null;
 
   const progress = wpCumulativeStatuses

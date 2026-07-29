@@ -194,12 +194,21 @@ value.
 
 **Construction Progress eligibility is WP-level** (corrected from Slice
 5E-R's category-level proposal — the real approved catalog mixes eligible
-and ineligible facts inside the same category, e.g. Pre-Handover &
-Readiness contains both "Snagging" [eligible] and "Authority Approval"
-[not eligible]). `constructionProgressEligible: false` WPs contribute
-**zero** (not near-zero) to both the numerator and denominator, while
-remaining fully in Project Scope, reportable, and visible to Opening
-Readiness and the general scope resolver — see
+and ineligible facts inside the same category). The canonical example:
+Pre-Handover & Readiness contains `project_wide.pre_handover.snagging`
+("Snagging & Punch-List Resolution") — Construction, eligible — alongside
+`project_wide.pre_handover.authority_approvals` ("Authority Approval"),
+`common.pre_opening.test_reports` ("Test Reports"),
+`project_wide.pre_handover.final_cleaning` ("Final Cleaning"),
+`common.pre_opening.final_walkthrough` ("Final Readiness Walkthrough"), and
+`project_wide.pre_handover.training` ("Staff & System Training") — all
+Readiness/Document/Handover, **not** eligible. (An earlier draft of this
+contract incorrectly described Final Readiness Walkthrough as eligible;
+corrected here — it is a readiness/verification fact, not construction
+work, exactly like the others in this category.) `constructionProgressEligible: false`
+WPs contribute **zero** (not near-zero) to both the numerator and
+denominator, while remaining fully in Project Scope, reportable, and
+visible to Opening Readiness and the general scope resolver — see
 `masterCatalogWeightEngine.test.mjs` tests 3 and 16.
 
 **Canonical resolver**: `core/projects/weights/resolveProjectProgressWeights.js`,

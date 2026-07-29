@@ -5,9 +5,8 @@ import { computeScheduleDeviation } from "./riskEngine";
 import { resolveProjectScopeSelection } from "../core/projects/scope/getScopeWPIds";
 import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
 import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
-import { resolveProjectScopeTemplate, MASTER_CATALOG_SCHEMA_VERSION } from "../domains/construction/templates/versionedScopeTemplate.js";
-import { buildV2ProgressTemplate } from "../core/projects/weights/buildV2ProgressTemplate";
-import { buildMasterCatalogProgressTemplate } from "../core/projects/weights/buildMasterCatalogProgressTemplate.js";
+import { resolveProjectScopeTemplate } from "../domains/construction/templates/versionedScopeTemplate.js";
+import { resolveProjectProgressTemplate } from "../core/projects/weights/resolveProjectProgressTemplate.js";
 import { resolveEffectiveV2ZoneAreas } from "../core/projects/areas/resolveProjectArea";
 
 export function computeContractorScores(project, projReports, projSiteVisits, referenceDate = new Date()) {
@@ -70,9 +69,12 @@ export function computeContractorScores(project, projReports, projSiteVisits, re
     schemaVersion,
   });
   const v2Template = isV2
-    ? (schemaVersion === MASTER_CATALOG_SCHEMA_VERSION
-        ? buildMasterCatalogProgressTemplate(resolveEffectiveV2ZoneAreas(project), scopeTemplate)
-        : buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null, scopeTemplate))
+    ? resolveProjectProgressTemplate({
+        scopeTemplate,
+        zoneAreas: resolveEffectiveV2ZoneAreas(project),
+        activeZoneIds: project?.scope?.zones ?? null,
+        activeCategoryIds: project?.scope?.categories ?? null,
+      })
     : null;
   const wpCum  = computeWPCumulativeStatuses(projReports);
   const legCum = computeCumulativeStatuses(projReports) || {};

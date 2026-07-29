@@ -301,5 +301,37 @@ console.log('\n16. ineligible WP remains visible to non-progress scope resolver'
   check('...but the SAME ineligible WP contributes nothing to Construction Progress weight', !('authority_approval' in effectiveWeights));
 }
 
+console.log('\n17. Architecture guard — consumer modules do not branch on MASTER_CATALOG_SCHEMA_VERSION');
+{
+  // Slice 5E.1A: business/use-case consumers must call the canonical
+  // resolveProjectProgressTemplate()/resolveProjectProgressWeights()
+  // resolvers rather than deciding the schemaVersion 1-vs-2 template
+  // shape/formula themselves. This is a targeted denylist over the exact
+  // named consumer files, NOT a blanket ban -- the canonical contract/
+  // resolver files (versionedScopeTemplate.js, getScopeWPIds.js,
+  // resolveProjectArea.js, newProjectScopeOrchestration.js,
+  // resolveProjectProgressTemplate.js, resolveProjectProgressWeights.js)
+  // legitimately reference MASTER_CATALOG_SCHEMA_VERSION and are
+  // deliberately NOT in this list.
+  const fs = await import('node:fs');
+  const CONSUMER_FILES = [
+    '../core/opendayEngine/evaluateProjectState.js',
+    './contractorEngine.js',
+    '../core/contractorReport/buildContractorReportSubmission.js',
+    '../core/weekly/weeklyReportReviewModel.js',
+  ];
+  for (const relPath of CONSUMER_FILES) {
+    const src = fs.readFileSync(new URL(relPath, import.meta.url), 'utf8');
+    check(`${relPath.split('/').pop()} does not reference MASTER_CATALOG_SCHEMA_VERSION (routes through resolveProjectProgressTemplate/Weights instead)`,
+      !/MASTER_CATALOG_SCHEMA_VERSION/.test(src));
+  }
+  // Guard against the check being vacuously true: confirm the canonical
+  // resolver files DO legitimately reference it (proving the constant is
+  // still real and used, just at the correct boundary).
+  const resolverSrc = fs.readFileSync(new URL('../core/projects/weights/resolveProjectProgressTemplate.js', import.meta.url), 'utf8');
+  check('the canonical resolveProjectProgressTemplate() resolver DOES legitimately reference MASTER_CATALOG_SCHEMA_VERSION (this is the intended boundary)',
+    /MASTER_CATALOG_SCHEMA_VERSION/.test(resolverSrc));
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);
