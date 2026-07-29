@@ -1,8 +1,10 @@
 // Orchestration (I/O) half of the Contractor Draft buffer — pairs with the
 // pure state transitions in contractorScheduleDraftModel.js. One Save Draft
 // action = one client_request_id = one atomic RPC call; see
-// save_contractor_schedule_draft (046_contractor_schedule_draft_foundation.sql)
-// for the actual all-or-nothing transaction.
+// save_contractor_schedule_draft (046_contractor_schedule_draft_foundation.sql,
+// finalized to the human-inclusive plannedFinish contract by
+// 047_contractor_schedule_human_date_semantics.sql) for the actual
+// all-or-nothing transaction.
 import { createClientRequestId, normalizeWriteError } from '../write/writeCommand.js';
 import { saveContractorScheduleDraft as callSaveDraftRpc } from '../../services/contractorScheduleService.js';
 import { toChangesArray } from './contractorScheduleDraftModel.js';

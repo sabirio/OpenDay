@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates } from '../hooks/useGanttLayout.js';
+import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates, toHumanFinishInclusive, toInternalEndBoundary } from '../hooks/useGanttLayout.js';
 import { calculateGanttPhaseAverageProgress, clampProgressPct } from '../hooks/useProgressPresentation.js';
 import { clamp, percentToWidth, minOf, maxOf } from '../hooks/useChartMathPresentation.js';
 import GanttLegend from './gantt/GanttLegend.jsx';
@@ -125,11 +125,18 @@ function WPTooltip({ task, onClose, onManualDateChange }) {
   // <input type="date"> wants YYYY-MM-DD; task.earlyStart/earlyFinish are
   // Date objects (or null/undefined for an unscheduled task — Phase 2).
   const toInputValue = (d) => (d instanceof Date ? d.toISOString().split('T')[0] : (d || ''));
-  const [draftStart, draftEnd] = [toInputValue(task.earlyStart), toInputValue(task.earlyFinish)];
+  // Finish is shown/edited as the human-facing INCLUSIVE date (Simplification
+  // Phase 3B.1) — task.earlyFinish itself stays the internal exclusive
+  // boundary (bar geometry, unchanged) everywhere else in this component;
+  // toHumanFinishInclusive/toInternalEndBoundary are the one canonical
+  // conversion, used only here for display and only in commitDates below
+  // for write-back — never duplicated elsewhere.
+  const [draftStart, draftFinishHuman] = [toInputValue(task.earlyStart), toInputValue(toHumanFinishInclusive(task.earlyFinish))];
 
-  const commitDates = (nextStart, nextEnd) => {
-    if (!onManualDateChange || !nextStart || !nextEnd) return;
-    onManualDateChange(task.id, { plannedStart: nextStart, plannedEnd: nextEnd });
+  const commitDates = (nextStart, nextFinishHuman) => {
+    if (!onManualDateChange || !nextStart || !nextFinishHuman) return;
+    const nextEnd = toInternalEndBoundary(new Date(nextFinishHuman));
+    onManualDateChange(task.id, { plannedStart: nextStart, plannedEnd: nextEnd.toISOString().split('T')[0] });
   };
 
   const badge = (label, color, bg) => (
@@ -171,7 +178,7 @@ function WPTooltip({ task, onClose, onManualDateChange }) {
             <input
               type="date"
               value={draftStart}
-              onChange={(e) => commitDates(e.target.value, draftEnd)}
+              onChange={(e) => commitDates(e.target.value, draftFinishHuman)}
               style={{ fontSize: 11, padding: '2px 4px', border: `1px solid ${C.border}`, borderRadius: 4, background: C.bgCard, color: C.text }}
             />
           </div>
@@ -183,7 +190,7 @@ function WPTooltip({ task, onClose, onManualDateChange }) {
             <span style={{ color: C.muted, flexShrink: 0 }}>Finish</span>
             <input
               type="date"
-              value={draftEnd}
+              value={draftFinishHuman}
               min={draftStart || undefined}
               onChange={(e) => commitDates(draftStart, e.target.value)}
               style={{ fontSize: 11, padding: '2px 4px', border: `1px solid ${C.border}`, borderRadius: 4, background: C.bgCard, color: C.text }}

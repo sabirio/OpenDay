@@ -238,7 +238,8 @@ console.log('\nD) computeCriticalHealth');
   check('D5: unscheduled critical task excluded from behind count', h.behind === 1);
 }
 
-// D6: ALL critical tasks unscheduled → healthy/zeroed, not fabricated "behind"
+// D6: ALL critical tasks unscheduled → SCHEDULE-DEBT-01 fix: no_schedule,
+// NOT healthy and NOT fabricated "behind" (Simplification Phase 3B.1)
 {
   const tasks = [
     { is_critical: true, is_archived: false, actual_progress: 0, planned_start: null, planned_end: null },
@@ -246,7 +247,36 @@ console.log('\nD) computeCriticalHealth');
   ];
   const h = computeCriticalHealth(tasks);
   check('D6: all critical unscheduled → total=0 (no fabricated critical judgement)', h.total === 0);
-  check('D6: all critical unscheduled → label=healthy (matches existing "no critical tasks" shape)', h.label === 'healthy');
+  check('D6: all critical unscheduled → label=no_schedule, NOT healthy (SCHEDULE-DEBT-01: no schedule != healthy)', h.label === 'no_schedule');
+  check('D6: all critical unscheduled → NOT warning/critical either (no fabricated risk)', h.label !== 'warning' && h.label !== 'critical');
+}
+
+// D7: genuinely ZERO critical tasks stays distinguishable from "critical
+// tasks exist but unscheduled" (SCHEDULE-DEBT-01's own required distinction)
+{
+  const zeroCritical = computeCriticalHealth([
+    { is_critical: false, is_archived: false, actual_progress: 50, planned_start: iso(now.getTime() - 50 * DAY), planned_end: iso(now.getTime() + 50 * DAY) },
+  ]);
+  const unscheduledCritical = computeCriticalHealth([
+    { is_critical: true, is_archived: false, actual_progress: 0, planned_start: null, planned_end: null },
+  ]);
+  check('D7: zero critical tasks → label=healthy', zeroCritical.label === 'healthy');
+  check('D7: critical tasks exist but unscheduled → label=no_schedule (distinct from zero-critical healthy)', unscheduledCritical.label === 'no_schedule');
+  check('D7: the two cases are NOT the same label (the exact collapse SCHEDULE-DEBT-01 fixes)', zeroCritical.label !== unscheduledCritical.label);
+}
+
+// D8: mixed scheduled + unscheduled critical tasks stays deterministic —
+// unscheduled ones excluded from the ratio, scheduled ones judged normally
+{
+  const start = iso(now.getTime() - 90 * DAY);
+  const end   = iso(now.getTime() + 10 * DAY);
+  const tasks = [
+    { is_critical: true, is_archived: false, actual_progress: 85, planned_start: start, planned_end: end }, // on track (planned ~90, actual 85, within 5)
+    { is_critical: true, is_archived: false, actual_progress: 0,  planned_start: null,  planned_end: null }, // unscheduled, excluded
+  ];
+  const h = computeCriticalHealth(tasks, now);
+  check('D8: mixed set → total counts only the scheduled critical task', h.total === 1);
+  check('D8: mixed set → unscheduled critical task does not corrupt the healthy judgement', h.label === 'healthy');
 }
 
 // ── E) computeCalendarSpi ─────────────────────────────────────────────────────

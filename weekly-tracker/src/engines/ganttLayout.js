@@ -76,6 +76,41 @@ export function computeDragEditDates(origEarlyStart, origEarlyFinish, handle, dx
   return { earlyStart: newStart, earlyFinish: newEnd, durationDays: Math.max(1, diffDays(newStart, newEnd)) };
 }
 
+// ─── Human-facing inclusive Finish date adapter (Simplification Phase 3B.1) ───
+//
+// The internal Gantt convention (ganttEngine.js, calculateGantt, every row in
+// project_gantt_tasks) is unchanged and must stay that way: planned_end is an
+// EXCLUSIVE boundary — earlyFinish = addDays(earlyStart, duration_days), so a
+// 1-day task starting Aug 1 has planned_end = Aug 2 (the day AFTER the single
+// day of work). This is what drives bar geometry (width = duration_days *
+// pixelsPerDay) and must never change, for AUTO_GENERATED or
+// CONTRACTOR_MANAGED alike.
+//
+// A human construction planner, though, naturally reads "Start Aug 1 /
+// Finish Aug 1" as ONE calendar day of work — an inclusive Finish. These two
+// functions are the ONE place that boundary is ever crossed:
+//   toHumanFinishInclusive: internal exclusive end -> human-visible Finish.
+//   toInternalEndBoundary:  human-entered Finish -> internal exclusive end.
+// Exact inverses of each other (integer whole-day arithmetic, no rounding),
+// and both null-safe (an unscheduled task's null end stays null either way).
+//
+// Nothing that computes bar geometry (ganttLayout.js's own calculateLayout,
+// ganttEngine.js's CPM) ever calls these — they exist solely for the
+// Contractor-facing read/write boundary (WPTooltip's Finish input,
+// useContractorScheduleDraft's stage/display, and
+// save_contractor_schedule_draft's client-side callers), never for the
+// internal date used to draw a bar.
+
+/** Internal exclusive planned_end -> human-visible inclusive Finish. */
+export function toHumanFinishInclusive(internalEndBoundary) {
+  return internalEndBoundary == null ? null : addDays(internalEndBoundary, -1);
+}
+
+/** Human-entered inclusive Finish -> internal exclusive planned_end boundary. */
+export function toInternalEndBoundary(humanFinishInclusive) {
+  return humanFinishInclusive == null ? null : addDays(humanFinishInclusive, 1);
+}
+
 function startOfMonth(date) {
   const d = new Date(date);
   d.setUTCDate(1);

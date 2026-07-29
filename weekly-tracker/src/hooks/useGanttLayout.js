@@ -1,1 +1,1 @@
-export { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates, durationDaysFromRange } from '../core/presentation/ganttLayoutModel.js';
+export { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates, durationDaysFromRange, toHumanFinishInclusive, toInternalEndBoundary } from '../core/presentation/ganttLayoutModel.js';

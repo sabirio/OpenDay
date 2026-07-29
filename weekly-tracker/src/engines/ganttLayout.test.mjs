@@ -4,7 +4,7 @@
 // matched any v1 rule, so calculateLayout().arrows was always empty for v2.
 // Run: node src/engines/ganttLayout.test.mjs
 
-import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates, durationDaysFromRange } from './ganttLayout.js';
+import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates, durationDaysFromRange, toHumanFinishInclusive, toInternalEndBoundary } from './ganttLayout.js';
 import { filterRulesForWPsV2 } from '../config/dependencyRulesV2.js';
 import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2.js';
 
@@ -187,6 +187,36 @@ console.log('\ndurationDaysFromRange — manual Start/Finish staging duration di
   check('1-day range -> 1', durationDaysFromRange(new Date('2026-09-01'), new Date('2026-09-02')) === 1);
   check('same-day range floors to 1, never 0', durationDaysFromRange(new Date('2026-09-01'), new Date('2026-09-01')) === 1);
   check('end before start floors to 1, never negative', durationDaysFromRange(new Date('2026-09-05'), new Date('2026-09-01')) === 1);
+}
+
+console.log('\ntoHumanFinishInclusive / toInternalEndBoundary — Simplification Phase 3B.1 human date adapter');
+{
+  // Human Start Aug 1 / Finish Aug 1 -> internal planned_end = Aug 2 (1 day).
+  const internalEndFor1Day = toInternalEndBoundary(new Date('2026-08-01'));
+  check('human Finish Aug 1 -> internal end boundary Aug 2', internalEndFor1Day.getTime() === new Date('2026-08-02').getTime());
+  check('internal end Aug 2 -> human Finish Aug 1 (exact inverse)',
+    toHumanFinishInclusive(internalEndFor1Day).getTime() === new Date('2026-08-01').getTime());
+
+  // Human Start Aug 1 / Finish Aug 3 -> internal planned_end = Aug 4 (3 days).
+  const internalEndFor3Days = toInternalEndBoundary(new Date('2026-08-03'));
+  check('human Finish Aug 3 -> internal end boundary Aug 4', internalEndFor3Days.getTime() === new Date('2026-08-04').getTime());
+  check('internal end Aug 4 -> human Finish Aug 3 (exact inverse)',
+    toHumanFinishInclusive(internalEndFor3Days).getTime() === new Date('2026-08-03').getTime());
+
+  // Round-trip both directions for a spread of dates, proving no cumulative drift.
+  for (const iso of ['2026-01-01', '2026-02-28', '2026-03-01', '2026-12-31', '2027-01-01']) {
+    const d = new Date(iso);
+    check(`round-trip toHumanFinishInclusive(toInternalEndBoundary(${iso})) === ${iso}`,
+      toHumanFinishInclusive(toInternalEndBoundary(d)).getTime() === d.getTime());
+    check(`round-trip toInternalEndBoundary(toHumanFinishInclusive(${iso})) === ${iso}`,
+      toInternalEndBoundary(toHumanFinishInclusive(d)).getTime() === d.getTime());
+  }
+
+  // Null-safety: an unscheduled task's null end must stay null either way.
+  check('toHumanFinishInclusive(null) -> null', toHumanFinishInclusive(null) === null);
+  check('toInternalEndBoundary(null) -> null', toInternalEndBoundary(null) === null);
+  check('toHumanFinishInclusive(undefined) -> null', toHumanFinishInclusive(undefined) === null);
+  check('toInternalEndBoundary(undefined) -> null', toInternalEndBoundary(undefined) === null);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

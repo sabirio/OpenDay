@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { loadWeeklyGanttTasks } from '../core/weekly/weeklyGanttSchedule.js';
-import { durationDaysFromRange } from './useGanttLayout.js';
+import { durationDaysFromRange, toHumanFinishInclusive, toInternalEndBoundary } from './useGanttLayout.js';
 import {
   createEmptyDraftState,
   stageTaskDates as stageTaskDatesPure,
@@ -21,6 +21,16 @@ import { saveContractorScheduleDraftFromState } from '../core/contractorSchedule
  * (contractorScheduleDraftModel.js) until saveDraft() flushes them in one
  * atomic RPC call. No autosave — see Simplification Phase 3A's save-model
  * recommendation.
+ *
+ * Human-inclusive Finish (Simplification Phase 3B.1): GanttChart.jsx always
+ * emits/accepts the internal exclusive planned_end boundary in its own
+ * callback contract (unchanged, shared with the PM/AUTO_GENERATED path).
+ * This hook is the one place that gets converted to/from the draft
+ * buffer's human-inclusive plannedFinish (matching what
+ * save_contractor_schedule_draft's RPC contract expects) — see
+ * stageTaskDates below for the write direction and the `tasks` merge above
+ * for the read direction. Neither GanttChart.jsx nor the pure draft model
+ * ever performs this conversion themselves.
  */
 export function useContractorScheduleDraft({ projectId }) {
   const [persisted, setPersisted] = useState({ key: null, tasks: [] });
@@ -41,18 +51,28 @@ export function useContractorScheduleDraft({ projectId }) {
 
   // Draft-overlaid view: staged edits win over whatever is currently
   // persisted, so GanttChart renders the contractor's pending changes
-  // immediately — but nothing is written until saveDraft().
+  // immediately — but nothing is written until saveDraft(). The buffer
+  // stores plannedFinish as human-inclusive; bar geometry needs the
+  // internal exclusive boundary, so toInternalEndBoundary() converts back
+  // here — the read-direction half of the one canonical adapter.
   const tasks = persistedTasks.map(task => {
     const staged = draft.changesByWpId[task.id];
     if (!staged) return task;
     const earlyStart = new Date(staged.plannedStart);
-    const earlyFinish = new Date(staged.plannedEnd);
+    const earlyFinish = toInternalEndBoundary(new Date(staged.plannedFinish));
     return { ...task, earlyStart, earlyFinish, duration_days: durationDaysFromRange(earlyStart, earlyFinish) };
   });
 
-  const stageTaskDates = useCallback((wpId, plannedStart, plannedEnd) => {
+  // GanttChart's own callback contract (onWPResize/onWPMove/
+  // onManualDateChange) always emits {plannedStart, plannedEnd} in the
+  // INTERNAL exclusive boundary — unchanged for PM/AUTO_GENERATED, uniform
+  // regardless of which interaction produced it. This is the one place
+  // that gets converted to the buffer's human-inclusive plannedFinish, via
+  // the one canonical engine adapter — never duplicated elsewhere.
+  const stageTaskDates = useCallback((wpId, { plannedStart, plannedEnd }) => {
     setSaveError(null);
-    setDraft(prev => stageTaskDatesPure(prev, wpId, plannedStart, plannedEnd));
+    const plannedFinish = toHumanFinishInclusive(new Date(plannedEnd));
+    setDraft(prev => stageTaskDatesPure(prev, wpId, plannedStart, plannedFinish.toISOString().split('T')[0]));
   }, []);
 
   const discardTaskChange = useCallback((wpId) => {

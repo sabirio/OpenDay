@@ -35,7 +35,7 @@ console.log('\nstageTaskDates');
   check('staging one task makes state dirty', isDirty(s) === true);
   check('changedTaskCount reflects one staged task', changedTaskCount(s) === 1);
   check('toChangesArray contains the staged WP with its dates', toChangesArray(s).some(
-    c => c.wpId === 'wp.a' && c.plannedStart === '2026-09-01' && c.plannedEnd === '2026-09-05'));
+    c => c.wpId === 'wp.a' && c.plannedStart === '2026-09-01' && c.plannedFinish === '2026-09-05'));
 
   s = stageTaskDates(s, 'wp.b', '2026-10-01', '2026-10-03');
   check('staging a second task does not remove the first', changedTaskCount(s) === 2);

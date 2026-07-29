@@ -106,13 +106,29 @@ export function computeSPIFromTasks(tasks, referenceDate = new Date(), scopeWPId
 /**
  * How many critical-path tasks are behind plan.
  *
- * An unscheduled critical task (no planned_start/planned_end) has no plan to
- * be behind or ahead of, so it is excluded from total/behind/ratio the same
- * way computeSPIFromTasks excludes unscheduled tasks — it is neither
- * "healthy" nor "behind", it is simply not part of the schedule-based signal
- * yet. A critical set that is entirely unscheduled resolves to the same
- * zeroed/healthy shape as "no critical tasks" (existing consumers already
- * treat total === 0 as their own "no data" branch, see GanttSpiTab.jsx).
+ * SCHEDULE-DEBT-01 fix (Simplification Phase 3B.1): "no scheduled critical
+ * tasks" is not the same fact as "healthy" or "no critical tasks at all",
+ * and must not be reported as either. Two genuinely different situations
+ * both used to collapse into the same {total: 0, label: 'healthy'} shape:
+ *   (a) the project truly has zero critical-path WPs — a real, positive
+ *       "nothing to worry about" fact;
+ *   (b) critical WPs exist, but none of them have a schedule yet (all
+ *       unscheduled) — a lack-of-data state, not a health signal at all.
+ * These are now distinguished by label: (a) stays 'healthy'; (b) is the
+ * dedicated 'no_schedule' label — the exact same concept
+ * getSPIStatus()/SPI_STATUS.no_schedule already uses for the analogous "no
+ * usable schedule data" case in this same module, reused here rather than
+ * inventing a second concept. Existing consumers (GanttSpiTab.jsx) already
+ * check `total === 0` before reading `.label` at all, and total stays 0 for
+ * both (a) and (b) — so no_schedule renders exactly as before (muted, not
+ * colored) without any consumer change; the shapes are now merely
+ * internally distinguishable, e.g. for a future caller that does want to
+ * tell them apart.
+ *
+ * A scheduled critical task with no plan to be behind or ahead of is
+ * excluded from the total/behind/ratio computed for the (c) mixed case
+ * below, same rationale as computeSPIFromTasks excluding unscheduled tasks
+ * from its own aggregate — this is unchanged from before.
  *
  * @param {GanttTask[]}   tasks         rows from project_gantt_tasks
  * @param {Date}          referenceDate defaults to today
@@ -121,19 +137,23 @@ export function computeSPIFromTasks(tasks, referenceDate = new Date(), scopeWPId
  * @returns {CriticalHealth}
  */
 export function computeCriticalHealth(tasks, referenceDate = new Date(), scopeWPIds = null) {
-  const critical = tasks
-    .filter(t => t.is_critical && !t.is_archived && (!scopeWPIds || scopeWPIds.includes(/** @type {string} */ (t.wp_id))))
-    .filter(t => computePlannedPct(t.planned_start, t.planned_end, referenceDate) != null);
-  if (critical.length === 0) return { total: 0, behind: 0, ratio: 0, label: 'healthy' };
-  const behind = critical.filter(t => {
+  const allCritical = tasks.filter(t => t.is_critical && !t.is_archived && (!scopeWPIds || scopeWPIds.includes(/** @type {string} */ (t.wp_id))));
+  if (allCritical.length === 0) return { total: 0, behind: 0, ratio: 0, label: 'healthy' };
+
+  const scheduledCritical = allCritical.filter(t => computePlannedPct(t.planned_start, t.planned_end, referenceDate) != null);
+  if (scheduledCritical.length === 0) {
+    return { total: 0, behind: 0, ratio: 0, label: 'no_schedule' };
+  }
+
+  const behind = scheduledCritical.filter(t => {
     const planned = /** @type {number} */ (computePlannedPct(t.planned_start, t.planned_end, referenceDate));
     return (t.actual_progress ?? 0) < planned - 5;
   }).length;
   return {
-    total: critical.length,
+    total: scheduledCritical.length,
     behind,
-    ratio: behind / critical.length,
-    label: behind === 0 ? 'healthy' : behind / critical.length <= 0.5 ? 'warning' : 'critical',
+    ratio: behind / scheduledCritical.length,
+    label: behind === 0 ? 'healthy' : behind / scheduledCritical.length <= 0.5 ? 'warning' : 'critical',
   };
 }
 

@@ -1,19 +1,25 @@
-// Local-only Simplification Phase 3B extension. Applies the hash-pinned
-// 046 migration (schedule_ownership_mode column, default AUTO_GENERATED,
-// plus the save_contractor_schedule_draft SECURITY DEFINER RPC) on top of
-// the canonical fresh-install baseline.
+// Local-only Simplification Phase 3B / 3B.1 extension. Applies the
+// hash-pinned 046-047 pair on top of the canonical fresh-install baseline:
+//   046: schedule_ownership_mode column (default AUTO_GENERATED) +
+//        save_contractor_schedule_draft SECURITY DEFINER RPC.
+//   047: replaces 046's RPC body only (same signature) to accept
+//        human-facing inclusive Finish dates instead of the internal
+//        exclusive boundary — see 047's own header for the full contract
+//        change and rationale.
 //
 // Deliberately NOT part of resetAndDeploy.mjs's always-on canonical chain —
-// same posture as the Master Catalog slices (042-045): this is foundation
-// work that must be applied as an explicit, separate step, not something
-// every fresh local environment gets by default, until a later phase
-// activates the Contractor Schedule workflow for real. Applying it is also
-// what keeps canonical-security-contract.json honest — that file's RLS/
-// policy/function/privilege sections are derived by executing the
-// canonical chain only; a brand-new SECURITY DEFINER RPC and CHECK
-// constraint belong in canonicalMigrationPath.included only after that
-// derivation pipeline has actually run against them, which this slice does
-// not do.
+// same posture as the Master Catalog slices (042-045) and, further back,
+// the Snag List (030-035) and Import Foundation (037-040) batches: every
+// post-041 feature addition in this repository uses this exact opt-in
+// pattern (own apply script + own cert:reset:<feature> command), not
+// canonicalMigrationPath.included, which is tied to the separate
+// production-only composite-security-certification.ps1 pipeline (requires
+// a real production backup/commit/manifest this repo's local tooling
+// cannot and must not fabricate). Audited and confirmed as the intended
+// pattern during Simplification Phase 3B.1 — this is foundation work,
+// reproducible via `npm run cert:reset:contractor-schedule`, not something
+// every fresh local environment gets by default until a later phase
+// activates the Contractor Schedule workflow for real.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -27,6 +33,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(__dirname, '..', '..', 'src', 'migrations');
 const migrations = [
   ['046_contractor_schedule_draft_foundation.sql', '989d09af15d4ed2d216cd0d0f51805ea8a080dc789cb3f1149289e0e738b2fa8'],
+  ['047_contractor_schedule_human_date_semantics.sql', '7e3fea282eac83a588b20b76440572402218f7c99f0c001afab43ec9f9213b68'],
 ];
 
 assertLocalTarget({
@@ -53,4 +60,4 @@ for (const [file, expectedHash] of migrations) {
   console.log('OK');
 }
 
-console.log('Local Contractor Schedule Draft foundation applied through 046; existing AUTO_GENERATED projects unaffected, workflow not yet activated.');
+console.log('Local Contractor Schedule Draft foundation applied through 047 (human-inclusive Finish date contract); existing AUTO_GENERATED projects unaffected, workflow not yet activated.');
