@@ -17,3 +17,7 @@ export {
   PROJECT_SCHEDULE_ROUTE,
   resolveProjectScheduleModel,
 } from './resolveProjectScheduleModel.js';
+export {
+  SCHEDULE_OWNERSHIP_MODE,
+  isContractorManaged,
+} from './scheduleOwnershipMode.js';

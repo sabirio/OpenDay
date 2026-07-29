@@ -47,7 +47,7 @@ export async function unarchiveGanttTasks(projectId, wpIds) {
 export async function fetchProjectForGanttRegeneration(projectId) {
   const { data, error } = await supabase
     .from('projects')
-    .select('template_type, template_id, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, sales_area_sqm, back_of_house_area_sqm, scope')
+    .select('template_type, template_id, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, sales_area_sqm, back_of_house_area_sqm, scope, schedule_ownership_mode')
     .eq('id', projectId)
     .single();
   if (error) throw error;
@@ -57,6 +57,20 @@ export async function fetchProjectForGanttRegeneration(projectId) {
     templateId: data.template_id,
     scopeTemplate: await fetchTemplateRecordById(data.template_id),
   };
+}
+
+/**
+ * Lightweight ownership-mode-only lookup for generateAndSaveGantt's mutual-
+ * exclusion guard, which otherwise never fetches the project row at all.
+ */
+export async function fetchProjectScheduleOwnershipMode(projectId) {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('schedule_ownership_mode')
+    .eq('id', projectId)
+    .single();
+  if (error) throw error;
+  return data.schedule_ownership_mode;
 }
 
 /**

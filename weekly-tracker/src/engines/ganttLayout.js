@@ -32,6 +32,50 @@ export function pixelsToDays(pixelDelta, pixelsPerDay) {
   return Math.round(pixelDelta / pixelsPerDay);
 }
 
+/**
+ * duration_days display value for a staged/manually-entered [start, end)
+ * range — same calendar-day-span convention as diffDays()/the server's
+ * planned_end - planned_start, floored at 1 so an in-progress manual edit
+ * never displays a zero/negative duration before both dates are valid.
+ */
+export function durationDaysFromRange(start, end) {
+  return Math.max(1, diffDays(start, end));
+}
+
+/**
+ * Pure date arithmetic shared by GanttChart.jsx's drag effect for all three
+ * schedule-editing interactions (Simplification Phase 3A/3B) — one
+ * canonical computation regardless of which UI gesture produced it:
+ *
+ *   'right' (resize right): start fixed, finish moves.
+ *   'left'  (resize left):  finish fixed, start moves.
+ *   'move'  (whole-bar drag): both edges shift by the same delta, duration
+ *            preserved exactly.
+ *
+ * @param {Date} origEarlyStart
+ * @param {Date} origEarlyFinish
+ * @param {'left'|'right'|'move'} handle
+ * @param {number} dxDays — whole-day delta from pixelsToDays()
+ * @returns {{ earlyStart: Date, earlyFinish: Date, durationDays: number }}
+ */
+export function computeDragEditDates(origEarlyStart, origEarlyFinish, handle, dxDays) {
+  let newStart = new Date(origEarlyStart.getTime());
+  let newEnd   = new Date(origEarlyFinish.getTime());
+
+  if (handle === 'right') {
+    newEnd = addDays(origEarlyFinish, dxDays);
+    if (newEnd <= newStart) newEnd = addDays(newStart, 1);
+  } else if (handle === 'move') {
+    newStart = addDays(origEarlyStart, dxDays);
+    newEnd   = addDays(origEarlyFinish, dxDays);
+  } else {
+    newStart = addDays(origEarlyStart, dxDays);
+    if (newStart >= newEnd) newStart = addDays(newEnd, -1);
+  }
+
+  return { earlyStart: newStart, earlyFinish: newEnd, durationDays: Math.max(1, diffDays(newStart, newEnd)) };
+}
+
 function startOfMonth(date) {
   const d = new Date(date);
   d.setUTCDate(1);

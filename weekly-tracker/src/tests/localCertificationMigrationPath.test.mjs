@@ -21,6 +21,7 @@ const masterCatalogSchemaV2Local = readFileSync(new URL('../../scripts/certifica
 const masterCatalogSlice5DLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogSlice5DLocal.mjs', import.meta.url), 'utf8');
 const masterCatalogWeightCalibrationLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogWeightCalibrationLocal.mjs', import.meta.url), 'utf8');
 const masterCatalogDurationCalibrationLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogDurationCalibrationLocal.mjs', import.meta.url), 'utf8');
+const contractorScheduleDraftFoundationLocal = readFileSync(new URL('../../scripts/certification/applyContractorScheduleDraftFoundationLocal.mjs', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -91,6 +92,11 @@ check('local Master Catalog duration extension pins and verifies the approved 04
 check('local Master Catalog duration hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(masterCatalogDurationCalibrationLocal));
 check('Master Catalog reset applies 042 -> 043 -> 044 -> 045 explicitly and in order',
   /applyMasterCatalogSchemaV2Local\.mjs.*applyMasterCatalogSlice5DLocal\.mjs.*applyMasterCatalogWeightCalibrationLocal\.mjs.*applyMasterCatalogDurationCalibrationLocal\.mjs/.test(packageJson.scripts['cert:reset:master-catalog']));
+check('local Contractor Schedule Draft foundation extension uses the canonical local guard before psql', contractorScheduleDraftFoundationLocal.indexOf('assertLocalTarget') < contractorScheduleDraftFoundationLocal.indexOf("execFileSync('psql'"));
+check('local Contractor Schedule Draft foundation extension pins and verifies the approved 046 migration', contractorScheduleDraftFoundationLocal.includes('046_contractor_schedule_draft_foundation.sql') && /createHash\('sha256'\)/.test(contractorScheduleDraftFoundationLocal));
+check('local Contractor Schedule Draft foundation hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(contractorScheduleDraftFoundationLocal));
+check('Contractor Schedule reset keeps the pre-047 extensions explicit, same precedent as cert:reset:master-catalog, and does not depend on the dormant Master Catalog batch',
+  packageJson.scripts['cert:reset:contractor-schedule'] === 'npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/applyImportFoundationPhase2Local.mjs && node scripts/certification/applyContractorScheduleDraftFoundationLocal.mjs && node scripts/seed-test-users.mjs');
 
 // Structural migration-completeness guard: the fresh-install path is a
 // multi-part composition (canonical contract's 000-029 and 041 + applySnagListLocal.mjs's
@@ -112,8 +118,9 @@ const masterCatalogSchemaV2BatchFiles = [...masterCatalogSchemaV2Local.matchAll(
 const masterCatalogSlice5DBatchFiles = [...masterCatalogSlice5DLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const masterCatalogWeightCalibrationBatchFiles = [...masterCatalogWeightCalibrationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const masterCatalogDurationCalibrationBatchFiles = [...masterCatalogDurationCalibrationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
-const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles]);
-check('fresh-install migration set is exactly covered through approved Master Catalog duration migration 045, no gaps',
+const contractorScheduleDraftFoundationBatchFiles = [...contractorScheduleDraftFoundationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles]);
+check('fresh-install migration set is exactly covered through approved Contractor Schedule Draft foundation migration 046, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -124,6 +131,7 @@ check('migration 042 is covered by the Master Catalog schema-v2 batch (guards ag
 check('migration 043 is covered by the Master Catalog Slice 5D batch (guards against this check being vacuously true)', masterCatalogSlice5DBatchFiles.length >= 1);
 check('migration 044 is covered by the Master Catalog weight batch (guards against this check being vacuously true)', masterCatalogWeightCalibrationBatchFiles.length >= 1);
 check('migration 045 is covered by the Master Catalog duration batch (guards against this check being vacuously true)', masterCatalogDurationCalibrationBatchFiles.length >= 1);
+check('migration 046 is covered by the Contractor Schedule Draft foundation batch (guards against this check being vacuously true)', contractorScheduleDraftFoundationBatchFiles.length >= 1);
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by

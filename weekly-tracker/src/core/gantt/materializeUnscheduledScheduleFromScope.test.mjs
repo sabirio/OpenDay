@@ -22,6 +22,7 @@ export function upsertGanttTasks(rows) { (globalThis.__matTestUpsertCalls ??= []
 export function archiveGanttTasks(projectId, ids) { (globalThis.__matTestArchiveCalls ??= []).push(ids); return Promise.resolve(); }
 export function unarchiveGanttTasks(projectId, ids) { (globalThis.__matTestUnarchiveCalls ??= []).push(ids); return Promise.resolve(); }
 export function fetchProjectForGanttRegeneration() { return Promise.resolve({}); }
+export function fetchProjectScheduleOwnershipMode() { return Promise.resolve('AUTO_GENERATED'); }
 export function fetchGanttMetricsRawData() { return Promise.resolve({ allTasks: [], allVisits: [], allProjects: [] }); }
 export function getProjectGanttFull() { return Promise.resolve(globalThis.__matTestExistingTasks ?? []); }
 export function getProjectGantt() { return Promise.resolve([]); }

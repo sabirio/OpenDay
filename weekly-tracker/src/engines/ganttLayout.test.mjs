@@ -4,7 +4,7 @@
 // matched any v1 rule, so calculateLayout().arrows was always empty for v2.
 // Run: node src/engines/ganttLayout.test.mjs
 
-import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS } from './ganttLayout.js';
+import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates, durationDaysFromRange } from './ganttLayout.js';
 import { filterRulesForWPsV2 } from '../config/dependencyRulesV2.js';
 import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2.js';
 
@@ -134,6 +134,59 @@ console.log('\ncalculateLayout — entirely-unscheduled task list (no bars, no c
     !Number.isNaN(layout.timelineStart.getTime()) &&
     Math.abs(layout.timelineStart.getFullYear() - new Date().getFullYear()) <= 1);
   check('all-unscheduled: zero arrows (nothing has a position to connect)', layout.arrows.length === 0);
+}
+
+console.log('\ncomputeDragEditDates — Simplification Phase 3B: canonical move/resize date math');
+{
+  const origStart  = new Date('2026-08-10');
+  const origFinish = new Date('2026-08-15'); // 5-day span
+
+  // Whole-bar move: both edges shift by the same delta, duration preserved.
+  {
+    const r = computeDragEditDates(origStart, origFinish, 'move', 3);
+    check('move +3 days: earlyStart shifts by 3', r.earlyStart.getTime() === new Date('2026-08-13').getTime());
+    check('move +3 days: earlyFinish shifts by 3', r.earlyFinish.getTime() === new Date('2026-08-18').getTime());
+    check('move: duration unchanged (5 days)', r.durationDays === 5);
+  }
+  {
+    const r = computeDragEditDates(origStart, origFinish, 'move', -4);
+    check('move -4 days: earlyStart shifts by -4', r.earlyStart.getTime() === new Date('2026-08-06').getTime());
+    check('move -4 days: earlyFinish shifts by -4', r.earlyFinish.getTime() === new Date('2026-08-11').getTime());
+    check('move -4 days: duration still unchanged', r.durationDays === 5);
+  }
+
+  // Resize right: start fixed, finish moves, duration changes.
+  {
+    const r = computeDragEditDates(origStart, origFinish, 'right', 2);
+    check('resize right +2: earlyStart unchanged', r.earlyStart.getTime() === origStart.getTime());
+    check('resize right +2: earlyFinish extends by 2', r.earlyFinish.getTime() === new Date('2026-08-17').getTime());
+    check('resize right +2: duration grows to 7', r.durationDays === 7);
+  }
+  check('resize right: dragging finish onto/past start is clamped to a minimum 1-day span, never zero/negative',
+    computeDragEditDates(origStart, origFinish, 'right', -20).durationDays >= 1);
+
+  // Resize left: finish fixed, start moves, duration changes.
+  {
+    const r = computeDragEditDates(origStart, origFinish, 'left', -2);
+    check('resize left -2: earlyFinish unchanged', r.earlyFinish.getTime() === origFinish.getTime());
+    check('resize left -2: earlyStart moves earlier by 2', r.earlyStart.getTime() === new Date('2026-08-08').getTime());
+    check('resize left -2: duration grows to 7', r.durationDays === 7);
+  }
+  check('resize left: dragging start onto/past finish is clamped to a minimum 1-day span, never zero/negative',
+    computeDragEditDates(origStart, origFinish, 'left', 20).durationDays >= 1);
+
+  // dxDays = 0 is a no-op for every handle.
+  check('move with 0 delta is a no-op', computeDragEditDates(origStart, origFinish, 'move', 0).earlyStart.getTime() === origStart.getTime());
+  check('right resize with 0 delta is a no-op', computeDragEditDates(origStart, origFinish, 'right', 0).earlyFinish.getTime() === origFinish.getTime());
+  check('left resize with 0 delta is a no-op', computeDragEditDates(origStart, origFinish, 'left', 0).earlyStart.getTime() === origStart.getTime());
+}
+
+console.log('\ndurationDaysFromRange — manual Start/Finish staging duration display (Simplification Phase 3B)');
+{
+  check('7-day range -> 7', durationDaysFromRange(new Date('2026-09-01'), new Date('2026-09-08')) === 7);
+  check('1-day range -> 1', durationDaysFromRange(new Date('2026-09-01'), new Date('2026-09-02')) === 1);
+  check('same-day range floors to 1, never 0', durationDaysFromRange(new Date('2026-09-01'), new Date('2026-09-01')) === 1);
+  check('end before start floors to 1, never negative', durationDaysFromRange(new Date('2026-09-05'), new Date('2026-09-01')) === 1);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
