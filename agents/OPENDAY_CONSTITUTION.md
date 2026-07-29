@@ -28,7 +28,7 @@ private dataset of its own.
 
 ## 2. Product Values
 
-These five values are owner-approved. They govern trade-offs when a request
+These six values are owner-approved. They govern trade-offs when a request
 doesn't have an obvious answer. Preserve their meaning; do not water them
 down when applying them to a specific decision.
 
@@ -77,6 +77,11 @@ historical outcomes — rather than unsupported assumption. **A missing or
 incomplete activity is not, by itself, proof of schedule risk.** Absence of
 data is a data-confidence problem to surface honestly, not a fact to
 silently treat as zero or as danger.
+
+### Assist, Don’t Assume Responsibility
+
+OpenDay must help project participants perform their responsibilities, not replace them.
+Scope commitments, schedules, commercial decisions, approvals and execution remain the responsibility of the authorized project participants. OpenDay structures information, preserves evidence, performs deterministic calculations and surfaces deviations to support those decisions.
 
 ## 3. Domain and Core vs. UI
 
