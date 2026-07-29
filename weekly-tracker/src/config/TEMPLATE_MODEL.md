@@ -184,13 +184,13 @@ baseEffort(wp)] / Σ calibratedEffort over eligible+selected WPs in the same
 group`. Deliberately two effective layers only (Group → calibrated WP
 effort) — a separately-normalized "category share" layer is algebraically
 redundant once `categoryFactor` is folded into each WP's calibrated effort,
-and is not implemented. Group share: Project-Wide is a fixed `anchorPct`
-(value not yet assigned); Sales/BOH split the remainder by the canonical
+and is not implemented. Group share: Project-Wide is a fixed `anchorPct` of
+40; Sales/BOH split the remainder by the canonical
 Sales Area/BOH Area ratio, reusing `computeZoneWeights()` unchanged via a
 `areaBasis`/`anchorPct`/`defaultWeight` → `weightMode`/`fixedWeight`/
-`defaultWeight` adapter. Missing-area fallback is the template's own
-explicit `defaultWeight` per group — never a silently-inherited v1 business
-value.
+`defaultWeight` adapter. Missing-area fallback is the template's explicit
+Sales 80 / BOH 20 `defaultWeight` ratio — never a silently-inherited v1
+business value.
 
 **Construction Progress eligibility is WP-level** (corrected from Slice
 5E-R's category-level proposal — the real approved catalog mixes eligible
@@ -226,7 +226,7 @@ routes, and assembles the flattened template.
 `duration_pct` are never read by the new weight engine. Schedule/duration
 authoring for the Master Catalog is explicitly undesigned and deferred.
 
-**⚠️ ACTIVATION BLOCKER — retained from Slice 5E's audit, not yet resolved:**
+**⚠️ ACTIVATION BLOCKER — Historical Progress Snapshot Provenance:**
 `progress_history` currently stores a resolved scalar percentage plus raw
 per-WP status, but no weight/scope/template provenance — two fields that
 already anticipate this (`snapshot.effective_weights`, `report.snapshotWeights`)
@@ -241,6 +241,13 @@ after a project has recorded progress would silently and retroactively
 change what earlier percentages meant, with no record it happened. Not
 implemented in this slice (no schema change, no migration) — this is a
 prerequisite for a future activation slice, not for 5E.1/5E.2.
+
+**⚠️ ACTIVATION BLOCKER — Default Scope Consistency Review:** the inactive
+candidate currently default-selects CCTV Installation and Access-Control
+Installation while the corresponding CCTV Commissioning and Access-Control
+Test WPs are not default-selected. This pairing must be reviewed explicitly
+before activation. Slice 5E.2B persists weights only; it does not change
+default scope or activate schemaVersion 2.
 
 ## Retail Fit-Out v2 — zoned (zone → category → work-package) template (2026-07-07)
 

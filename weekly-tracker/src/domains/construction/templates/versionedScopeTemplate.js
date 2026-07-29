@@ -92,18 +92,27 @@ export const RETAIL_FITOUT_MASTER_CATALOG_DEFAULT_SCOPE_SHA256 =
   '0be78bc9f59052a2d1d6f1549a19320f8eeef44b2e837f26c06462dc7fbbecc0';
 export const RETAIL_FITOUT_MASTER_CATALOG_SEMANTIC_SHA256 =
   '542bf262694c8cc345be3dd1606af512eb92af7b42e730512d65191fb9243fc4';
+// Slice 5E.2B weight fingerprints. Arrays retain authored catalog order;
+// object keys are recursively sorted before JSON hashing. Exact normalization
+// is certified in masterCatalogWeightCalibration.test.mjs.
+export const RETAIL_FITOUT_MASTER_CATALOG_ELIGIBILITY_SHA256 =
+  '0e0c6769f394eb2129cab151555d653b5d22574c08889ef15c1aea2d608c73c3';
+export const RETAIL_FITOUT_MASTER_CATALOG_BASE_EFFORT_SHA256 =
+  '4a34df99b032885183dc30b8e8a4d9c89c35ccf71c48f1c8ef2e35de70ea8afa';
+export const RETAIL_FITOUT_MASTER_CATALOG_CATEGORY_FACTOR_SHA256 =
+  '1189fc5d8516c8de05c3f9a31ab61179a020874d4b57324cd0af8f128611458b';
+export const RETAIL_FITOUT_MASTER_CATALOG_GROUP_WEIGHT_SETTINGS_SHA256 =
+  'cb6c32d47fd101ee2d1d23eaff1e686b30023ed14b89ddce39aa9e39dbbabd47';
+export const RETAIL_FITOUT_MASTER_CATALOG_WEIGHT_METADATA_SHA256 =
+  '7a20a69fde01c5c4d7acccab87c102046765ed33911f6876046948fafa5d133b';
+export const RETAIL_FITOUT_MASTER_CATALOG_OPERATIONAL_SEMANTIC_SHA256 =
+  '4078983e76f12cae9ceac48a05e1469eaebcf478c6da6d520f528fa50608ecf6';
 
 /**
- * Deterministic materializer for the approved 221-WP Master Catalog
- * candidate, mirroring materializeRetailFitoutV2TemplateData()'s role for
- * v1. Deliberately OMITS weightMode/fixedWeight (zones), durationPct (work
- * packages), and any blocker/readiness/schedule-marker metadata — none of
- * that has been designed/approved yet (Slice 5D scope boundary), and there
- * is no neutral non-semantic placeholder for those fields that wouldn't
- * silently imply calculation semantics. `dependencies: []` IS the approved
- * neutral placeholder for "not yet designed" at the template-data level
- * (schema-valid, structurally required as an array, semantically empty).
- * `applicabilityTags` is likewise omitted everywhere (not yet approved).
+ * Deterministic materializer for the approved, weight-operational 221-WP
+ * Master Catalog candidate. Duration and blocker/readiness/schedule metadata
+ * remain deliberately absent. `dependencies: []` remains the approved
+ * structural placeholder until the duration/dependency model is authored.
  */
 export function materializeRetailFitoutMasterCatalogTemplateData() {
   return {

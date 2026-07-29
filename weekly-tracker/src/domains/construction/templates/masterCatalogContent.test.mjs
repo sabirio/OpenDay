@@ -121,8 +121,21 @@ console.log('\n12-14. Fingerprints + source/persisted equivalence');
   const generatedJson = migration.match(/\$master_catalog\$\r?\n([\s\S]+?)\r?\n\$master_catalog\$::jsonb/)?.[1];
   check('13. persisted migration payload is present and parses as JSON', generatedJson != null && JSON.parse(generatedJson) != null);
   const persisted = generatedJson != null ? JSON.parse(generatedJson) : null;
-  check('14. source <-> persisted migration payload equivalence (exact)',
-    persisted != null && JSON.stringify(persisted) === JSON.stringify(data));
+  const preWeightData = structuredClone(data);
+  for (const zone of preWeightData.zones) {
+    delete zone.areaBasis;
+    delete zone.anchorPct;
+    delete zone.defaultWeight;
+    for (const category of zone.categories) {
+      delete category.categoryFactor;
+      for (const wp of category.workPackages) {
+        delete wp.constructionProgressEligible;
+        delete wp.baseEffort;
+      }
+    }
+  }
+  check('14. immutable migration 043 payload equals the exact mechanically stripped pre-weight source',
+    persisted != null && JSON.stringify(persisted) === JSON.stringify(preWeightData));
   check('migration inserts exactly ONE row (single VALUES tuple)',
     (migration.match(/INSERT INTO public\.templates/g) ?? []).length === 1);
   check('migration is additive-only (no UPDATE/DELETE, no ALTER, no RLS/policy statements)',
