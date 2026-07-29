@@ -3,8 +3,9 @@ import { computeWPCumulativeStatuses, computeCumulativeStatuses } from '../../ut
 import { calculateProjectProgressResult, calculateRawWPAverageProgress, resolveLegacyTaskEffectiveProgressPct } from '../../engines/progressEngine';
 import { getWPGrouping, isZonedTemplate } from '../projects/grouping/getWPGrouping';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
+import { buildMasterCatalogProgressTemplate } from '../projects/weights/buildMasterCatalogProgressTemplate.js';
 import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds';
-import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
+import { resolveProjectScopeTemplate, MASTER_CATALOG_SCHEMA_VERSION } from '../../domains/construction/templates/versionedScopeTemplate.js';
 import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea';
 // Audited, intentional legacy-fallback import (P0 data-integrity fix, see
 // AGENTS.md task history) — tracked in
@@ -112,11 +113,14 @@ export function buildContractorReportSubmission({
   const allReports = [...projectReports, mainReportPayload];
   const wpCum  = computeWPCumulativeStatuses(allReports);
   const legCum = computeCumulativeStatuses(allReports);
+  const schemaVersion = isV2 ? scopeTemplate?.data?.schemaVersion : undefined;
   const scopeWPIds = isV2
-    ? resolveProjectScopeSelection({ scope: project.scope, workPackages: scopeTemplate.workPackages, schemaVersion: scopeTemplate?.data?.schemaVersion })
+    ? resolveProjectScopeSelection({ scope: project.scope, workPackages: scopeTemplate.workPackages, schemaVersion })
     : null;
   const v2Template = isV2
-    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project.scope?.zones ?? null, project.scope?.categories ?? null, scopeTemplate)
+    ? (schemaVersion === MASTER_CATALOG_SCHEMA_VERSION
+        ? buildMasterCatalogProgressTemplate(resolveEffectiveV2ZoneAreas(project), scopeTemplate)
+        : buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project.scope?.zones ?? null, project.scope?.categories ?? null, scopeTemplate))
     : null;
   const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template, project.scope?.weightOverrides ?? null).progress;
 

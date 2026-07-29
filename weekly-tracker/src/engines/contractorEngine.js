@@ -5,8 +5,9 @@ import { computeScheduleDeviation } from "./riskEngine";
 import { resolveProjectScopeSelection } from "../core/projects/scope/getScopeWPIds";
 import { WORK_PACKAGES as GANTT_WPS } from "../config/masterTaskLibrary";
 import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
-import { resolveProjectScopeTemplate } from "../domains/construction/templates/versionedScopeTemplate.js";
+import { resolveProjectScopeTemplate, MASTER_CATALOG_SCHEMA_VERSION } from "../domains/construction/templates/versionedScopeTemplate.js";
 import { buildV2ProgressTemplate } from "../core/projects/weights/buildV2ProgressTemplate";
+import { buildMasterCatalogProgressTemplate } from "../core/projects/weights/buildMasterCatalogProgressTemplate.js";
 import { resolveEffectiveV2ZoneAreas } from "../core/projects/areas/resolveProjectArea";
 
 export function computeContractorScores(project, projReports, projSiteVisits, referenceDate = new Date()) {
@@ -62,13 +63,16 @@ export function computeContractorScores(project, projReports, projSiteVisits, re
   // here), but scope/v2/weightOverrides are all resolvable from `project` alone.
   const isV2 = project?.templateType === V2_TEMPLATE_TYPE;
   const scopeTemplate = resolveProjectScopeTemplate(project);
+  const schemaVersion = isV2 ? scopeTemplate?.data?.schemaVersion : undefined;
   const scopeWPIds = resolveProjectScopeSelection({
     scope: project?.scope,
     workPackages: isV2 ? scopeTemplate.workPackages : GANTT_WPS,
-    schemaVersion: isV2 ? scopeTemplate?.data?.schemaVersion : undefined,
+    schemaVersion,
   });
   const v2Template = isV2
-    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null, scopeTemplate)
+    ? (schemaVersion === MASTER_CATALOG_SCHEMA_VERSION
+        ? buildMasterCatalogProgressTemplate(resolveEffectiveV2ZoneAreas(project), scopeTemplate)
+        : buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(project), project?.scope?.zones ?? null, project?.scope?.categories ?? null, scopeTemplate))
     : null;
   const wpCum  = computeWPCumulativeStatuses(projReports);
   const legCum = computeCumulativeStatuses(projReports) || {};

@@ -25,13 +25,16 @@
  * @typedef {object} Template
  * @property {Array<{id: string, label?: string, phaseId: string, duration_pct: number}>} [workPackages]
  * @property {Array<{id: string, label?: string, order?: number, progressWeight: number}>} [phases]
+ * @property {number} [schemaVersion] present on Master Catalog (schemaVersion 2) templates only; routes resolveProjectProgressWeights() to the v2 formula
+ * @property {Record<string, number>} [groupShares] Master Catalog only: precomputed baseline group (zone) shares
+ * @property {object} [rawData] Master Catalog only: the raw schemaVersion 2 template.data, for weight-metadata validation
  */
 
 import {
   WORK_PACKAGES as GANTT_TASKS,
   getPhasesInOrder,
 } from '../config/masterTaskLibrary.js';
-import { computeEffectiveWeights } from '../core/projects/index.js';
+import { resolveProjectProgressWeights } from '../core/projects/weights/resolveProjectProgressWeights.js';
 import { constructionRetailV1 } from '../domains/construction/templates/constructionRetailV1.js';
 import { WP_STATUS_SCORES } from '../config/statusScores.js';
 
@@ -341,7 +344,13 @@ export function calculatePhaseAverageProgressWithOverrides(tasks, progressOverri
  */
 export function calculateProjectProgress(wpStatuses, scopeWPIds = null, phaseWeightOverrides = null, template = null) {
   const { workPackages, phaseWeights, phases: resolvedPhases } = resolveTemplate(template);
-  const effectiveWeights = scopeWPIds ? computeEffectiveWeights(workPackages, scopeWPIds, phaseWeights) : null;
+  const resolved = scopeWPIds ? resolveProjectProgressWeights({ template, workPackages, scopeWPIds, phaseWeights }) : null;
+  const effectiveWeights = resolved?.effectiveWeights ?? null;
+  // schemaVersion 2 derives phase weights fresh alongside effectiveWeights
+  // (a category's contribution depends on exactly which WPs are selected);
+  // schemaVersion 1 (resolved.phaseWeights === null) keeps the template's
+  // own static phaseWeights untouched — byte-identical to before this change.
+  const effectivePhaseWeights = resolved?.phaseWeights ?? phaseWeights;
 
   // Determine which phases to visit (all phases if no scope, else only those with active WPs).
   const activePhaseIds = effectiveWeights
@@ -357,7 +366,7 @@ export function calculateProjectProgress(wpStatuses, scopeWPIds = null, phaseWei
     if (count === 0) continue;
     const w = (phaseWeightOverrides && phaseWeightOverrides[phase.id] != null)
       ? phaseWeightOverrides[phase.id]
-      : (phaseWeights[phase.id] || 0);
+      : (effectivePhaseWeights[phase.id] || 0);
     weightedSum += pct * w;
     weightTotal += w;
   }
@@ -421,7 +430,8 @@ export function calculateProjectProgressResult(wpCumulative, legacyCumulative, s
   if (wpCumulative?.workPackageStatuses) {
     const wpStatuses = wpCumulative.workPackageStatuses;
     const { workPackages, phaseWeights, phases: resolvedPhases } = resolveTemplate(template);
-    const effectiveWeights = scopeWPIds ? computeEffectiveWeights(workPackages, scopeWPIds, phaseWeights) : null;
+    const resolved = scopeWPIds ? resolveProjectProgressWeights({ template, workPackages, scopeWPIds, phaseWeights }) : null;
+    const effectiveWeights = resolved?.effectiveWeights ?? null;
     const activePhaseIds = effectiveWeights
       ? new Set(Object.keys(effectiveWeights).map(id => workPackages.find(t => t.id === id)?.phaseId).filter(Boolean))
       : null;

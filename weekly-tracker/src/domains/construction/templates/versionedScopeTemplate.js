@@ -284,6 +284,98 @@ export function isMasterCatalogTemplateValid(data) {
   return validateMasterCatalogTemplateData(data).every(issue => issue.severity !== 'error');
 }
 
+// Slice 5E.1 — canonical enum for the Master Catalog weight contract's
+// group-level `areaBasis` field. Deliberately the same 4 canonical values
+// as PROJECT_AREA_BASIS (resolveProjectArea.js) — not a parallel/renamed
+// enum — even though only NONE/SALES_AREA/BOH_AREA are actually assigned to
+// a group in the current 3-group design; TOTAL_AREA is kept for schema
+// completeness/future-proofing, matching the canonical area-fact set.
+const MASTER_CATALOG_AREA_BASIS_VALUES = new Set(['TOTAL_AREA', 'SALES_AREA', 'BOH_AREA', 'NONE']);
+
+/**
+ * Validates the Master Catalog WEIGHT metadata contract (Slice 5E.1) —
+ * distinct from validateMasterCatalogTemplateData() above, which only
+ * checks the structural/defaultScope contract every schemaVersion 2
+ * template must already satisfy (including the real, currently
+ * weight-less, 221-WP candidate). This function checks the ADDITIONAL
+ * fields an OPERATIONAL weight calculation needs:
+ *
+ *   WP.constructionProgressEligible — required boolean on every WP
+ *   WP.baseEffort                   — required, positive finite, only on
+ *                                      eligible WPs (ineligible WPs never
+ *                                      enter the calculation, so their
+ *                                      baseEffort is never read)
+ *   category.categoryFactor         — required, positive finite, only on
+ *                                      categories that contain >=1 eligible
+ *                                      WP (a category with none is never
+ *                                      selected into the calculation)
+ *   zone.areaBasis                  — required, one of the 4 canonical
+ *                                      values
+ *   zone.anchorPct                  — required (finite, 0 < x < 100) when
+ *                                      areaBasis === 'NONE' (the fixed
+ *                                      top-level anchor group)
+ *   zone.defaultWeight               — required (positive finite) when
+ *                                      areaBasis !== 'NONE' — the explicit,
+ *                                      template-authored missing/zero-area
+ *                                      fallback ratio computeZoneWeights()
+ *                                      already supports; deliberately NOT
+ *                                      a hardcoded 45:20 v1 business value.
+ *
+ * Deliberately does NOT default any of these when missing — a template
+ * lacking them is not a valid input for an operational weight calculation,
+ * and this function's whole purpose is to make that failure explicit
+ * rather than silently computing a wrong (typically all-zero) result.
+ */
+export function validateMasterCatalogWeightMetadata(data) {
+  if (!isMasterCatalogTemplateData(data)) {
+    return [{ severity: 'error', code: 'INVALID_SHAPE', message: 'Not a structurally valid schemaVersion 2 Master Catalog template.' }];
+  }
+
+  const issues = [];
+  for (const zone of data.zones ?? []) {
+    if (!MASTER_CATALOG_AREA_BASIS_VALUES.has(zone.areaBasis)) {
+      issues.push({ severity: 'error', code: 'MISSING_AREA_BASIS', message: `Zone "${zone.id}" areaBasis must be one of TOTAL_AREA/SALES_AREA/BOH_AREA/NONE.` });
+    } else if (zone.areaBasis === 'NONE') {
+      const anchor = zone.anchorPct;
+      if (!(typeof anchor === 'number' && Number.isFinite(anchor) && anchor > 0 && anchor < 100)) {
+        issues.push({ severity: 'error', code: 'MISSING_ANCHOR_PCT', message: `Zone "${zone.id}" (areaBasis NONE) requires a finite anchorPct strictly between 0 and 100.` });
+      }
+    } else {
+      const defaultWeight = zone.defaultWeight;
+      if (!(typeof defaultWeight === 'number' && Number.isFinite(defaultWeight) && defaultWeight > 0)) {
+        issues.push({ severity: 'error', code: 'MISSING_DEFAULT_WEIGHT', message: `Zone "${zone.id}" (areaBasis ${zone.areaBasis}) requires a positive finite defaultWeight fallback ratio.` });
+      }
+    }
+
+    for (const category of zone.categories ?? []) {
+      const workPackages = category.workPackages ?? [];
+      const eligibleWPs = workPackages.filter(wp => wp.constructionProgressEligible === true);
+      if (eligibleWPs.length > 0) {
+        const categoryFactor = category.categoryFactor;
+        if (!(typeof categoryFactor === 'number' && Number.isFinite(categoryFactor) && categoryFactor > 0)) {
+          issues.push({ severity: 'error', code: 'MISSING_CATEGORY_FACTOR', message: `Category "${category.id}" contains eligible work packages but has no positive finite categoryFactor.` });
+        }
+      }
+      for (const wp of workPackages) {
+        if (typeof wp.constructionProgressEligible !== 'boolean') {
+          issues.push({ severity: 'error', code: 'MISSING_ELIGIBILITY_FLAG', message: `Work package "${wp.id}" is missing a required constructionProgressEligible boolean.` });
+        }
+        if (wp.constructionProgressEligible === true) {
+          const baseEffort = wp.baseEffort;
+          if (!(typeof baseEffort === 'number' && Number.isFinite(baseEffort) && baseEffort > 0)) {
+            issues.push({ severity: 'error', code: 'MISSING_BASE_EFFORT', message: `Eligible work package "${wp.id}" requires a positive finite baseEffort.` });
+          }
+        }
+      }
+    }
+  }
+  return issues;
+}
+
+export function isOperationalMasterCatalogWeightModel(data) {
+  return validateMasterCatalogWeightMetadata(data).every(issue => issue.severity !== 'error');
+}
+
 /**
  * Canonical default-selection source of truth for a schemaVersion 2
  * template: `defaultScope.workPackageIds`. There is no second,

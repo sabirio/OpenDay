@@ -16,7 +16,9 @@ import { validateTemplate, explainFromSnapshot, explainLive, taskProgressFromSta
 import { constructionRetailV1 } from '../../domains/construction/templates/constructionRetailV1.js';
 import { getScopedGanttWorkPackagesV2, isZonedTemplate } from '../projects/grouping/getWPGrouping.js';
 import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate.js';
-import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
+import { buildMasterCatalogProgressTemplate } from '../projects/weights/buildMasterCatalogProgressTemplate.js';
+import { resolveProjectProgressWeights } from '../projects/weights/resolveProjectProgressWeights.js';
+import { resolveProjectScopeTemplate, MASTER_CATALOG_SCHEMA_VERSION } from '../../domains/construction/templates/versionedScopeTemplate.js';
 import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea.js';
 
 const EXPLAIN_TEMPLATE_V1 = { workPackages: GANTT_WPS, phases: constructionRetailV1.phases };
@@ -137,8 +139,12 @@ export function buildWeeklyReportReviewModel({
   const scope = selectedProject?.scope ?? null;
   const isV2 = isZonedTemplate(selectedProject?.templateType);
   const scopeTemplate = resolveProjectScopeTemplate(selectedProject);
+  const schemaVersion = isV2 ? scopeTemplate?.data?.schemaVersion : undefined;
+  const isMasterCatalog = isV2 && schemaVersion === MASTER_CATALOG_SCHEMA_VERSION;
   const v2ProgressTemplate = isV2
-    ? buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(selectedProject), scope?.zones ?? null, scope?.categories ?? null, scopeTemplate)
+    ? (isMasterCatalog
+        ? buildMasterCatalogProgressTemplate(resolveEffectiveV2ZoneAreas(selectedProject), scopeTemplate)
+        : buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(selectedProject), scope?.zones ?? null, scope?.categories ?? null, scopeTemplate))
     : null;
   const scopedGanttWPs = isV2 ? getScopedGanttWorkPackagesV2(scope, scopeTemplate) : getScopedGanttWorkPackages(scope);
   const displayWorkPackages = isWPReport(selectedReport) ? scopedGanttWPs : legacyWorkPackages;
@@ -153,8 +159,20 @@ export function buildWeeklyReportReviewModel({
     : legacyWorkPackages;
   const scopePhaseIds = displayWorkPackages.map(p => p.id);
   const overrides = scope?.weightOverrides;
+  // Master Catalog phase weights are scope-dependent (Slice 5E-R: a
+  // category's true contribution depends on exactly which WPs are
+  // selected within it, unlike v1's static phase.progressWeight) — read
+  // through the same canonical resolver progressEngine.js uses, never a
+  // static field on v2ProgressTemplate.phases[] (which
+  // buildMasterCatalogProgressTemplate deliberately leaves unset).
   const phaseWeights = isV2
-    ? Object.fromEntries((v2ProgressTemplate?.phases ?? []).map(p => [p.id, p.progressWeight ?? 0]))
+    ? (isMasterCatalog
+        ? resolveProjectProgressWeights({
+            template: v2ProgressTemplate,
+            workPackages: v2ProgressTemplate.workPackages,
+            scopeWPIds: resolveProjectScopeSelection({ scope, workPackages: v2ProgressTemplate.workPackages, schemaVersion }),
+          }).phaseWeights ?? {}
+        : Object.fromEntries((v2ProgressTemplate?.phases ?? []).map(p => [p.id, p.progressWeight ?? 0])))
     : (overrides ? { ...getDefaultPhaseWeights(), ...overrides } : getDefaultPhaseWeights());
   const phaseClassifications = selectedProject
     ? classifyPhases(fullPhaseList, mergedStatuses, prevMergedStatuses, scopePhaseIds, phaseWeights)

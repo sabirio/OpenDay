@@ -173,6 +173,66 @@ resolver plumbing above, and a small deterministic 5-WP test fixture
 (`domains/construction/templates/masterCatalogSchemaV2.test.mjs`) — never the
 real catalog.
 
+## Master Catalog weight contract & canonical engine (Slice 5E.1, 2026-07-29)
+
+Adds the Construction Progress WEIGHT contract and engine for schemaVersion 2
+(Master Catalog) templates — no real values authored, no activation.
+
+**Model** (Slice 5E-R's "responsive category effort," approved):
+`resolvedWeight(wp) = groupShare(group) × [categoryFactor(category(wp)) ×
+baseEffort(wp)] / Σ calibratedEffort over eligible+selected WPs in the same
+group`. Deliberately two effective layers only (Group → calibrated WP
+effort) — a separately-normalized "category share" layer is algebraically
+redundant once `categoryFactor` is folded into each WP's calibrated effort,
+and is not implemented. Group share: Project-Wide is a fixed `anchorPct`
+(value not yet assigned); Sales/BOH split the remainder by the canonical
+Sales Area/BOH Area ratio, reusing `computeZoneWeights()` unchanged via a
+`areaBasis`/`anchorPct`/`defaultWeight` → `weightMode`/`fixedWeight`/
+`defaultWeight` adapter. Missing-area fallback is the template's own
+explicit `defaultWeight` per group — never a silently-inherited v1 business
+value.
+
+**Construction Progress eligibility is WP-level** (corrected from Slice
+5E-R's category-level proposal — the real approved catalog mixes eligible
+and ineligible facts inside the same category, e.g. Pre-Handover &
+Readiness contains both "Snagging" [eligible] and "Authority Approval"
+[not eligible]). `constructionProgressEligible: false` WPs contribute
+**zero** (not near-zero) to both the numerator and denominator, while
+remaining fully in Project Scope, reportable, and visible to Opening
+Readiness and the general scope resolver — see
+`masterCatalogWeightEngine.test.mjs` tests 3 and 16.
+
+**Canonical resolver**: `core/projects/weights/resolveProjectProgressWeights.js`,
+called from inside `progressEngine.js` (never by outer consumers) —
+schemaVersion 1 delegates byte-identical to the certified
+`computeEffectiveWeights()`; schemaVersion 2 routes to
+`engines/masterCatalogWeightEngine.js`'s `computeMasterCatalogEffectiveWeights()`.
+The actual formula lives in `engines/`, matching every other calculation in
+this codebase (architecture-guard enforced) — `core/` only validates,
+routes, and assembles the flattened template.
+
+**Duration is NOT coupled to progress weight for schemaVersion 2** —
+`baseEffort`/`categoryFactor` are never read by `ganttEngine.js` or
+`ganttOrchestrationModel.js` (guarded by test), and `durationPct`/
+`duration_pct` are never read by the new weight engine. Schedule/duration
+authoring for the Master Catalog is explicitly undesigned and deferred.
+
+**⚠️ ACTIVATION BLOCKER — retained from Slice 5E's audit, not yet resolved:**
+`progress_history` currently stores a resolved scalar percentage plus raw
+per-WP status, but no weight/scope/template provenance — two fields that
+already anticipate this (`snapshot.effective_weights`, `report.snapshotWeights`)
+are read by `explainAdapters.js`/`progressEngine.js` today but are **never
+written anywhere**. **The Master Catalog template MUST NOT be switched to
+`is_active = true` (or otherwise made reachable by normal project creation)
+until `progress_history` writes capture, at minimum: `templateId`,
+`templateVersion`, `schemaVersion`, `selectedWpIds`, a derived
+`selectedScopeFingerprint`, the resolved `effectiveWeights` table, and
+`calculationVersion`.** Without this, a scope or weight-authoring change
+after a project has recorded progress would silently and retroactively
+change what earlier percentages meant, with no record it happened. Not
+implemented in this slice (no schema change, no migration) — this is a
+prerequisite for a future activation slice, not for 5E.1/5E.2.
+
 ## Retail Fit-Out v2 — zoned (zone → category → work-package) template (2026-07-07)
 
 A second, fully isolated template model was added end-to-end: seeding, dependencies, scope,
