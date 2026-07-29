@@ -71,6 +71,20 @@ const row = JSON.parse(psql(`
   WHERE id = '${RETAIL_FITOUT_MASTER_CATALOG_TEMPLATE_ID}';
 `));
 const canonicalData = materializeRetailFitoutMasterCatalogTemplateData();
+const canonicalWeightData = structuredClone(canonicalData);
+delete canonicalWeightData.durationModel;
+for (const zone of canonicalWeightData.zones) {
+  for (const category of zone.categories) {
+    for (const wp of category.workPackages) delete wp.duration;
+  }
+}
+const persistedWeightData = structuredClone(row.data);
+delete persistedWeightData.durationModel;
+for (const zone of persistedWeightData.zones) {
+  for (const category of zone.categories) {
+    for (const wp of category.workPackages) delete wp.duration;
+  }
+}
 const migration = readFileSync(migrationPath, 'utf8');
 const migrationPayload = JSON.parse(
   migration.match(/\$weighted_catalog\$\r?\n([\s\S]+?)\r?\n\$weighted_catalog\$::jsonb/)?.[1] ?? 'null',
@@ -86,8 +100,8 @@ check('candidate identity exact and inactive',
   && row.data.schemaVersion === 2
   && row.isActive === false);
 check('candidate has zero project references', Number(row.projectReferences) === 0);
-check('canonical source = migration finalized payload', equalJson(canonicalData, migrationPayload));
-check('migration finalized payload = actual local DB row', equalJson(migrationPayload, row.data));
+check('canonical Weight projection = migration finalized payload', equalJson(canonicalWeightData, migrationPayload));
+check('migration finalized payload = actual local DB Weight projection', equalJson(migrationPayload, persistedWeightData));
 check('persisted candidate passes structural validation', validateMasterCatalogTemplateData(row.data).length === 0);
 check('persisted candidate passes operational weight validation', validateMasterCatalogWeightMetadata(row.data).length === 0);
 

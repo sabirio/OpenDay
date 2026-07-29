@@ -7,6 +7,7 @@ import {
 import { DEPENDENCY_RULES_V2 } from '../../../config/dependencyRulesV2.js';
 import {
   MASTER_CATALOG_DEFAULT_SCOPE_WORK_PACKAGE_IDS,
+  MASTER_CATALOG_DURATION_MODEL,
   MASTER_CATALOG_GROUPS,
 } from './retailFitoutMasterCatalog.js';
 
@@ -107,12 +108,35 @@ export const RETAIL_FITOUT_MASTER_CATALOG_WEIGHT_METADATA_SHA256 =
   '7a20a69fde01c5c4d7acccab87c102046765ed33911f6876046948fafa5d133b';
 export const RETAIL_FITOUT_MASTER_CATALOG_OPERATIONAL_SEMANTIC_SHA256 =
   '4078983e76f12cae9ceac48a05e1469eaebcf478c6da6d520f528fa50608ecf6';
+// Slice 5F.2B Duration fingerprints. Ordered WP lists intentionally preserve
+// canonical catalog order; object keys are recursively sorted before hashing.
+// The weight-operational fingerprint above is computed from the same template
+// with durationModel/wp.duration removed, so duration authoring cannot rewrite
+// the frozen Weight Model identity.
+export const RETAIL_FITOUT_MASTER_CATALOG_DURATION_MODE_SHA256 =
+  'a2f7b3b11b1cda109577716d2638cdbb57eabee0f34d6154ad1bb3f7273b615f';
+export const RETAIL_FITOUT_MASTER_CATALOG_BASE_DURATION_SHA256 =
+  '1d298383b908cb60181b265fcba4c36e88f9cde9f14c49ff04bda2ba1d2c0a74';
+export const RETAIL_FITOUT_MASTER_CATALOG_DURATION_AREA_BASIS_SHA256 =
+  '14c2e8da22f60123eb6d195bda528d3f0ef04863cc2928dd21e89c05f64064f1';
+export const RETAIL_FITOUT_MASTER_CATALOG_REFERENCE_AREAS_SHA256 =
+  'a2f48d2599f151a56e7f31f2463b0c3437fed2f6af439a5f85cb5ca0e665b7a4';
+export const RETAIL_FITOUT_MASTER_CATALOG_DURATION_BANDS_SHA256 =
+  'd8c4e3f0ce7d9d8a36853093c5c15ed5ed3f958f8aff4beb8eed8e1b2e6b18d6';
+export const RETAIL_FITOUT_MASTER_CATALOG_MILESTONE_SET_SHA256 =
+  'fab66061e779784bfe04ef7bc2306469fc4c6d1648c452bb62edd2186a5b8a9f';
+export const RETAIL_FITOUT_MASTER_CATALOG_EXCLUDED_SET_SHA256 =
+  '01a2caadafee01d1393b60cd21b9be560346b2d140d2ad009b10c06a2d638953';
+export const RETAIL_FITOUT_MASTER_CATALOG_DURATION_METADATA_SHA256 =
+  '8633a34bc29cc54295ece23bd2be19b96cb08999730d8395b4902e1328289382';
+export const RETAIL_FITOUT_MASTER_CATALOG_FINAL_OPERATIONAL_SHA256 =
+  '9591057e34c9fb4a54d04f6ae3d1971318512f37a1cdb1d10755de06401e5287';
 
 /**
  * Deterministic materializer for the approved, weight-operational 221-WP
- * Master Catalog candidate. Duration and blocker/readiness/schedule metadata
- * remain deliberately absent. `dependencies: []` remains the approved
- * structural placeholder until the duration/dependency model is authored.
+ * Master Catalog candidate. Blocker/readiness/schedule metadata remain
+ * deliberately absent. `dependencies: []` remains the approved structural
+ * placeholder until the dependency model is authored.
  */
 export function materializeRetailFitoutMasterCatalogTemplateData() {
   return {
@@ -121,6 +145,7 @@ export function materializeRetailFitoutMasterCatalogTemplateData() {
     templateType: V2_TEMPLATE_TYPE,
     label: RETAIL_FITOUT_MASTER_CATALOG_LABEL,
     zones: clone(MASTER_CATALOG_GROUPS),
+    durationModel: clone(MASTER_CATALOG_DURATION_MODEL),
     dependencies: [],
     defaultScope: { workPackageIds: [...MASTER_CATALOG_DEFAULT_SCOPE_WORK_PACKAGE_IDS] },
   };

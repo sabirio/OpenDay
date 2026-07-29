@@ -20,6 +20,7 @@ const importFoundationPhase2Local = readFileSync(new URL('../../scripts/certific
 const masterCatalogSchemaV2Local = readFileSync(new URL('../../scripts/certification/applyMasterCatalogSchemaV2Local.mjs', import.meta.url), 'utf8');
 const masterCatalogSlice5DLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogSlice5DLocal.mjs', import.meta.url), 'utf8');
 const masterCatalogWeightCalibrationLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogWeightCalibrationLocal.mjs', import.meta.url), 'utf8');
+const masterCatalogDurationCalibrationLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogDurationCalibrationLocal.mjs', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -85,8 +86,11 @@ check('local Master Catalog (Slice 5D) hash verification is stable across Window
 check('local Master Catalog weight extension uses the canonical local guard before psql', masterCatalogWeightCalibrationLocal.indexOf('assertLocalTarget') < masterCatalogWeightCalibrationLocal.indexOf("execFileSync('psql'"));
 check('local Master Catalog weight extension pins and verifies the approved 044 migration', masterCatalogWeightCalibrationLocal.includes('044_master_catalog_weight_calibration.sql') && /createHash\('sha256'\)/.test(masterCatalogWeightCalibrationLocal));
 check('local Master Catalog weight hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(masterCatalogWeightCalibrationLocal));
-check('Master Catalog reset applies 042 -> 043 -> 044 explicitly and in order',
-  /applyMasterCatalogSchemaV2Local\.mjs.*applyMasterCatalogSlice5DLocal\.mjs.*applyMasterCatalogWeightCalibrationLocal\.mjs/.test(packageJson.scripts['cert:reset:master-catalog']));
+check('local Master Catalog duration extension uses the canonical local guard before psql', masterCatalogDurationCalibrationLocal.indexOf('assertLocalTarget') < masterCatalogDurationCalibrationLocal.indexOf("execFileSync('psql'"));
+check('local Master Catalog duration extension pins and verifies the approved 045 migration', masterCatalogDurationCalibrationLocal.includes('045_master_catalog_duration_calibration.sql') && /createHash\('sha256'\)/.test(masterCatalogDurationCalibrationLocal));
+check('local Master Catalog duration hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(masterCatalogDurationCalibrationLocal));
+check('Master Catalog reset applies 042 -> 043 -> 044 -> 045 explicitly and in order',
+  /applyMasterCatalogSchemaV2Local\.mjs.*applyMasterCatalogSlice5DLocal\.mjs.*applyMasterCatalogWeightCalibrationLocal\.mjs.*applyMasterCatalogDurationCalibrationLocal\.mjs/.test(packageJson.scripts['cert:reset:master-catalog']));
 
 // Structural migration-completeness guard: the fresh-install path is a
 // multi-part composition (canonical contract's 000-029 and 041 + applySnagListLocal.mjs's
@@ -107,8 +111,9 @@ const importFoundationPhase2BatchFiles = [...importFoundationPhase2Local.matchAl
 const masterCatalogSchemaV2BatchFiles = [...masterCatalogSchemaV2Local.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const masterCatalogSlice5DBatchFiles = [...masterCatalogSlice5DLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const masterCatalogWeightCalibrationBatchFiles = [...masterCatalogWeightCalibrationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
-const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles]);
-check('fresh-install migration set is exactly covered through approved Master Catalog weight migration 044, no gaps',
+const masterCatalogDurationCalibrationBatchFiles = [...masterCatalogDurationCalibrationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles]);
+check('fresh-install migration set is exactly covered through approved Master Catalog duration migration 045, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -118,6 +123,7 @@ check('migrations 037-040 are covered by the Import Foundation v1 Phase 2 batch 
 check('migration 042 is covered by the Master Catalog schema-v2 batch (guards against this check being vacuously true)', masterCatalogSchemaV2BatchFiles.length >= 1);
 check('migration 043 is covered by the Master Catalog Slice 5D batch (guards against this check being vacuously true)', masterCatalogSlice5DBatchFiles.length >= 1);
 check('migration 044 is covered by the Master Catalog weight batch (guards against this check being vacuously true)', masterCatalogWeightCalibrationBatchFiles.length >= 1);
+check('migration 045 is covered by the Master Catalog duration batch (guards against this check being vacuously true)', masterCatalogDurationCalibrationBatchFiles.length >= 1);
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by

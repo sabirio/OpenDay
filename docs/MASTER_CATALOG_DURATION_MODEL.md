@@ -2,9 +2,10 @@
 
 ## Status
 
-Slice 5F.1 establishes the schema-v2 duration contract and pure resolver only.
-It does not author real duration classifications or values, generate the real
-Master Catalog Gantt, or activate the schema-v2 template.
+Slice 5F.2B persists the owner-approved schema-v2 duration classifications,
+reference areas, bands, and base durations into the existing inactive Master
+Catalog candidate. It does not generate the real Master Catalog Gantt or
+activate the schema-v2 template.
 
 The frozen Construction Progress Weight model remains a separate capability.
 Duration never derives from `baseEffort`, `categoryFactor`,
@@ -46,8 +47,10 @@ canonical area resolves to the base duration with explicit `AREA_FALLBACK`
 provenance. Canonical zero remains a valid area under the existing area
 contract and therefore selects a band.
 
-Real reference areas, band multipliers, WP classifications, and WP duration
-values are intentionally absent until Slice 5F.2.
+The approved immutable candidate uses reference areas 950/800/150 for
+TOTAL/SALES/BOH and five bands with multipliers 0.70/0.85/1.00/1.15/1.30.
+Its 221 WPs classify as 131 fixed, 78 area-scaled, 7 milestones, and 5
+excluded.
 
 ## Canonical schedule routing
 
@@ -58,14 +61,14 @@ schemaVersion 1 -> LEGACY_WINDOW_FITTING
 schemaVersion 2 -> MASTER_CATALOG_DURATION_V2
 ```
 
-Slice 5F.1 does not wire it into Gantt generation. Existing schema-v1
+Slice 5F.2B does not wire it into Gantt generation. Existing schema-v1
 generation remains byte-compatible and continues to use the project window,
 phase/category allocation, legacy duration percentage, size modifier, and
 existing CPM.
 
-The real inactive 221-WP candidate lacks duration metadata, dependencies, and
-schedule markers. Its schema-v2 schedule route therefore reports
-`operational:false` and must not reach real Gantt generation.
+The real inactive 221-WP candidate is duration-operational but still lacks
+dependencies and schedule integration. It must not reach real Gantt
+generation.
 
 ## Baseline, model completion, and forecast
 
@@ -113,16 +116,9 @@ full dependency and CPM graph. Before schema-v2 activation, either:
 
 The product/UI choice is intentionally deferred.
 
-### CLASSIFICATION REQUIRED
-
-The prior conceptual evidence—101 area-scaled, 81 fixed, 13 combined
-milestone/non-execution, and 26 ambiguous—has not been persisted. Slice 5F.2
-must split milestone from excluded, resolve every ambiguous WP, and author
-owner-approved immutable values.
-
 ### SCHEDULE PROVENANCE REQUIRED
 
-Before persistence/activation, a generated schema-v2 baseline must retain
+Before activation, a generated schema-v2 baseline must retain
 enough provenance to explain why every date was expected:
 
 - template ID and template version;
@@ -146,3 +142,18 @@ duration. Critical Procurement remains a separate future capability.
 Duration resolution does not calculate dependencies, CPM, Risk, Opening
 Readiness, progress, or forecast. Those capabilities consume or constrain
 schedule facts through their own canonical boundaries.
+
+## Retained activation and schedule blockers
+
+- **A — Historical Progress Snapshot Provenance:** historical progress must
+  retain template/scope/weight/calculation provenance before activation.
+- **B — Default Scope Consistency Review:** installation/commissioning default
+  pairs require explicit review.
+- **C — Master Catalog Dependency Graph:** the 221-WP graph is not authored.
+- **D — Zero-Day Milestone Gantt Integration:** the Gantt adapter must preserve
+  true zero-day milestones.
+- **E — Manual Gantt Override Integrity:** overrides must become engine inputs
+  with recalculation or be disabled for engine-controlled baselines.
+- **F — Schedule Provenance / Baseline Reproducibility:** persisted baselines
+  must retain immutable template, duration, area, scope, dependency, calendar,
+  and generated-date provenance.

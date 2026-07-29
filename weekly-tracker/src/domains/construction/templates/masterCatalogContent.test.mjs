@@ -122,6 +122,7 @@ console.log('\n12-14. Fingerprints + source/persisted equivalence');
   check('13. persisted migration payload is present and parses as JSON', generatedJson != null && JSON.parse(generatedJson) != null);
   const persisted = generatedJson != null ? JSON.parse(generatedJson) : null;
   const preWeightData = structuredClone(data);
+  delete preWeightData.durationModel;
   for (const zone of preWeightData.zones) {
     delete zone.areaBasis;
     delete zone.anchorPct;
@@ -131,6 +132,7 @@ console.log('\n12-14. Fingerprints + source/persisted equivalence');
       for (const wp of category.workPackages) {
         delete wp.constructionProgressEligible;
         delete wp.baseEffort;
+        delete wp.duration;
       }
     }
   }

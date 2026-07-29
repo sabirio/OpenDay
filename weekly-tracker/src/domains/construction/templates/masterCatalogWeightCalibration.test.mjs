@@ -157,6 +157,13 @@ const weightMetadata = {
     })),
   })),
 };
+const weightOperationalData = structuredClone(data);
+delete weightOperationalData.durationModel;
+for (const zone of weightOperationalData.zones) {
+  for (const category of zone.categories) {
+    for (const wp of category.workPackages) delete wp.duration;
+  }
+}
 
 console.log('\n3. Deterministic fingerprints');
 check('eligibility fingerprint', sha256(eligibilityNormalization) === RETAIL_FITOUT_MASTER_CATALOG_ELIGIBILITY_SHA256);
@@ -165,8 +172,8 @@ check('categoryFactor fingerprint', sha256(categoryNormalization) === RETAIL_FIT
 check('group settings fingerprint', sha256(groupNormalization) === RETAIL_FITOUT_MASTER_CATALOG_GROUP_WEIGHT_SETTINGS_SHA256);
 check('complete weight-metadata fingerprint',
   sha256(JSON.stringify(canon(weightMetadata))) === RETAIL_FITOUT_MASTER_CATALOG_WEIGHT_METADATA_SHA256);
-check('final operational-template semantic fingerprint',
-  sha256(JSON.stringify(canon(data))) === RETAIL_FITOUT_MASTER_CATALOG_OPERATIONAL_SEMANTIC_SHA256);
+check('frozen weight-operational semantic fingerprint excludes Duration metadata',
+  sha256(JSON.stringify(canon(weightOperationalData))) === RETAIL_FITOUT_MASTER_CATALOG_OPERATIONAL_SEMANTIC_SHA256);
 
 console.log('\n4. Migration provenance and equivalence');
 const migration043 = readFileSync(new URL('../../../migrations/043_retail_fitout_master_catalog.sql', import.meta.url), 'utf8');
@@ -174,7 +181,7 @@ const migration044 = readFileSync(new URL('../../../migrations/044_master_catalo
 const migration044Sql = migration044.replace(/^--.*$/gm, '');
 const preWeightPayload = migration044.match(/\$pre_weight\$\r?\n([\s\S]+?)\r?\n\$pre_weight\$::jsonb/)?.[1];
 const weightedPayload = migration044.match(/\$weighted_catalog\$\r?\n([\s\S]+?)\r?\n\$weighted_catalog\$::jsonb/)?.[1];
-const stripped = structuredClone(data);
+const stripped = structuredClone(weightOperationalData);
 for (const zone of stripped.zones) {
   delete zone.areaBasis;
   delete zone.anchorPct;
@@ -191,8 +198,8 @@ check('migration 043 immutable historical hash unchanged',
   sha256(migration043.replace(/\r\n/g, '\n')) === 'db527766054a59831e4826429a96249050640ee89c5f023832db0f752e87d59e');
 check('044 exact pre-weight payload equals mechanically stripped canonical source',
   preWeightPayload != null && JSON.stringify(JSON.parse(preWeightPayload)) === JSON.stringify(stripped));
-check('044 exact finalized payload equals canonical source',
-  weightedPayload != null && JSON.stringify(JSON.parse(weightedPayload)) === JSON.stringify(data));
+check('044 exact finalized payload equals canonical pre-duration source',
+  weightedPayload != null && JSON.stringify(JSON.parse(weightedPayload)) === JSON.stringify(weightOperationalData));
 check('044 is one guarded UPDATE of public.templates.data',
   (migration044.match(/\bUPDATE public\.templates\b/g) ?? []).length === 1
   && /FOR UPDATE/.test(migration044)

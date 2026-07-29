@@ -221,10 +221,11 @@ this codebase (architecture-guard enforced) — `core/` only validates,
 routes, and assembles the flattened template.
 
 **Duration is NOT coupled to progress weight for schemaVersion 2** —
-`baseEffort`/`categoryFactor` are never read by `ganttEngine.js` or
-`ganttOrchestrationModel.js` (guarded by test), and `durationPct`/
-`duration_pct` are never read by the new weight engine. Schedule/duration
-authoring for the Master Catalog is explicitly undesigned and deferred.
+`baseEffort`/`categoryFactor` are never read by the canonical Duration
+resolver, and `baseDurationDays`/duration modes/bands are never read by the
+Weight Engine. The inactive Master Catalog candidate now has calibrated
+Duration metadata, but dependency authoring and Gantt integration remain
+explicitly deferred.
 
 **⚠️ ACTIVATION BLOCKER — Historical Progress Snapshot Provenance:**
 `progress_history` currently stores a resolved scalar percentage plus raw

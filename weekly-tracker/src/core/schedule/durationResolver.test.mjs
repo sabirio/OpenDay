@@ -348,14 +348,14 @@ check('operational schemaVersion 2 fixture routes to canonical duration v2', () 
   assert.equal(route.operational, true);
   assert.equal(route.durationModel, FIXTURE_DURATION_MODEL);
 });
-check('real inactive 221-WP candidate remains explicitly unschedulable', () => {
+check('real inactive 221-WP candidate is duration-operational without activating Gantt routing', () => {
   const realCandidate = materializeRetailFitoutMasterCatalogTemplateData();
   const route = resolveProjectScheduleModel({ pinnedTemplate: { data: realCandidate } });
   assert.equal(route.route, PROJECT_SCHEDULE_ROUTE.MASTER_CATALOG_DURATION_V2);
-  assert.equal(route.operational, false);
-  assert.equal(route.durationModel, null);
-  assert.ok(route.issues.some(candidate => candidate.code === 'MISSING_DURATION_MODEL'));
-  assert.ok(route.issues.some(candidate => candidate.code === 'MISSING_DURATION_METADATA'));
+  assert.equal(route.operational, true);
+  assert.equal(route.durationModel, realCandidate.durationModel);
+  assert.deepEqual(route.issues, []);
+  assert.deepEqual(realCandidate.dependencies, []);
 });
 check('schemaVersion 1 certified 91-WP duration seeding remains unchanged', () => {
   const v1 = materializeRetailFitoutV2TemplateData();
