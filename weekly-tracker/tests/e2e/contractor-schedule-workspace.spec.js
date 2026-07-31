@@ -381,4 +381,151 @@ test.describe('Contractor Schedule Workspace (Simplification Phase 3C)', () => {
     await expect(page.locator('input[type="date"]').nth(0)).toHaveValue('2027-11-01', { timeout: 10_000 });
     await expect(page.locator('input[type="date"]').nth(1)).toHaveValue('2027-11-03');
   });
+
+  // ── Simplification Phase 3C.2: ordinary SPA navigation protection ────────
+  //
+  // The header's Workspace/Report/Observations controls did not exist
+  // before 3C.2 — they were added specifically to give ordinary React
+  // Router navigation (a real <Link> click, a real navigate() call) a
+  // user-visible surface, since this standalone route has no app-shell
+  // Sidebar and previously had zero in-page navigation controls at all.
+
+  // Defaults to Finish Paint: only test 29 below actually persists a Save
+  // (Stay/failed-save/Discard/Leave-without-saving never mutate the DB), so
+  // it alone targets Demo Walls instead — no other test in this block ever
+  // re-enters a value some earlier test already persisted, which would
+  // silently fail to register as a new edit.
+  async function openDirtyDraft(page, wpTitle = 'Finish Paint') {
+    await login(page, CONTRACTOR);
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+    await page.locator(`span[title="${wpTitle}"]`).first().click();
+    await page.locator('input[type="date"]').nth(0).fill('2027-12-01');
+    await page.locator('input[type="date"]').nth(1).fill('2027-12-03');
+    await expect(page.locator('text=Unsaved changes').first()).toBeVisible({ timeout: 5000 });
+  }
+
+  test('25. Dirty Draft + real Link (Report) click warns; Stay preserves route and staged values', async ({ page }) => {
+    await openDirtyDraft(page);
+
+    let dialogSeen = false;
+    page.once('dialog', (dialog) => { dialogSeen = true; dialog.dismiss(); });
+    await page.getByRole('link', { name: 'Report' }).click();
+    await page.waitForTimeout(300);
+    expect(dialogSeen).toBe(true);
+
+    // Stay: route unchanged, staged values preserved.
+    await expect(page).toHaveURL(new RegExp(`/contractor-schedule/${PROJECT_CM}`));
+    await expect(page.locator('input[type="date"]').nth(0)).toHaveValue('2027-12-01');
+  });
+
+  test('26. Repeat Link (Report) navigation and choose Leave: intended route reached, no second prompt', async ({ page }) => {
+    await openDirtyDraft(page);
+
+    let dialogCount = 0;
+    page.on('dialog', (dialog) => { dialogCount += 1; dialog.accept(); });
+    await page.getByRole('link', { name: 'Report' }).click();
+    await expect(page).toHaveURL(/\/contractor-report\//, { timeout: 10_000 });
+    await expect(page.locator('[data-testid="contractor-report-form"]')).toBeVisible({ timeout: 15_000 });
+    expect(dialogCount).toBe(1);
+  });
+
+  test('27. Dirty Draft + real Link (Observations) click warns', async ({ page }) => {
+    await openDirtyDraft(page);
+
+    let dialogSeen = false;
+    page.once('dialog', (dialog) => { dialogSeen = true; dialog.accept(); });
+    await page.getByRole('link', { name: 'Observations' }).click();
+    await expect(page).toHaveURL(/\/field-snag\//, { timeout: 10_000 });
+    expect(dialogSeen).toBe(true);
+  });
+
+  test('28. Dirty Draft + Workspace navigate() button: Stay cancels, Leave reaches Workspace with no second prompt', async ({ page }) => {
+    await openDirtyDraft(page);
+
+    // Stay first.
+    let dialogSeen = false;
+    page.once('dialog', (dialog) => { dialogSeen = true; dialog.dismiss(); });
+    await page.getByRole('button', { name: '← Workspace' }).click();
+    await page.waitForTimeout(300);
+    expect(dialogSeen).toBe(true);
+    await expect(page).toHaveURL(new RegExp(`/contractor-schedule/${PROJECT_CM}`));
+    await expect(page.locator('input[type="date"]').nth(0)).toHaveValue('2027-12-01');
+
+    // Leave.
+    let dialogCount = 0;
+    page.on('dialog', (dialog) => { dialogCount += 1; dialog.accept(); });
+    await page.getByRole('button', { name: '← Workspace' }).click();
+    await expect(page).toHaveURL(/\/contractor-select/, { timeout: 10_000 });
+    expect(dialogCount).toBe(1);
+  });
+
+  test('29. Successful Save clears dirty state; Link navigation afterward proceeds without warning', async ({ page }) => {
+    await openDirtyDraft(page, 'Demo Walls');
+    await page.getByRole('button', { name: /Save Draft/ }).click();
+    await expect(page.locator('text=Saved').first()).toBeVisible({ timeout: 10_000 });
+
+    let dialogSeen = false;
+    page.on('dialog', (dialog) => { dialogSeen = true; dialog.accept(); });
+    await page.getByRole('link', { name: 'Report' }).click();
+    await expect(page).toHaveURL(/\/contractor-report\//, { timeout: 10_000 });
+    expect(dialogSeen).toBe(false);
+  });
+
+  test('30. Failed Save keeps dirty state; Link navigation still warns', async ({ page }) => {
+    await openDirtyDraft(page);
+    await page.route('**/rest/v1/rpc/save_contractor_schedule_draft', route => route.abort('failed'));
+    await page.getByRole('button', { name: /Save Draft/ }).click();
+    await expect(page.locator('text=Save failed').first()).toBeVisible({ timeout: 10_000 });
+    await page.unroute('**/rest/v1/rpc/save_contractor_schedule_draft');
+
+    let dialogSeen = false;
+    page.once('dialog', (dialog) => { dialogSeen = true; dialog.dismiss(); });
+    await page.getByRole('link', { name: 'Report' }).click();
+    await page.waitForTimeout(300);
+    expect(dialogSeen).toBe(true);
+    await expect(page).toHaveURL(new RegExp(`/contractor-schedule/${PROJECT_CM}`));
+  });
+
+  test('31. Discard changes clears dirty state; Link navigation afterward proceeds without warning', async ({ page }) => {
+    await openDirtyDraft(page);
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await expect(page.locator('text=Saved').first()).toBeVisible({ timeout: 5000 });
+
+    let dialogSeen = false;
+    page.on('dialog', (dialog) => { dialogSeen = true; dialog.accept(); });
+    await page.getByRole('link', { name: 'Observations' }).click();
+    await expect(page).toHaveURL(/\/field-snag\//, { timeout: 10_000 });
+    expect(dialogSeen).toBe(false);
+  });
+
+  test('32. Clean page: Link and navigate() navigation produce no warning', async ({ page }) => {
+    await login(page, CONTRACTOR);
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+
+    let dialogSeen = false;
+    page.on('dialog', (dialog) => { dialogSeen = true; dialog.accept(); });
+    await page.getByRole('link', { name: 'Report' }).click();
+    await expect(page).toHaveURL(/\/contractor-report\//, { timeout: 10_000 });
+    expect(dialogSeen).toBe(false);
+  });
+
+  test('33. Guard listeners are removed on unmount: no stray dialog after leaving via Link', async ({ page }) => {
+    await openDirtyDraft(page);
+
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByRole('link', { name: 'Report' }).click();
+    await expect(page).toHaveURL(/\/contractor-report\//, { timeout: 10_000 });
+    await expect(page.locator('[data-testid="contractor-report-form"]')).toBeVisible({ timeout: 15_000 });
+
+    // If ContractorSchedule's beforeunload/popstate listeners were not
+    // cleaned up on unmount, a further reload or back/forward here would
+    // risk a stray, unexplained dialog. None should appear.
+    let straySeen = false;
+    page.on('dialog', (dialog) => { straySeen = true; dialog.dismiss(); });
+    await page.reload();
+    await expect(page.locator('[data-testid="contractor-report-form"]')).toBeVisible({ timeout: 15_000 });
+    expect(straySeen).toBe(false);
+  });
 });

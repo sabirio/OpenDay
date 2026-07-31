@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ROLES } from "../auth/rolePermissions";
 import { isContractorManaged } from "../hooks/useScheduleOwnershipMode";
@@ -11,7 +11,18 @@ import { LoadingReportState, ProjectNotFoundState } from "../components/contract
 
 const GanttChart = React.lazy(() => import("../components/GanttChart"));
 
-// Simplification Phase 3C / 3C.1 — Contractor Schedule Workspace.
+// Simplification Phase 3C / 3C.1 / 3C.2 — Contractor Schedule Workspace.
+//
+// Navigation (Phase 3C.2): this page has three real cross-navigation
+// controls in its header — Workspace (imperative navigate(), via
+// guardedNavigate), Report and Observations (real <Link>s, via
+// guardLinkClick passed as their onClick). All three, plus browser Back/
+// Forward and beforeunload, route through the ONE canonical
+// useUnsavedChangesGuard — see that hook's own header for the full
+// contract. These links did not exist before 3C.2; they were added
+// specifically so ordinary React Router navigation has a real,
+// user-visible surface to guard (this route has never been Layout-wrapped,
+// so there is no app-shell Sidebar navigation to intercept here).
 //
 // Draft editing only: Scope exists before Schedule, Contractor owns
 // execution planning, OpenDay structures and controls but never invents
@@ -130,10 +141,11 @@ function ContractorSchedule({ projects = [] }) {
     toast.success("Changes discarded");
   }, [discardAllChanges, toast]);
 
-  // Protects both browser unload and this page's own in-app back/forward —
-  // see useUnsavedChangesGuard's own header for the full contract and its
-  // documented limitation. No autosave: Save Draft remains the only write.
-  useUnsavedChangesGuard(dirty);
+  // Protects browser unload, browser Back/Forward, AND ordinary in-app
+  // navigation (guardLinkClick/guardedNavigate below) — see
+  // useUnsavedChangesGuard's own header for the full contract and its
+  // documented limitations. No autosave: Save Draft remains the only write.
+  const { guardLinkClick, guardedNavigate } = useUnsavedChangesGuard(dirty);
 
   if (!project && contextLoading) return <LoadingReportState />;
   if (!project) return <ProjectNotFoundState message={contextError} />;
@@ -144,6 +156,29 @@ function ContractorSchedule({ projects = [] }) {
     <div className="field-form-page" style={{ minHeight: "100vh", background: "var(--field-bg-contractor)", padding: "28px 20px 110px" }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         <header style={{ marginBottom: 20 }}>
+          <nav style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 13 }}>
+            <button
+              type="button"
+              onClick={() => guardedNavigate("/contractor-select")}
+              style={{ background: "none", border: "none", padding: 0, color: "var(--field-text-secondary)", cursor: "pointer", fontSize: 13 }}
+            >
+              ← Workspace
+            </button>
+            <Link
+              to={`/contractor-report/${project.id}`}
+              onClick={(e) => guardLinkClick(e, `/contractor-report/${project.id}`)}
+              style={{ color: "var(--field-text-secondary)" }}
+            >
+              Report
+            </Link>
+            <Link
+              to={`/field-snag/${project.id}`}
+              onClick={(e) => guardLinkClick(e, `/field-snag/${project.id}`)}
+              style={{ color: "var(--field-text-secondary)" }}
+            >
+              Observations
+            </Link>
+          </nav>
           <div style={{ fontSize: 13, color: "var(--field-text-muted)", fontWeight: 600, letterSpacing: "0.02em" }}>
             {project.storeCode}
           </div>
