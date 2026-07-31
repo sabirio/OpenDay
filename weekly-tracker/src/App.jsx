@@ -30,6 +30,7 @@ const Login            = lazy(() => import("./pages/Login"));
 const ResetPassword    = lazy(() => import("./pages/ResetPassword"));
 const Unauthorized     = lazy(() => import("./pages/Unauthorized"));
 const ContractorSelect = lazy(() => import("./pages/ContractorSelect"));
+const ContractorSchedule = lazy(() => import("./pages/ContractorSchedule"));
 const SiteVisitSelect  = lazy(() => import("./pages/SiteVisitSelect"));
 const SnagListPage     = lazy(() => import("./pages/snags/SnagListPage"));
 const SnagFieldPage    = lazy(() => import("./pages/snags/SnagFieldPage"));
@@ -340,6 +341,25 @@ function App() {
                 projects={projects}
                 reports={reports}
               />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Contractor Schedule Workspace (Simplification Phase 3C) — a
+            standalone route, same shape as /contractor-report/:projectId,
+            gated by the 'contractor_schedule' resource permission at this
+            layer and by schedule_ownership_mode === 'CONTRACTOR_MANAGED'
+            inside the page itself (ProtectedRoute only knows about
+            role-level resource access, never per-project state — see
+            ContractorSchedule.jsx's own authorization check). The atomic
+            save_contractor_schedule_draft RPC independently re-enforces
+            both assigned_projects and CONTRACTOR_MANAGED server-side
+            regardless of what this route allows through. */}
+        <Route
+          path="/contractor-schedule/:projectId"
+          element={
+            <ProtectedRoute resource="contractor_schedule">
+              <ContractorSchedule projects={projects} />
             </ProtectedRoute>
           }
         />

@@ -92,6 +92,20 @@ function ProjectCard({ row, navigate }) {
         >
           View Observations{actionableSnagCount > 0 ? ` (${actionableSnagCount})` : ''}
         </button>
+        {/* Simplification Phase 3C: only for projects whose schedule is
+            contractor-managed — AUTO_GENERATED projects never show this
+            action. The route itself and the save RPC both independently
+            re-verify this same fact server-side; this is UX convenience,
+            not the authorization boundary. */}
+        {project.scheduleOwnershipMode === 'CONTRACTOR_MANAGED' && (
+          <button
+            type="button"
+            className="btn-ghost contractor-project-btn"
+            onClick={() => navigate(`/contractor-schedule/${project.id}`)}
+          >
+            Schedule
+          </button>
+        )}
       </div>
     </div>
   );

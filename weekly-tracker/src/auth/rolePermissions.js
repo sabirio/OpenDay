@@ -11,8 +11,8 @@ export const ROLES = {
 // Resource keys must match the `resource` prop passed to <ProtectedRoute>.
 export const PERMISSIONS = {
   Admin: ['all'],  // 'all' is a wildcard — see permissionEngine.canAccess()
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import'],
-  Contractor: ['contractor_report', 'snags'],
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'contractor_schedule'],
+  Contractor: ['contractor_report', 'snags', 'contractor_schedule'],
   Viewer: ['dashboard', 'snags'],
 };
 

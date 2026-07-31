@@ -107,6 +107,10 @@ export function fromDB(row) {
     ganttEngineVersion:         row.gantt_engine_version         ?? null,
     constructionCompletionDate: row.construction_completion_date || null,
     forecastOpeningDate:        row.forecast_opening_date        || null,
+    // Simplification Phase 3B/3C: AUTO_GENERATED default (046) — a project
+    // fetched before this field existed on some historical row would still
+    // fall back to the same default the DB column itself defaults to.
+    scheduleOwnershipMode:      row.schedule_ownership_mode      || 'AUTO_GENERATED',
     // ── Retail Historical Project Profile v1 (migration 037) — same schema
     // serves live creation/editing AND historical import (Capture Once, Use
     // Everywhere). PM-editable here; actual_* dates are observed historical
