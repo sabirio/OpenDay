@@ -1,5 +1,6 @@
-// Local-only Simplification Phase 3B / 3B.1 / 3C.1 extension. Applies the
-// hash-pinned 046-048 set on top of the canonical fresh-install baseline:
+// Local-only Simplification Phase 3B / 3B.1 / 3C.1 / 4B.1 extension.
+// Applies the hash-pinned 046-050 set on top of the canonical fresh-install
+// baseline:
 //   046: schedule_ownership_mode column (default AUTO_GENERATED) +
 //        save_contractor_schedule_draft SECURITY DEFINER RPC.
 //   047: replaces 046's RPC body only (same signature) to accept
@@ -10,6 +11,15 @@
 //        can_write_project()-based admin/pm authorization branch —
 //        Contractor Draft ownership is Contractor-only — see 048's own
 //        header for the full rationale.
+//   049: adds project_schedule_versions/project_schedule_version_tasks
+//        (versioned submission/review/baseline foundation) + the
+//        submit_contractor_schedule / request_schedule_changes /
+//        approve_schedule_submission SECURITY DEFINER RPCs + the canonical
+//        contractor_schedule_lifecycle_status() helper — see 049's own
+//        header for the full storage model and rationale.
+//   050: replaces 048's save_contractor_schedule_draft body only (same
+//        signature) to add the lifecycle lock — Save Draft is rejected once
+//        a submission is PENDING_REVIEW or APPROVED — see 050's own header.
 //
 // Deliberately NOT part of resetAndDeploy.mjs's always-on canonical chain —
 // same posture as the Master Catalog slices (042-045) and, further back,
@@ -39,6 +49,8 @@ const migrations = [
   ['046_contractor_schedule_draft_foundation.sql', '989d09af15d4ed2d216cd0d0f51805ea8a080dc789cb3f1149289e0e738b2fa8'],
   ['047_contractor_schedule_human_date_semantics.sql', '7e3fea282eac83a588b20b76440572402218f7c99f0c001afab43ec9f9213b68'],
   ['048_contractor_schedule_ownership_enforcement.sql', '339862f93bba8d4839b8e4aececb99ed9f0cf95151b6c6a900d3e8b973efc7f0'],
+  ['049_contractor_schedule_submission_lifecycle.sql', 'a963cf161009a0ac648ccac93333ec765b729de2cff7232e3b2a64e75010e20e'],
+  ['050_contractor_schedule_draft_lifecycle_lock.sql', '1cc114d59219cc1e31f5e4102a46f0446c95196297bc18cd694b4bda60627bb4'],
 ];
 
 assertLocalTarget({
@@ -65,4 +77,4 @@ for (const [file, expectedHash] of migrations) {
   console.log('OK');
 }
 
-console.log('Local Contractor Schedule Draft foundation applied through 048 (Contractor-only ownership enforcement); existing AUTO_GENERATED projects unaffected, workflow not yet activated.');
+console.log('Local Contractor Schedule Draft foundation applied through 050 (submission lifecycle: Submit/Request Changes/Approve + Draft lifecycle lock); existing AUTO_GENERATED projects unaffected, workflow not yet activated.');
