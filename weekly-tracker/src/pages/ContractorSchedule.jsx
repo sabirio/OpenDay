@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { ROLES } from "../auth/rolePermissions";
+import { isContractorManaged } from "../hooks/useScheduleOwnershipMode";
 import { useToast } from "../components/shared/Toast.jsx";
 import { loadContractorScheduleProjectFallback } from "../hooks/useContractorScheduleOrchestration";
 import { useContractorScheduleDraft } from "../hooks/useContractorScheduleDraft";
+import { useUnsavedChangesGuard } from "../hooks/useUnsavedChangesGuard";
 import { LoadingReportState, ProjectNotFoundState } from "../components/contractor/ContractorReportStates.jsx";
 
 const GanttChart = React.lazy(() => import("../components/GanttChart"));
 
-// Simplification Phase 3C — Contractor Schedule Workspace.
+// Simplification Phase 3C / 3C.1 — Contractor Schedule Workspace.
 //
 // Draft editing only: Scope exists before Schedule, Contractor owns
 // execution planning, OpenDay structures and controls but never invents
@@ -18,15 +22,27 @@ const GanttChart = React.lazy(() => import("../components/GanttChart"));
 // project_gantt_tasks rows with locally-staged edits into one effective
 // `tasks` array, so this page never merges the two ad hoc in JSX.
 //
-// Authorization: ProtectedRoute (App.jsx) only gates the 'contractor_schedule'
-// role-level resource. Per-project access is enforced the same way
-// ContractorReport.jsx already does — `projects` is pre-scoped by RLS
-// (can_access_project()), so an unauthorized/nonexistent project id simply
-// never appears there or in getProjectById's fallback fetch, and both cases
-// converge on the same generic ProjectNotFoundState (no existence leak).
-// schedule_ownership_mode === 'CONTRACTOR_MANAGED' is this page's own
-// second check — the final authority is still save_contractor_schedule_draft
-// itself, which independently re-verifies assigned_projects AND
+// Authorization (Phase 3C.1 — Contractor Draft Ownership): ProtectedRoute
+// (App.jsx) only gates the 'contractor_schedule' role-level resource, which
+// as of this phase no longer includes PM (see rolePermissions.js) — the
+// Contractor Proposed Schedule / Draft belongs to the Contractor; PM
+// review/approval is a distinct, not-yet-built workflow. Per-project access
+// is enforced the same way ContractorReport.jsx already does — `projects`
+// is pre-scoped by RLS (can_access_project()), so an unauthorized/
+// nonexistent project id simply never appears there or in getProjectById's
+// fallback fetch, and both cases converge on the same generic
+// ProjectNotFoundState (no existence leak). isContractorManaged(project.
+// scheduleOwnershipMode) (the canonical helper, never a scattered string
+// literal) is this page's second check. isContractorRole below is a THIRD,
+// independent check — Admin still reaches this route via its existing
+// global 'all' permission (unchanged, pre-existing precedent: Admin can
+// already open /contractor-report the same way, for read-only oversight —
+// see ContractorSelect.jsx) but must never receive editable Draft controls,
+// so any non-Contractor session (PM, Admin, Viewer) renders the same
+// ScheduleUnavailableState an AUTO_GENERATED project would, never the
+// editable Gantt. The final authority is still save_contractor_schedule_draft
+// itself (048_contractor_schedule_ownership_enforcement.sql), which
+// independently re-verifies role=contractor AND assigned_projects AND
 // CONTRACTOR_MANAGED server-side regardless of what this page renders.
 
 function fmtDate(iso) {
@@ -34,15 +50,16 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function ScheduleUnavailableState({ project }) {
+function ScheduleUnavailableState({ project, reason }) {
+  const message = reason === "role"
+    ? "Contractor Schedule editing is limited to the assigned Contractor."
+    : `Contractor Schedule unavailable for this project${project?.storeCode ? ` (${project.storeCode})` : ""}.`;
   return (
     <div style={{ minHeight: "100vh", background: "var(--field-bg-contractor)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center", padding: 40, maxWidth: 420 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>—</div>
         <h2 style={{ color: "var(--field-text-heading)", marginBottom: 8 }}>Contractor Schedule unavailable</h2>
-        <p style={{ color: "var(--field-text-secondary)" }}>
-          Contractor Schedule unavailable for this project{project?.storeCode ? ` (${project.storeCode})` : ""}.
-        </p>
+        <p style={{ color: "var(--field-text-secondary)" }}>{message}</p>
       </div>
     </div>
   );
@@ -61,6 +78,7 @@ function DraftStatusLabel({ dirty, saving, saveError }) {
 
 function ContractorSchedule({ projects = [] }) {
   const { projectId } = useParams();
+  const { role } = useAuth();
   const toast = useToast();
 
   const [fallbackProject, setFallbackProject] = useState(null);
@@ -85,10 +103,16 @@ function ContractorSchedule({ projects = [] }) {
     return () => { isMounted = false; };
   }, [projectId, projects]);
 
-  const isContractorManaged = project?.scheduleOwnershipMode === "CONTRACTOR_MANAGED";
+  const scheduleIsContractorManaged = isContractorManaged(project?.scheduleOwnershipMode);
+  // Contractor Draft ownership (Phase 3C.1): editable controls render only
+  // for the real, logged-in Contractor session — see this file's top
+  // comment for why Admin/PM/Viewer must never reach the editable branch
+  // below even though Admin's route-level access is otherwise unchanged.
+  const isContractorRole = role === ROLES.CONTRACTOR;
+  const canEdit = scheduleIsContractorManaged && isContractorRole;
 
-  const { tasks, dirty, changedCount, stageTaskDates, saveDraft, saving, saveError } =
-    useContractorScheduleDraft({ projectId: isContractorManaged ? projectId : null });
+  const { tasks, dirty, changedCount, stageTaskDates, discardAllChanges, saveDraft, saving, saveError } =
+    useContractorScheduleDraft({ projectId: canEdit ? projectId : null });
 
   const handleSave = useCallback(async () => {
     try {
@@ -101,19 +125,20 @@ function ContractorSchedule({ projects = [] }) {
     }
   }, [saveDraft, toast, changedCount]);
 
-  // Warn before closing/refreshing the tab with unsaved changes — the same
-  // established pattern ContractorReport.jsx already uses (no in-app SPA
-  // navigation blocker exists anywhere in this codebase to reuse instead).
-  useEffect(() => {
-    if (!dirty) return undefined;
-    const warn = (event) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  const handleDiscard = useCallback(() => {
+    discardAllChanges();
+    toast.success("Changes discarded");
+  }, [discardAllChanges, toast]);
+
+  // Protects both browser unload and this page's own in-app back/forward —
+  // see useUnsavedChangesGuard's own header for the full contract and its
+  // documented limitation. No autosave: Save Draft remains the only write.
+  useUnsavedChangesGuard(dirty);
 
   if (!project && contextLoading) return <LoadingReportState />;
   if (!project) return <ProjectNotFoundState message={contextError} />;
-  if (!isContractorManaged) return <ScheduleUnavailableState project={project} />;
+  if (!scheduleIsContractorManaged) return <ScheduleUnavailableState project={project} />;
+  if (!isContractorRole) return <ScheduleUnavailableState project={project} reason="role" />;
 
   return (
     <div className="field-form-page" style={{ minHeight: "100vh", background: "var(--field-bg-contractor)", padding: "28px 20px 110px" }}>
@@ -172,19 +197,34 @@ function ContractorSchedule({ projects = [] }) {
         boxShadow: "var(--field-shadow-lg)",
       }}>
         <DraftStatusLabel dirty={dirty} saving={saving} saveError={saveError} />
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={!dirty || saving}
-          style={{
-            padding: "10px 24px", borderRadius: 10, border: "none",
-            background: (!dirty || saving) ? "var(--field-neutral-bg)" : "var(--field-accent-contractor)",
-            color: (!dirty || saving) ? "var(--field-text-muted)" : "var(--field-text-on-accent)",
-            fontSize: 14, fontWeight: 700, cursor: (!dirty || saving) ? "not-allowed" : "pointer",
-          }}
-        >
-          {saving ? "Saving…" : `Save Draft${changedCount > 0 ? ` (${changedCount})` : ""}`}
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            type="button"
+            onClick={handleDiscard}
+            disabled={!dirty || saving}
+            style={{
+              padding: "10px 18px", borderRadius: 10, border: "1px solid var(--field-border-strong)",
+              background: "var(--field-bg-card)",
+              color: (!dirty || saving) ? "var(--field-text-muted)" : "var(--field-text-secondary)",
+              fontSize: 14, fontWeight: 600, cursor: (!dirty || saving) ? "not-allowed" : "pointer",
+            }}
+          >
+            Discard changes
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!dirty || saving}
+            style={{
+              padding: "10px 24px", borderRadius: 10, border: "none",
+              background: (!dirty || saving) ? "var(--field-neutral-bg)" : "var(--field-accent-contractor)",
+              color: (!dirty || saving) ? "var(--field-text-muted)" : "var(--field-text-on-accent)",
+              fontSize: 14, fontWeight: 700, cursor: (!dirty || saving) ? "not-allowed" : "pointer",
+            }}
+          >
+            {saving ? "Saving…" : `Save Draft${changedCount > 0 ? ` (${changedCount})` : ""}`}
+          </button>
+        </div>
       </div>
     </div>
   );

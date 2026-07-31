@@ -345,16 +345,20 @@ function App() {
           }
         />
 
-        {/* Contractor Schedule Workspace (Simplification Phase 3C) — a
-            standalone route, same shape as /contractor-report/:projectId,
+        {/* Contractor Schedule Workspace (Simplification Phase 3C / 3C.1) —
+            a standalone route, same shape as /contractor-report/:projectId,
             gated by the 'contractor_schedule' resource permission at this
-            layer and by schedule_ownership_mode === 'CONTRACTOR_MANAGED'
-            inside the page itself (ProtectedRoute only knows about
-            role-level resource access, never per-project state — see
-            ContractorSchedule.jsx's own authorization check). The atomic
-            save_contractor_schedule_draft RPC independently re-enforces
-            both assigned_projects and CONTRACTOR_MANAGED server-side
-            regardless of what this route allows through. */}
+            layer (Contractor and Admin only as of 3C.1 — PM was removed,
+            see rolePermissions.js) and by two further independent checks
+            inside the page itself: isContractorManaged(project.
+            scheduleOwnershipMode) and the real session role === Contractor
+            (ProtectedRoute only knows about role-level resource access,
+            never per-project state or which non-Contractor role reached it
+            — see ContractorSchedule.jsx's own authorization check). The
+            atomic save_contractor_schedule_draft RPC independently
+            re-enforces role=contractor AND assigned_projects AND
+            CONTRACTOR_MANAGED server-side regardless of what this route or
+            the page allows through. */}
         <Route
           path="/contractor-schedule/:projectId"
           element={

@@ -11,7 +11,13 @@ export const ROLES = {
 // Resource keys must match the `resource` prop passed to <ProtectedRoute>.
 export const PERMISSIONS = {
   Admin: ['all'],  // 'all' is a wildcard — see permissionEngine.canAccess()
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'contractor_schedule'],
+  // 'contractor_schedule' is deliberately NOT in PM's list (Simplification
+  // Phase 3C.1): the Contractor Proposed Schedule / Draft belongs to the
+  // Contractor. PM review/approval is a distinct, not-yet-built workflow —
+  // PM must not reach the editable Draft route at all. See
+  // ContractorSchedule.jsx and save_contractor_schedule_draft (048) for the
+  // matching page- and RPC-level enforcement.
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import'],
   Contractor: ['contractor_report', 'snags', 'contractor_schedule'],
   Viewer: ['dashboard', 'snags'],
 };

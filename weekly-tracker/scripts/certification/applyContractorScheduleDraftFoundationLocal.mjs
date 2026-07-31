@@ -1,11 +1,15 @@
-// Local-only Simplification Phase 3B / 3B.1 extension. Applies the
-// hash-pinned 046-047 pair on top of the canonical fresh-install baseline:
+// Local-only Simplification Phase 3B / 3B.1 / 3C.1 extension. Applies the
+// hash-pinned 046-048 set on top of the canonical fresh-install baseline:
 //   046: schedule_ownership_mode column (default AUTO_GENERATED) +
 //        save_contractor_schedule_draft SECURITY DEFINER RPC.
 //   047: replaces 046's RPC body only (same signature) to accept
 //        human-facing inclusive Finish dates instead of the internal
 //        exclusive boundary — see 047's own header for the full contract
 //        change and rationale.
+//   048: replaces 047's RPC body only (same signature) to remove the
+//        can_write_project()-based admin/pm authorization branch —
+//        Contractor Draft ownership is Contractor-only — see 048's own
+//        header for the full rationale.
 //
 // Deliberately NOT part of resetAndDeploy.mjs's always-on canonical chain —
 // same posture as the Master Catalog slices (042-045) and, further back,
@@ -34,6 +38,7 @@ const migrationsDir = path.resolve(__dirname, '..', '..', 'src', 'migrations');
 const migrations = [
   ['046_contractor_schedule_draft_foundation.sql', '989d09af15d4ed2d216cd0d0f51805ea8a080dc789cb3f1149289e0e738b2fa8'],
   ['047_contractor_schedule_human_date_semantics.sql', '7e3fea282eac83a588b20b76440572402218f7c99f0c001afab43ec9f9213b68'],
+  ['048_contractor_schedule_ownership_enforcement.sql', '339862f93bba8d4839b8e4aececb99ed9f0cf95151b6c6a900d3e8b973efc7f0'],
 ];
 
 assertLocalTarget({
@@ -60,4 +65,4 @@ for (const [file, expectedHash] of migrations) {
   console.log('OK');
 }
 
-console.log('Local Contractor Schedule Draft foundation applied through 047 (human-inclusive Finish date contract); existing AUTO_GENERATED projects unaffected, workflow not yet activated.');
+console.log('Local Contractor Schedule Draft foundation applied through 048 (Contractor-only ownership enforcement); existing AUTO_GENERATED projects unaffected, workflow not yet activated.');

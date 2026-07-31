@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { ROLES } from '../auth/rolePermissions';
+import { isContractorManaged } from '../hooks/useScheduleOwnershipMode';
 import {
   useContractorWorkspace,
   CONTRACTOR_WORKSPACE_FILTERS,
@@ -50,7 +52,7 @@ const FILTER_EMPTY_MESSAGE = {
   [CONTRACTOR_WORKSPACE_FILTERS.OVERDUE]: 'No projects have overdue observations.',
 };
 
-function ProjectCard({ row, navigate }) {
+function ProjectCard({ row, navigate, canEditContractorSchedule }) {
   const { project, actionableSnagCount, overdueSnagCount, ...rest } = row;
   const reportStatus = reportStatusFor(rest);
   return (
@@ -92,12 +94,16 @@ function ProjectCard({ row, navigate }) {
         >
           View Observations{actionableSnagCount > 0 ? ` (${actionableSnagCount})` : ''}
         </button>
-        {/* Simplification Phase 3C: only for projects whose schedule is
+        {/* Simplification Phase 3C/3C.1: only for projects whose schedule is
             contractor-managed — AUTO_GENERATED projects never show this
-            action. The route itself and the save RPC both independently
-            re-verify this same fact server-side; this is UX convenience,
-            not the authorization boundary. */}
-        {project.scheduleOwnershipMode === 'CONTRACTOR_MANAGED' && (
+            action — AND only for the real, logged-in Contractor session
+            (not Admin's read-only "inspect a contractor" mode, and PM no
+            longer even reaches this route — see rolePermissions.js). The
+            route and the save RPC both independently re-verify this same
+            fact server-side; this is UX convenience, not the authorization
+            boundary. Uses the canonical isContractorManaged() helper, never
+            a scattered 'CONTRACTOR_MANAGED' string literal. */}
+        {canEditContractorSchedule && isContractorManaged(project.scheduleOwnershipMode) && (
           <button
             type="button"
             className="btn-ghost contractor-project-btn"
@@ -115,6 +121,10 @@ function ContractorSelect({ projects = [], reports = [] }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'Admin';
+  // Real logged-in session role, deliberately not Admin's "view as
+  // contractor" workspaceActorRole below — Admin's inspect mode stays
+  // read-only regardless of which contractor is selected.
+  const canEditContractorSchedule = user?.role === ROLES.CONTRACTOR;
 
   const { status: directoryStatus, contractors } = useContractorDirectory(isAdmin);
   const [selectedContractorId, setSelectedContractorId] = useState(null); // null = All contractors
@@ -259,7 +269,7 @@ function ContractorSelect({ projects = [], reports = [] }) {
                   <>
                     <h3 className="contractor-section-label">Needs attention</h3>
                     <div className="contractor-project-grid">
-                      {needsAttentionRows.map(row => <ProjectCard key={row.project.id} row={row} navigate={navigate} />)}
+                      {needsAttentionRows.map(row => <ProjectCard key={row.project.id} row={row} navigate={navigate} canEditContractorSchedule={canEditContractorSchedule} />)}
                     </div>
                   </>
                 )}
@@ -267,7 +277,7 @@ function ContractorSelect({ projects = [], reports = [] }) {
                   <>
                     <h3 className="contractor-section-label">Up to date</h3>
                     <div className="contractor-project-grid">
-                      {upToDateRows.map(row => <ProjectCard key={row.project.id} row={row} navigate={navigate} />)}
+                      {upToDateRows.map(row => <ProjectCard key={row.project.id} row={row} navigate={navigate} canEditContractorSchedule={canEditContractorSchedule} />)}
                     </div>
                   </>
                 )}
@@ -281,7 +291,7 @@ function ContractorSelect({ projects = [], reports = [] }) {
                   </div>
                 ) : (
                   <div className="contractor-project-grid">
-                    {filteredRows.map(row => <ProjectCard key={row.project.id} row={row} navigate={navigate} />)}
+                    {filteredRows.map(row => <ProjectCard key={row.project.id} row={row} navigate={navigate} canEditContractorSchedule={canEditContractorSchedule} />)}
                   </div>
                 )}
               </>

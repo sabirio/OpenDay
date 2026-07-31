@@ -1,7 +1,7 @@
-// certifyContractorScheduleDraft.mjs — Simplification Phase 3B / 3B.1
-// DB/security certification for save_contractor_schedule_draft() (as
-// finalized by 047_contractor_schedule_human_date_semantics.sql's
-// human-inclusive Finish contract) and the schedule_ownership_mode
+// certifyContractorScheduleDraft.mjs — Simplification Phase 3B / 3B.1 /
+// 3C.1 DB/security certification for save_contractor_schedule_draft() (as
+// finalized by 048_contractor_schedule_ownership_enforcement.sql's
+// Contractor-only authorization contract) and the schedule_ownership_mode
 // mutual-exclusion invariant.
 //
 // Real authenticated supabase-js clients (signInWithPassword), same as
@@ -60,6 +60,8 @@ try {
   const contractorUnassigned = await signInAs('contractor-a-unassigned@cert.local', PASSWORD);
   const contractorB = await signInAs('contractor-b@cert.local', PASSWORD);
   const pmAAssigned = await signInAs('pm-a-assigned@cert.local', PASSWORD);
+  const adminA = await signInAs('admin-a@cert.local', PASSWORD);
+  const viewerA = await signInAs('viewer-a@cert.local', PASSWORD);
 
   r.section('1. Assigned Contractor + CONTRACTOR_MANAGED project -> Save Draft succeeds; human Aug1/Aug3 -> 3 days');
   {
@@ -86,26 +88,67 @@ try {
     r.check('duration_days is 1, never 0', row?.[2] === '1');
   }
 
-  r.section('2. Mutual exclusion: even an authorized PM/admin caller is rejected on an AUTO_GENERATED project');
+  r.section('2. Mutual exclusion: even an assigned, authorized Contractor is rejected on an AUTO_GENERATED project');
   {
-    // Uses pmAAssigned (passes can_write_project on Project A2 via company
-    // match — PM authorization does not depend on assigned_projects) so
-    // this isolates the SCHEDULE_NOT_CONTRACTOR_MANAGED mode check itself,
-    // not merely "this contractor isn't assigned to A2" (a different,
-    // already-covered authorization rejection).
-    const { error } = await callRpc(pmAAssigned, PROJECT_A2, [
+    // Temporarily assign contractorAssigned to A2 so this isolates the
+    // SCHEDULE_NOT_CONTRACTOR_MANAGED mode check itself, not merely "this
+    // contractor isn't assigned to A2" (a different, separately-covered
+    // rejection in 2b below). Reverted in the finally block.
+    psql(`UPDATE public.profiles SET assigned_projects = array_append(COALESCE(assigned_projects, '{}'::integer[]), ${PROJECT_A2})
+          WHERE id = (SELECT id FROM auth.users WHERE email = 'contractor-a-assigned@cert.local');`);
+    const { error } = await callRpc(contractorAssigned, PROJECT_A2, [
       { wpId: 'demo.walls', plannedStart: '2026-09-01', plannedFinish: '2026-09-05' },
     ]);
-    r.check('RPC rejects a save against an AUTO_GENERATED project even for an otherwise-authorized PM', !!error);
+    r.check('RPC rejects a save against an AUTO_GENERATED project even for an assigned, otherwise-authorized Contractor', !!error);
     r.check('rejection is the SCHEDULE_NOT_CONTRACTOR_MANAGED business rule, not a generic failure',
       /SCHEDULE_NOT_CONTRACTOR_MANAGED/.test(error?.message || ''));
+    // Revert the temporary grant before 2b tests non-assignment in isolation.
+    psql(`UPDATE public.profiles SET assigned_projects = array_remove(assigned_projects, ${PROJECT_A2})
+          WHERE id = (SELECT id FROM auth.users WHERE email = 'contractor-a-assigned@cert.local');`);
   }
   r.section('2b. Contractor not assigned to a project is rejected regardless of that project\'s schedule mode');
   {
     const { error } = await callRpc(contractorAssigned, PROJECT_A2, [
       { wpId: 'demo.walls', plannedStart: '2026-09-01', plannedFinish: '2026-09-05' },
     ]);
-    r.check('contractor not in assigned_projects for A2 is rejected', !!error);
+    r.check('contractor not in assigned_projects for A2 is rejected (temporary 2. grant has been reverted before this runs)', !!error);
+  }
+
+  r.section('2c. Contractor Draft ownership (Simplification Phase 3C.1): PM is rejected on a CONTRACTOR_MANAGED project');
+  {
+    // pm-a-assigned previously passed via the generic can_write_project()
+    // helper (same company, admin/pm write access) — 048 removes that
+    // branch entirely for this RPC. Contractor Draft ownership is
+    // Contractor-only; PM review/approval is a distinct, not-yet-built
+    // workflow.
+    const { error } = await callRpc(pmAAssigned, PROJECT_A, [
+      { wpId: 'demo.walls', plannedStart: '2026-09-01', plannedFinish: '2026-09-05' },
+    ]);
+    r.check('PM is rejected even on a CONTRACTOR_MANAGED project PM would otherwise be authorized to write', !!error);
+    r.check('rejection is the authorization failure, not the mode-exclusion rule (PM never reaches the mode check)',
+      /Not authorized/.test(error?.message || ''));
+  }
+
+  r.section('2d. Contractor Draft ownership: Admin is rejected on a CONTRACTOR_MANAGED project (no implicit override)');
+  {
+    // Admin previously also passed via can_write_project()'s global-admin
+    // branch. No Admin-specific authorization branch exists in this RPC —
+    // any future Admin support override must be its own explicit,
+    // separately documented branch, never inherited from can_write_project().
+    const { error } = await callRpc(adminA, PROJECT_A, [
+      { wpId: 'demo.walls', plannedStart: '2026-09-01', plannedFinish: '2026-09-05' },
+    ]);
+    r.check('Admin is rejected — no ambiguous implicit privilege', !!error);
+    r.check('rejection is the authorization failure', /Not authorized/.test(error?.message || ''));
+  }
+
+  r.section('2e. Viewer is rejected on a CONTRACTOR_MANAGED project');
+  {
+    const { error } = await callRpc(viewerA, PROJECT_A, [
+      { wpId: 'demo.walls', plannedStart: '2026-09-01', plannedFinish: '2026-09-05' },
+    ]);
+    r.check('Viewer is rejected', !!error);
+    r.check('rejection is the authorization failure', /Not authorized/.test(error?.message || ''));
   }
 
   r.section('3. Unassigned Contractor -> rejected (no contractor_email fallback)');

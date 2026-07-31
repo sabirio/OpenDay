@@ -59,6 +59,7 @@ const PROJECT = {
 };
 
 const CONTRACTOR_ASSIGNED_EMAIL = 'contractor-a-assigned@cert.local';
+const PM_ASSIGNED_EMAIL = 'pm-a-assigned@cert.local';
 
 function psql(sql) {
   return execFileSync('psql', [DB_URL, '-v', 'ON_ERROR_STOP=1', '-t', '-A', '-c', sql], {
@@ -89,6 +90,12 @@ function main() {
     throw new Error(`Expected existing fixture user ${CONTRACTOR_ASSIGNED_EMAIL} not found — run "npm run cert:reset:contractor-schedule" first.`);
   }
   console.log(`  reusing existing fixture Contractor ${CONTRACTOR_ASSIGNED_EMAIL} -> ${contractorId}`);
+
+  const pmId = psql(`SELECT id FROM auth.users WHERE email = '${PM_ASSIGNED_EMAIL}';`);
+  if (!pmId) {
+    throw new Error(`Expected existing fixture user ${PM_ASSIGNED_EMAIL} not found — run "npm run cert:reset:contractor-schedule" first.`);
+  }
+  console.log(`  reusing existing fixture PM ${PM_ASSIGNED_EMAIL} -> ${pmId}`);
 
   psql(`
     INSERT INTO public.projects (id, store_code, shopping_mall_name, company_id, project_status,
@@ -123,6 +130,21 @@ function main() {
     WHERE id = '${contractorId}';
   `);
   console.log(`  ${CONTRACTOR_ASSIGNED_EMAIL} assigned_projects extended with 960001/960002 (additive)`);
+
+  // PM also gets 960001 added to assigned_projects (Simplification Phase
+  // 3C.1 E2E test 17): proves PM sees the project card via /contractor-select
+  // but never the Schedule action button, not merely that PM lacks
+  // assigned_projects membership (a different, already-covered case).
+  psql(`
+    UPDATE public.profiles
+    SET assigned_projects = (
+      SELECT array_agg(DISTINCT x) FROM unnest(
+        COALESCE(assigned_projects, '{}'::integer[]) || ARRAY[${PROJECT.CONTRACTOR_MANAGED}]::integer[]
+      ) AS x
+    )
+    WHERE id = '${pmId}';
+  `);
+  console.log(`  ${PM_ASSIGNED_EMAIL} assigned_projects extended with 960001 (additive)`);
 
   psql(`DELETE FROM public.project_gantt_tasks WHERE project_id IN (${PROJECT.CONTRACTOR_MANAGED}, ${PROJECT.AUTO_GENERATED});`);
   psql(`

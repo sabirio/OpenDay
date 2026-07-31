@@ -15,8 +15,11 @@ import { login } from './helpers.js';
 
 const CONTRACTOR = { email: 'contractor-a-assigned@cert.local', password: 'Cert-Test-Pass-1!' };
 const CONTRACTOR_UNASSIGNED = { email: 'contractor-a-unassigned@cert.local', password: 'Cert-Test-Pass-1!' };
+const PM_A_ASSIGNED = { email: 'pm-a-assigned@cert.local', password: 'Cert-Test-Pass-1!' };
+const ADMIN_A = { email: 'admin-a@cert.local', password: 'Cert-Test-Pass-1!' };
 const PROJECT_CM = '960001';
 const PROJECT_AG = '960002';
+const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
 test.describe('Contractor Schedule Workspace (Simplification Phase 3C)', () => {
   test('1-2. Schedule action appears for CONTRACTOR_MANAGED, not for AUTO_GENERATED', async ({ page }) => {
@@ -178,5 +181,204 @@ test.describe('Contractor Schedule Workspace (Simplification Phase 3C)', () => {
     await cmCard.getByRole('button', { name: 'Submit Report' }).click();
     await expect(page).toHaveURL(/\/contractor-report\//);
     await expect(page.locator('[data-testid="contractor-report-form"]')).toBeVisible({ timeout: 15_000 });
+  });
+
+  // ── Simplification Phase 3C.1: Contractor Draft Ownership ────────────────
+
+  test('17. PM does not see the Schedule action and a guessed route redirects to /unauthorized', async ({ page }) => {
+    await login(page, PM_A_ASSIGNED);
+    // PM's post-login landing route is /home (ROLE_REDIRECTS), not
+    // /contractor-select — unlike Contractor, whose default IS
+    // /contractor-select, so this explicit navigation is required here.
+    await page.goto('/contractor-select');
+    await page.locator('.contractor-project-card, .contractor-no-projects').first().waitFor({ timeout: 15_000 });
+    const cmCard = page.locator('.contractor-project-card', { hasText: 'SCHEDULE-CM' });
+    await expect(cmCard).toBeVisible({ timeout: 10_000 });
+    await expect(cmCard.getByRole('button', { name: 'Schedule' })).toHaveCount(0);
+
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page).toHaveURL(/\/unauthorized/, { timeout: 15_000 });
+  });
+
+  test('18. Admin reaches the route (existing oversight access) but never receives editable controls', async ({ page }) => {
+    await login(page, ADMIN_A);
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.getByRole('heading', { name: 'Contractor Schedule unavailable' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('text=limited to the assigned Contractor')).toBeVisible();
+    await expect(page.locator('input[type="date"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Save Draft/ })).toHaveCount(0);
+  });
+
+  // ── Simplification Phase 3C.1: Save / Navigation interaction (Section I) ─
+
+  test('19. Dirty Draft warns on in-app back navigation; Cancel preserves Draft, Confirm leaves', async ({ page }) => {
+    await login(page, CONTRACTOR);
+    await page.goto('/contractor-select');
+    await page.locator('.contractor-project-card, .contractor-no-projects').first().waitFor({ timeout: 15_000 });
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+
+    await page.locator('span[title="Demo Walls"]').first().click();
+    await page.locator('input[type="date"]').nth(0).fill('2027-06-01');
+    await page.locator('input[type="date"]').nth(1).fill('2027-06-03');
+    await expect(page.locator('text=Unsaved changes').first()).toBeVisible({ timeout: 5000 });
+
+    // Cancel: dialog appears, dismissed -> navigation cancelled, Draft intact.
+    let dialogSeen = false;
+    page.once('dialog', (dialog) => { dialogSeen = true; dialog.dismiss(); });
+    await page.evaluate(() => window.history.back());
+    await page.waitForTimeout(300);
+    expect(dialogSeen).toBe(true);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible();
+    await expect(page.locator('input[type="date"]').nth(0)).toHaveValue('2027-06-01');
+
+    // Confirm: dialog accepted -> navigation proceeds, page unmounts.
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.evaluate(() => window.history.back());
+    await expect(page).toHaveURL(/\/contractor-select/, { timeout: 10_000 });
+  });
+
+  test('20. Successful Save clears dirty state; navigation afterward proceeds without warning', async ({ page }) => {
+    await login(page, CONTRACTOR);
+    await page.goto('/contractor-select');
+    await page.locator('.contractor-project-card, .contractor-no-projects').first().waitFor({ timeout: 15_000 });
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+
+    await page.locator('span[title="Finish Paint"]').first().click();
+    await page.locator('input[type="date"]').nth(0).fill('2027-07-01');
+    await page.locator('input[type="date"]').nth(1).fill('2027-07-02');
+    await page.getByRole('button', { name: /Save Draft/ }).click();
+    await expect(page.locator('text=Saved').first()).toBeVisible({ timeout: 10_000 });
+
+    let dialogSeen = false;
+    page.on('dialog', (dialog) => { dialogSeen = true; dialog.accept(); });
+    await page.evaluate(() => window.history.back());
+    await expect(page).toHaveURL(/\/contractor-select/, { timeout: 10_000 });
+    expect(dialogSeen).toBe(false);
+  });
+
+  test('21. Failed Save keeps dirty state and continues to warn on navigation', async ({ page }) => {
+    await login(page, CONTRACTOR);
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+
+    await page.locator('span[title="Demo Walls"]').first().click();
+    await page.locator('input[type="date"]').nth(0).fill('2027-08-01');
+    await page.locator('input[type="date"]').nth(1).fill('2027-08-03');
+
+    await page.route('**/rest/v1/rpc/save_contractor_schedule_draft', route => route.abort('failed'));
+    await page.getByRole('button', { name: /Save Draft/ }).click();
+    await expect(page.locator('text=Save failed').first()).toBeVisible({ timeout: 10_000 });
+    await page.unroute('**/rest/v1/rpc/save_contractor_schedule_draft');
+
+    let dialogSeen = false;
+    page.once('dialog', (dialog) => { dialogSeen = true; dialog.dismiss(); });
+    await page.evaluate(() => window.history.back());
+    await page.waitForTimeout(300);
+    expect(dialogSeen).toBe(true);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible();
+  });
+
+  test('22. Discard changes clears dirty state and removes the navigation warning', async ({ page }) => {
+    await login(page, CONTRACTOR);
+    await page.goto('/contractor-select');
+    await page.locator('.contractor-project-card, .contractor-no-projects').first().waitFor({ timeout: 15_000 });
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+
+    await page.locator('span[title="Demo Walls"]').first().click();
+    await page.locator('input[type="date"]').nth(0).fill('2027-09-01');
+    await page.locator('input[type="date"]').nth(1).fill('2027-09-03');
+    await expect(page.locator('text=Unsaved changes').first()).toBeVisible({ timeout: 5000 });
+
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await expect(page.locator('text=Saved').first()).toBeVisible({ timeout: 5000 });
+
+    let dialogSeen = false;
+    page.on('dialog', (dialog) => { dialogSeen = true; dialog.accept(); });
+    await page.evaluate(() => window.history.back());
+    await expect(page).toHaveURL(/\/contractor-select/, { timeout: 10_000 });
+    expect(dialogSeen).toBe(false);
+  });
+
+  test('23. Browser unload (refresh/close) still warns when dirty', async ({ page }) => {
+    // Direct dispatch of a real `beforeunload` Event and reading
+    // `event.defaultPrevented` afterward — the exact mechanism a real
+    // browser uses to decide whether to show its native "leave site?"
+    // dialog (Chrome shows it iff a beforeunload listener calls
+    // preventDefault()/sets returnValue). This tests useUnsavedChangesGuard's
+    // actual registered listener deterministically, without depending on
+    // Playwright's own reload()+dialog interception, which proved
+    // unreliable (hung past the test timeout) for this specific event type
+    // in this environment.
+    await login(page, CONTRACTOR);
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+
+    const preventedWhileClean = await page.evaluate(() => {
+      const evt = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(evt);
+      return evt.defaultPrevented;
+    });
+    expect(preventedWhileClean).toBe(false);
+
+    await page.locator('span[title="Demo Walls"]').first().click();
+    await page.locator('input[type="date"]').nth(0).fill('2027-10-01');
+    await page.locator('input[type="date"]').nth(1).fill('2027-10-03');
+    await expect(page.locator('text=Unsaved changes').first()).toBeVisible({ timeout: 5000 });
+
+    const preventedWhileDirty = await page.evaluate(() => {
+      const evt = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(evt);
+      return evt.defaultPrevented;
+    });
+    expect(preventedWhileDirty).toBe(true);
+  });
+
+  // ── Simplification Phase 3C.1: mobile automated smoke (Section J) ────────
+
+  test('24. Mobile (390x844): full unscheduled-WP scheduling workflow without drag', async ({ page }) => {
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await login(page, CONTRACTOR);
+    await page.goto(`/contractor-schedule/${PROJECT_CM}`);
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+
+    const hasOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+    );
+    expect(hasOverflow).toBe(false);
+
+    const walls = page.locator('span[title="Demo Walls"]').first();
+    await expect(walls).toBeVisible({ timeout: 10_000 });
+    await walls.click();
+
+    const startInput = page.locator('input[type="date"]').nth(0);
+    const finishInput = page.locator('input[type="date"]').nth(1);
+    await expect(startInput).toBeVisible({ timeout: 5000 });
+    for (const input of [startInput, finishInput]) {
+      const box = await input.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+    }
+
+    await startInput.fill('2027-11-01');
+    await finishInput.fill('2027-11-03');
+
+    const saveBtn = page.getByRole('button', { name: /Save Draft/ });
+    await expect(saveBtn).toBeVisible({ timeout: 5000 });
+    const saveBox = await saveBtn.boundingBox();
+    expect(saveBox).not.toBeNull();
+    expect(saveBox.x + saveBox.width).toBeLessThanOrEqual(MOBILE_VIEWPORT.width);
+
+    await saveBtn.click();
+    await expect(page.locator('text=Saved').first()).toBeVisible({ timeout: 10_000 });
+
+    await page.reload();
+    await expect(page.locator('text=Schedule Test Mall')).toBeVisible({ timeout: 15_000 });
+    await page.locator('span[title="Demo Walls"]').first().click();
+    await expect(page.locator('input[type="date"]').nth(0)).toHaveValue('2027-11-01', { timeout: 10_000 });
+    await expect(page.locator('input[type="date"]').nth(1)).toHaveValue('2027-11-03');
   });
 });

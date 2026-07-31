@@ -110,6 +110,11 @@ export function fromDB(row) {
     // Simplification Phase 3B/3C: AUTO_GENERATED default (046) — a project
     // fetched before this field existed on some historical row would still
     // fall back to the same default the DB column itself defaults to.
+    // Literal, not the core/schedule/scheduleOwnershipMode.js constant:
+    // services/ is persistence/I/O only and must never import core/ (the
+    // architecture guard's service-purity rule) — this is the raw-DB-value
+    // mapping boundary itself, the same shape every other enum-like column
+    // default in this function already uses.
     scheduleOwnershipMode:      row.schedule_ownership_mode      || 'AUTO_GENERATED',
     // ── Retail Historical Project Profile v1 (migration 037) — same schema
     // serves live creation/editing AND historical import (Capture Once, Use
