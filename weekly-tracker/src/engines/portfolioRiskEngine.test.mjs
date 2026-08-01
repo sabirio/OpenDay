@@ -53,5 +53,21 @@ console.log('\ncomputeRiskSummaryStats — pmMismatch (engine-audit regression)'
   check('unrelated-factor row is not counted', mixed.pmMismatch === 1);
 }
 
+console.log('\ncomputeRiskSummaryStats — Phase 3D.1: null health.score (NOT_ASSESSABLE) excluded from avgHealth');
+{
+  const withOneNotAssessable = computeRiskSummaryStats([
+    row({ level: 'LOW', score: 10, health: 90 }),
+    row({ level: 'LOW', score: 0, health: 80 }),
+    row({ level: 'LOW', score: 0, health: null }), // NOT_ASSESSABLE — must not count as 0
+  ]);
+  check('avgHealth averages only the two assessable rows (85), not coerced-to-0 across three', withOneNotAssessable.avgHealth === 85);
+
+  const allNotAssessable = computeRiskSummaryStats([
+    row({ health: null }),
+    row({ health: null }),
+  ]);
+  check('all-NOT_ASSESSABLE input -> avgHealth is 0 (empty-average fallback), not NaN', allNotAssessable.avgHealth === 0);
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

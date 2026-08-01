@@ -223,6 +223,37 @@ test.describe.serial('Contractor Schedule Submission workflow (Simplification Ph
     await expect(page.getByRole('button', { name: 'Request Changes', exact: true })).toHaveCount(0);
   });
 
+  // Simplification Phase 3D.1 (live approved-commitment projection): proves
+  // the just-approved Baseline is reflected in the BULK Dashboard read path
+  // (useAllRows -> useScheduleCommitmentProjection -> the real Supabase
+  // rows), not just in the single-project Schedule Review page tested
+  // above. Before approval, this project's Opening Readiness field would
+  // show one of the CONTRACTOR_MANAGED pre-commitment labels (Awaiting
+  // Contractor Schedule / Awaiting PM Review / Schedule Changes Required —
+  // openingStatusLabel.js). Once genuinely APPROVED, the label adapter
+  // falls through to the real engine status instead — this only happens if
+  // the live batch projection actually flipped commitmentState to
+  // COMMITTED for THIS project, not merely that some default text changed.
+  test('22.5. Live commitment projection: Dashboard reflects the just-Approved Baseline (Phase 3D.1)', async ({ page }) => {
+    await login(page, PM);
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    const row = page.locator(`[data-testid="dashboard-master-project"][data-project-id="${PROJECT}"]`);
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await row.click();
+
+    const drawer = page.locator('.dashboard-project-overview');
+    await expect(drawer).toBeVisible({ timeout: 5_000 });
+
+    const block = drawer.locator('.dashboard-detail-field').filter({ hasText: 'Opening readiness' });
+    await expect(block).toBeVisible({ timeout: 5_000 });
+    const status = (await block.locator('dd').innerText()).trim();
+
+    expect(status).not.toBe('');
+    expect(status).not.toMatch(/Awaiting|Changes Required/);
+  });
+
   test('23-24. Contractor Draft becomes read-only and Scope-edit is blocked after approval', async ({ page }) => {
     await login(page, CONTRACTOR);
     await page.goto(`/contractor-schedule/${PROJECT}`);

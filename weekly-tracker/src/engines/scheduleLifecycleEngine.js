@@ -49,3 +49,19 @@ export function computeScheduleCompleteness(tasks = []) {
   const scheduledCount = totalCount - unscheduledWpIds.length;
   return { scheduledCount, totalCount, unscheduledWpIds, isComplete: totalCount > 0 && unscheduledWpIds.length === 0 };
 }
+
+/**
+ * Earliest planned_start across an Approved Baseline's immutable
+ * project_schedule_version_tasks snapshot (Simplification Phase 3D.1) — the
+ * "earliest planned start" half of reportDueStateEngine.js's obligation-start
+ * formula (max(approvedAt, earliestCommittedPlannedStart)). ISO date strings
+ * (YYYY-MM-DD, as Postgres `date` columns are shaped by Supabase) compare
+ * correctly with plain string ordering — no Date parsing needed.
+ * @param {Array<{plannedStart: string}>} tasks
+ * @returns {string|null}
+ */
+export function computeEarliestPlannedStart(tasks = []) {
+  const starts = tasks.map((t) => t.plannedStart).filter(Boolean);
+  if (starts.length === 0) return null;
+  return starts.reduce((min, start) => (start < min ? start : min));
+}

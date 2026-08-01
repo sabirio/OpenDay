@@ -29,7 +29,17 @@ export function runOpenDayOrchestrator(raw = {}, options = {}) {
     snapshot.siteVisits,
     progress.overallProgress,
     legacyState.wpCumulativeStatuses,
-    calculatedAt
+    calculatedAt,
+    // Phase 3D.1: the same commitment facts evaluateProjectState() just
+    // used above (options.contractorScheduleLifecycleStatus/
+    // commitmentEstablishedAt/firstCommittedPlannedStart) — so the drawer's
+    // projectSummary and the canonical legacyState can never disagree about
+    // the same project's commitment state.
+    {
+      contractorScheduleLifecycleStatus: options.contractorScheduleLifecycleStatus ?? null,
+      commitmentEstablishedAt: options.commitmentEstablishedAt ?? null,
+      firstCommittedPlannedStart: options.firstCommittedPlannedStart ?? null,
+    }
   );
   return {
     snapshot,
@@ -38,6 +48,15 @@ export function runOpenDayOrchestrator(raw = {}, options = {}) {
     schedule: legacyState.progressComparison || null,
     readiness: legacyState.readiness || null,
     risks: legacyState.riskScore,
+    // Phase 3D.1: promoted straight from legacyState (no second derivation
+    // path here — evaluateProjectState() remains the one place these are
+    // computed) so canonical consumers can read commitment/assessment state
+    // without reaching into compatibility.legacyState.
+    scheduleOwnershipMode: legacyState.scheduleOwnershipMode,
+    commitmentState: legacyState.commitmentState,
+    assessmentAvailability: legacyState.assessmentAvailability,
+    reportDueState: legacyState.reportDueState,
+    contractorScheduleLifecycleStatus: legacyState.contractorScheduleLifecycleStatus,
     warnings: [...snapshot.warnings, ...progress.warnings, ...discrepancy.warnings],
     calculatedAt: snapshot.metadata.calculatedAt,
     compatibility: { legacyState, projectSummary, readiness: true, risk: true, schedule: true },

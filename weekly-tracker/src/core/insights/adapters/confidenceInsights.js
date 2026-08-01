@@ -9,7 +9,16 @@
  *
  * Cards sit at priorityScore 5 so they fall below real operational problems.
  *
- * @param {Array<{project: {id:string}, confidence: {breakdown: Array}}>} rows
+ * Phase 3D.1: both dimensions collapse to the same root cause — no report
+ * exists at all — whenever row.latestReport is null. For a CONTRACTOR_MANAGED
+ * project with no schedule commitment yet (row.assessmentAvailability ===
+ * 'NOT_ASSESSABLE'), that absence carries zero signal (NO COMMITMENT YET !=
+ * COMMITMENT MISSED), so this specific combination is suppressed. A
+ * genuinely stale REAL report (reports exist, latestReport is just old) is
+ * unaffected and still surfaces regardless of commitment state — real
+ * evidence is never suppressed by the commitment gate.
+ *
+ * @param {Array<{project: {id:string}, confidence: {breakdown: Array}, latestReport: object|null, assessmentAvailability?: string}>} rows
  * @returns {import('../insight.js').Insight[]}
  */
 export function confidenceToInsights(rows) {
@@ -22,8 +31,9 @@ export function confidenceToInsights(rows) {
     const reportHistory  = breakdown.find(b => b.dimension === 'Report history');
     const reportFreshness = breakdown.find(b => b.dimension === 'Report freshness');
 
-    const noReports = reportHistory?.earned === 0;
-    const stale     = reportFreshness?.earned === 0;
+    const suppressAbsenceSignal = row.assessmentAvailability === 'NOT_ASSESSABLE' && !row.latestReport;
+    const noReports = reportHistory?.earned === 0 && !suppressAbsenceSignal;
+    const stale     = reportFreshness?.earned === 0 && !suppressAbsenceSignal;
 
     if (!noReports && !stale) continue;
 

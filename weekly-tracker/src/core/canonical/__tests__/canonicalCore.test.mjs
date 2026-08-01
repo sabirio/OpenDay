@@ -68,7 +68,16 @@ const previousSummary = computeProjectSummary(
   previousRow.wpCumulativeStatuses
 );
 const migratedSummary = buildProjectDetailDrawerModel(previousRow, scenarios.normal.siteVisits);
-check('first migrated consumer preserves Project Summary values', JSON.stringify(migratedSummary) === JSON.stringify(previousSummary));
+// Phase 3D.1: buildProjectDetailDrawerModel() now additionally attaches a
+// presentation-only opening.statusLabel (openingStatusLabel.js) on top of
+// the raw computeProjectSummary() result — an intentional, additive
+// enhancement of this migrated consumer, not a value change. Strip it
+// before the byte-identical comparison so this test still guards against
+// any REAL value drift, and assert its presence/correctness separately.
+const { statusLabel: migratedStatusLabel, ...migratedOpeningRest } = migratedSummary.opening;
+const migratedSummaryForComparison = { ...migratedSummary, opening: migratedOpeningRest };
+check('first migrated consumer preserves Project Summary values', JSON.stringify(migratedSummaryForComparison) === JSON.stringify(previousSummary));
+check('migrated consumer additionally attaches opening.statusLabel (Phase 3D.1)', migratedStatusLabel === previousSummary.opening.status);
 
 const fixedRunA = runOpenDayOrchestrator(scenarios.normal, { calculatedAt: calcAt });
 const fixedRunB = runOpenDayOrchestrator(scenarios.normal, { calculatedAt: calcAt });

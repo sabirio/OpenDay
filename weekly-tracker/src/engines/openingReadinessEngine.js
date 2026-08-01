@@ -2,6 +2,7 @@ import { constructionRetailV1 } from "../domains/construction/templates/construc
 import { DEPENDENCY_RULES } from "../config/dependencyRules";
 import { daysUntil } from "../utils/reportUtils";
 import { sortReasons } from "../utils/reasonUtils";
+import { ASSESSMENT_AVAILABILITY, ASSESSMENT_REASON_CODE } from "../core/schedule/scheduleAssessmentAvailability.js";
 
 // Flat WP list across all phases (canonical source — Wave 4.5).
 const ALL_WPS = constructionRetailV1.phases.flatMap(phase =>
@@ -181,8 +182,18 @@ export function shortfallDays(slack) {
  *   (used by v2 zoned projects — see buildV2OpeningReadinessOptions in
  *   retailFitoutV2 wiring). Omitted entirely for v1, so v1 behavior is
  *   byte-identical to before this parameter existed.
+ * @param {Date} [referenceDate]
+ * @param {'ASSESSABLE'|'NOT_ASSESSABLE'|null} [assessmentAvailability]
+ *   - Phase 3D.1: pass deriveAssessmentAvailability(commitmentState) for
+ *   CONTRACTOR_MANAGED projects. Omitted/null defaults to ASSESSABLE, so
+ *   every existing caller (and AUTO_GENERATED, which is always COMMITTED)
+ *   runs the unchanged formula below. NOT_ASSESSABLE short-circuits before
+ *   any blocker/critical-chain/verdict math — a project awaiting its first
+ *   schedule commitment has nothing real to evaluate yet (Phase 3D.1
+ *   Section B: NO COMMITMENT YET ≠ COMMITMENT MISSED), so this must never
+ *   fabricate blockers from reports that were never obligated to exist.
  * @returns {{
- *   status: 'No Date' | 'Ready' | 'At Risk' | 'Critical' | 'Overdue',
+ *   status: 'No Date' | 'Ready' | 'At Risk' | 'Critical' | 'Overdue' | 'Not Assessable',
  *   daysToOpening: number | null,
  *   targetDate: string | null,
  *   criticalBlockers: Array<{ wpId, task, status }>,
@@ -192,11 +203,38 @@ export function shortfallDays(slack) {
  *   slack: number | null,
  *   verdict: 'READY_TRACK' | 'TIGHT' | 'NOT_ACHIEVABLE' | null,
  *   criticalChain: Array<{ wpId, phaseId, task, level, status, responsibleRole, remainingDays }>,
+ *   assessmentAvailability: 'ASSESSABLE' | 'NOT_ASSESSABLE',
+ *   reasonCode: 'AWAITING_SCHEDULE_COMMITMENT' | null,
  * }}
  */
-export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate, scopeWPIds = null, templateOptions = null, referenceDate = new Date()) {
+export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate, scopeWPIds = null, templateOptions = null, referenceDate = new Date(), assessmentAvailability = null) {
   const targetDate = targetOpeningDate || null;
   const daysToOpening = targetDate ? daysUntil(targetDate, referenceDate) : null;
+
+  const availability = assessmentAvailability ?? ASSESSMENT_AVAILABILITY.ASSESSABLE;
+  if (availability === ASSESSMENT_AVAILABILITY.NOT_ASSESSABLE) {
+    // daysToOpening/targetDate are real, commitment-independent facts (they
+    // come straight from the project's own target date) and are kept — only
+    // the schedule-derived blocker/critical-chain/verdict math is skipped,
+    // since that's the part that would otherwise assume every un-reported
+    // WP is an active blocker (see isBlocking()'s A2 comment above).
+    return {
+      status: 'Not Assessable',
+      daysToOpening,
+      targetDate,
+      criticalBlockers: [],
+      softBlockers: [],
+      blockerCount: 0,
+      requiredDays: 0,
+      slack: null,
+      verdict: null,
+      criticalChain: [],
+      assessmentAvailability: ASSESSMENT_AVAILABILITY.NOT_ASSESSABLE,
+      reasonCode: ASSESSMENT_REASON_CODE.AWAITING_SCHEDULE_COMMITMENT,
+      reasons: [{ type: 'neutral', text: 'Awaiting contractor schedule commitment', source: 'schedule' }],
+    };
+  }
+
   const wpStatuses = wpCumulativeStatuses?.workPackageStatuses ?? wpCumulativeStatuses ?? null;
 
   const blockerWPs = templateOptions?.blockerWPs ?? BLOCKER_WPS;
@@ -279,6 +317,8 @@ export function computeOpeningReadiness(wpCumulativeStatuses, targetOpeningDate,
     slack,
     verdict,
     criticalChain,
+    assessmentAvailability: ASSESSMENT_AVAILABILITY.ASSESSABLE,
+    reasonCode: null,
     reasons: sortReasons(reasons),
   };
 }

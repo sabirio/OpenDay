@@ -240,5 +240,39 @@ const PROJ_BASE = {
     r.totalScore > r.score && r.score === 100);
 }
 
+// E: Phase 3D.1 — assessmentAvailability gate on the zero-reports branch
+{
+  const newProject = {
+    constructionStartDate: iso(now - 300 * DAY), // would otherwise trigger startedAgo/expectedProgress factors
+    constructionEndDate:   iso(now + 10 * DAY),  // and opening-proximity factors
+    targetOpeningDate:     iso(now + 10 * DAY),
+  };
+
+  const rNotAssessable = computeProjectRiskScore(newProject, [], 0, [], null, new Date(now), null, 'NOT_ASSESSABLE');
+  check('E1: NOT_ASSESSABLE, zero reports -> score 0', rNotAssessable.score === 0);
+  check('E1: NOT_ASSESSABLE, zero reports -> LOW level', rNotAssessable.level === 'LOW');
+  check('E1: NOT_ASSESSABLE, zero reports -> no factors (not even "No reports submitted")', rNotAssessable.factors.length === 0);
+  check('E1: NOT_ASSESSABLE, zero reports -> assessmentAvailability field set', rNotAssessable.assessmentAvailability === 'NOT_ASSESSABLE');
+  check('E1: NOT_ASSESSABLE, zero reports -> reasonCode AWAITING_SCHEDULE_COMMITMENT', rNotAssessable.reasonCode === 'AWAITING_SCHEDULE_COMMITMENT');
+
+  const rOmitted = computeProjectRiskScore(newProject, [], 0, [], null, new Date(now));
+  check('E2: omitted assessmentAvailability -> unchanged legacy computeNoReportsRisk behavior',
+    rOmitted.factors.some(f => f.name === 'No reports submitted') && rOmitted.score > 0);
+
+  const rAssessable = computeProjectRiskScore(newProject, [], 0, [], null, new Date(now), null, 'ASSESSABLE');
+  check('E3: explicit ASSESSABLE, zero reports -> matches omitted-arg (legacy) score', rAssessable.score === rOmitted.score);
+
+  // Preserve manual/proven risk evidence: real submitted reports are scored
+  // normally regardless of assessmentAvailability, since evidence that
+  // genuinely exists must never be suppressed by a commitment gate meant
+  // only to stop FABRICATED "no report" penalties.
+  const realReport = { reportingDate: iso(now), projectScheduleStatus: 'On Track', riskScale: 'High' };
+  const rWithReport = computeProjectRiskScore(newProject, [realReport], 50, [], null, new Date(now), null, 'NOT_ASSESSABLE');
+  check('E4: NOT_ASSESSABLE but real report exists -> normal scoring runs (not the zero/neutral branch)',
+    rWithReport.factors.some(f => f.name === 'Risk scale'));
+  check('E4: NOT_ASSESSABLE but real report exists -> assessmentAvailability is ASSESSABLE (evidence-driven)',
+    rWithReport.assessmentAvailability === 'ASSESSABLE');
+}
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

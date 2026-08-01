@@ -5,7 +5,7 @@
  *   progressEngine.calculateProgressComparison  → progressComparison, prevProgressComparison
  *   riskEngine.computeProjectRiskScore          → riskScore
  *   openingReadinessEngine.computeOpeningReadiness → openingReadiness
- *   isMissingReport (reportUtils)               → missingReport
+ *   reportDueStateEngine.deriveReportDueState   → missingReport (Phase 3D.1)
  *   latest report object                        → latestReport
  *
  * Signature: getCommands(projectState, config) → Command[]
