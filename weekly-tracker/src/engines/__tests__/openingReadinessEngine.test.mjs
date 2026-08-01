@@ -194,5 +194,38 @@ console.log('\nI) shortfallDays');
   check('positive slack -> 0 or negative (not a real shortfall)', shortfallDays(3) === -3);
 }
 
+console.log('\nJ) Phase 3D.1 — assessmentAvailability: NOT_ASSESSABLE short-circuits before any blocker math');
+{
+  // Deliberately empty statuses so isBlocking(null) would normally flag
+  // every opening-blocker WP as active (A2 behavior) — proves the
+  // NOT_ASSESSABLE branch skips that math entirely rather than just
+  // happening to compute zero blockers.
+  const r = computeOpeningReadiness({ workPackageStatuses: {} }, iso(30), null, null, today, 'NOT_ASSESSABLE');
+  check('status is Not Assessable, not Critical/At Risk', r.status === 'Not Assessable');
+  check('criticalBlockers is empty despite every WP being un-reported', r.criticalBlockers.length === 0);
+  check('softBlockers is empty', r.softBlockers.length === 0);
+  check('blockerCount is 0', r.blockerCount === 0);
+  check('requiredDays is 0', r.requiredDays === 0);
+  check('slack is null, not fabricated', r.slack === null);
+  check('verdict is null, never NOT_ACHIEVABLE', r.verdict === null);
+  check('criticalChain is empty', r.criticalChain.length === 0);
+  check('assessmentAvailability is NOT_ASSESSABLE', r.assessmentAvailability === 'NOT_ASSESSABLE');
+  check('reasonCode is AWAITING_SCHEDULE_COMMITMENT', r.reasonCode === 'AWAITING_SCHEDULE_COMMITMENT');
+  check('daysToOpening is still real (commitment-independent fact)', r.daysToOpening === 30);
+  check('targetDate is still populated', r.targetDate === iso(30));
+}
+
+console.log('\nK) Phase 3D.1 — assessmentAvailability omitted/ASSESSABLE preserves exact prior behavior');
+{
+  const wpStatuses = { commissioning: {}, pre_opening: {}, handover: {} };
+  const rOmitted   = computeOpeningReadiness({ workPackageStatuses: wpStatuses }, iso(30));
+  const rExplicit  = computeOpeningReadiness({ workPackageStatuses: wpStatuses }, iso(30), null, null, today, 'ASSESSABLE');
+  check('omitted 6th arg matches explicit ASSESSABLE (status)', rOmitted.status === rExplicit.status);
+  check('omitted 6th arg matches explicit ASSESSABLE (requiredDays)', rOmitted.requiredDays === rExplicit.requiredDays);
+  check('ASSESSABLE result carries assessmentAvailability field', rExplicit.assessmentAvailability === 'ASSESSABLE');
+  check('ASSESSABLE result has null reasonCode', rExplicit.reasonCode === null);
+  check('omitted 6th arg still flags un-reported blockers (A2 behavior unchanged)', rOmitted.criticalBlockers.length > 0);
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

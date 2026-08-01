@@ -14,8 +14,34 @@
 // Reason sort order: critical → warning → neutral → positive
 
 import { sortReasons } from '../utils/reasonUtils';
+import { ASSESSMENT_AVAILABILITY, ASSESSMENT_REASON_CODE } from '../core/schedule/scheduleAssessmentAvailability.js';
 
-export function computeProjectHealth(riskScore, progress, contScore, latestReport = null) {
+/**
+ * Phase 3D.1 (Section 7): riskScore, progress AND contScore all default to
+ * artificially "fine-looking" values before any real evidence exists for a
+ * CONTRACTOR_MANAGED project awaiting schedule commitment — riskScore.score
+ * defaults to 0 (a neutral score, but combined with 0% progress it still
+ * drags the blended score down), progress is genuinely 0%, and contScore
+ * defaults to a hardcoded {performanceScore:50, pmAlignmentScore:50, ...}
+ * (contractorEngine.js's own no-reports default). Blending all three
+ * produces a worked, reproducible false "Critical" (score ~47) for a
+ * brand-new project with zero reports — none of these three inputs reflect
+ * anything real yet, so none may be blended into a fabricated number.
+ * @param {'ASSESSABLE'|'NOT_ASSESSABLE'|null} [assessmentAvailability]
+ */
+export function computeProjectHealth(riskScore, progress, contScore, latestReport = null, assessmentAvailability = null) {
+  if (assessmentAvailability === ASSESSMENT_AVAILABILITY.NOT_ASSESSABLE) {
+    return {
+      score: null,
+      level: 'Not Assessable',
+      color: 'var(--text-muted)',
+      bg: 'var(--bg-elevated)',
+      assessmentAvailability: ASSESSMENT_AVAILABILITY.NOT_ASSESSABLE,
+      reasonCode: ASSESSMENT_REASON_CODE.AWAITING_SCHEDULE_COMMITMENT,
+      reasons: [{ type: 'neutral', text: 'Awaiting schedule commitment — health not yet assessed', source: 'schedule' }],
+    };
+  }
+
   const riskPts     = (1 - riskScore.score / 100) * 30;
   const progressPts = (progress / 100) * 25;
   const contPts     = (contScore.performanceScore / 100) * 20;
@@ -72,5 +98,8 @@ export function computeProjectHealth(riskScore, progress, contScore, latestRepor
     }
   }
 
-  return { score, level, color, bg, reasons: sortReasons(reasons) };
+  return {
+    score, level, color, bg, reasons: sortReasons(reasons),
+    assessmentAvailability: ASSESSMENT_AVAILABILITY.ASSESSABLE, reasonCode: null,
+  };
 }

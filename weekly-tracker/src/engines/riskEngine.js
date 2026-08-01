@@ -7,6 +7,7 @@ import { computePmAlignmentItems } from "./pmAlignmentEngine";
 import { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER } from "../config/riskConfig";
 import { RISK_WEIGHTS } from "../config/riskWeights";
 import { sortReasons } from "../utils/reasonUtils";
+import { ASSESSMENT_AVAILABILITY, ASSESSMENT_REASON_CODE } from "../core/schedule/scheduleAssessmentAvailability.js";
 
 // Re-export config constants so all existing imports from riskEngine keep working.
 export { RISK_COLORS, RISK_DIMENSIONS, RISK_TO_DIMS, DIM_LEVEL_ORDER };
@@ -209,16 +210,40 @@ function computeNoReportsRisk(project, referenceDate = new Date()) {
   // expanded "Total score" row previously recomputed this itself; exposed here
   // so it's a single source of truth instead of a UI-side re-sum.
   const totalScore = factors.reduce((s, f) => s + f.pts, 0);
-  return { score, level, color: RISK_COLORS[level], factors, rootCause: [], totalScore, reasons: factorsToReasons(factors) };
+  return {
+    score, level, color: RISK_COLORS[level], factors, rootCause: [], totalScore, reasons: factorsToReasons(factors),
+    assessmentAvailability: ASSESSMENT_AVAILABILITY.ASSESSABLE, reasonCode: null,
+  };
+}
+
+// Phase 3D.1 (Section 6): a CONTRACTOR_MANAGED project with no schedule
+// commitment yet has zero reporting obligation (reportDueStateEngine.js),
+// so "no reports submitted" carries no risk information at all — unlike
+// computeNoReportsRisk() above, which correctly treats silence as risky
+// once a project genuinely SHOULD be reporting. Only reached when there are
+// zero reports; any real, submitted report evidence is scored normally by
+// the main branch below regardless of commitment state (manual/proven risk
+// evidence is never suppressed).
+function computeNotAssessableRisk() {
+  const level = RISK_LEVELS.LOW;
+  return {
+    score: 0, level, color: RISK_COLORS[level], factors: [], rootCause: [], totalScore: 0,
+    assessmentAvailability: ASSESSMENT_AVAILABILITY.NOT_ASSESSABLE,
+    reasonCode: ASSESSMENT_REASON_CODE.AWAITING_SCHEDULE_COMMITMENT,
+    reasons: [{ type: 'neutral', text: 'Awaiting schedule commitment — not yet assessed for risk', source: 'schedule' }],
+  };
 }
 
 // ── Project Risk Score ────────────────────────────────────────────────────────
 // All scoring weights come from RISK_WEIGHTS (riskWeights.js).
 // Extend that config to change scoring without touching engine logic.
 
-export function computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness = null, referenceDate = new Date(), compatibilityInput = null) {
+export function computeProjectRiskScore(project, projReports, progress, projSiteVisits, readiness = null, referenceDate = new Date(), compatibilityInput = null, assessmentAvailability = null) {
   // Dynamic risk for projects without reports
-  if (!projReports.length) return computeNoReportsRisk(project, referenceDate);
+  if (!projReports.length) {
+    if (assessmentAvailability === ASSESSMENT_AVAILABILITY.NOT_ASSESSABLE) return computeNotAssessableRisk();
+    return computeNoReportsRisk(project, referenceDate);
+  }
 
   const sorted = [...projReports].sort(
     (a, b) => new Date(a.reportingDate || a.submittedAt) - new Date(b.reportingDate || b.submittedAt)
@@ -402,7 +427,10 @@ export function computeProjectRiskScore(project, projReports, progress, projSite
   // exceeded 100 or a recovery bonus applied afterward — that divergence
   // already existed in the UI's own calculation and is preserved as-is.
   const totalScore = factors.reduce((s, f) => s + f.pts, 0);
-  return { score, level, color: RISK_COLORS[level], factors, rootCause, totalScore, reasons: factorsToReasons(factors) };
+  return {
+    score, level, color: RISK_COLORS[level], factors, rootCause, totalScore, reasons: factorsToReasons(factors),
+    assessmentAvailability: ASSESSMENT_AVAILABILITY.ASSESSABLE, reasonCode: null,
+  };
 }
 
 // ── Dimension Risk ────────────────────────────────────────────────────────────
