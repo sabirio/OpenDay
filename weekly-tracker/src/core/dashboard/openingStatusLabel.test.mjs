@@ -36,5 +36,17 @@ console.log('\nCONTRACTOR_MANAGED — fail-safe default (never recalculates a sc
     deriveOpeningStatusLabel({ scheduleOwnershipMode: 'CONTRACTOR_MANAGED', contractorScheduleLifecycleStatus: 'SOMETHING_UNKNOWN', readinessStatus: 'Not Assessable' }) === 'Awaiting Contractor Schedule');
 }
 
+console.log('\nProjection Completeness Hardening — UNAVAILABLE always wins, never inferred as a lifecycle label');
+{
+  check('CONTRACTOR_MANAGED, no lifecycle status, UNAVAILABLE -> "Schedule status unavailable", NOT the DRAFT fallback',
+    deriveOpeningStatusLabel({ scheduleOwnershipMode: 'CONTRACTOR_MANAGED', contractorScheduleLifecycleStatus: null, scheduleProjectionAvailability: 'UNAVAILABLE', readinessStatus: 'Not Assessable' }) === 'Schedule status unavailable');
+  check('CONTRACTOR_MANAGED, a stale/unrelated lifecycle status happens to be present, UNAVAILABLE still wins',
+    deriveOpeningStatusLabel({ scheduleOwnershipMode: 'CONTRACTOR_MANAGED', contractorScheduleLifecycleStatus: 'APPROVED', scheduleProjectionAvailability: 'UNAVAILABLE', readinessStatus: 'Ready' }) === 'Schedule status unavailable');
+  check('AUTO_GENERATED + UNAVAILABLE -> still "Schedule status unavailable" (never silently passes through Ready/Critical either)',
+    deriveOpeningStatusLabel({ scheduleOwnershipMode: 'AUTO_GENERATED', scheduleProjectionAvailability: 'UNAVAILABLE', readinessStatus: 'Critical' }) === 'Schedule status unavailable');
+  check('scheduleProjectionAvailability AVAILABLE (or omitted) does not change existing behavior',
+    deriveOpeningStatusLabel({ scheduleOwnershipMode: 'CONTRACTOR_MANAGED', contractorScheduleLifecycleStatus: 'DRAFT', scheduleProjectionAvailability: 'AVAILABLE', readinessStatus: 'Not Assessable' }) === 'Awaiting Contractor Schedule');
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -23,7 +23,7 @@ register('data:application/javascript,' + encodeURIComponent(loaderSrc), { paren
 
 const { buildProjectDetailDrawerModel } = await import('./projectDetailDrawerModel.js');
 const { buildCanonicalProjectRows } = await import('./dashboardProjectRowsModel.js');
-const { buildScheduleCommitmentProjection } = await import('../schedule/scheduleCommitmentBatchProjection.js');
+const { buildScheduleCommitmentProjection, buildUnavailableProjection } = await import('../schedule/scheduleCommitmentBatchProjection.js');
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -84,6 +84,17 @@ console.log('\nbuildProjectDetailDrawerModel — full real chain: batch projecti
   check('row itself carries the raw lifecycle status', row.contractorScheduleLifecycleStatus === 'CHANGES_REQUESTED');
   const summary = buildProjectDetailDrawerModel(row, []);
   check('drawer statusLabel is "Schedule Changes Required" end to end', summary.opening.statusLabel === 'Schedule Changes Required');
+}
+
+console.log('\nProjection Completeness Hardening — full real chain: UNAVAILABLE never presents as "Awaiting Contractor Schedule"');
+{
+  const project = { id: 'cm-drawer-unavailable', scheduleOwnershipMode: 'CONTRACTOR_MANAGED', targetOpeningDate: '2027-06-01', scope: { workPackages: ['demo.strip_out'], zoneAreas: {} }, progressHistory: [] };
+  const projection = buildUnavailableProjection([project]);
+  const [row] = buildCanonicalProjectRows({ projects: [project], reports: [], siteVisits: [], calculatedAt: '2027-01-20T00:00:00.000Z', scheduleCommitmentProjection: projection });
+  check('row carries scheduleProjectionAvailability UNAVAILABLE', row.scheduleProjectionAvailability === 'UNAVAILABLE');
+  const summary = buildProjectDetailDrawerModel(row, []);
+  check('drawer statusLabel is "Schedule status unavailable", never the confident DRAFT fallback', summary.opening.statusLabel === 'Schedule status unavailable');
+  check('drawer statusLabel is NOT "Awaiting Contractor Schedule"', summary.opening.statusLabel !== 'Awaiting Contractor Schedule');
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

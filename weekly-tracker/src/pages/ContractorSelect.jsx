@@ -25,6 +25,14 @@ import { useContractorDirectory } from '../hooks/useContractorDirectory';
 // scoped project list and which actor identity feed the same workspace
 // pipeline a real Contractor session uses.
 function reportStatusFor(row) {
+  // Projection Completeness Hardening: an unavailable batch projection
+  // (fetch failed) also resolves reportDueState to NOT_YET_DUE via the
+  // engine's own conservative fallback — but "no report due yet" is a
+  // confident claim we have not actually confirmed here, so it must not be
+  // shown as if it were. Checked before the NOT_YET_DUE branch below.
+  if (row.scheduleProjectionAvailability === 'UNAVAILABLE') {
+    return { text: 'Schedule status unavailable', tone: 'secondary' };
+  }
   // Phase 3D.1: a CONTRACTOR_MANAGED project awaiting its first schedule
   // commitment has no reporting obligation yet (reportDueStateEngine.js) —
   // must read as neutral "nothing to report on yet", not the same warning
