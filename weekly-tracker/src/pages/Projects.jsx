@@ -292,7 +292,20 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         toast.success(`${label} deleted.`);
       } catch (err) {
         console.error("Failed to delete project:", err);
-        toast.error("Failed to delete project. Please try again.");
+        // Approved product policy (Simplification Phase 4B.2 Section P):
+        // once ANY schedule submission/history exists, hard delete is
+        // prohibited — prevent_schedule_version_task_mutation() (049)
+        // blocks the cascade from project_schedule_versions and surfaces
+        // as this exact error text. Immutable history must never be
+        // weakened to make deletion "work"; this is display-only —
+        // normalize the raw Postgres error into a clear product message
+        // instead of the generic failure, never bypass it.
+        const isImmutableHistoryBlock = /SCHEDULE_VERSION_TASK_IMMUTABLE/.test(err?.message || "");
+        toast.error(
+          isImmutableHistoryBlock
+            ? "This project contains immutable schedule history and cannot be permanently deleted."
+            : "Failed to delete project. Please try again."
+        );
       }
     }
   }

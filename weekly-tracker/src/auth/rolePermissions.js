@@ -13,11 +13,19 @@ export const PERMISSIONS = {
   Admin: ['all'],  // 'all' is a wildcard — see permissionEngine.canAccess()
   // 'contractor_schedule' is deliberately NOT in PM's list (Simplification
   // Phase 3C.1): the Contractor Proposed Schedule / Draft belongs to the
-  // Contractor. PM review/approval is a distinct, not-yet-built workflow —
-  // PM must not reach the editable Draft route at all. See
-  // ContractorSchedule.jsx and save_contractor_schedule_draft (048) for the
-  // matching page- and RPC-level enforcement.
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import'],
+  // Contractor. PM review/approval is now the separate 'schedule_review'
+  // resource below (Simplification Phase 4B.2) — PM must still never reach
+  // the editable Draft route. See ContractorSchedule.jsx and
+  // save_contractor_schedule_draft (048) for the matching page- and
+  // RPC-level enforcement.
+  // 'schedule_review' (Phase 4B.2): PM Review workspace for Contractor
+  // schedule submissions — PM may Approve/Request Changes; Admin reaches it
+  // too (via 'all' below) for read-only oversight only (see
+  // PMScheduleReview.jsx's own page-level role check); Contractor and
+  // Viewer are deliberately excluded (Contractor never reviews their own
+  // submission, Viewer has no schedule-submission access at all — Phase
+  // 4B.2 Section Q).
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'schedule_review'],
   Contractor: ['contractor_report', 'snags', 'contractor_schedule'],
   Viewer: ['dashboard', 'snags'],
 };

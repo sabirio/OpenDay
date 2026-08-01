@@ -13,7 +13,7 @@
 // per this repository's architecture guard — core/ composes engines/, it
 // never computes formulas itself.
 
-import { computeNextSubmissionNumber, computeNextBaselineRevisionNumber } from '../../engines/scheduleLifecycleEngine.js';
+import { computeNextSubmissionNumber, computeNextBaselineRevisionNumber, computeScheduleCompleteness } from '../../engines/scheduleLifecycleEngine.js';
 
 export const SCHEDULE_LIFECYCLE_STATUS = Object.freeze({
   DRAFT: 'DRAFT',
@@ -79,6 +79,20 @@ export function deriveNextBaselineRevisionNumber(existingBaselineRevisionNumbers
   return computeNextBaselineRevisionNumber(existingBaselineRevisionNumbers);
 }
 
+/**
+ * Display-only completeness facts for the Contractor Submit action
+ * (Simplification Phase 4B.2 Section E) — one formula, delegated to
+ * engines/scheduleLifecycleEngine.js, never re-derived per page. The
+ * submit_contractor_schedule RPC remains the final authority; this exists
+ * solely so the UI can show "Scheduled WPs: X / Y" and disable Submit
+ * without guessing at the server's own rule.
+ * @param {Array<{id: string, earlyStart?: Date|null, earlyFinish?: Date|null}>} tasks
+ * @returns {{ scheduledCount: number, totalCount: number, unscheduledWpIds: string[], isComplete: boolean }}
+ */
+export function deriveScheduleCompleteness(tasks = []) {
+  return computeScheduleCompleteness(tasks);
+}
+
 // Every deterministic, product-meaningful error code the schedule-lifecycle
 // RPCs (submit_contractor_schedule, request_schedule_changes,
 // approve_schedule_submission, save_contractor_schedule_draft) can raise,
@@ -111,4 +125,41 @@ export function normalizeScheduleLifecycleError(rawMessage) {
   if (!found) return { code: 'UNKNOWN', message: rawMessage };
   const rest = rawMessage.slice(found.length).replace(/^:\s*/, '');
   return { code: found, message: rest || found };
+}
+
+// Codes that mean "the lifecycle moved on while this action was in flight" —
+// another actor (a concurrent Submit, PM decision, or approval) already
+// changed the state this action assumed. A canonical reload is the correct
+// response, never a generic retry or a silent success (Phase 4B.2 Section
+// F/S — "lifecycle race errors cause a canonical reload").
+const LIFECYCLE_RACE_CODES = new Set(['SCHEDULE_PENDING_REVIEW', 'BASELINE_ALREADY_APPROVED', 'SUBMISSION_NOT_PENDING']);
+
+// One friendly, product-meaningful sentence per known code — never the raw
+// Postgres message (Phase 4B.2 Section F/S: "Do not show raw PostgreSQL
+// errors"). Codes not listed here fall back to the RAISE EXCEPTION's own
+// message text, which is already written to be a complete sentence.
+const FRIENDLY_MESSAGE_BY_CODE = {
+  SCHEDULE_PENDING_REVIEW: 'This schedule is already pending PM review. Reloading the current status.',
+  BASELINE_ALREADY_APPROVED: 'This schedule already has an approved baseline. Reloading the current status.',
+  SUBMISSION_NOT_PENDING: 'This submission was already decided by another reviewer. Reloading the current status.',
+  SCHEDULE_INCOMPLETE: 'Not every active work package has a Start and Finish date yet.',
+  EMPTY_SCOPE: 'This project has no active work packages to schedule.',
+  COMMENT_REQUIRED: 'A comment is required to request changes.',
+};
+
+/**
+ * Normalizes a Submit/Request-Changes/Approve RPC failure into a stable,
+ * UI-ready shape: a friendly message (never raw Postgres text) plus a
+ * shouldReload flag for lifecycle-race codes, so a page can uniformly
+ * "reload canonical state" instead of guessing per call site.
+ * @param {{message?: string}|null|undefined} error
+ * @returns {{ code: string, message: string, shouldReload: boolean }}
+ */
+export function normalizeScheduleSubmissionActionError(error) {
+  const { code, message } = normalizeScheduleLifecycleError(error?.message);
+  return {
+    code,
+    message: FRIENDLY_MESSAGE_BY_CODE[code] || message,
+    shouldReload: LIFECYCLE_RACE_CODES.has(code),
+  };
 }

@@ -31,6 +31,7 @@ const ResetPassword    = lazy(() => import("./pages/ResetPassword"));
 const Unauthorized     = lazy(() => import("./pages/Unauthorized"));
 const ContractorSelect = lazy(() => import("./pages/ContractorSelect"));
 const ContractorSchedule = lazy(() => import("./pages/ContractorSchedule"));
+const PMScheduleReview   = lazy(() => import("./pages/PMScheduleReview"));
 const SiteVisitSelect  = lazy(() => import("./pages/SiteVisitSelect"));
 const SnagListPage     = lazy(() => import("./pages/snags/SnagListPage"));
 const SnagFieldPage    = lazy(() => import("./pages/snags/SnagFieldPage"));
@@ -451,6 +452,20 @@ function App() {
                   <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans" element={<ProtectedRoute resource="snags"><PlanManagementPage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans/:planId" element={<ProtectedRoute resource="snags"><PlanViewerPage/></ProtectedRoute>} />
+                  {/* PM Schedule Review workspace (Simplification Phase 4B.2) —
+                      Layout-wrapped (office surface, unlike the standalone
+                      field-worker /contractor-schedule/:projectId route),
+                      same shape as /projects/:projectId/snags and
+                      /projects/:projectId/plans. Gated by the
+                      'schedule_review' resource (PM explicitly, Admin via
+                      the 'all' wildcard for read-only oversight only —
+                      Contractor and Viewer excluded, see
+                      rolePermissions.js) plus PMScheduleReview.jsx's own
+                      page-level role check hiding Approve/Request Changes
+                      from anyone but PM. The RPCs
+                      (request_schedule_changes/approve_schedule_submission)
+                      remain the final authority regardless. */}
+                  <Route path="/projects/:projectId/schedule-review" element={<ProtectedRoute resource="schedule_review"><PMScheduleReview projects={projects}/></ProtectedRoute>} />
                   <Route
                     path="/weekly-reports"
                     element={

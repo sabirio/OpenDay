@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { ROLES } from "../auth/rolePermissions";
+import { isContractorManaged } from "../hooks/useScheduleOwnershipMode";
 import { useDashboardModel } from "../hooks/useDashboardModel";
 import { getProgressSnapshot } from "../hooks/useDashboardOrchestration";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
@@ -162,6 +165,18 @@ function PortfolioOverview({
 }
 
 function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
+  const { role } = useAuth();
+  // Simplification Phase 4B.2 Section I: the smallest appropriate PM Review
+  // entry point — PM/Admin only (Contractor never lands on Dashboard;
+  // Viewer must not reach Schedule Review at all, see rolePermissions.js),
+  // shown only for CONTRACTOR_MANAGED projects. Deliberately unconditional
+  // on whether a submission is actually pending — computing that live for
+  // every row here would duplicate the canonical lifecycle status check
+  // (contractor_schedule_lifecycle_status) outside its one source of truth;
+  // PMScheduleReview.jsx itself shows an honest empty state when nothing
+  // has been submitted yet.
+  const canReviewSchedules = role === ROLES.PM || role === ROLES.ADMIN;
+
   // Supports deep-linking a specific project into Dashboard (e.g. from Home's
   // priority queue) via ?project=<id> — read once on mount, same convention
   // as the snag pages' useSearchParams usage. Not synced back to the URL on
@@ -346,6 +361,11 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
           >
             Copy report link
           </button>
+          {canReviewSchedules && isContractorManaged(selectedRow.project.scheduleOwnershipMode) && (
+            <Link className="btn btn-secondary" to={`/projects/${selectedRow.project.id}/schedule-review`}>
+              Schedule Review
+            </Link>
+          )}
         </div>
       )}
     </header>

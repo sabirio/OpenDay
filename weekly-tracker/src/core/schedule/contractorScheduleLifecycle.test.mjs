@@ -12,7 +12,9 @@ import {
   canEditScope,
   deriveNextSubmissionNumber,
   deriveNextBaselineRevisionNumber,
+  deriveScheduleCompleteness,
   normalizeScheduleLifecycleError,
+  normalizeScheduleSubmissionActionError,
 } from './contractorScheduleLifecycle.js';
 
 let pass = 0, fail = 0;
@@ -99,6 +101,57 @@ console.log('\nnormalizeScheduleLifecycleError');
       const r = normalizeScheduleLifecycleError('SCHEDULE_PENDING_REVIEW');
       return r.code === 'SCHEDULE_PENDING_REVIEW' && r.message === 'SCHEDULE_PENDING_REVIEW';
     })());
+}
+
+console.log('\nderiveScheduleCompleteness');
+{
+  check('empty task list -> not complete, zero counts',
+    (() => {
+      const r = deriveScheduleCompleteness([]);
+      return r.scheduledCount === 0 && r.totalCount === 0 && r.unscheduledWpIds.length === 0 && r.isComplete === false;
+    })());
+  check('no argument -> same as empty list', deriveScheduleCompleteness().totalCount === 0);
+  check('all scheduled -> isComplete true',
+    deriveScheduleCompleteness([
+      { id: 'a', earlyStart: new Date('2027-01-01'), earlyFinish: new Date('2027-01-02') },
+      { id: 'b', earlyStart: new Date('2027-01-03'), earlyFinish: new Date('2027-01-04') },
+    ]).isComplete === true);
+  check('one unscheduled (missing earlyFinish) -> isComplete false, correct scheduledCount/unscheduledWpIds',
+    (() => {
+      const r = deriveScheduleCompleteness([
+        { id: 'a', earlyStart: new Date('2027-01-01'), earlyFinish: new Date('2027-01-02') },
+        { id: 'b', earlyStart: new Date('2027-01-03'), earlyFinish: null },
+      ]);
+      return r.isComplete === false && r.scheduledCount === 1 && r.totalCount === 2 && r.unscheduledWpIds.length === 1 && r.unscheduledWpIds[0] === 'b';
+    })());
+  check('missing earlyStart also counts as unscheduled',
+    deriveScheduleCompleteness([{ id: 'a', earlyStart: null, earlyFinish: new Date('2027-01-02') }]).unscheduledWpIds.length === 1);
+}
+
+console.log('\nnormalizeScheduleSubmissionActionError');
+{
+  check('SCHEDULE_PENDING_REVIEW -> friendly message + shouldReload true',
+    (() => {
+      const r = normalizeScheduleSubmissionActionError({ message: 'SCHEDULE_PENDING_REVIEW: a schedule submission is already pending review' });
+      return r.code === 'SCHEDULE_PENDING_REVIEW' && r.shouldReload === true
+        && r.message === 'This schedule is already pending PM review. Reloading the current status.';
+    })());
+  check('BASELINE_ALREADY_APPROVED -> shouldReload true',
+    normalizeScheduleSubmissionActionError({ message: 'BASELINE_ALREADY_APPROVED: an approved baseline already exists for this project' }).shouldReload === true);
+  check('SUBMISSION_NOT_PENDING -> shouldReload true',
+    normalizeScheduleSubmissionActionError({ message: 'SUBMISSION_NOT_PENDING: this submission is not awaiting review' }).shouldReload === true);
+  check('COMMENT_REQUIRED -> shouldReload false (a validation error, not a race)',
+    normalizeScheduleSubmissionActionError({ message: 'COMMENT_REQUIRED: a comment is required to request changes' }).shouldReload === false);
+  check('SCHEDULE_INCOMPLETE -> friendly, non-raw message',
+    normalizeScheduleSubmissionActionError({ message: 'SCHEDULE_INCOMPLETE: 2 of 3 active work packages are missing Start/Finish' }).message
+      === 'Not every active work package has a Start and Finish date yet.');
+  check('unknown code -> falls back to the raw (already-parsed) message, shouldReload false',
+    (() => {
+      const r = normalizeScheduleSubmissionActionError({ message: 'some other Postgres error' });
+      return r.code === 'UNKNOWN' && r.shouldReload === false;
+    })());
+  check('null error -> UNKNOWN, never throws',
+    normalizeScheduleSubmissionActionError(null).code === 'UNKNOWN');
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

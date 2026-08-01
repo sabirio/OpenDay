@@ -11,6 +11,7 @@ import {
   reconcileAfterSave,
 } from '../core/contractorSchedule/contractorScheduleDraftModel.js';
 import { saveContractorScheduleDraftFromState } from '../core/contractorSchedule/saveContractorScheduleDraft.js';
+import { deriveScheduleCompleteness } from '../core/schedule/contractorScheduleLifecycle.js';
 
 /**
  * Contractor Draft schedule editing state for one project. Not wired into
@@ -111,6 +112,11 @@ export function useContractorScheduleDraft({ projectId }) {
     tasks,
     dirty: isDirty(draft),
     changedCount: changedTaskCount(draft),
+    // Live feedback as the Contractor stages edits (before Save Draft) — the
+    // Submit gate additionally requires !dirty, so by the time Submit is
+    // actually enabled this always reflects the persisted state (Phase
+    // 4B.2 Section E: completeness is one formula, never re-derived per page).
+    completeness: deriveScheduleCompleteness(tasks),
     stageTaskDates,
     discardTaskChange,
     discardAllChanges,
