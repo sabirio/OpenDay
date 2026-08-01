@@ -176,6 +176,22 @@ for (const rel of ['pages/ContractorReport.jsx', 'pages/SiteVisitReport.jsx']) {
     !/\bsupabase\b|insertSiteVisitHeader|insertSiteVisitWPObservations|insertSiteVisitDiscrepancies|submitReport\(/.test(text));
 }
 
+// Simplification Phase 3D.2 — the normal Create Project UI path must route
+// through the atomic CONTRACTOR_MANAGED command, never projectService.create,
+// and must never attempt automatic Gantt generation for a new project or for
+// an existing CONTRACTOR_MANAGED project's metadata-only edit. No ownership
+// selector may exist in the form — every project created here is
+// CONTRACTOR_MANAGED by construction, not by user choice.
+const projectsPageText = readFileSync(path.join(srcRoot, 'pages/Projects.jsx'), 'utf8');
+check('Projects.jsx calls the atomic Contractor-Managed create command for new projects',
+  /createContractorManagedProjectCommand\(newProject,\s*createRequestIdRef\.current\)/.test(projectsPageText));
+check('Projects.jsx guards automatic Gantt generation behind an ownership-mode check',
+  /isContractorManaged\(savedProject\?\.scheduleOwnershipMode\)/.test(projectsPageText));
+check('Projects.jsx retains the existing regenerateGantt/generateAndSaveGantt calls for the edit path',
+  /await regenerateGantt\(savedProject\.id\)/.test(projectsPageText) && /await generateAndSaveGantt\(/.test(projectsPageText));
+check('Projects.jsx exposes no schedule-ownership-mode selector in the new/edit project form',
+  !/name=["']scheduleOwnershipMode["']|scheduleOwnershipMode:\s*(newProject|e\.target)/.test(projectsPageText));
+
 const browserSource = sourceFiles.filter(({ rel }) => !rel.startsWith('migrations/') && !rel.startsWith('scripts/'));
 const serviceRoleLeaks = browserSource.filter(({ text }) => /SUPABASE_SERVICE_ROLE_KEY|service_role/.test(text)).map(({ rel }) => rel);
 check(`browser runtime contains no service-role credential references (found: ${serviceRoleLeaks.join(', ') || 'none'})`, serviceRoleLeaks.length === 0);
