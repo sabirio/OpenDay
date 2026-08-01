@@ -43,25 +43,32 @@ function summarizeSnagsForActor(snags, actor, referenceDate) {
  * @param {Object} snagsByProjectId - { [projectId]: Array<snag> }
  * @param {{ id: string, role: string }} actor
  * @param {Date} [referenceDate]
+ * @param {Map<string, object>|null} [scheduleCommitmentProjection] - Phase 3D.1
+ *   (live approved-commitment projection): loadScheduleCommitmentProjection.js
+ *   output, keyed by String(project.id). A missing entry (projection omitted,
+ *   still loading, or this project was never CONTRACTOR_MANAGED) falls back
+ *   to deriving commitmentState from scheduleOwnershipMode alone — the same
+ *   conservative default as before this fact was available.
  * @returns {Array} rows sorted by contractor-actionable urgency: projects with
  *   overdue actionable snags first, then missing/overdue report, then most
  *   actionable snags, then nearest opening date.
  */
-export function computeContractorWorkspaceRows(projects, reportsByProjectId, snagsByProjectId, actor, referenceDate = new Date()) {
+export function computeContractorWorkspaceRows(projects, reportsByProjectId, snagsByProjectId, actor, referenceDate = new Date(), scheduleCommitmentProjection = null) {
   const rows = projects.map(project => {
     const projectReports = reportsByProjectId[project.id] || [];
     const projectSnags = snagsByProjectId[project.id] || [];
     const latestReport = latestReportOf(projectReports);
-    // Phase 3D.1: no lifecycle-status/commitment-timestamp fetch is wired
-    // into this bulk contractor view yet — scheduleOwnershipMode alone
-    // (already on the project row) is enough to keep AUTO_GENERATED
-    // projects byte-identical and to stop a fresh CONTRACTOR_MANAGED
-    // project's report obligation from being fabricated before any
-    // commitment exists (the conservative default is NOT_YET_COMMITTED,
-    // never falsely COMMITTED).
     const scheduleOwnershipMode = project?.scheduleOwnershipMode ?? null;
-    const commitmentState = deriveScheduleCommitmentState({ scheduleOwnershipMode });
-    const reportDueState = deriveReportDueState({ scheduleOwnershipMode, commitmentState, latestReport, referenceDate });
+    const commitmentFacts = scheduleCommitmentProjection?.get(String(project.id)) ?? null;
+    const commitmentState = deriveScheduleCommitmentState({
+      scheduleOwnershipMode,
+      contractorScheduleLifecycleStatus: commitmentFacts?.lifecycleStatus ?? null,
+    });
+    const reportDueState = deriveReportDueState({
+      scheduleOwnershipMode, commitmentState, latestReport, referenceDate,
+      commitmentEstablishedAt: commitmentFacts?.approvedAt ?? null,
+      firstCommittedPlannedStart: commitmentFacts?.earliestCommittedPlannedStart ?? null,
+    });
     const missingReport = reportDueState === REPORT_DUE_STATE.OVERDUE;
     const daysSinceReport = latestReport
       ? daysSince(latestReport.reportingDate || latestReport.submittedAt, referenceDate)

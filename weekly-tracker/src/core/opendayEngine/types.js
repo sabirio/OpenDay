@@ -34,6 +34,7 @@
  * @property {string} commitmentState — Phase 3D.1: deriveScheduleCommitmentState() output
  * @property {string} assessmentAvailability — Phase 3D.1: 'ASSESSABLE'|'NOT_ASSESSABLE'
  * @property {string} reportDueState — Phase 3D.1: deriveReportDueState() output
+ * @property {string|null} contractorScheduleLifecycleStatus — Phase 3D.1: raw DISPLAY-level input this state was computed from
  */
 
 /**

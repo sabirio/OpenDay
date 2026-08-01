@@ -155,5 +155,11 @@ export function evaluateProjectState(project, projReports, projSiteVisits = [], 
     daysSinceReport, missingReport, daysToOpening, riskScore, riskLevel, priorityScore,
     progressComparison, prevProgressComparison, confidence, contScore, health, readiness,
     scheduleOwnershipMode, commitmentState, assessmentAvailability, reportDueState,
+    // Raw DISPLAY-level lifecycle status this state was computed from
+    // (Phase 3D.1 live projection) — exposed alongside the already-derived
+    // commitmentState so presentation adapters (openingStatusLabel.js) can
+    // distinguish DRAFT from CHANGES_REQUESTED, which commitmentState alone
+    // collapses into the same NOT_YET_COMMITTED value.
+    contractorScheduleLifecycleStatus,
   };
 }
