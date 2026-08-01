@@ -114,10 +114,15 @@ console.log('\n12-14. Fingerprints + source/persisted equivalence');
   const semanticFingerprint = createHash('sha256').update(JSON.stringify(canon(semanticSubset))).digest('hex');
   check('normalized semantic fingerprint matches frozen constant', semanticFingerprint === RETAIL_FITOUT_MASTER_CATALOG_SEMANTIC_SHA256);
 
+  // CRLF-normalized before any check runs — Windows checkouts (core.autocrlf=true)
+  // materialize this file with CRLF line endings; several checks below match
+  // exact `\n`-delimited substrings against the migration's SQL layout, which
+  // must stay platform-independent. Same normalization this repo's own
+  // hash-pinning scripts already use (e.g. applyContractorScheduleDraftFoundationLocal.mjs).
   const migration = readFileSync(
     new URL('../../../migrations/043_retail_fitout_master_catalog.sql', import.meta.url),
     'utf8',
-  );
+  ).replace(/\r\n/g, '\n');
   const generatedJson = migration.match(/\$master_catalog\$\r?\n([\s\S]+?)\r?\n\$master_catalog\$::jsonb/)?.[1];
   check('13. persisted migration payload is present and parses as JSON', generatedJson != null && JSON.parse(generatedJson) != null);
   const persisted = generatedJson != null ? JSON.parse(generatedJson) : null;
