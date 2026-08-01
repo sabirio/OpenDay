@@ -38,6 +38,7 @@ export default function ReportingWorkPackagesSection({
                 <button key={wp.id} type="button"
                   data-testid="wp-toggle"
                   data-wp-id={wp.id}
+                  aria-pressed={selected}
                   onClick={() => onTogglePackage(wp.id)}
                   style={{
                     padding: "12px 14px", borderRadius: 12, textAlign: "left",
