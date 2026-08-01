@@ -53,6 +53,38 @@ console.log('\nNo projection supplied -> conservative default (regression net, m
   check('assessmentAvailability is NOT_ASSESSABLE', row.assessmentAvailability === 'NOT_ASSESSABLE');
   check('missingReport is false, not fabricated', row.missingReport === false);
   check('readiness.status is Not Assessable', row.readiness.status === 'Not Assessable');
+  check('scheduleProjectionAvailability is null (never asked), not "AVAILABLE" (never falsely claims a confirmed lookup)', row.scheduleProjectionAvailability === null);
+}
+
+console.log('\nProjection Completeness Hardening: projection Map supplied, but THIS project id is absent from it');
+{
+  // Simulates the transient window before the projection's own fetch has
+  // resolved for this specific project (or any other id-set mismatch) — a
+  // missing entry must not be presented as a confirmed NO_VERSION lookup.
+  const rows = buildCanonicalProjectRows({
+    projects: [project({ id: 'cm-not-in-projection' })],
+    reports: [], siteVisits: [], calculatedAt: CALCULATED_AT,
+    scheduleCommitmentProjection: new Map([['some-other-project-id', { projectionAvailability: 'AVAILABLE', commitmentState: 'COMMITTED' }]]),
+  });
+  const row = rows[0];
+  check('commitmentState still falls back to the engine\'s own conservative default', row.commitmentState === 'NOT_YET_COMMITTED');
+  check('scheduleProjectionAvailability is null, NOT "AVAILABLE" — never proven, not confirmed NO_VERSION', row.scheduleProjectionAvailability === null);
+}
+
+console.log('\nProjection Completeness Hardening: an explicit UNAVAILABLE entry never fabricates COMMITTED, and stays visible on the row');
+{
+  const rows = buildCanonicalProjectRows({
+    projects: [project({ id: 'cm-unavailable' })],
+    reports: [], siteVisits: [], calculatedAt: CALCULATED_AT,
+    scheduleCommitmentProjection: new Map([['cm-unavailable', {
+      projectionAvailability: 'UNAVAILABLE', lifecycleStatus: null, commitmentState: null,
+      approvedVersionId: 'v-unknown', approvedAt: null, earliestCommittedPlannedStart: null, baselineRevisionNumber: null,
+    }]]),
+  });
+  const row = rows[0];
+  check('scheduleProjectionAvailability is UNAVAILABLE, carried onto the row (never silently dropped)', row.scheduleProjectionAvailability === 'UNAVAILABLE');
+  check('commitmentState never becomes a fabricated COMMITTED from a null lifecycle status', row.commitmentState === 'NOT_YET_COMMITTED');
+  check('readiness never fabricates Ready/At Risk/Critical from unavailable data', row.readiness.status === 'Not Assessable');
 }
 
 console.log('\nProjection has an APPROVED entry, obligation start already passed -> live COMMITTED transition proven');

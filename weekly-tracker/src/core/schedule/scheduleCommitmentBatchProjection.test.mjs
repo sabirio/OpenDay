@@ -74,13 +74,22 @@ console.log('\nCONTRACTOR_MANAGED, latest submission APPROVED -> COMMITTED with 
   check('baselineRevisionNumber is exposed', facts.baselineRevisionNumber === 1);
 }
 
-console.log('\nCONTRACTOR_MANAGED APPROVED, no matching task rows fetched -> earliestCommittedPlannedStart null, not a crash');
+console.log('\nProjection Completeness Hardening: CONTRACTOR_MANAGED APPROVED, no matching task rows resolved -> explicit UNAVAILABLE, not a fabricated COMMITTED');
 {
+  // An APPROVED version's immutable task snapshot is guaranteed non-empty
+  // by the submission RPC's own invariants — zero resolved rows here means
+  // the fetch failed, was independently RLS-filtered, or hit a genuine
+  // data anomaly. Must never silently publish COMMITTED+approvedAt from
+  // incomplete data (that's exactly the false-signal risk this hardening
+  // closes) — not a crash, but also not a confident commitment fact set.
   const projects = [{ id: 6, scheduleOwnershipMode: 'CONTRACTOR_MANAGED' }];
   const versions = [version({ id: 'v6', projectId: 6, submissionNumber: 1, status: 'APPROVED', reviewedAt: '2027-03-01T00:00:00Z' })];
   const projection = buildScheduleCommitmentProjection(projects, versions, []);
   const facts = projection.get('6');
-  check('commitmentState still COMMITTED from approvedAt alone', facts.commitmentState === 'COMMITTED');
+  check('projectionAvailability is UNAVAILABLE', facts.projectionAvailability === 'UNAVAILABLE');
+  check('commitmentState is explicitly null, never a fabricated COMMITTED', facts.commitmentState === null);
+  check('approvedVersionId is still surfaced (we know WHICH version, just not its dates)', facts.approvedVersionId === 'v6');
+  check('approvedAt is null (not confidently published from an incomplete snapshot)', facts.approvedAt === null);
   check('earliestCommittedPlannedStart is null', facts.earliestCommittedPlannedStart === null);
 }
 

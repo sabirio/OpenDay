@@ -461,6 +461,23 @@ check('live projection: missing entry for this project id -> falls back to conse
   const projection = new Map([['999', { lifecycleStatus: 'APPROVED', commitmentState: 'COMMITTED' }]]); // some other project only
   const [row] = computeContractorWorkspaceRows([projectD_contractorManaged], {}, {}, actor, NOW, projection);
   assert.equal(row.reportDueState, 'NOT_YET_DUE');
+  // Projection Completeness Hardening: the missing entry must not be
+  // presented as a confirmed/proven no-version lookup — the row's own
+  // availability field stays null (never "AVAILABLE"), even though the
+  // engine's own numeric fallback (NOT_YET_DUE) happens to coincide with
+  // what a genuinely confirmed no-version project would also show.
+  assert.equal(row.scheduleProjectionAvailability, null);
+});
+
+check('live projection: explicit UNAVAILABLE entry never fabricates COMMITTED/OVERDUE from missing data', () => {
+  const projection = new Map([['4', {
+    projectionAvailability: 'UNAVAILABLE', lifecycleStatus: null, commitmentState: null,
+    approvedVersionId: 'v-unknown', approvedAt: null, earliestCommittedPlannedStart: null, baselineRevisionNumber: null,
+  }]]);
+  const [row] = computeContractorWorkspaceRows([projectD_contractorManaged], {}, {}, actor, NOW, projection);
+  assert.equal(row.scheduleProjectionAvailability, 'UNAVAILABLE');
+  assert.equal(row.reportDueState, 'NOT_YET_DUE');
+  assert.equal(row.missingReport, false);
 });
 
 check('live projection: AUTO_GENERATED project is unaffected even if a (bogus) projection entry exists for it', () => {
