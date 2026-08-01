@@ -79,6 +79,12 @@ export function computeContractorWorkspaceRows(projects, reportsByProjectId, sna
       project, latestReport, missingReport, daysSinceReport, daysToOpening,
       actionableSnagCount: actionableCount, overdueSnagCount: overdueCount,
       reportDueState,
+      // Projection Completeness Hardening: kept visible on the row (never
+      // silently dropped) so "we don't actually know this project's
+      // lifecycle status" stays distinguishable from a resolved NO_VERSION
+      // lookup, even where the numeric reportDueState/missingReport happen
+      // to coincide with that conservative default.
+      scheduleProjectionAvailability: commitmentFacts?.projectionAvailability ?? null,
     };
   });
 

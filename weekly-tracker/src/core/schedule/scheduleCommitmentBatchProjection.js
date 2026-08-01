@@ -14,6 +14,40 @@ import { deriveScheduleCommitmentState, SCHEDULE_COMMITMENT_STATE } from './sche
 import { SCHEDULE_OWNERSHIP_MODE, isContractorManaged } from './scheduleOwnershipMode.js';
 import { computeEarliestPlannedStart } from '../../engines/scheduleLifecycleEngine.js';
 
+// Projection Completeness Hardening (Phase 3D.1 follow-up): a batch fetch
+// can fail, or an APPROVED version's immutable snapshot can come back
+// incomplete (RLS silently filtering project_schedule_version_tasks while
+// project_schedule_versions stays visible, or a genuine data anomaly).
+// PROJECTION_AVAILABILITY distinguishes that "we don't actually know" state
+// from a genuinely resolved NO_VERSION/DRAFT lookup — the two must never be
+// indistinguishable, or a real Approved Baseline could silently read as
+// "not yet committed" (suppressing a genuine overdue-report signal) with no
+// visible trace of the failure.
+export const PROJECTION_AVAILABILITY = Object.freeze({
+  AVAILABLE: 'AVAILABLE',
+  UNAVAILABLE: 'UNAVAILABLE',
+});
+
+/**
+ * Every requested project gets this shape when the batch fetch itself could
+ * not be trusted (a thrown query error, or an APPROVED version whose
+ * immutable task snapshot could not be resolved) — commitmentState is
+ * explicitly null, never one of the three real values, so it can never be
+ * mistaken for a confirmed NOT_YET_COMMITTED/PROPOSED/COMMITTED verdict by
+ * a consumer that forgets to check projectionAvailability first.
+ */
+function unavailableFacts(approvedVersionId = null) {
+  return {
+    projectionAvailability: PROJECTION_AVAILABILITY.UNAVAILABLE,
+    lifecycleStatus: null,
+    commitmentState: null,
+    approvedVersionId,
+    approvedAt: null,
+    earliestCommittedPlannedStart: null,
+    baselineRevisionNumber: null,
+  };
+}
+
 // scheduleSubmissionReadModel.js's DISPLAY vocabulary (NONE/PENDING_REVIEW/
 // CHANGES_REQUESTED/APPROVED) uses 'NONE' for "never submitted";
 // scheduleCommitmentState.js's documented input vocabulary instead expects
@@ -34,6 +68,7 @@ function groupVersionsByProjectId(versions) {
 }
 
 const NEUTRAL_AUTO_GENERATED_FACTS = Object.freeze({
+  projectionAvailability: PROJECTION_AVAILABILITY.AVAILABLE,
   lifecycleStatus: null,
   commitmentState: SCHEDULE_COMMITMENT_STATE.COMMITTED,
   approvedVersionId: null,
@@ -92,7 +127,20 @@ export function buildScheduleCommitmentProjection(projects, versions = [], versi
     const approvedVersion = findApprovedVersion(projectVersions);
     const approvedTasks = approvedVersion ? (tasksByVersionId.get(String(approvedVersion.id)) || []) : [];
 
+    // An APPROVED version's immutable task snapshot is guaranteed to be
+    // non-empty by the submission RPC's own invariants (049) — zero rows
+    // here means the task fetch failed, was RLS-filtered independently of
+    // the version row, or hit a genuine data anomaly. Never derive
+    // COMMITTED-with-approvedAt from an incomplete snapshot: that would
+    // publish a real-looking commitment fact set built on missing data
+    // (the same failure this hardening pass exists to close).
+    if (approvedVersion && approvedTasks.length === 0) {
+      projection.set(projectId, unavailableFacts(approvedVersion.id));
+      continue;
+    }
+
     projection.set(projectId, {
+      projectionAvailability: PROJECTION_AVAILABILITY.AVAILABLE,
       lifecycleStatus,
       commitmentState,
       approvedVersionId: approvedVersion?.id ?? null,
@@ -100,6 +148,28 @@ export function buildScheduleCommitmentProjection(projects, versions = [], versi
       earliestCommittedPlannedStart: approvedVersion ? computeEarliestPlannedStart(approvedTasks) : null,
       baselineRevisionNumber: approvedVersion?.baselineRevisionNumber ?? null,
     });
+  }
+  return projection;
+}
+
+/**
+ * Produces an explicit UNAVAILABLE entry for every requested
+ * CONTRACTOR_MANAGED project — used when the versions query itself failed,
+ * so nothing (not even DRAFT/PENDING_REVIEW/CHANGES_REQUESTED) is actually
+ * known about any of them. AUTO_GENERATED projects are entirely unaffected
+ * (they never depend on this fetch) and still resolve to their normal
+ * confident COMMITTED facts.
+ * @param {Array<{id: string|number, scheduleOwnershipMode?: string}>} projects
+ * @returns {Map<string, object>}
+ */
+export function buildUnavailableProjection(projects) {
+  const projection = new Map();
+  for (const project of projects || []) {
+    const projectId = String(project?.id);
+    projection.set(
+      projectId,
+      isContractorManaged(project?.scheduleOwnershipMode) ? unavailableFacts() : NEUTRAL_AUTO_GENERATED_FACTS,
+    );
   }
   return projection;
 }
