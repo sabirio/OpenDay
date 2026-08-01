@@ -63,7 +63,7 @@ export default function DashboardProjectOverview({ row, siteVisits }) {
           <DetailField label="Target opening">
             {project.targetOpeningDate ? formatDate(project.targetOpeningDate) : 'Not set'}
           </DetailField>
-          <DetailField label="Opening readiness">{displayValue(opening.status, 'Unavailable')}</DetailField>
+          <DetailField label="Opening readiness">{displayValue(opening.statusLabel ?? opening.status, 'Unavailable')}</DetailField>
         </dl>
       </DetailSection>
 

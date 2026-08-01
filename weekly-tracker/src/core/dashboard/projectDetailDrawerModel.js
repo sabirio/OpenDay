@@ -1,10 +1,30 @@
 import { runOpenDayOrchestrator } from '../canonical/index.js';
 import { isTemplateValid } from '../projects/index.js';
+import { deriveOpeningStatusLabel } from './openingStatusLabel.js';
+
+// Phase 3D.1: attaches a presentation-only opening.statusLabel — never
+// recalculates opening.status itself, just picks CONTRACTOR_MANAGED-aware
+// wording for it (see openingStatusLabel.js). Centralized here so
+// DashboardProjectOverview.jsx (a component) never needs to import core/
+// directly — components only ever read the already-composed summary.
+function withOpeningStatusLabel(summary, project) {
+  if (!summary?.opening) return summary;
+  return {
+    ...summary,
+    opening: {
+      ...summary.opening,
+      statusLabel: deriveOpeningStatusLabel({
+        scheduleOwnershipMode: project?.scheduleOwnershipMode ?? null,
+        readinessStatus: summary.opening.status,
+      }),
+    },
+  };
+}
 
 export function buildProjectDetailDrawerModel(row, projSiteVisits) {
   if (!row) return null;
   if (row.canonical?.compatibility?.projectSummary) {
-    return row.canonical.compatibility.projectSummary;
+    return withOpeningStatusLabel(row.canonical.compatibility.projectSummary, row.project);
   }
   const { templatesById = {}, activeTemplateFallback = null } = row.orchestrationOptions || {};
   const candidateTemplate = row.project?.templateId
@@ -18,5 +38,5 @@ export function buildProjectDetailDrawerModel(row, projSiteVisits) {
     progressHistory: row.project?.progressHistory,
     template,
   }, row.orchestrationOptions);
-  return result.compatibility.projectSummary;
+  return withOpeningStatusLabel(result.compatibility.projectSummary, row.project);
 }

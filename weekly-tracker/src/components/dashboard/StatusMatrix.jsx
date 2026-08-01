@@ -5,7 +5,14 @@ import { SchedBadge } from './DashboardWidgets';
 import { RiskBadge } from '../RiskGauge';
 import { useStatusMatrixRows } from '../../hooks/useStatusMatrixRows';
 
-function reportTag({ latestReport, daysSinceReport }) {
+function reportTag({ latestReport, daysSinceReport, reportDueState }) {
+  // Phase 3D.1: a CONTRACTOR_MANAGED project with no schedule commitment yet
+  // has no reporting obligation at all — the red "Missing" badge otherwise
+  // fires unconditionally off `!latestReport`, regardless of whether a
+  // report was ever actually due (NO COMMITMENT YET != COMMITMENT MISSED).
+  if (reportDueState === 'NOT_YET_DUE') {
+    return <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Not yet due</span>;
+  }
   if (!latestReport)         return <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--status-alert)' }}>Missing</span>;
   const color = getReportAgeColor(daysSinceReport);
   if (daysSinceReport === 0) return <span style={{ fontSize: 11, color }}>Today</span>;
@@ -36,7 +43,7 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
             {rows.length === 0 ? (
               <tr><td colSpan="12" className="ds-table-empty">No matching projects.</td></tr>
             ) : matrixRows.map((row) => {
-              const { project, latestReport, color, daysToOpening, daysSinceReport, riskLevel, missingReport, phase, displayProgress, noSnapData, delta } = row;
+              const { project, latestReport, color, daysToOpening, daysSinceReport, riskLevel, missingReport, phase, displayProgress, noSnapData, delta, reportDueState } = row;
               const schedStatus = latestReport?.projectScheduleStatus;
               const isOpen      = drawerProjectId === String(project.id);
               const dToC        = getOpeningUrgencyColor(daysToOpening);
@@ -96,7 +103,7 @@ export default function StatusMatrix({ rows, alerts, drawerProjectId, onSelect, 
                     {daysToOpening === null ? '—' : daysToOpening < 0 ? `${daysOverdueCount(daysToOpening)}d OVR` : daysToOpening === 0 ? 'Today' : `${daysToOpening}d`}
                   </td>
                   <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
-                  <td>{reportTag({ latestReport, daysSinceReport, missingReport })}</td>
+                  <td>{reportTag({ latestReport, daysSinceReport, missingReport, reportDueState })}</td>
                 </tr>
               );
             })}

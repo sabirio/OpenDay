@@ -46,7 +46,7 @@ export default function TimelineFlag({ opening }) {
           <div style={{ display: 'grid', gap: 7 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
               <span style={{ color: 'var(--text-secondary)' }}>Status</span>
-              <span data-testid="opening-risk-badge" style={{ padding: '2px 9px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: os.bg, color: os.color, border: '1px solid var(--border)' }}>{opening.status}</span>
+              <span data-testid="opening-risk-badge" style={{ padding: '2px 9px', borderRadius: 7, fontSize: 11, fontWeight: 700, background: os.bg, color: os.color, border: '1px solid var(--border)' }}>{opening.statusLabel ?? opening.status}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
               <span style={{ color: 'var(--text-secondary)' }}>Target date</span>
