@@ -23,7 +23,9 @@ import ContractorsTab from '../components/risk/ContractorsTab';
 import PmAlignmentTab from '../components/risk/PmAlignmentTab';
 import GanttSpiTab from '../components/risk/GanttSpiTab';
 import { RISK_COLORS } from '../config/riskConfig';
+import { riskLevelToTone } from '../config/statusColors';
 import { RISK_LEVELS } from '../hooks/useRiskLevelPresentation';
+import StatusBadge from '../components/shared/StatusBadge.jsx';
 import { useAuth } from '../auth/AuthContext';
 import PrintHeader from '../components/print/PrintHeader';
 import ExportButton from '../components/print/ExportButton';
@@ -202,7 +204,15 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
             onLevelFilterChange={setLevelFilter}
             onSelect={(projectId) => {
               setSelectedRiskProjectId(projectId);
-              setActiveTab('overview');
+              // Phase 4 cross-page consistency fix: previously forced the
+              // detail tab back to Overview on every selection change,
+              // unlike Portfolio/Dashboard/Weekly Reports, which all
+              // preserve whichever tab the user had open across a master
+              // selection change. Overview/Drivers/Evidence/Trend are all
+              // meaningful for any selected project, so the tab now
+              // persists too. filterReport IS reset — it's a report-scoped
+              // filter value tied to the previous project's own reports and
+              // wouldn't carry meaning for a newly selected project.
               setFilterReport('');
               setMobileView('detail');
             }}
@@ -221,9 +231,9 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
               <div className="risk-detail-title-row">
                 <h2>{detailTitle}</h2>
                 {selectedRow && (
-                  <span className={`risk-master-level is-${selectedRow.riskScore.level.toLowerCase()}`}>
+                  <StatusBadge tone={riskLevelToTone(selectedRow.riskScore.level)}>
                     {selectedRow.riskScore.level}
-                  </span>
+                  </StatusBadge>
                 )}
               </div>
               <div className="risk-detail-meta">

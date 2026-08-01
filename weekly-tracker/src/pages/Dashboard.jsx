@@ -1,9 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
+import { ROLES } from "../auth/rolePermissions";
+import { isContractorManaged } from "../hooks/useScheduleOwnershipMode";
 import { useDashboardModel } from "../hooks/useDashboardModel";
 import { getProgressSnapshot } from "../hooks/useDashboardOrchestration";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
-import SummaryPanel, { ReportingSummary } from "../components/dashboard/SummaryPanel";
+import { PortfolioHealthSummary, PortfolioScopeSummary, ReportingSummary } from "../components/dashboard/SummaryPanel";
+import DashboardAttentionStrip from "../components/dashboard/DashboardAttentionStrip";
 import StatusMatrix from "../components/dashboard/StatusMatrix";
 import ProjectHeatmap from "../components/dashboard/ProjectHeatmap";
 import ProgressTab from "../components/dashboard/ProgressTab";
@@ -11,6 +15,7 @@ import ContractorsTab from "../components/dashboard/ContractorsTab";
 import DashboardMasterList from "../components/dashboard/DashboardMasterList";
 import DashboardProjectOverview from "../components/dashboard/DashboardProjectOverview";
 import MasterDetailLayout from "../components/shared/MasterDetailLayout";
+import StatusBadge from "../components/shared/StatusBadge.jsx";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { useAllRows } from "../hooks/useAllRows";
 import { SPI_STATUS } from "../config/statusColors";
@@ -93,11 +98,13 @@ function PortfolioOverview({
 }) {
   return (
     <div className="dashboard-portfolio-overview">
+      {/* LEVEL 1 — decision signals: is anything wrong, what needs attention */}
+      <DashboardAttentionStrip kpis={kpis} />
       <PortfolioAlerts alerts={spiAlerts} onDismiss={onDismissAlert} />
 
+      {/* LEVEL 2 — portfolio/project health: overall health, reporting cadence */}
       <section className="dashboard-detail-section">
-        <h3>Portfolio Scope & Health</h3>
-        <SummaryPanel kpis={kpis} rows={spiRows} allRows={allRows} />
+        <PortfolioHealthSummary rows={spiRows} allRows={allRows} />
       </section>
 
       <section className="dashboard-detail-section dashboard-portfolio-tools">
@@ -105,12 +112,21 @@ function PortfolioOverview({
           <h3>Reporting</h3>
           <ReportingSummary kpis={kpis} reportsTotal={reportsTotal} svKpis={svKpis} lastVisitDate={lastVisitDate} />
         </div>
+        <PortfolioScopeSummary kpis={kpis} />
+      </section>
+
+      {/* LEVEL 3 — static/context: scope is already above (grouped with
+          Reporting rather than its own bordered box); Snapshot is a
+          read-only historical tool, not a signal, so it's a closed-by-
+          default disclosure unless a snapshot is actively being viewed. */}
+      <details className="dashboard-snapshot-disclosure" open={Boolean(snapshotWeek)}>
+        <summary>Snapshot — view a past week&apos;s progress</summary>
         <div className="dashboard-snapshot-control">
-          <label htmlFor="dashboard-snapshot-week">Snapshot</label>
-          <p>View a past week&apos;s progress. Snapshot values are read-only.</p>
+          <p>Snapshot values are read-only.</p>
           <div>
             <input
               id="dashboard-snapshot-week"
+              aria-label="Snapshot week"
               className="ds-input"
               type="week"
               max={currentISOWeek()}
@@ -124,7 +140,7 @@ function PortfolioOverview({
             )}
           </div>
         </div>
-      </section>
+      </details>
 
       {snapshotWeek && (
         <div className="dashboard-snapshot-banner" role="status">
@@ -149,6 +165,18 @@ function PortfolioOverview({
 }
 
 function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
+  const { role } = useAuth();
+  // Simplification Phase 4B.2 Section I: the smallest appropriate PM Review
+  // entry point — PM/Admin only (Contractor never lands on Dashboard;
+  // Viewer must not reach Schedule Review at all, see rolePermissions.js),
+  // shown only for CONTRACTOR_MANAGED projects. Deliberately unconditional
+  // on whether a submission is actually pending — computing that live for
+  // every row here would duplicate the canonical lifecycle status check
+  // (contractor_schedule_lifecycle_status) outside its one source of truth;
+  // PMScheduleReview.jsx itself shows an honest empty state when nothing
+  // has been submitted yet.
+  const canReviewSchedules = role === ROLES.PM || role === ROLES.ADMIN;
+
   // Supports deep-linking a specific project into Dashboard (e.g. from Home's
   // priority queue) via ?project=<id> — read once on mount, same convention
   // as the snag pages' useSearchParams usage. Not synced back to the URL on
@@ -283,14 +311,20 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
     setMobileView("detail");
   }
 
+  // Phase 4 cross-page consistency fix: filtering/searching the master list
+  // used to unconditionally clear the open detail (setSelectedProjectId(null)
+  // on every keystroke/filter click), even when the selected project still
+  // existed. selectedRow is already derived from the full, unfiltered
+  // allRows (see above) — same pattern Weekly Reports/Risk Dashboard use —
+  // so the open project now stays open through filtering/search, matching
+  // the established Site Snag "filtering never silently swaps or clears the
+  // selected detail" contract. Only the master list's visible rows change.
   function changeFilter(value) {
     setFilterStatus(value);
-    setSelectedProjectId(null);
   }
 
   function changeSearch(value) {
     setSearchQuery(value);
-    setSelectedProjectId(null);
   }
 
   const detailHeader = (
@@ -315,7 +349,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
               : `${projects.length} projects · portfolio health, reporting and operational attention`}
           </div>
         </div>
-        {selectedRow && <span className="dashboard-lifecycle-badge">{selectedRow.project.projectStatus || 'Status not set'}</span>}
+        {selectedRow && <StatusBadge tone="neutral">{selectedRow.project.projectStatus || 'Status not set'}</StatusBadge>}
       </div>
       {selectedRow && (
         <div className="dashboard-detail-actions">
@@ -327,14 +361,39 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
           >
             Copy report link
           </button>
+          {canReviewSchedules && isContractorManaged(selectedRow.project.scheduleOwnershipMode) && (
+            <Link className="btn btn-secondary" to={`/projects/${selectedRow.project.id}/schedule-review`}>
+              Schedule Review
+            </Link>
+          )}
         </div>
       )}
     </header>
   );
 
+  // Phase 4 cross-page consistency fix: Dashboard's tab bar was the one
+  // .detail-pane-tabs implementation without arrow-key roving-tabindex
+  // support — Portfolio (ProjectDetailTabs.jsx), Weekly Reports
+  // (WeeklyReportTabs.jsx) and Risk Dashboard (RiskDetailTabs.jsx) already
+  // support Left/Right/Home/End, so a keyboard user tabbing into any other
+  // detail-pane tablist could reach every tab, but not here. Same handler
+  // shape as those three (kept local rather than extracted, to avoid
+  // touching three already-working files for one gap).
+  function handleViewTabKeyDown(event, index) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? VIEWS.length - 1
+        : (index + (event.key === 'ArrowRight' ? 1 : -1) + VIEWS.length) % VIEWS.length;
+    setActiveView(VIEWS[nextIndex].id);
+    event.currentTarget.parentElement?.querySelectorAll('[role="tab"]')[nextIndex]?.focus();
+  }
+
   const detailTabs = (
     <div className="detail-pane-tabs" role="tablist" aria-label="Dashboard detail views">
-      {VIEWS.map(({ id, label }) => (
+      {VIEWS.map(({ id, label }, index) => (
         <button
           key={id}
           id={`dashboard-tab-${id}`}
@@ -344,6 +403,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
           aria-controls="dashboard-detail-tabpanel"
           tabIndex={activeView === id ? 0 : -1}
           onClick={() => setActiveView(id)}
+          onKeyDown={(event) => handleViewTabKeyDown(event, index)}
           className={activeView === id ? 'detail-tab is-active' : 'detail-tab'}
         >
           {label}

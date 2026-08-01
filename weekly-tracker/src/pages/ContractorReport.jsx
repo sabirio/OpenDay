@@ -368,6 +368,7 @@ function ContractorReport({ projects, reports }) {
           prevReport={prevReport}
           onLegacyChange={updateWPStatuses}
           templateType={project.templateType}
+          project={project}
         />
 
         {/* в”Ђв”Ђ 3-4. Schedule Status & Risk в”Ђв”Ђ */}

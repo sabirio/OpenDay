@@ -1,11 +1,12 @@
 import { PHASES } from "../../config/masterTaskLibrary";
 import { TEMPLATES } from "../../config/projectTemplates";
-import { getOpeningColor } from "../../config/thresholds";
+import { getOpeningUrgencyColor } from "../../config/statusColors";
 import { formatDate, daysUntil } from "../../utils/reportUtils";
 import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
 import { describeProjectLocation, formatArea, formatMoney } from "../../hooks/useProjectInfoPresentation";
 import BenchmarkView from "./BenchmarkView";
 import { useToast } from "../shared/Toast.jsx";
+import StatusBadge from "../shared/StatusBadge.jsx";
 
 const PHASE_LABELS = Object.fromEntries(PHASES.map((phase) => [phase.id, phase.label]));
 
@@ -64,7 +65,7 @@ export function ProjectDetailHeader({ project, onEdit, onBack, onInvite }) {
           <div id="project-detail-title" className="dashboard-detail-title" title={title}>{title}</div>
           <div className="dashboard-detail-meta" title={meta}>{meta || "Project metadata not set"}</div>
         </div>
-        <span className="dashboard-lifecycle-badge">{project.projectStatus || "Status not set"}</span>
+        <StatusBadge tone="neutral">{project.projectStatus || "Status not set"}</StatusBadge>
       </div>
       <div className="portfolio-detail-actions">
         <a className="btn btn-secondary" href={`/site-visit/${project.id}`} target="_blank" rel="noreferrer">Site Visit</a>
@@ -79,7 +80,7 @@ export default function ProjectDetailPane({ project, projects, activeTab }) {
   const toast = useToast();
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
-  const openingColor = getOpeningColor(daysLeft);
+  const openingColor = getOpeningUrgencyColor(daysLeft);
   const location = describeProjectLocation(project);
   const hasForecast = project.constructionCompletionDate || project.forecastOpeningDate;
   const template = TEMPLATES.find((item) => item.id === project.templateType)?.label || project.templateType;

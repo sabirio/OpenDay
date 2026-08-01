@@ -2,9 +2,10 @@ import { normalizeReport } from '../../services/reportService';
 import { computeWPCumulativeStatuses, computeCumulativeStatuses } from '../../utils/reportUtils';
 import { calculateProjectProgressResult, calculateRawWPAverageProgress, resolveLegacyTaskEffectiveProgressPct } from '../../engines/progressEngine';
 import { getWPGrouping, isZonedTemplate } from '../projects/grouping/getWPGrouping';
-import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemplate';
-import { getScopeWPIds } from '../projects/scope/getScopeWPIds';
-import { ALL_WORK_PACKAGES_V2 } from '../../domains/construction/templates/retailFitoutV2';
+import { resolveProjectProgressTemplate } from '../projects/weights/resolveProjectProgressTemplate.js';
+import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds';
+import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
+import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea';
 // Audited, intentional legacy-fallback import (P0 data-integrity fix, see
 // AGENTS.md task history) — tracked in
 // src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS. Only used
@@ -62,6 +63,7 @@ export function buildContractorReportSubmission({
   project, form, photoUrls, prevReport, ganttTasks, ganttWpProgress, reports, currentPhases,
 }) {
   const isV2 = isZonedTemplate(project.templateType);
+  const scopeTemplate = resolveProjectScopeTemplate(project);
   let workPackageStatuses = form.workPackageStatuses || {};
   if (ganttTasks.length > 0) {
     const synthesized = {};
@@ -76,7 +78,7 @@ export function buildContractorReportSubmission({
       // v2's workPackageStatuses is keyed by categoryId, not the zoneId
       // task.phaseId carries (see buildV2ProgressTemplate.js) — resolved
       // live via getWPGrouping, never trusted from the stored task row.
-      const wpId = isV2 ? (getWPGrouping(project.templateType, task.id)?.categoryId ?? task.phaseId) : task.phaseId;
+      const wpId = isV2 ? (getWPGrouping(project.templateType, task.id, scopeTemplate)?.categoryId ?? task.phaseId) : task.phaseId;
       const taskName = task.label;
       if (wpId && taskName) {
         if (!synthesized[wpId]) synthesized[wpId] = {};
@@ -110,9 +112,17 @@ export function buildContractorReportSubmission({
   const allReports = [...projectReports, mainReportPayload];
   const wpCum  = computeWPCumulativeStatuses(allReports);
   const legCum = computeCumulativeStatuses(allReports);
-  const scopeWPIds = isV2 ? getScopeWPIds(project.scope, ALL_WORK_PACKAGES_V2) : null;
+  const schemaVersion = isV2 ? scopeTemplate?.data?.schemaVersion : undefined;
+  const scopeWPIds = isV2
+    ? resolveProjectScopeSelection({ scope: project.scope, workPackages: scopeTemplate.workPackages, schemaVersion })
+    : null;
   const v2Template = isV2
-    ? buildV2ProgressTemplate(project.scope?.zoneAreas, project.scope?.zones ?? null, project.scope?.categories ?? null)
+    ? resolveProjectProgressTemplate({
+        scopeTemplate,
+        zoneAreas: resolveEffectiveV2ZoneAreas(project),
+        activeZoneIds: project.scope?.zones ?? null,
+        activeCategoryIds: project.scope?.categories ?? null,
+      })
     : null;
   const cumulativeProgress = calculateProjectProgressResult(wpCum, legCum, scopeWPIds, v2Template, project.scope?.weightOverrides ?? null).progress;
 

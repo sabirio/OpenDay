@@ -35,7 +35,15 @@ export default function SnagListPage({ projects = [] }) {
   }
 
   return (
-    <div className="snag-page site-snag-page">
+    <div className="snag-page site-snag-page" data-mobile-view={mobileView}>
+      {/* Phase 5 responsive fix: this header + the mode tabs below manage the
+          Observations list as a whole (project switcher, Field Snag entry
+          point, Observations/Plan mode) — not the currently open Observation.
+          Below the master/detail mobile breakpoint they used to sit above an
+          open Observation's detail, pushing it below the fold. Hidden via
+          [data-mobile-view="detail"] while an Observation is focused on
+          mobile; still fully reachable via the detail page's own
+          "Back to Site Snag" link. */}
       <header className="snag-page-header site-snag-header">
         <div>
           <Link className="snag-back" to="/snags">All Site Snag projects</Link>

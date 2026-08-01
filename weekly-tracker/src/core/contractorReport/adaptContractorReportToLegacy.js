@@ -8,7 +8,7 @@
  */
 
 import { getWPById, getPhaseById } from '../../config/masterTaskLibrary.js';
-import { getWPByIdV2, retailFitoutV2 } from '../../domains/construction/templates/retailFitoutV2.js';
+import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
 import { getWPGrouping, isZonedTemplate } from '../projects/grouping/getWPGrouping.js';
 import { clampProgressPct } from '../../engines/progressEngine.js';
 // Audited, intentional legacy-fallback import (P0 data-integrity fix) —
@@ -59,7 +59,13 @@ function toFiniteProgress(value, label) {
 // label are resolved here via getWPGrouping — the single grouping source of
 // truth shared with the contractor/site-visit form UIs — rather than
 // duplicating v1/v2 branching logic.
-function buildWorkPackageStatuses(wps, templateType = null) {
+function buildWorkPackageStatuses(wps, projectOrTemplate = null) {
+  const templateType = typeof projectOrTemplate === 'string'
+    ? projectOrTemplate
+    : projectOrTemplate?.templateType;
+  const scopeTemplate = resolveProjectScopeTemplate(
+    typeof projectOrTemplate === 'string' ? { templateType } : projectOrTemplate,
+  );
   const acc = {};
   for (const wp of (wps || [])) {
     // Legacy (non-Gantt) reports store a composite wp_id ("legacy::<wpGroupId>
@@ -79,8 +85,10 @@ function buildWorkPackageStatuses(wps, templateType = null) {
       continue;
     }
 
-    const meta    = isZonedTemplate(templateType) ? getWPByIdV2(wp.wp_id) : getWPById(wp.wp_id);
-    const grouping = getWPGrouping(templateType, wp.wp_id);
+    const meta = isZonedTemplate(templateType)
+      ? scopeTemplate?.workPackages.find(candidate => candidate.id === wp.wp_id)
+      : getWPById(wp.wp_id);
+    const grouping = getWPGrouping(templateType, wp.wp_id, scopeTemplate);
     const groupId = grouping?.categoryId || grouping?.phaseId || wp.wp_id;
     const label   = meta?.label || wp.wp_id;
     if (!groupId) continue;
@@ -100,19 +108,25 @@ function buildWorkPackageStatuses(wps, templateType = null) {
 // already uses to assign its synthetic phases' `order`, reused here only for
 // this legacy display concern (not a calculation) so "furthest along" has a
 // deterministic meaning for zoned projects too.
-function buildV2CategoryOrder() {
+function buildV2CategoryOrder(scopeTemplate) {
   const order = {};
   let i = 0;
-  for (const zone of retailFitoutV2.zones) {
+  for (const zone of scopeTemplate?.data?.zones ?? []) {
     for (const cat of zone.categories) order[cat.id] = i++;
   }
   return order;
 }
-const V2_CATEGORY_ORDER = buildV2CategoryOrder();
 
 // Furthest-along phase/category with actual progress, for the "Current Phase"
 // column — not every phase ever touched, just where the contractor stands now.
-function deriveCurrentPhases(wps, templateType = null) {
+function deriveCurrentPhases(wps, projectOrTemplate = null) {
+  const templateType = typeof projectOrTemplate === 'string'
+    ? projectOrTemplate
+    : projectOrTemplate?.templateType;
+  const scopeTemplate = resolveProjectScopeTemplate(
+    typeof projectOrTemplate === 'string' ? { templateType } : projectOrTemplate,
+  );
+  const v2CategoryOrder = buildV2CategoryOrder(scopeTemplate);
   const zoned = isZonedTemplate(templateType);
   let furthestLabel = null, furthestOrder = -Infinity;
   for (const wp of (wps || [])) {
@@ -120,9 +134,9 @@ function deriveCurrentPhases(wps, templateType = null) {
     if (!hasProgress) continue;
 
     if (zoned) {
-      const grouping = getWPGrouping(templateType, wp.wp_id);
+      const grouping = getWPGrouping(templateType, wp.wp_id, scopeTemplate);
       if (!grouping) continue;
-      const order = V2_CATEGORY_ORDER[grouping.categoryId] ?? -Infinity;
+      const order = v2CategoryOrder[grouping.categoryId] ?? -Infinity;
       if (order > furthestOrder) { furthestOrder = order; furthestLabel = grouping.categoryLabel; }
       continue;
     }
@@ -140,7 +154,7 @@ function normalizePhotos(photoUrls) {
   return photoUrls.filter((photo) => typeof photo === 'string' && photo.trim().length > 0);
 }
 
-export function adaptContractorReportToLegacy(contractorReport, wps = [], templateType = null) {
+export function adaptContractorReportToLegacy(contractorReport, wps = [], projectOrTemplate = null) {
   if (!contractorReport) return null;
 
   const reportingDate = contractorReport.report_date || contractorReport.submitted_at;
@@ -154,13 +168,13 @@ export function adaptContractorReportToLegacy(contractorReport, wps = [], templa
     overallProgress: toFiniteProgress(contractorReport.overall_progress, `contractor_reports.overall_progress (id=${contractorReport.id})`),
     submittedBy: contractorReport.submitted_by || null,
     projectScheduleStatus: contractorReport.project_schedule_status || "On Track",
-    workPackageStatuses: buildWorkPackageStatuses(wps, templateType),
+    workPackageStatuses: buildWorkPackageStatuses(wps, projectOrTemplate),
     photos: normalizePhotos(contractorReport.photo_urls),
     risks: [],
     riskOwners: [],
     supportTypes: [],
     currentPackages: [],
-    currentPhases: deriveCurrentPhases(wps, templateType),
+    currentPhases: deriveCurrentPhases(wps, projectOrTemplate),
     // 023: these 6 columns didn't exist on contractor_reports before — the RPC
     // silently dropped them into progress_history.snapshot's opaque JSONB blob,
     // so Weekly Reports' Look Ahead/Declaration panels always showed empty.
@@ -174,12 +188,12 @@ export function adaptContractorReportToLegacy(contractorReport, wps = [], templa
   };
 }
 
-export function adaptContractorReportsToLegacy(reports, wpsByReportId = {}, templateTypeByProjectId = {}) {
+export function adaptContractorReportsToLegacy(reports, wpsByReportId = {}, projectById = {}) {
   return (reports || [])
     .map((report) => adaptContractorReportToLegacy(
       report,
       wpsByReportId[report.id] || [],
-      templateTypeByProjectId[report.project_id] ?? null,
+      projectById[report.project_id] ?? null,
     ))
     .filter(Boolean);
 }

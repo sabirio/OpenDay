@@ -47,6 +47,19 @@ check('A4: bad strings → 100',   computePlannedPct('bad', 'date', now) === 100
   check('A5: 75% through window', Math.abs(pct - 75) < 1);
 }
 
+// A6–A10: unscheduled dates (Simplification Phase 2 — null must NOT become
+// the epoch and must NOT silently resolve to 100).
+check('A6: null plannedStart → null (not epoch, not 100)',
+  computePlannedPct(null, iso(now.getTime() + 10 * DAY), now) === null);
+check('A7: null plannedEnd → null',
+  computePlannedPct(iso(now.getTime() - 10 * DAY), null, now) === null);
+check('A8: both null → null',
+  computePlannedPct(null, null, now) === null);
+check('A9: both undefined → null',
+  computePlannedPct(undefined, undefined, now) === null);
+check('A10: null start with valid-looking end still → null (not coerced to epoch start)',
+  computePlannedPct(null, iso(now.getTime()), now) === null);
+
 // ── B) computeSPIFromTasks — normal path ──────────────────────────────────────
 
 console.log('\nB) computeSPIFromTasks — normal operation');
@@ -127,6 +140,43 @@ console.log('\nC) computeSPIFromTasks — stale-Gantt null guard');
   check('C3: partial progress → guard not triggered, SPI returned', spi !== null);
 }
 
+// ── C-U) computeSPIFromTasks — unscheduled tasks (Simplification Phase 2) ────
+
+console.log('\nC-U) computeSPIFromTasks — unscheduled tasks');
+
+// CU1: a single fully-unscheduled task → null (no fabricated 0/100 SPI)
+{
+  const tasks = [{ is_archived: false, actual_progress: 0, planned_start: null, planned_end: null }];
+  check('CU1: single unscheduled task → null', computeSPIFromTasks(tasks) === null);
+}
+
+// CU2: entirely-unscheduled project (several tasks, all null dates) → null
+{
+  const tasks = [
+    { is_archived: false, actual_progress: 0,  planned_start: null, planned_end: null },
+    { is_archived: false, actual_progress: 10, planned_start: null, planned_end: null },
+  ];
+  check('CU2: all-unscheduled project → null (honest no-schedule, not a fabricated ratio)',
+    computeSPIFromTasks(tasks) === null);
+}
+
+// CU3: mixed scheduled + unscheduled — SPI computed only from the scheduled
+// subset; the unscheduled task neither dilutes sumPlanned nor contributes
+// its actual_progress.
+{
+  const start = iso(now.getTime() - 50 * DAY);
+  const end   = iso(now.getTime() + 50 * DAY);
+  const scheduledOnly = computeSPIFromTasks([
+    { is_archived: false, actual_progress: 50, planned_start: start, planned_end: end },
+  ]);
+  const mixed = computeSPIFromTasks([
+    { is_archived: false, actual_progress: 50, planned_start: start, planned_end: end },
+    { is_archived: false, actual_progress: 0,  planned_start: null,  planned_end: null },
+  ]);
+  check('CU3: unscheduled task does not change SPI computed from scheduled tasks alone',
+    scheduledOnly !== null && mixed !== null && Math.abs(scheduledOnly - mixed) < 0.001);
+}
+
 // ── D) computeCriticalHealth ──────────────────────────────────────────────────
 
 console.log('\nD) computeCriticalHealth');
@@ -173,6 +223,60 @@ console.log('\nD) computeCriticalHealth');
   const tasks = [{ is_critical: true, is_archived: true, actual_progress: 5, planned_start: start, planned_end: end }];
   const h = computeCriticalHealth(tasks);
   check('D4: archived critical excluded → total=0', h.total === 0);
+}
+
+// D5: unscheduled critical task excluded from total/behind (Simplification Phase 2)
+{
+  const start = iso(now.getTime() - 90 * DAY);
+  const end   = iso(now.getTime() + 10 * DAY);
+  const tasks = [
+    { is_critical: true, is_archived: false, actual_progress: 20, planned_start: start, planned_end: end }, // behind
+    { is_critical: true, is_archived: false, actual_progress: 0,  planned_start: null,  planned_end: null }, // unscheduled
+  ];
+  const h = computeCriticalHealth(tasks);
+  check('D5: unscheduled critical task excluded from total', h.total === 1);
+  check('D5: unscheduled critical task excluded from behind count', h.behind === 1);
+}
+
+// D6: ALL critical tasks unscheduled → SCHEDULE-DEBT-01 fix: no_schedule,
+// NOT healthy and NOT fabricated "behind" (Simplification Phase 3B.1)
+{
+  const tasks = [
+    { is_critical: true, is_archived: false, actual_progress: 0, planned_start: null, planned_end: null },
+    { is_critical: true, is_archived: false, actual_progress: 0, planned_start: null, planned_end: null },
+  ];
+  const h = computeCriticalHealth(tasks);
+  check('D6: all critical unscheduled → total=0 (no fabricated critical judgement)', h.total === 0);
+  check('D6: all critical unscheduled → label=no_schedule, NOT healthy (SCHEDULE-DEBT-01: no schedule != healthy)', h.label === 'no_schedule');
+  check('D6: all critical unscheduled → NOT warning/critical either (no fabricated risk)', h.label !== 'warning' && h.label !== 'critical');
+}
+
+// D7: genuinely ZERO critical tasks stays distinguishable from "critical
+// tasks exist but unscheduled" (SCHEDULE-DEBT-01's own required distinction)
+{
+  const zeroCritical = computeCriticalHealth([
+    { is_critical: false, is_archived: false, actual_progress: 50, planned_start: iso(now.getTime() - 50 * DAY), planned_end: iso(now.getTime() + 50 * DAY) },
+  ]);
+  const unscheduledCritical = computeCriticalHealth([
+    { is_critical: true, is_archived: false, actual_progress: 0, planned_start: null, planned_end: null },
+  ]);
+  check('D7: zero critical tasks → label=healthy', zeroCritical.label === 'healthy');
+  check('D7: critical tasks exist but unscheduled → label=no_schedule (distinct from zero-critical healthy)', unscheduledCritical.label === 'no_schedule');
+  check('D7: the two cases are NOT the same label (the exact collapse SCHEDULE-DEBT-01 fixes)', zeroCritical.label !== unscheduledCritical.label);
+}
+
+// D8: mixed scheduled + unscheduled critical tasks stays deterministic —
+// unscheduled ones excluded from the ratio, scheduled ones judged normally
+{
+  const start = iso(now.getTime() - 90 * DAY);
+  const end   = iso(now.getTime() + 10 * DAY);
+  const tasks = [
+    { is_critical: true, is_archived: false, actual_progress: 85, planned_start: start, planned_end: end }, // on track (planned ~90, actual 85, within 5)
+    { is_critical: true, is_archived: false, actual_progress: 0,  planned_start: null,  planned_end: null }, // unscheduled, excluded
+  ];
+  const h = computeCriticalHealth(tasks, now);
+  check('D8: mixed set → total counts only the scheduled critical task', h.total === 1);
+  check('D8: mixed set → unscheduled critical task does not corrupt the healthy judgement', h.label === 'healthy');
 }
 
 // ── E) computeCalendarSpi ─────────────────────────────────────────────────────
@@ -239,6 +343,34 @@ console.log('\nG) computeProjectTrendPoints');
   check('G2: week label preserved', trend[0].weekLabel === 'W12');
   check('G3: plannedAvg rounds planned percentage', Math.abs(trend[0].plannedAvg - 50) <= 1);
   check('G4: spi computed from actual/planned', trend[0].spi !== null && Math.abs(trend[0].spi - 0.5) <= 0.02);
+}
+
+// G5: unscheduled task in the mix does not drag plannedAvg toward 0
+// (Simplification Phase 2) — excluded from the average, not counted as 0.
+{
+  const reportDate = now.toISOString().slice(0, 10);
+  const start = iso(now.getTime() - 50 * DAY);
+  const end   = iso(now.getTime() + 50 * DAY);
+  const trend = computeProjectTrendPoints(
+    [{ report_date: reportDate, week_number: 12, overall_progress: 25 }],
+    [
+      { is_archived: false, planned_start: start, planned_end: end },
+      { is_archived: false, planned_start: null,  planned_end: null }, // unscheduled
+    ]
+  );
+  check('G5: unscheduled task excluded, plannedAvg still ≈50 (not diluted toward 0)',
+    Math.abs(trend[0].plannedAvg - 50) <= 1);
+}
+
+// G6: every task unscheduled → plannedAvg/spi null, not 0
+{
+  const reportDate = now.toISOString().slice(0, 10);
+  const trend = computeProjectTrendPoints(
+    [{ report_date: reportDate, week_number: 12, overall_progress: 25 }],
+    [{ is_archived: false, planned_start: null, planned_end: null }]
+  );
+  check('G6: all-unscheduled tasks → plannedAvg=null', trend[0].plannedAvg === null);
+  check('G6: all-unscheduled tasks → spi=null', trend[0].spi === null);
 }
 
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);

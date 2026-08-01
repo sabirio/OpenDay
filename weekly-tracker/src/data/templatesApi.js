@@ -4,12 +4,13 @@ export async function fetchActiveTemplate() {
   try {
     const { data, error } = await supabase
       .from('templates')
-      .select('id, name, family_id, version, data')
+      .select('id, name, family, family_id, company_id, version, data')
+      .is('family', null)
       .eq('is_active', true)
       .limit(1)
       .single();
     if (error) throw error;
-    return { id: data.id, name: data.name, familyId: data.family_id, version: data.version, ...data.data };
+    return { id: data.id, name: data.name, family: data.family, familyId: data.family_id, companyId: data.company_id, version: data.version, ...data.data };
   } catch (err) {
     console.error('fetchActiveTemplate:', err);
     return null;
@@ -20,11 +21,11 @@ export async function fetchTemplateById(id) {
   try {
     const { data, error } = await supabase
       .from('templates')
-      .select('id, name, family_id, version, data')
+      .select('id, name, family, family_id, company_id, version, data')
       .eq('id', id)
       .single();
     if (error) throw error;
-    return { id: data.id, name: data.name, familyId: data.family_id, version: data.version, ...data.data };
+    return { id: data.id, name: data.name, family: data.family, familyId: data.family_id, companyId: data.company_id, version: data.version, ...data.data };
   } catch (err) {
     console.error('fetchTemplateById:', err);
     return null;
@@ -35,10 +36,10 @@ export async function fetchAllTemplates() {
   try {
     const { data, error } = await supabase
       .from('templates')
-      .select('id, name, family_id, version, data, is_active');
+      .select('id, name, family, family_id, company_id, version, data, is_active');
     if (error) throw error;
     return (data || []).map(row => ({
-      id: row.id, name: row.name, familyId: row.family_id, version: row.version,
+      id: row.id, name: row.name, family: row.family, familyId: row.family_id, companyId: row.company_id, version: row.version,
       isActive: row.is_active, ...row.data,
     }));
   } catch (err) {
@@ -52,7 +53,7 @@ export async function saveTemplate(id, data) {
     // a) Load the current row.
     const { data: current, error: loadErr } = await supabase
       .from('templates')
-      .select('id, family_id, version, is_active')
+      .select('id, name, family, family_id, company_id, version, is_active')
       .eq('id', id)
       .single();
     if (loadErr) throw loadErr;
@@ -88,7 +89,15 @@ export async function saveTemplate(id, data) {
 
     const { data: newRow, error: insertErr } = await supabase
       .from('templates')
-      .insert({ name: current.name ?? '', data, family_id: current.family_id, version: nextVersion, is_active: true })
+      .insert({
+        name: current.name ?? '',
+        data,
+        family: current.family,
+        family_id: current.family_id,
+        company_id: current.company_id,
+        version: nextVersion,
+        is_active: true,
+      })
       .select('id')
       .single();
     if (insertErr) throw insertErr;

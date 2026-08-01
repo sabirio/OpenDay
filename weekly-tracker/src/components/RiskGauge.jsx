@@ -1,6 +1,8 @@
 import { RISK_COLORS } from "../config/riskConfig";
+import { riskLevelToCanonicalTone } from "../config/statusColors";
 import { MAX_RISK_SCORE } from "../hooks/useRiskLevelPresentation";
 import { computeGaugeArc } from "../hooks/useChartMathPresentation";
+import StatusBadge from "./shared/StatusBadge.jsx";
 
 export function RiskGauge({ score, level, color }) {
   const R = 45;
@@ -19,12 +21,7 @@ export function RiskGauge({ score, level, color }) {
 }
 
 export function RiskBadge({ level }) {
-  const c = RISK_COLORS[level] || RISK_COLORS.LOW;
-  return (
-    <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 10, fontSize: 12, fontWeight: 700, background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>
-      {level}
-    </span>
-  );
+  return <StatusBadge tone={riskLevelToCanonicalTone(level)}>{level}</StatusBadge>;
 }
 
 export function HealthBadge({ score, level, color, bg }) {

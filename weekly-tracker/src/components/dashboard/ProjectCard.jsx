@@ -11,7 +11,11 @@ export default function ProjectCard({ project, latestReport, progress, color, pr
   const visitOverdue = visitDays !== null && visitDays > 14;
 
   return (
-    <div onClick={() => onSelect(String(project.id))} style={{ background: 'var(--bg-surface)', borderRadius: 12, padding: '18px 20px', cursor: 'pointer' }}>
+    <button
+      type="button"
+      onClick={() => onSelect(String(project.id))}
+      style={{ display: 'block', width: '100%', textAlign: 'left', border: 0, font: 'inherit', color: 'inherit', background: 'var(--bg-surface)', borderRadius: 12, padding: '18px 20px', cursor: 'pointer' }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>{project.storeCode}</div>
@@ -50,6 +54,6 @@ export default function ProjectCard({ project, latestReport, progress, color, pr
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
         {projReports.length} report{projReports.length !== 1 ? 's' : ''} · latest {latestReport ? formatDate(latestReport.reportingDate || latestReport.submittedAt) : 'none'}
       </div>
-    </div>
+    </button>
   );
 }

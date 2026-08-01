@@ -337,6 +337,32 @@
 .dot--gray   { background: var(--border-strong);  }
 
 
+/* ── 5. Status Badge — shared tone primitive (Phase 2 status consolidation) ─
+   Consumed via components/shared/StatusBadge.jsx. Six semantic tones only —
+   callers map a domain value (risk level, SPI status, ...) to one of these
+   in a presentation mapper (config/statusColors.js), never inside this
+   primitive. Restrained/subdued backgrounds by design — color conveys
+   meaning, not decoration (Phase 2 status-color-discipline requirement). */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.status-badge--positive { background: var(--status-done-bg);  color: var(--status-done);  }
+.status-badge--caution  { background: var(--status-warn-bg);  color: var(--status-warn);  }
+.status-badge--danger   { background: var(--status-alert-bg); color: var(--status-alert); }
+.status-badge--info     { background: var(--accent-subtle);   color: var(--accent);       }
+.status-badge--neutral  { background: var(--bg-elevated);     color: var(--text-secondary); border-color: var(--border); }
+.status-badge--muted    { background: transparent;            color: var(--text-muted);   border-color: var(--border); }
+
+
 /* ── 5. Progress Bars ────────────────────────────────────────────────────── */
 .progress-track {
   background: var(--border);

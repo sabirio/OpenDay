@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { fetchTemplateRecordById, fetchTemplateRecordsByIds } from './templateService.js';
 
 // ─── Generate & save (pure I/O primitives — orchestration lives in
 // core/gantt/ganttOrchestrationModel.js) ───────────────────────────────────────
@@ -26,16 +27,50 @@ export async function archiveGanttTasks(projectId, wpIds) {
 }
 
 /**
+ * Mark a set of WP rows un-archived (re-added to scope). Touches only
+ * is_archived — never planned/actual/duration columns, so a WP that already
+ * has schedule or progress data keeps it exactly as-is when it re-enters
+ * scope.
+ */
+export async function unarchiveGanttTasks(projectId, wpIds) {
+  const { error } = await supabase
+    .from('project_gantt_tasks')
+    .update({ is_archived: false })
+    .eq('project_id', projectId)
+    .in('wp_id', wpIds);
+  if (error) throw error;
+}
+
+/**
  * Fetch the project fields regenerateGantt needs to rebuild the schedule.
  */
 export async function fetchProjectForGanttRegeneration(projectId) {
   const { data, error } = await supabase
     .from('projects')
-    .select('template_type, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, scope')
+    .select('template_type, template_id, construction_start_date, construction_end_date, target_opening_date, store_size_sqm, sales_area_sqm, back_of_house_area_sqm, scope, schedule_ownership_mode')
     .eq('id', projectId)
     .single();
   if (error) throw error;
-  return data;
+  return {
+    ...data,
+    templateType: data.template_type,
+    templateId: data.template_id,
+    scopeTemplate: await fetchTemplateRecordById(data.template_id),
+  };
+}
+
+/**
+ * Lightweight ownership-mode-only lookup for generateAndSaveGantt's mutual-
+ * exclusion guard, which otherwise never fetches the project row at all.
+ */
+export async function fetchProjectScheduleOwnershipMode(projectId) {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('schedule_ownership_mode')
+    .eq('id', projectId)
+    .single();
+  if (error) throw error;
+  return data.schedule_ownership_mode;
 }
 
 /**
@@ -58,10 +93,20 @@ export async function fetchGanttMetricsRawData(projectIds) {
 
   const { data: allProjects } = await supabase
     .from('projects')
-    .select('id,scope,template_type')
+    .select('id,scope,template_type,template_id')
     .in('id', projectIds);
 
-  return { allTasks, allVisits, allProjects };
+  const templatesById = await fetchTemplateRecordsByIds((allProjects ?? []).map(project => project.template_id));
+  return {
+    allTasks,
+    allVisits,
+    allProjects: (allProjects ?? []).map(project => ({
+      ...project,
+      templateType: project.template_type,
+      templateId: project.template_id,
+      scopeTemplate: templatesById.get(project.template_id) ?? null,
+    })),
+  };
 }
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────

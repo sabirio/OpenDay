@@ -1,5 +1,8 @@
-import { ALL_WORK_PACKAGES_V2 } from '../../../domains/construction/templates/retailFitoutV2.js';
-import { DEPENDENCY_RULES_V2 } from '../../../config/dependencyRulesV2.js';
+import {
+  getScopeTemplateDependencies,
+  getScopeTemplateWorkPackages,
+  resolveV2TemplateData,
+} from '../../../domains/construction/templates/versionedScopeTemplate.js';
 
 /**
  * Builds the templateOptions argument openingReadinessEngine.computeOpeningReadiness
@@ -15,12 +18,14 @@ import { DEPENDENCY_RULES_V2 } from '../../../config/dependencyRulesV2.js';
  *
  * @returns {{blockerWPs: object[], allWpIds: string[], dependencyRules: object[]}}
  */
-export function buildV2OpeningReadinessOptions() {
+export function buildV2OpeningReadinessOptions(projectOrTemplate = null) {
+  const data = resolveV2TemplateData(projectOrTemplate);
+  const workPackages = getScopeTemplateWorkPackages(data);
   return {
-    blockerWPs: ALL_WORK_PACKAGES_V2
+    blockerWPs: workPackages
       .filter(wp => wp.openingBlocker === 'critical' || wp.openingBlocker === 'soft')
       .map(wp => ({ ...wp, phaseId: wp.categoryId })),
-    allWpIds: ALL_WORK_PACKAGES_V2.map(wp => wp.id),
-    dependencyRules: DEPENDENCY_RULES_V2,
+    allWpIds: workPackages.map(wp => wp.id),
+    dependencyRules: getScopeTemplateDependencies(data),
   };
 }

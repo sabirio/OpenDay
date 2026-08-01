@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/shared/Toast.jsx";
 import MasterDetailLayout from "../components/shared/MasterDetailLayout";
 import Icon from "../components/shared/Icon";
+import StatusBadge from "../components/shared/StatusBadge.jsx";
 import PrintHeader from "../components/print/PrintHeader";
 import WeeklyReportExportButton from "../components/weekly/WeeklyReportExportButton";
 import WeeklyReportsMasterList from "../components/weekly/WeeklyReportsMasterList";
@@ -53,7 +54,6 @@ class ErrorBoundary extends React.Component {
           <h2>Weekly report could not render</h2>
           <p>The report data loaded, but this view hit a rendering problem. Refresh the page or try another report date.</p>
         </div>
-        <pre style={{ whiteSpace: "pre-wrap", fontSize: 13, color: "var(--status-alert)", margin: 0 }}>{String(this.state.error)}</pre>
       </div>
     );
     return this.props.children;
@@ -282,7 +282,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 <div className="weekly-detail-title-row">
                   <h2>{selectedProject.storeCode || "Project"}{selectedProject.shoppingMallName ? ` — ${selectedProject.shoppingMallName}` : ""}</h2>
                   {selectedReportSummary && (
-                    <span className={`weekly-master-status is-${selectedReportSummary.status}`}>{selectedReportSummary.statusLabel}</span>
+                    <StatusBadge tone={selectedReportSummary.statusTone}>{selectedReportSummary.statusLabel}</StatusBadge>
                   )}
                 </div>
                 <div className="weekly-detail-meta">

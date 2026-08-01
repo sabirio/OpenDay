@@ -23,6 +23,16 @@ import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitout
 import { LOCATION_TYPE_OPTIONS } from "../config/projectVocabulary";
 import { computePageCount, clampPage, paginate } from "../hooks/usePortfolioPaginationPresentation";
 import MasterDetailLayout from "../components/shared/MasterDetailLayout";
+import {
+  mergeProjectScopeSelection,
+  PROJECT_AREA_BASIS,
+  resolveEffectiveV2ZoneAreas,
+  resolveProjectArea,
+} from "../hooks/useProjectAreaPresentation";
+import {
+  initializeNewProjectScope,
+  PROJECT_SCOPE_NOT_CONFIGURED,
+} from "../hooks/useProjectScopeEntryPresentation";
 
 const PORTFOLIO_PAGE_SIZE = 50;
 
@@ -56,7 +66,10 @@ const emptyProject = {
   contractorEmail: "",
   projectType: "New Opening",
   projectStatus: "Active",
-  templateType: 'standard_with_demo',
+  templateType: V2_TEMPLATE_TYPE,
+  templateId: null,
+  scopeTemplate: null,
+  scope: null,
   storeSizeSqm: '',
   phases: [],
 };
@@ -91,6 +104,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   const [activeDetailTab, setActiveDetailTab] = useState("overview");
   const [gcModal, setGcModal]                 = useState(null); // project being invited
   const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
+  const [isInitializingProject, setIsInitializingProject] = useState(false);
   const [gcEmail, setGcEmail]             = useState('');
   const [initialGcEmail, setInitialGcEmail] = useState(''); // snapshot at open time, for GcInvitationModal's dirty-state check
   const [gcInviteStatus, setGcInviteStatus] = useState('idle'); // idle|sending|sent|error
@@ -144,6 +158,26 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     setShowForm(true);
   }
 
+  async function openNewProject() {
+    if (isInitializingProject) return;
+    setIsInitializingProject(true);
+    try {
+      const draft = await initializeNewProjectScope(emptyProject);
+      setNewProject(draft);
+      originalProjectRef.current = draft;
+      setEditingProjectId(null);
+      setConflict(null);
+      setShowForm(true);
+    } catch (err) {
+      console.error('Failed to initialize project scope:', err);
+      toast.error(err?.message === PROJECT_SCOPE_NOT_CONFIGURED
+        ? PROJECT_SCOPE_NOT_CONFIGURED
+        : 'Project scope could not be loaded. Please try again.');
+    } finally {
+      setIsInitializingProject(false);
+    }
+  }
+
   // Only checks for a conflict when editing an existing project — new
   // projects have no prior server state to collide with, and
   // contractor_reports/site_visits have no update-existing-row path at all
@@ -182,10 +216,11 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
               : (scopeWPIds?.length > 0 ? 'custom' : newProject.templateType || 'standard_with_demo');
             const tOptions = isV2
               ? {
-                  zoneAreas: newProject.scope?.zoneAreas ?? {},
+                  zoneAreas: resolveEffectiveV2ZoneAreas(newProject),
                   activeZoneIds: newProject.scope?.zones ?? null,
                   activeCategoryIds: newProject.scope?.categories ?? null,
                   selectedWPIds: newProject.scope?.workPackages ?? null,
+                  scopeTemplate: savedProject.scopeTemplate,
                 }
               : (scopeWPIds?.length > 0 ? { selectedWPIds: scopeWPIds } : {});
             await generateAndSaveGantt(
@@ -193,7 +228,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
               templateId,
               newProject.constructionStartDate,
               projectEndDate,
-              parseFloat(newProject.storeSizeSqm) || 1000,
+              resolveProjectArea(newProject, PROJECT_AREA_BASIS.TOTAL_AREA) ?? 1000,
               tOptions,
             );
           }
@@ -257,7 +292,20 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
         toast.success(`${label} deleted.`);
       } catch (err) {
         console.error("Failed to delete project:", err);
-        toast.error("Failed to delete project. Please try again.");
+        // Approved product policy (Simplification Phase 4B.2 Section P):
+        // once ANY schedule submission/history exists, hard delete is
+        // prohibited — prevent_schedule_version_task_mutation() (049)
+        // blocks the cascade from project_schedule_versions and surfaces
+        // as this exact error text. Immutable history must never be
+        // weakened to make deletion "work"; this is display-only —
+        // normalize the raw Postgres error into a clear product message
+        // instead of the generic failure, never bypass it.
+        const isImmutableHistoryBlock = /SCHEDULE_VERSION_TASK_IMMUTABLE/.test(err?.message || "");
+        toast.error(
+          isImmutableHistoryBlock
+            ? "This project contains immutable schedule history and cannot be permanently deleted."
+            : "Failed to delete project. Please try again."
+        );
       }
     }
   }
@@ -302,19 +350,24 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
 
   const pagedProjects = paginate(filteredProjects, effectiveCurrentPage, PORTFOLIO_PAGE_SIZE);
 
-  // Keep selection valid for whatever is currently visible (initial load,
-  // page change, or a filter change that moves the current selection off the
-  // visible page): select the first visible project, or none. Same
-  // render-time adjustment pattern as above.
+  // Phase 4 cross-page consistency fix: this used to re-derive selection from
+  // pagedProjects, so any search/filter/pagination change that moved the
+  // selected project off the visible page silently swapped the open detail
+  // to a different project (or cleared it) without the user choosing
+  // anything. Selection now persists against the full projects list — same
+  // "filtering never silently swaps or clears the selected detail" contract
+  // Weekly Reports/Risk Dashboard/Site Snag already use — and only falls
+  // back to auto-selecting the first visible row when nothing is selected
+  // yet, or the previous selection no longer exists at all (e.g. deleted).
+  // Same render-time adjustment pattern as the page-count clamp above.
+  const selectedProjectExists = selectedProjectId !== null && projects.some((p) => p.id === selectedProjectId);
   let effectiveSelectedProjectId = selectedProjectId;
-  if (pagedProjects.length === 0) {
-    effectiveSelectedProjectId = null;
-  } else if (!pagedProjects.some((p) => p.id === selectedProjectId)) {
-    effectiveSelectedProjectId = pagedProjects[0].id;
+  if (!selectedProjectExists) {
+    effectiveSelectedProjectId = pagedProjects[0]?.id ?? null;
   }
   if (effectiveSelectedProjectId !== selectedProjectId) setSelectedProjectId(effectiveSelectedProjectId);
 
-  const selectedProject = pagedProjects.find((p) => p.id === effectiveSelectedProjectId) ?? null;
+  const selectedProject = projects.find((p) => p.id === effectiveSelectedProjectId) ?? null;
 
   function selectProject(project) {
     setSelectedProjectId(project.id);
@@ -322,19 +375,28 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   }
 
   return (
-    <div className="portfolio-page">
+    <div className="portfolio-page" data-mobile-view={mobileView}>
       {/* -- Page header -------------------------------------------------------- */}
       <div className="page-header">
         <div>
           <h1>Portfolio</h1>
           <p>Manage projects and generate contractor report links.</p>
         </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        {/* Phase 5 responsive fix: these are portfolio-management actions, not
+            actions on the selected project — below the master/detail mobile
+            breakpoint they used to sit above the open project's detail as 3
+            stacked full-width buttons, pushing the actual detail (what the
+            user just tapped to see) below the fold. Hidden via
+            .portfolio-page-actions while a project's detail is focused on
+            mobile; still fully reachable by going back to the master list,
+            same as before. Desktop is unaffected (no media query match). */}
+        <div className="portfolio-page-actions">
           <button
             className="btn btn-primary"
-            onClick={() => { setNewProject(emptyProject); originalProjectRef.current = emptyProject; setEditingProjectId(null); setShowForm(true); }}
+            onClick={openNewProject}
+            disabled={isInitializingProject}
           >
-            Add New Project
+            {isInitializingProject ? 'Preparing Project…' : 'Add New Project'}
           </button>
           {canImportProjects && (
             <Link to="/projects/import" className="btn btn-secondary">
@@ -457,15 +519,11 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       {showScopeConfigurator && (
         newProject.templateType === V2_TEMPLATE_TYPE ? (
           <ZonedScopeConfigurator
+            project={newProject}
+            scopeTemplate={newProject.scopeTemplate}
             initialScope={newProject.scope}
-            areas={newProject.scope?.zoneAreas ?? {}}
             onSave={(scope) => {
-              // ZonedScopeConfigurator only returns the zone/category/WP
-              // selection — merge back the zoneAreas the user entered
-              // separately in ProjectEditorModal's "Zone Areas" section
-              // (edited independently, in whichever order) so saving scope
-              // never wipes out already-entered areas.
-              setNewProject(p => ({ ...p, scope: { ...scope, zoneAreas: p.scope?.zoneAreas ?? {} } }));
+              setNewProject(p => ({ ...p, scope: mergeProjectScopeSelection(p, scope) }));
               setShowScopeConfigurator(false);
             }}
             onClose={() => setShowScopeConfigurator(false)}

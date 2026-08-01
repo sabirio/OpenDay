@@ -1,8 +1,10 @@
 import { WORK_PACKAGES as V1_WORK_PACKAGES } from '../../config/masterTaskLibrary.js';
-import { ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2.js';
-import { getScopeWPIds } from '../projects/scope/getScopeWPIds.js';
+import { V2_TEMPLATE_TYPE } from '../../domains/construction/templates/retailFitoutV2.js';
+import { resolveProjectScopeTemplate } from '../../domains/construction/templates/versionedScopeTemplate.js';
+import { resolveProjectScopeSelection } from '../projects/scope/getScopeWPIds.js';
 import { CANONICAL_SOURCE_VERSION } from './types.js';
 import { normalizeFiniteNumber } from '../../engines/canonicalCoreEngine.js';
+import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea.js';
 
 const PROGRESS_KEYS = new Set(['progress', 'progress_pct', 'actual_progress', 'observed_progress', 'gc_progress', 'overall_progress', 'overallProgress']);
 
@@ -96,16 +98,26 @@ export function buildCanonicalProjectSnapshot(raw = {}, options = {}) {
   const calculatedAt = options.calculatedAt || new Date().toISOString();
   const project = normalizeRecord(raw.project || {}, 'project', warnings);
   const isV2 = project.templateType === V2_TEMPLATE_TYPE;
-  const workPackages = normalizeWorkPackages(raw.workPackages || (isV2 ? ALL_WORK_PACKAGES_V2 : V1_WORK_PACKAGES), warnings);
+  const resolvedTemplate = resolveProjectScopeTemplate(project, {
+    templatesById: raw.templatesById ?? {},
+  });
+  const workPackages = normalizeWorkPackages(
+    raw.workPackages || (isV2 ? resolvedTemplate.workPackages : V1_WORK_PACKAGES),
+    warnings,
+  );
   const contractorReports = normalizeAndSort(raw.contractorReports || raw.reports, 'contractorReports', ['reportingDate', 'report_date', 'submittedAt', 'submitted_at'], warnings);
   const siteVisits = normalizeAndSort(raw.siteVisits, 'siteVisits', ['visitDate', 'visit_date', 'submittedAt', 'submitted_at'], warnings);
   const progressHistory = normalizeAndSort(raw.progressHistory || project.progressHistory, 'progressHistory', ['recordedAt', 'recorded_at', 'reportingDate'], warnings);
-  const zoneAreas = project.scope?.zoneAreas || raw.zoneAreas || {};
+  const zoneAreas = resolveEffectiveV2ZoneAreas(project, { fallbackLegacyZoneAreas: raw.zoneAreas });
   const zones = Object.entries(zoneAreas).map(([id, area]) => ({
     id: String(id),
     area: finiteNumber(area, `zones.${id}.area`, warnings, { min: 0, fallback: 0 }),
   }));
-  const resolvedScopeWPIds = getScopeWPIds(project.scope, workPackages);
+  const resolvedScopeWPIds = resolveProjectScopeSelection({
+    scope: project.scope,
+    workPackages,
+    schemaVersion: resolvedTemplate?.data?.schemaVersion,
+  });
   const scopeWPIds = (resolvedScopeWPIds || workPackages.map(wp => wp.id)).map(String);
   const activeSet = new Set(scopeWPIds);
   const canonicalWPs = workPackages.map(wp => ({ ...wp, active: activeSet.has(wp.id), notApplicable: !activeSet.has(wp.id) }));
@@ -114,7 +126,9 @@ export function buildCanonicalProjectSnapshot(raw = {}, options = {}) {
 
   return {
     project,
-    template: raw.template ? normalizeRecord(raw.template, 'template', warnings) : null,
+    template: isV2
+      ? normalizeRecord(resolvedTemplate.data, 'template', warnings)
+      : (raw.template ? normalizeRecord(raw.template, 'template', warnings) : null),
     zones,
     workPackages: canonicalWPs,
     contractorReports,

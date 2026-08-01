@@ -535,18 +535,13 @@ body {
 
 
 /* Project Dashboard polish: operational KPI row, desktop-fit matrix, controls, tabs. */
-.dashboard-kpi-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
+/* Phase 3 chrome reduction: both consumers (PortfolioHealthSummary,
+   PortfolioScopeSummary in SummaryPanel.jsx) always render inside a
+   .dashboard-detail-section, which already supplies the border/background/
+   padding — this class previously repeated the identical bg-surface fill
+   with its own radius/padding, a no-payoff nested box. Now title-only. */
 .dashboard-kpi-cluster {
   min-width: 0;
-  padding: 18px;
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface-alpha);
 }
 
 .dashboard-kpi-cluster-title {
@@ -782,7 +777,6 @@ body {
 }
 
 @media (max-width: 1080px) {
-  .dashboard-kpi-row { grid-template-columns: 1fr; }
   .dashboard-donut-wrap { grid-template-columns: 1fr; }
   /* .status-matrix-scroll/-table's overflow-x:auto + min-width are now
      unconditional (Phase 5) — the table's own explicit px column widths
@@ -1725,20 +1719,6 @@ button.weekly-phase-row {
 .data-table td { color: var(--text-body); }
 .data-table tbody tr:hover { background: var(--bg-elevated); }
 .data-table tbody tr.row--alert { background: var(--status-alert-bg); }
-
-
-/* ============================================================
-   STATUS BADGE
-   ============================================================ */
-.status-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  background: var(--chip-bg-green);
-  color: var(--chip-fg-green);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
 
 
 /* ============================================================
@@ -3093,6 +3073,12 @@ button.weekly-phase-row {
   margin-bottom: 14px;
 }
 
+.portfolio-page-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .portfolio-master-detail {
   background: var(--bg-surface);
 }
@@ -3364,6 +3350,38 @@ button.weekly-phase-row {
   overflow-y: auto;
 }
 
+.project-scope-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.project-scope-entry-summary {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-scope-entry-summary strong {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.project-scope-entry-summary span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.project-scope-entry-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 @media (max-width: 1180px) {
   .portfolio-detail-header {
     flex-wrap: wrap;
@@ -3388,6 +3406,15 @@ button.weekly-phase-row {
   .portfolio-back-to-master {
     display: inline-flex;
     flex-shrink: 0;
+  }
+
+  /* Phase 5 responsive fix: portfolio-management actions (Add/Import/
+     Export) are not actions on the selected project — while a project's
+     detail is focused in the mobile single-pane view, hide them so the
+     detail the user just opened isn't pushed below the fold. Still fully
+     reachable by going back to the master list. */
+  .portfolio-page[data-mobile-view="detail"] .portfolio-page-actions {
+    display: none;
   }
 }
 
@@ -3421,6 +3448,57 @@ button.weekly-phase-row {
 
   .project-editor-body {
     padding: 16px;
+  }
+
+  .project-scope-entry {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .project-scope-entry-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-scope-entry-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .project-scope-configurator-overlay {
+    padding: 10px;
+  }
+
+  .project-scope-configurator {
+    width: 100% !important;
+    max-height: calc(100dvh - 20px) !important;
+  }
+
+  .project-scope-configurator-header,
+  .project-scope-area-context {
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+  }
+
+  .project-scope-area-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .project-scope-configurator-footer {
+    align-items: stretch !important;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px !important;
+  }
+
+  .project-scope-configurator-actions {
+    width: 100%;
+  }
+
+  .project-scope-configurator-actions button {
+    flex: 1;
   }
 }
 
@@ -3727,17 +3805,6 @@ button.weekly-phase-row {
   font-weight: 750;
 }
 
-.master-lifecycle {
-  flex-shrink: 0;
-  padding: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 0.625rem;
-  font-weight: 650;
-}
-
 .master-row-name {
   margin-top: 3px;
   color: var(--text-primary);
@@ -3819,17 +3886,6 @@ button.weekly-phase-row {
   font-size: 0.75rem;
 }
 
-.dashboard-lifecycle-badge {
-  flex-shrink: 0;
-  padding: 3px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 0.6875rem;
-  font-weight: 650;
-}
-
 .dashboard-detail-actions {
   display: flex;
   flex-shrink: 0;
@@ -3850,6 +3906,14 @@ button.weekly-phase-row {
   min-width: 0;
   padding: 0 18px;
   overflow-x: auto;
+  /* Phase 2 tab-bar fix: an explicit overflow-x with no overflow-y set is
+     computed by the UA as overflow-y: auto too (CSS Overflow spec's
+     "visible is contagious" rule doesn't apply once one axis is non-
+     visible) — any sub-pixel content-height rounding from the tab row's
+     fractional line-height (0.75rem * 1.2) was then enough to trigger a
+     phantom vertical scrollbar. Horizontal-only scroll is the only
+     intended behavior here, so make that explicit. */
+  overflow-y: hidden;
   border-bottom: 1px solid var(--border);
   background: var(--bg-surface);
 }
@@ -3966,6 +4030,31 @@ button.weekly-phase-row {
   font-size: 0.6875rem;
 }
 
+/* Level-1 attention strip (Phase 2) — compact, canonical-KPI-driven chip
+   row using the shared .status-badge primitive. No card chrome; the badges
+   themselves carry the visual weight, matching the "restrained color, not
+   decoration" status discipline. */
+.dashboard-attention-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 2px 0 4px;
+}
+
+.dashboard-attention-strip.is-clear {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-attention-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
 .dashboard-attention-list {
   display: grid;
 }
@@ -4010,18 +4099,13 @@ button.weekly-phase-row {
   height: 28px;
 }
 
-.dashboard-portfolio-overview .dashboard-detail-section .dashboard-kpi-row {
-  margin-bottom: 0;
-}
-
 .dashboard-portfolio-tools {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
   gap: 20px;
 }
 
-.dashboard-portfolio-tools h3,
-.dashboard-snapshot-control > label {
+.dashboard-portfolio-tools h3 {
   display: block;
   margin: 0 0 10px;
   color: var(--text-primary);
@@ -4029,9 +4113,31 @@ button.weekly-phase-row {
   font-weight: 750;
 }
 
-.dashboard-snapshot-control {
-  padding-left: 20px;
-  border-left: 1px solid var(--border);
+/* Snapshot moved out of the Reporting/Scope grid into its own closed-by-
+   default disclosure (Phase 2 hierarchy fix — a read-only historical tool
+   is Level-3 context, not a signal that deserves permanent screen space). */
+.dashboard-snapshot-disclosure {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  font-size: 0.75rem;
+}
+
+.dashboard-snapshot-disclosure > summary {
+  color: var(--text-secondary);
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dashboard-snapshot-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.dashboard-snapshot-disclosure[open] > summary {
+  margin-bottom: 10px;
+  color: var(--text-primary);
 }
 
 .dashboard-snapshot-control p {
@@ -4263,28 +4369,6 @@ button.weekly-phase-row {
 
 .weekly-master-row {
   min-height: 84px;
-}
-
-.weekly-master-status {
-  flex-shrink: 0;
-  padding: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 0.625rem;
-  font-weight: 700;
-}
-
-.weekly-master-status.is-missing {
-  border-color: color-mix(in srgb, var(--status-warn) 35%, var(--border));
-  background: var(--status-warn-bg);
-  color: var(--status-warn);
-}
-
-.weekly-master-status.is-submitted {
-  background: var(--status-done-bg);
-  color: var(--status-done);
 }
 
 .weekly-master-context {
@@ -4548,43 +4632,6 @@ button.weekly-phase-row {
 .risk-portfolio-row {
   min-height: 88px;
   background: var(--bg-elevated);
-}
-
-.risk-master-level {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  padding: 2px 7px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  font-size: 0.625rem;
-  font-weight: 750;
-  text-transform: uppercase;
-}
-
-.risk-master-level.is-critical {
-  border-color: color-mix(in srgb, var(--status-alert) 35%, var(--border));
-  background: var(--status-alert-bg);
-  color: var(--status-alert);
-}
-
-.risk-master-level.is-high {
-  border-color: color-mix(in srgb, var(--status-alert) 24%, var(--border));
-  background: var(--status-alert-bg);
-  color: var(--status-alert);
-}
-
-.risk-master-level.is-medium {
-  border-color: color-mix(in srgb, var(--status-warn) 35%, var(--border));
-  background: var(--status-warn-bg);
-  color: var(--status-warn);
-}
-
-.risk-master-level.is-low {
-  background: var(--status-done-bg);
-  color: var(--status-done);
 }
 
 .risk-detail-header {

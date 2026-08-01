@@ -1,5 +1,6 @@
 import Icon from '../shared/Icon';
 import { SCHEDULE_STATUS } from '../../utils/reportUtils';
+import StatusBadge from '../shared/StatusBadge.jsx';
 
 const QUICK_FILTERS = [
   { id: 'all', label: 'All' },
@@ -120,7 +121,9 @@ export default function DashboardMasterList({
         </div>
 
         {filteredRows.length === 0 ? (
-          <div className="master-list-empty">No projects match the current search and filter.</div>
+          <div className="master-list-empty">
+            {rows.length === 0 ? "No projects yet. Add a project to begin." : "No projects match the current search and filter."}
+          </div>
         ) : filteredRows.map((row) => {
           const { project, progress } = row;
           const id = String(project.id);
@@ -138,7 +141,7 @@ export default function DashboardMasterList({
             >
               <span className="master-row-top">
                 <strong title={project.storeCode || undefined}>{project.storeCode || 'Project code not set'}</strong>
-                <span className="master-lifecycle">{project.projectStatus || 'Status not set'}</span>
+                <StatusBadge tone="neutral">{project.projectStatus || 'Status not set'}</StatusBadge>
               </span>
               <span className="master-row-name" title={project.shoppingMallName || undefined}>
                 {project.shoppingMallName || 'Project name not set'}

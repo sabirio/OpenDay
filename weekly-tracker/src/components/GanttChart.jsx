@@ -1,14 +1,8 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS } from '../hooks/useGanttLayout.js';
+import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates, toHumanFinishInclusive, toInternalEndBoundary } from '../hooks/useGanttLayout.js';
 import { calculateGanttPhaseAverageProgress, clampProgressPct } from '../hooks/useProgressPresentation.js';
 import { clamp, percentToWidth, minOf, maxOf } from '../hooks/useChartMathPresentation.js';
 import GanttLegend from './gantt/GanttLegend.jsx';
-
-function addDaysLocal(date, days) {
-  const d = new Date(date instanceof Date ? date.getTime() : date);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d;
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -124,9 +118,46 @@ const btnStyle = {
 
 // ─── WP Detail tooltip (click-based, fixed position) ─────────────────────────
 
-function WPTooltip({ task, onClose }) {
+// <input type="date"> wants YYYY-MM-DD; task.earlyStart/earlyFinish are
+// Date objects (or null/undefined for an unscheduled task — Phase 2).
+function toInputValue(d) { return d instanceof Date ? d.toISOString().split('T')[0] : (d || ''); }
+
+function WPTooltip({ task, onClose, onManualDateChange }) {
+  // Local in-progress edit state for Start/Finish — seeded from the task
+  // only when the SELECTED task itself changes (by id), not on every
+  // render. GanttChart's selectedTask is a click-time snapshot that does
+  // not auto-resync while a save/stage is in flight, so deriving both
+  // fields directly from the `task` prop on every keystroke (the previous
+  // design) meant editing Start then Finish silently reverted/lost
+  // whichever field was edited first, back to its stale snapshot value.
+  // Local state accumulates both edits correctly within one tooltip session.
+  const [localStart, setLocalStart] = useState('');
+  const [localFinishHuman, setLocalFinishHuman] = useState('');
+  const seededTaskIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!task || seededTaskIdRef.current === task.id) return;
+    seededTaskIdRef.current = task.id;
+    setLocalStart(toInputValue(task.earlyStart));
+    // Finish is shown/edited as the human-facing INCLUSIVE date
+    // (Simplification Phase 3B.1) — task.earlyFinish itself stays the
+    // internal exclusive boundary (bar geometry, unchanged) everywhere else
+    // in this component; toHumanFinishInclusive/toInternalEndBoundary are
+    // the one canonical conversion, used only here for display and only in
+    // commitDates below for write-back — never duplicated elsewhere.
+    setLocalFinishHuman(toInputValue(toHumanFinishInclusive(task.earlyFinish)));
+  }, [task]);
+
   if (!task) return null;
   const disc = task.discrepancy;
+
+  const commitDates = (nextStart, nextFinishHuman) => {
+    setLocalStart(nextStart);
+    setLocalFinishHuman(nextFinishHuman);
+    if (!onManualDateChange || !nextStart || !nextFinishHuman) return;
+    const nextEnd = toInternalEndBoundary(new Date(nextFinishHuman));
+    onManualDateChange(task.id, { plannedStart: nextStart, plannedEnd: nextEnd.toISOString().split('T')[0] });
+  };
 
   const badge = (label, color, bg) => (
     <span style={{
@@ -161,8 +192,35 @@ function WPTooltip({ task, onClose }) {
       {/* Body */}
       <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12 }}>
         <Row label="Phase"    value={task.phaseLabel} />
-        <Row label="Planned"  value={`${fmtDate(task.earlyStart)} → ${fmtDate(task.earlyFinish)}`} />
-        <Row label="Duration" value={`${task.duration_days}d`} />
+        {onManualDateChange ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: C.muted, flexShrink: 0 }}>Start</span>
+            <input
+              type="date"
+              value={localStart}
+              onChange={(e) => commitDates(e.target.value, localFinishHuman)}
+              style={{ fontSize: 11, padding: '2px 4px', border: `1px solid ${C.border}`, borderRadius: 4, background: C.bgCard, color: C.text }}
+            />
+          </div>
+        ) : (
+          <Row label="Planned" value={`${fmtDate(task.earlyStart)} → ${fmtDate(task.earlyFinish)}`} />
+        )}
+        {onManualDateChange && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: C.muted, flexShrink: 0 }}>Finish</span>
+            <input
+              type="date"
+              value={localFinishHuman}
+              min={localStart || undefined}
+              onChange={(e) => commitDates(localStart, e.target.value)}
+              style={{ fontSize: 11, padding: '2px 4px', border: `1px solid ${C.border}`, borderRadius: 4, background: C.bgCard, color: C.text }}
+            />
+          </div>
+        )}
+        {/* Duration is always read-only display, never an input — server/
+            draft-model derived, per the canonical date-authority contract
+            (Simplification Phase 3B). */}
+        <Row label="Duration" value={task.duration_days != null ? `${task.duration_days}d` : '—'} />
         <Row label="Progress" value={`${task.actual_progress ?? 0}%`} bold />
         {task.actual_start && <Row label="Started" value={fmtDate(task.actual_start)} />}
 
@@ -205,7 +263,7 @@ function Row({ label, value, bold, critical }) {
 
 // ─── SVG bar per WP ───────────────────────────────────────────────────────────
 
-function WPBar({ task, isSelected, onClick, onDragStart }) {
+function WPBar({ task, isSelected, onClick, onDragStart, onMoveStart }) {
   const { x, barY, width, barHeight, isCritical, isBlocker,
           status, actual_progress, discrepancy } = task;
 
@@ -256,7 +314,7 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
   const barMid = barY + barHeight / 2;
 
   return (
-    <g onClick={onClick} style={{ cursor: 'pointer' }}>
+    <g onClick={onClick} style={{ cursor: onMoveStart ? 'grab' : 'pointer' }}>
       {/* Critical path glow */}
       {isCritical && (
         <rect
@@ -268,13 +326,17 @@ function WPBar({ task, isSelected, onClick, onDragStart }) {
         />
       )}
 
-      {/* Bar background */}
+      {/* Bar background — whole-bar move starts here when onMoveStart is
+          provided (Contractor Draft mode only; absent = unchanged click-to-
+          select behavior, same as before this prop existed). A stationary
+          mousedown+mouseup still fires the group's onClick normally. */}
       <rect
         x={x} y={barY}
         width={clamp(width, 2, Infinity)} height={barHeight}
         rx={4} fill={bgFill}
         stroke={strokeColor} strokeWidth={strokeWidth}
         strokeDasharray={strokeDash}
+        onMouseDown={onMoveStart ? (e) => { e.stopPropagation(); onMoveStart(e); } : undefined}
       />
 
       {/* Progress fill */}
@@ -409,6 +471,13 @@ export default function GanttChart({
   discrepancies = [],
   onWPClick,
   onWPResize,
+  onWPMove,       // opt-in: enables whole-bar drag-to-move. Absent = no new
+                  // interaction wired, existing (PM) resize-only behavior
+                  // is completely unchanged. Contractor Draft mode passes
+                  // this (typically the same staging function as onWPResize
+                  // — both interactions end in "these two dates changed").
+  onManualDateChange, // opt-in: enables editable Start/Finish fields in the
+                       // tooltip. Absent = tooltip stays read-only, unchanged.
   defaultZoom = 'month',
   readOnly = false,
 }) {
@@ -447,9 +516,8 @@ export default function GanttChart({
       constructionStartDate: project?.constructionStartDate ?? keyDates?.constructionStartDate,
       constructionEndDate:   project?.constructionEndDate   ?? keyDates?.constructionEndDate,
     };
-    return calculateLayout(tasks, zoom, containerW, enrichedKeyDates, discrepancies, collapseState, project?.templateType);
-  }, [layoutProp, tasks, zoom, containerW, keyDates, discrepancies, collapseState,
-      project?.constructionStartDate, project?.constructionEndDate, project?.templateType]);
+    return calculateLayout(tasks, zoom, containerW, enrichedKeyDates, discrepancies, collapseState, project);
+  }, [layoutProp, tasks, zoom, containerW, keyDates, discrepancies, collapseState, project]);
 
   // Scroll to today on mount / zoom change.
   //
@@ -514,26 +582,28 @@ export default function GanttChart({
 
     const onMove = (e) => {
       const dxDays = pixelsToDays(e.clientX - dragState.startClientX, pixelsPerDay);
-      let newStart = new Date(dragState.origEarlyStart.getTime());
-      let newEnd   = new Date(dragState.origEarlyFinish.getTime());
-
-      if (dragState.handle === 'right') {
-        newEnd = addDaysLocal(dragState.origEarlyFinish, dxDays);
-        if (newEnd <= newStart) newEnd = addDaysLocal(newStart, 1);
-      } else {
-        newStart = addDaysLocal(dragState.origEarlyStart, dxDays);
-        if (newStart >= newEnd) newStart = addDaysLocal(newEnd, -1);
-      }
-      const durationDays = clamp(diffDays(newStart, newEnd), 1, Infinity);
-      const v = { wpId: dragState.wpId, earlyStart: newStart, earlyFinish: newEnd, durationDays };
+      // Shared pure computation (engines/ganttLayout.js) for all three
+      // interactions — one canonical date-editing rule, not duplicated math.
+      const { earlyStart, earlyFinish, durationDays } = computeDragEditDates(
+        dragState.origEarlyStart, dragState.origEarlyFinish, dragState.handle, dxDays
+      );
+      const v = { wpId: dragState.wpId, earlyStart, earlyFinish, durationDays };
       dragVisualRef.current = v;
       setDragVisualSt(v);
     };
 
     const onUp = () => {
       const v = dragVisualRef.current;
-      if (v && onWPResize) {
-        onWPResize(dragState.wpId, {
+      // Whole-bar move ends in exactly the same {plannedStart, plannedEnd,
+      // durationDays} shape as resize — one canonical schedule mutation
+      // command regardless of which interaction produced it (Simplification
+      // Phase 3A design). Only which prop it's routed through differs, and
+      // that routing is what keeps move opt-in: no onWPMove passed (existing
+      // PM call sites) means the 'move' handle is never reachable at all
+      // (see the bar-body mousedown below), so this branch is dead for them.
+      const callback = dragState.handle === 'move' ? onWPMove : onWPResize;
+      if (v && callback) {
+        callback(dragState.wpId, {
           plannedStart: v.earlyStart.toISOString().split('T')[0],
           plannedEnd:   v.earlyFinish.toISOString().split('T')[0],
           durationDays: v.durationDays,
@@ -550,7 +620,7 @@ export default function GanttChart({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup',   onUp);
     };
-  }, [dragState, layout, onWPResize]);
+  }, [dragState, layout, onWPResize, onWPMove]);
 
   // ── Empty / loading ──────────────────────────────────────────────────────────
   if (!tasks.length) {
@@ -695,8 +765,13 @@ export default function GanttChart({
       // Collapsed: show summary bar across the phase row
       const pTasks = layoutTasks.filter(t => t.phaseId === phase.id);
       if (!pTasks.length) return null;
-      const minX = minOf(pTasks.map(t => t.x));
-      const maxX = maxOf(pTasks.map(t => t.x + t.width));
+      // Unscheduled tasks have x/width = null/0, not real geometry — excluded
+      // from the bounds the same way WPBar skips drawing their individual bar.
+      // A phase that is entirely unscheduled has no summary bar to show.
+      const scheduledPTasks = pTasks.filter(t => t.hasSchedule);
+      if (!scheduledPTasks.length) return null;
+      const minX = minOf(scheduledPTasks.map(t => t.x));
+      const maxX = maxOf(scheduledPTasks.map(t => t.x + t.width));
       const avg  = calculateGanttPhaseAverageProgress(pTasks);
       const bY   = phase.y + (PHASE_ROW_H - BAR_H) / 2;
       const w    = clamp(maxX - minX, 4, Infinity);
@@ -812,8 +887,10 @@ export default function GanttChart({
                 fill="transparent" style={{ cursor: 'ew-resize' }} />
             )}
 
-            {/* WP bars */}
-            {layoutTasks.map(t => {
+            {/* WP bars — unscheduled tasks (no planned_start/planned_end)
+                keep their row in the left label list but draw no bar here;
+                there is no real x/width to place one at. */}
+            {layoutTasks.filter(t => t.hasSchedule).map(t => {
               let displayTask = t;
               if (dragVisual?.wpId === t.id) {
                 const { pixelsPerDay: ppd, timelineStart: tls } = layout;
@@ -834,6 +911,7 @@ export default function GanttChart({
                   isSelected={selectedTask?.id === t.id}
                   onClick={() => !readOnly && !dragState && handleBarClick(t)}
                   onDragStart={(!readOnly && onWPResize) ? (e, handle) => startDrag(e, t, handle) : null}
+                  onMoveStart={(!readOnly && onWPMove) ? (e) => startDrag(e, t, 'move') : null}
                 />
               );
             })}
@@ -851,7 +929,7 @@ export default function GanttChart({
 
       {/* WP Detail Tooltip */}
       {selectedTask && (
-        <WPTooltip task={selectedTask} onClose={() => setSelectedTask(null)} />
+        <WPTooltip task={selectedTask} onClose={() => setSelectedTask(null)} onManualDateChange={!readOnly ? onManualDateChange : null} />
       )}
     </div>
   );

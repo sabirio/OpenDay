@@ -3,4 +3,4 @@ export { normalizeWeightsTo100, sumWeights, sumsToTarget, WEIGHT_SUM_TARGET } fr
 export { validateTemplate, isTemplateValid } from './validation/validateTemplate.js';
 export { explainProgress } from '../../engines/explainProgressEngine.js';
 export { explainFromSnapshot, explainLive, taskProgressFromStatuses } from './explain/explainAdapters.js';
-export { getScopeWPIds } from './scope/getScopeWPIds.js';
+export { getScopeWPIds, resolveProjectScopeSelection } from './scope/getScopeWPIds.js';

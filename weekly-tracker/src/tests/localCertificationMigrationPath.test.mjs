@@ -17,6 +17,11 @@ const deploy = readFileSync(new URL('../../scripts/certification/resetAndDeploy.
 const snagLocal = readFileSync(new URL('../../scripts/certification/applySnagListLocal.mjs', import.meta.url), 'utf8');
 const contractorReportLegacyWpScopeLocal = readFileSync(new URL('../../scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs', import.meta.url), 'utf8');
 const importFoundationPhase2Local = readFileSync(new URL('../../scripts/certification/applyImportFoundationPhase2Local.mjs', import.meta.url), 'utf8');
+const masterCatalogSchemaV2Local = readFileSync(new URL('../../scripts/certification/applyMasterCatalogSchemaV2Local.mjs', import.meta.url), 'utf8');
+const masterCatalogSlice5DLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogSlice5DLocal.mjs', import.meta.url), 'utf8');
+const masterCatalogWeightCalibrationLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogWeightCalibrationLocal.mjs', import.meta.url), 'utf8');
+const masterCatalogDurationCalibrationLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogDurationCalibrationLocal.mjs', import.meta.url), 'utf8');
+const contractorScheduleDraftFoundationLocal = readFileSync(new URL('../../scripts/certification/applyContractorScheduleDraftFoundationLocal.mjs', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -57,7 +62,7 @@ check('fixture project ID is deterministic', /910001/.test(seedSql));
 check('all fixture passwords satisfy auth minimum', [...seed.matchAll(/password: '([^']+)'/g)].every(([, value]) => value.length >= 6));
 check('deploy reads canonical contract', /canonical-security-contract\.json/.test(deploy));
 check('deploy guard runs before reset or psql', deploy.indexOf('assertLocalTarget') < deploy.indexOf("execSync('npx"));
-check('canonical path ends at 029', contract.canonicalMigrationPath.included.at(-1) === '029_production_acl_followup.sql');
+check('canonical path ends at 041', contract.canonicalMigrationPath.included.at(-1) === '041_versioned_scope_templates.sql');
 const migrationNumbers = contract.canonicalMigrationPath.included.map(name => Number(name.slice(0, 3)));
 check('canonical path ordering is strictly increasing', migrationNumbers.every((value, index) => index === 0 || value > migrationNumbers[index - 1]));
 check('normal local dev script does not reset database', packageJson.scripts['local:dev'] === 'vite');
@@ -73,9 +78,28 @@ check('local Contractor Report legacy WP scope hash verification is stable acros
 check('local Import Foundation v1 Phase 2 extension uses the canonical local guard before psql', importFoundationPhase2Local.indexOf('assertLocalTarget') < importFoundationPhase2Local.indexOf("execFileSync('psql'"));
 check('local Import Foundation v1 Phase 2 extension pins and verifies the approved 037-040 batch', ['037_retail_historical_project_profile.sql', '038_import_foundation_commit_layer.sql', '039_import_foundation_integrity_hardening.sql', '040_import_planned_construction_end.sql'].every(file => importFoundationPhase2Local.includes(file)) && /createHash\('sha256'\)/.test(importFoundationPhase2Local));
 check('local Import Foundation v1 Phase 2 hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(importFoundationPhase2Local));
+check('local Master Catalog schema-v2 extension uses the canonical local guard before psql', masterCatalogSchemaV2Local.indexOf('assertLocalTarget') < masterCatalogSchemaV2Local.indexOf("execFileSync('psql'"));
+check('local Master Catalog schema-v2 extension pins and verifies the approved 042 migration', masterCatalogSchemaV2Local.includes('042_master_catalog_schema_v2.sql') && /createHash\('sha256'\)/.test(masterCatalogSchemaV2Local));
+check('local Master Catalog schema-v2 hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(masterCatalogSchemaV2Local));
+check('local Master Catalog (Slice 5D) extension uses the canonical local guard before psql', masterCatalogSlice5DLocal.indexOf('assertLocalTarget') < masterCatalogSlice5DLocal.indexOf("execFileSync('psql'"));
+check('local Master Catalog (Slice 5D) extension pins and verifies the approved 043 migration', masterCatalogSlice5DLocal.includes('043_retail_fitout_master_catalog.sql') && /createHash\('sha256'\)/.test(masterCatalogSlice5DLocal));
+check('local Master Catalog (Slice 5D) hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(masterCatalogSlice5DLocal));
+check('local Master Catalog weight extension uses the canonical local guard before psql', masterCatalogWeightCalibrationLocal.indexOf('assertLocalTarget') < masterCatalogWeightCalibrationLocal.indexOf("execFileSync('psql'"));
+check('local Master Catalog weight extension pins and verifies the approved 044 migration', masterCatalogWeightCalibrationLocal.includes('044_master_catalog_weight_calibration.sql') && /createHash\('sha256'\)/.test(masterCatalogWeightCalibrationLocal));
+check('local Master Catalog weight hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(masterCatalogWeightCalibrationLocal));
+check('local Master Catalog duration extension uses the canonical local guard before psql', masterCatalogDurationCalibrationLocal.indexOf('assertLocalTarget') < masterCatalogDurationCalibrationLocal.indexOf("execFileSync('psql'"));
+check('local Master Catalog duration extension pins and verifies the approved 045 migration', masterCatalogDurationCalibrationLocal.includes('045_master_catalog_duration_calibration.sql') && /createHash\('sha256'\)/.test(masterCatalogDurationCalibrationLocal));
+check('local Master Catalog duration hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(masterCatalogDurationCalibrationLocal));
+check('Master Catalog reset applies 042 -> 043 -> 044 -> 045 explicitly and in order',
+  /applyMasterCatalogSchemaV2Local\.mjs.*applyMasterCatalogSlice5DLocal\.mjs.*applyMasterCatalogWeightCalibrationLocal\.mjs.*applyMasterCatalogDurationCalibrationLocal\.mjs/.test(packageJson.scripts['cert:reset:master-catalog']));
+check('local Contractor Schedule Draft foundation extension uses the canonical local guard before psql', contractorScheduleDraftFoundationLocal.indexOf('assertLocalTarget') < contractorScheduleDraftFoundationLocal.indexOf("execFileSync('psql'"));
+check('local Contractor Schedule Draft foundation extension pins and verifies the approved 046-051 batch', ['046_contractor_schedule_draft_foundation.sql', '047_contractor_schedule_human_date_semantics.sql', '048_contractor_schedule_ownership_enforcement.sql', '049_contractor_schedule_submission_lifecycle.sql', '050_contractor_schedule_draft_lifecycle_lock.sql', '051_contractor_schedule_lifecycle_lock_integrity.sql'].every(file => contractorScheduleDraftFoundationLocal.includes(file)) && /createHash\('sha256'\)/.test(contractorScheduleDraftFoundationLocal));
+check('local Contractor Schedule Draft foundation hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(contractorScheduleDraftFoundationLocal));
+check('Contractor Schedule reset keeps every prior extension explicit, same precedent as cert:reset:master-catalog, and does not depend on the dormant Master Catalog batch',
+  packageJson.scripts['cert:reset:contractor-schedule'] === 'npm run cert:reset:local && node scripts/certification/applySnagListLocal.mjs && node scripts/certification/applyContractorReportLegacyWpScopeLocal.mjs && node scripts/certification/applyImportFoundationPhase2Local.mjs && node scripts/certification/applyContractorScheduleDraftFoundationLocal.mjs && node scripts/seed-test-users.mjs');
 
 // Structural migration-completeness guard: the fresh-install path is a
-// multi-part composition (canonical contract's 000-029 + applySnagListLocal.mjs's
+// multi-part composition (canonical contract's 000-029 and 041 + applySnagListLocal.mjs's
 // separately-approved 030-035 batch + applyContractorReportLegacyWpScopeLocal.mjs's
 // separately-approved 036 migration) rather than one single list. This proves
 // their UNION still covers every migration file that belongs on the
@@ -90,14 +114,24 @@ const expectedFreshInstallSet = migrationFiles.filter(f => !excludedHistorical.h
 const snagBatchFiles = [...snagLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const contractorReportLegacyWpScopeBatchFiles = [...contractorReportLegacyWpScopeLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const importFoundationPhase2BatchFiles = [...importFoundationPhase2Local.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
-const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles]);
-check('fresh-install migration set is exactly covered by canonical contract (000-029) + approved Snag batch (030-035) + approved Contractor Report legacy WP scope migration (036) + approved Import Foundation v1 Phase 2 batch (037-040), no gaps',
+const masterCatalogSchemaV2BatchFiles = [...masterCatalogSchemaV2Local.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const masterCatalogSlice5DBatchFiles = [...masterCatalogSlice5DLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const masterCatalogWeightCalibrationBatchFiles = [...masterCatalogWeightCalibrationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const masterCatalogDurationCalibrationBatchFiles = [...masterCatalogDurationCalibrationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const contractorScheduleDraftFoundationBatchFiles = [...contractorScheduleDraftFoundationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles]);
+check('fresh-install migration set is exactly covered through approved Contractor Schedule Draft foundation migration 051, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
 check('at least one migration beyond 029 is covered (guards against this check being vacuously true)', snagBatchFiles.length >= 6);
 check('migration 036 is covered by the Contractor Report legacy WP scope batch (guards against this check being vacuously true)', contractorReportLegacyWpScopeBatchFiles.length >= 1);
 check('migrations 037-040 are covered by the Import Foundation v1 Phase 2 batch (guards against this check being vacuously true)', importFoundationPhase2BatchFiles.length >= 4);
+check('migration 042 is covered by the Master Catalog schema-v2 batch (guards against this check being vacuously true)', masterCatalogSchemaV2BatchFiles.length >= 1);
+check('migration 043 is covered by the Master Catalog Slice 5D batch (guards against this check being vacuously true)', masterCatalogSlice5DBatchFiles.length >= 1);
+check('migration 044 is covered by the Master Catalog weight batch (guards against this check being vacuously true)', masterCatalogWeightCalibrationBatchFiles.length >= 1);
+check('migration 045 is covered by the Master Catalog duration batch (guards against this check being vacuously true)', masterCatalogDurationCalibrationBatchFiles.length >= 1);
+check('migrations 046-051 are covered by the Contractor Schedule Draft foundation batch (guards against this check being vacuously true)', contractorScheduleDraftFoundationBatchFiles.length >= 6);
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by

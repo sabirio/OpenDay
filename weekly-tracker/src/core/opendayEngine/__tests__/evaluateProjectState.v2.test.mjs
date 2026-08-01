@@ -78,5 +78,37 @@ console.log('\nevaluateProjectState — v1 project (templateType unset) unaffect
     typeof state.readiness.verdict === 'string');
 }
 
+console.log('\nevaluateProjectState — legacy/canonical area compatibility');
+{
+  const report = {
+    reportingDate: iso(-1),
+    workPackageStatuses: {
+      'sales.flooring': {
+        Waterproofing: { status: 'Completed', progress: 100 },
+        'Floor Tile Installation': { status: 'Completed', progress: 100 },
+        Grouting: { status: 'Completed', progress: 100 },
+      },
+    },
+  };
+  const legacyProject = {
+    templateType: 'retail-fitout-v2',
+    targetOpeningDate: iso(90),
+    salesAreaSqm: 100,
+    backOfHouseAreaSqm: 900,
+    scope: { zoneAreas: { sales: 850, boh: 180 } },
+  };
+  const canonicalProject = {
+    templateType: 'retail-fitout-v2',
+    targetOpeningDate: iso(90),
+    salesAreaSqm: 850,
+    backOfHouseAreaSqm: 180,
+    scope: null,
+  };
+  const legacyState = evaluateProjectState(legacyProject, [report], []);
+  const canonicalState = evaluateProjectState(canonicalProject, [report], []);
+  check('legacy explicit areas preserve the previous progress result when canonical columns disagree',
+    legacyState.progress === canonicalState.progress);
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

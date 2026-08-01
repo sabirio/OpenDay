@@ -2,6 +2,9 @@ import { supabase } from '../lib/supabase';
 import { ProjectSchema, ProgressHistoryRowSchema } from '../schemas/projectSchema';
 import { validateArray, validateOne } from '../schemas/validate';
 import { isoWeekToMonday } from '../utils/scheduleUtils';
+import {
+  RETAIL_FITOUT_V2_FAMILY,
+} from '../domains/construction/templates/versionedScopeTemplate.js';
 
 const LEGACY_PHASE_MAP = {
   'Demolition works':        'demolition',
@@ -90,6 +93,7 @@ export function fromDB(row) {
     contractorEmail: row.contractor_email,
     projectType: row.project_type,
     projectStatus: row.project_status,
+    companyId:    row.company_id || null,
     phases:      normalizePhasesFromDB(row.phases || []),
     scope:       row.scope       || null,
     templateId:  row.template_id || null,
@@ -103,6 +107,15 @@ export function fromDB(row) {
     ganttEngineVersion:         row.gantt_engine_version         ?? null,
     constructionCompletionDate: row.construction_completion_date || null,
     forecastOpeningDate:        row.forecast_opening_date        || null,
+    // Simplification Phase 3B/3C: AUTO_GENERATED default (046) — a project
+    // fetched before this field existed on some historical row would still
+    // fall back to the same default the DB column itself defaults to.
+    // Literal, not the core/schedule/scheduleOwnershipMode.js constant:
+    // services/ is persistence/I/O only and must never import core/ (the
+    // architecture guard's service-purity rule) — this is the raw-DB-value
+    // mapping boundary itself, the same shape every other enum-like column
+    // default in this function already uses.
+    scheduleOwnershipMode:      row.schedule_ownership_mode      || 'AUTO_GENERATED',
     // ── Retail Historical Project Profile v1 (migration 037) — same schema
     // serves live creation/editing AND historical import (Capture Once, Use
     // Everywhere). PM-editable here; actual_* dates are observed historical
@@ -123,7 +136,7 @@ export function fromDB(row) {
   };
 }
 
-export function toDB(project) {
+export function toDB(project, { preserveLegacyZoneAreas = false } = {}) {
   // Mall/Street mutual exclusivity enforced at the write boundary — mirrors
   // the same invariant the trusted Import commit RPC enforces (migration
   // 039's integrity floor). Whichever field doesn't apply to the declared
@@ -156,8 +169,20 @@ export function toDB(project) {
     contractor_email: project.contractorEmail || null,
     project_type: project.projectType || 'New Opening',
     project_status: project.projectStatus || 'Active',
+    company_id: project.companyId || null,
     phases:      project.phases      || [],
-    scope:       project.scope       || null,
+    // Scope is persisted as selection/configuration only for new projects.
+    // Existing rows keep an explicit historical zoneAreas object verbatim;
+    // this is write-boundary compatibility, not an alternate calculation.
+    scope: (() => {
+      if (!project.scope || typeof project.scope !== 'object' || Array.isArray(project.scope)) return null;
+      const scope = { ...project.scope };
+      delete scope.zoneAreas;
+      if (preserveLegacyZoneAreas && project.scope.zoneAreas && typeof project.scope.zoneAreas === 'object' && !Array.isArray(project.scope.zoneAreas)) {
+        scope.zoneAreas = { ...project.scope.zoneAreas };
+      }
+      return Object.keys(scope).length > 0 ? scope : null;
+    })(),
     template_id: project.templateId  || null,
     // ── Gantt setup fields (PM-editable) ───────────────────────────────────
     template_type:  project.templateType  || null,
@@ -190,9 +215,15 @@ export async function getAll() {
     .order('created_at', { ascending: true });
   if (error) throw error;
   const projects = data.map(fromDB);
+  const { fetchTemplateRecordsByIds } = await import('./templateService.js');
+  const templatesById = await fetchTemplateRecordsByIds(projects.map(project => project.templateId));
+  const hydratedProjects = projects.map(project => ({
+    ...project,
+    scopeTemplate: project.templateId ? (templatesById.get(project.templateId) ?? null) : null,
+  }));
 
   try {
-    const ids = projects.map(p => p.id);
+    const ids = hydratedProjects.map(p => p.id);
     const { data: histRows, error: histErr } = await supabase
       .from('progress_history')
       .select('project_id, overall_progress, spi, recorded_at, week_number')
@@ -212,13 +243,13 @@ export async function getAll() {
     // entire project (and everything derived from it) from getAll(), not just
     // that one snapshot. Filtering here keeps the "one bad row, one warning"
     // contract for nested collections too.
-    const withHistory = projects.map(p => ({
+    const withHistory = hydratedProjects.map(p => ({
       ...p,
       progressHistory: validateArray(ProgressHistoryRowSchema, histByProject[p.id] || [], `progress_history[project ${p.id}]`),
     }));
     return validateArray(ProjectSchema, withHistory, 'projects');
   } catch {
-    return validateArray(ProjectSchema, projects.map(p => ({ ...p, progressHistory: [] })), 'projects');
+    return validateArray(ProjectSchema, hydratedProjects.map(p => ({ ...p, progressHistory: [] })), 'projects');
   }
 }
 
@@ -229,7 +260,10 @@ export async function getById(id) {
     .eq('id', id)
     .single();
   if (error) throw error;
-  return validateOne(ProjectSchema, fromDB(data), 'project');
+  const project = fromDB(data);
+  const { fetchTemplateRecordById } = await import('./templateService.js');
+  const scopeTemplate = await fetchTemplateRecordById(project.templateId);
+  return validateOne(ProjectSchema, { ...project, scopeTemplate }, 'project');
 }
 
 export async function getProgressSnapshot(isoWeekStr) {
@@ -253,16 +287,38 @@ export async function getProgressSnapshot(isoWeekStr) {
 
 export async function create(project) {
   validateProject(project);
-  const payload = toDB(project);
-  // Pin to the active template at creation time if not already set.
+  const {
+    fetchTemplateRecordById,
+    getCurrentCompanyId,
+    resolveDefaultScopeTemplateForCurrentCompany,
+  } = await import('./templateService.js');
+  const payload = toDB(project, { preserveLegacyZoneAreas: false });
+  const companyId = payload.company_id ?? await getCurrentCompanyId();
+  payload.company_id = companyId;
+
+  let pinnedTemplate = null;
+  // V2 projects pin the exact company-specific default when present, or the
+  // global OpenDay default otherwise. RLS ensures another company's private
+  // template is never among these candidates.
+  if (!payload.template_id && payload.template_type === RETAIL_FITOUT_V2_FAMILY) {
+    pinnedTemplate = await resolveDefaultScopeTemplateForCurrentCompany(RETAIL_FITOUT_V2_FAMILY);
+    if (!pinnedTemplate) {
+      throw new Error('No applicable active Retail Fit-Out V2 scope template is configured');
+    }
+    payload.template_id = pinnedTemplate.id;
+  }
+
+  // Preserve the existing database-template behavior for V1/custom projects,
+  // but exclude the newly-seeded V2 family from that legacy global lookup.
   if (!payload.template_id) {
     const { data: tpl } = await supabase
       .from('templates')
       .select('id')
+      .is('family', null)
       .eq('is_active', true)
       .order('version', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
     payload.template_id = tpl?.id ?? null;
   }
   const { data, error } = await supabase
@@ -271,13 +327,17 @@ export async function create(project) {
     .select()
     .single();
   if (error) throw error;
-  return fromDB(data);
+  const saved = fromDB(data);
+  if (!pinnedTemplate && saved.templateId) {
+    pinnedTemplate = await fetchTemplateRecordById(saved.templateId);
+  }
+  return { ...saved, scopeTemplate: pinnedTemplate };
 }
 
 export async function update(id, project) {
   if (!id) throw new Error('Project ID is required for update');
   validateProject(project);
-  const payload = toDB(project);
+  const payload = toDB(project, { preserveLegacyZoneAreas: true });
   // template_id is immutable after creation — never overwrite on update.
   delete payload.template_id;
   const { data, error } = await supabase
@@ -287,7 +347,12 @@ export async function update(id, project) {
     .select()
     .single();
   if (error) throw error;
-  return fromDB(data);
+  const saved = fromDB(data);
+  const { fetchTemplateRecordById } = await import('./templateService.js');
+  return {
+    ...saved,
+    scopeTemplate: await fetchTemplateRecordById(saved.templateId),
+  };
 }
 
 export async function remove(id) {

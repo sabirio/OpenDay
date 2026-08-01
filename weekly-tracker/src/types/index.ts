@@ -69,5 +69,9 @@ export interface CriticalHealth {
   total: number;
   behind: number;
   ratio: number;
-  label: 'healthy' | 'warning' | 'critical';
+  // 'no_schedule' (SCHEDULE-DEBT-01 fix, Simplification Phase 3B.1): the
+  // project has critical tasks, but none of them have a schedule yet — a
+  // lack-of-data state, distinct from 'healthy' (which also covers the
+  // case of genuinely zero critical tasks) and never 'warning'/'critical'.
+  label: 'healthy' | 'warning' | 'critical' | 'no_schedule';
 }

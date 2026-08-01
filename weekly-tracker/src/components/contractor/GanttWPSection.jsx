@@ -65,7 +65,7 @@ function GanttWPRow({ task, entry, onChange }) {
           {' → '}
           {task.earlyFinish ? new Date(task.earlyFinish).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
           {' · '}
-          {task.duration_days}d
+          {task.duration_days != null ? `${task.duration_days}d` : '—'}
         </div>
       )}
     </div>

@@ -73,6 +73,64 @@ test.describe('Shared dialog primitive (components/shared/Modal.jsx)', () => {
     await expect(dialog).toBeHidden();
   });
 
+  test('ProjectEditorModal — continuous typing does not lose focus after each character (Modal focus-effect regression)', async ({ page }) => {
+    // Regression for a bug where Modal.jsx's initial-focus useEffect depended
+    // on [onClose, isDirty, dirtyMessage] — since ProjectEditorModal's caller
+    // passes a fresh inline onClose and a freshly-computed isDirty on every
+    // render, and typing a controlled character re-renders the whole chain,
+    // the effect re-ran on every keystroke and forcibly refocused the first
+    // focusable element in the dialog (the × close button), so only the
+    // first character of anything typed ever landed in the field. A .fill()-
+    // based test (see the dirty-state test above) cannot catch this — fill()
+    // sets the value in one operation without dispatching real per-character
+    // key events. This test uses pressSequentially(), which does.
+    await login(page, ADMIN);
+    await page.goto('/projects');
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('button', { hasText: 'Add New Project' }).click();
+    const dialog = page.locator('[role="dialog"]').first();
+    await expect(dialog).toBeVisible();
+
+    // Field 1: Store Code — visible immediately, no precondition.
+    const storeCode = dialog.locator('input[name="storeCode"]');
+    await storeCode.click();
+    await storeCode.pressSequentially('SE001', { delay: 30 });
+    await expect(storeCode, 'every character should land in the same field with no reclick').toHaveValue('SE001');
+    const storeCodeStillFocused = await storeCode.evaluate((el) => el === document.activeElement);
+    expect(storeCodeStillFocused, 'focus should still be on the Store Code input after continuous typing').toBeTruthy();
+
+    // Field 2: Shopping Mall Name — the exact field named in the reported
+    // bug, only rendered after selecting the "Mall" Location Type.
+    await dialog.locator('button', { hasText: 'Mall' }).click();
+    const mallName = dialog.locator('input[name="shoppingMallName"]');
+    await expect(mallName).toBeVisible();
+    await mallName.click();
+    await mallName.pressSequentially('Mega Center', { delay: 30 });
+    await expect(mallName, 'every character should land in the same field with no reclick').toHaveValue('Mega Center');
+    const mallNameStillFocused = await mallName.evaluate((el) => el === document.activeElement);
+    expect(mallNameStillFocused, 'focus should still be on the Shopping Mall Name input after continuous typing').toBeTruthy();
+
+    // Backspace/delete must also work on the still-focused field (proves the
+    // fix didn't just make the *first* keystroke land — deletion exercises a
+    // second, different keystroke on an already-non-empty controlled value).
+    await mallName.press('Backspace');
+    await expect(mallName).toHaveValue('Mega Cente');
+
+    // Field 3: Store Concept — remains a single free-text input after moving
+    // into the location/context section for Slice 1.
+    const storeConcept = dialog.locator('input[name="storeConcept"]');
+    await storeConcept.click();
+    await storeConcept.pressSequentially('Flagship', { delay: 30 });
+    await expect(storeConcept, 'Store Concept should retain focus through continuous typing').toHaveValue('Flagship');
+    const storeConceptStillFocused = await storeConcept.evaluate((el) => el === document.activeElement);
+    expect(storeConceptStillFocused, 'focus should still be on Store Concept after continuous typing').toBeTruthy();
+
+    // Close without triggering the dirty-state prompt path (not what this test covers).
+    page.once('dialog', (d) => d.dismiss().catch(() => {}));
+    await page.keyboard.press('Escape');
+  });
+
   test('ProjectEditorModal — Tab from the last focusable element wraps to the first (focus containment)', async ({ page }) => {
     await login(page, ADMIN);
     await page.goto('/projects');

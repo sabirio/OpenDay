@@ -30,6 +30,12 @@
 .site-snag-pin-preview{position:sticky;top:18px;max-height:calc(100vh - 36px);overflow:auto;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg-elevated)}.site-snag-pin-preview-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)}.site-snag-pin-preview-header h2{margin:0}.site-snag-pin-preview-body{display:flex;flex-direction:column;align-items:flex-start;gap:14px;padding:16px}.site-snag-pin-preview-body h3,.site-snag-pin-preview-body p{margin:0}.site-snag-pin-preview-body .snag-detail-data{width:100%;margin:0}.site-snag-preview-evidence{width:100%;padding-top:14px;border-top:1px solid var(--border)}.site-snag-preview-evidence h3{margin-bottom:8px}.site-snag-preview-evidence .snag-evidence-list{margin:0}.site-snag-preview-evidence .snag-evidence-item{padding:10px 0}.site-snag-preview-evidence .snag-evidence-preview img{max-height:240px}
 @media(max-width:980px){.site-snag-plan-layout.has-preview{grid-template-columns:1fr}.site-snag-pin-preview{position:static;max-height:none}}
 @media(max-width:640px){.site-snag-header{align-items:flex-start}.site-snag-breakdowns{grid-template-columns:1fr;gap:16px}.site-snag-section-intro{flex-direction:column}.site-snag-plan-controls{overflow-x:auto;flex-wrap:nowrap}.site-snag-plan-controls>*{flex:0 0 auto}.site-snag-plan-controls label{width:230px}.site-snag-plan-stage{min-height:360px}}
+/* Phase 5 responsive fix: the project/mode header manages the Observations
+   list, not the currently open Observation — hide it while an Observation's
+   detail is focused in the mobile single-pane view (same 900px breakpoint as
+   the shared master/detail switch), so the detail isn't pushed below the
+   fold. Still reachable via the detail page's own "Back to Site Snag" link. */
+@media(max-width:900px){.site-snag-page[data-mobile-view="detail"] .site-snag-header,.site-snag-page[data-mobile-view="detail"] .site-snag-mode-tabs{display:none}}
 
 /* Site Snag P0 — master-detail Observation control center */
 .site-snag-master-detail .master-pane-header{padding-bottom:12px}

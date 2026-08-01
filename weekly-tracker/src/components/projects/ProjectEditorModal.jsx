@@ -2,9 +2,12 @@ import { Field, FieldRow, FormSection } from "./ProjectFormParts";
 import ConflictWarning from "../ConflictWarning";
 import { TEMPLATES } from "../../config/projectTemplates";
 import { PROJECT_TYPE_OPTIONS, LOCATION_TYPE_OPTIONS, STORE_CONCEPT_SUGGESTIONS } from "../../config/projectVocabulary";
-import { V2_TEMPLATE_TYPE } from "../../domains/construction/templates/retailFitoutV2";
-import { clamp } from "../../hooks/useChartMathPresentation";
 import Modal from "../shared/Modal";
+import { clearProjectScopeSelection } from "../../hooks/useProjectAreaPresentation";
+import {
+  buildProjectScopeEntryModel,
+  usesUnifiedProjectScopeEntry,
+} from "../../hooks/useProjectScopeEntryPresentation";
 
 export default function ProjectEditorModal({
   project,
@@ -21,6 +24,11 @@ export default function ProjectEditorModal({
   isDirty = false,
 }) {
   if (!project) return null;
+  const unifiedScopeEntry = usesUnifiedProjectScopeEntry(project, {
+    isEditing: Boolean(editingProjectId),
+  });
+  const scopeEntry = buildProjectScopeEntryModel(project);
+  const scopeConfigured = project.scope?.workPackages != null;
 
   // Cancel/x are explicit close actions, same as Escape/backdrop — should
   // carry the same dirty-state protection rather than bypassing it.
@@ -122,6 +130,25 @@ export default function ProjectEditorModal({
                   <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Select a Location Type to enter the mall name or street address.</div>
                 )}
               </div>
+
+              <div style={{ marginTop: 12 }}>
+                <Field label="Store Concept">
+                  <input
+                    name="storeConcept"
+                    list="store-concept-suggestions"
+                    value={project.storeConcept || ""}
+                    onChange={onChange}
+                    className="ds-input"
+                    placeholder="e.g. Flagship"
+                  />
+                  {/* Suggestions only — free text, no enum, matches the frozen
+                      Retail Project Profile decision (store_concept is a plain
+                      TEXT column with zero DB-level enforcement). */}
+                  <datalist id="store-concept-suggestions">
+                    {STORE_CONCEPT_SUGGESTIONS.map((opt) => <option key={opt} value={opt} />)}
+                  </datalist>
+                </Field>
+              </div>
             </div>
           </FormSection>
 
@@ -144,19 +171,21 @@ export default function ProjectEditorModal({
               fields above or with the engine-owned forecast fields
               (construction_completion_date/forecast_opening_date), which have
               no input here at all and remain exclusively ganttService-written. */}
-          <FormSection title="Actual Dates" accentColor="var(--status-done)">
-            <FieldRow>
-              <Field label="Actual Construction Start">
-                <input type="date" name="actualConstructionStartDate" value={project.actualConstructionStartDate || ""} onChange={onChange} className="ds-input" />
-              </Field>
-              <Field label="Actual Construction Completion">
-                <input type="date" name="actualConstructionCompletionDate" value={project.actualConstructionCompletionDate || ""} onChange={onChange} className="ds-input" />
-              </Field>
-              <Field label="Actual Opening">
-                <input type="date" name="actualOpeningDate" value={project.actualOpeningDate || ""} onChange={onChange} className="ds-input" />
-              </Field>
-            </FieldRow>
-          </FormSection>
+          {editingProjectId && (
+            <FormSection title="Actual Dates" accentColor="var(--status-done)">
+              <FieldRow>
+                <Field label="Actual Construction Start">
+                  <input type="date" name="actualConstructionStartDate" value={project.actualConstructionStartDate || ""} onChange={onChange} className="ds-input" />
+                </Field>
+                <Field label="Actual Construction Completion">
+                  <input type="date" name="actualConstructionCompletionDate" value={project.actualConstructionCompletionDate || ""} onChange={onChange} className="ds-input" />
+                </Field>
+                <Field label="Actual Opening">
+                  <input type="date" name="actualOpeningDate" value={project.actualOpeningDate || ""} onChange={onChange} className="ds-input" />
+                </Field>
+              </FieldRow>
+            </FormSection>
+          )}
 
           <FormSection title="Areas" accentColor="var(--accent)">
             <FieldRow>
@@ -217,44 +246,67 @@ export default function ProjectEditorModal({
             </FieldRow>
           </FormSection>
 
-          <FormSection title="Construction Template" accentColor="var(--accent)">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {TEMPLATES.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    if (t.id === project.templateType) return;
-                    // Switching templates invalidates any existing scope
-                    // selection — v1's {phases,workPackages} shape and v2's
-                    // {zones,categories,workPackages,zoneAreas} shape are not
-                    // interchangeable (see getScopeWPIds.js/ZonedScopeConfigurator.jsx).
-                    onProjectPatch((p) => ({ ...p, templateType: t.id, scope: null }));
-                  }}
-                  style={{
-                    flex: "1 1 200px", textAlign: "left", padding: "10px 14px", borderRadius: 10, cursor: "pointer",
-                    border: `1.5px solid ${project.templateType === t.id ? "var(--status-done)" : "var(--border)"}`,
-                    background: project.templateType === t.id ? "var(--status-done-bg)" : "var(--accent-subtle)",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <div style={{ fontSize: 13, fontWeight: 700, color: project.templateType === t.id ? "var(--status-done)" : "var(--text-primary)" }}>
-                    {t.icon} {t.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{t.description}</div>
-                </button>
-              ))}
-            </div>
-          </FormSection>
+          {unifiedScopeEntry ? (
+            <FormSection title="Project Scope" accentColor="var(--accent)">
+              <div className="project-scope-entry">
+                <div className="project-scope-entry-summary">
+                  <strong>{scopeEntry.selectedWorkPackageCount} work packages selected</strong>
+                  <span>
+                    Sales {scopeEntry.salesAreaLabel}
+                    <span aria-hidden="true"> · </span>
+                    Back of House {scopeEntry.backOfHouseAreaLabel}
+                  </span>
+                </div>
+                <div className="project-scope-entry-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={onOpenScopeConfigurator}
+                  >
+                    Configure Project Scope
+                  </button>
+                  {scopeConfigured && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost-sm"
+                      onClick={() => onProjectPatch((p) => ({ ...p, scope: clearProjectScopeSelection(p) }))}
+                    >
+                      Reset to full scope
+                    </button>
+                  )}
+                </div>
+              </div>
+            </FormSection>
+          ) : (
+            <>
+              <FormSection title="Construction Template" accentColor="var(--accent)">
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {TEMPLATES.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        if (t.id === project.templateType) return;
+                        // Legacy edit compatibility: an explicit template
+                        // switch invalidates the previous template's scope.
+                        onProjectPatch((p) => ({ ...p, templateType: t.id, scope: null }));
+                      }}
+                      style={{
+                        flex: "1 1 200px", textAlign: "left", padding: "10px 14px", borderRadius: 10, cursor: "pointer",
+                        border: `1.5px solid ${project.templateType === t.id ? "var(--status-done)" : "var(--border)"}`,
+                        background: project.templateType === t.id ? "var(--status-done-bg)" : "var(--accent-subtle)",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 700, color: project.templateType === t.id ? "var(--status-done)" : "var(--text-primary)" }}>
+                        {t.icon} {t.label}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{t.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </FormSection>
 
-          {/* project.scope may already be a non-null object (e.g. it holds
-              only zoneAreas, entered below, for a v2 project) without the
-              user ever having opened the scope configurator — "configured"
-              means a WP selection was actually saved (workPackages present),
-              not merely that the scope object exists. */}
-          {(() => {
-            const scopeConfigured = project.scope?.workPackages != null;
-            return (
               <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
                 <button
                   type="button"
@@ -272,55 +324,14 @@ export default function ProjectEditorModal({
                 {scopeConfigured && (
                   <button
                     type="button"
-                    onClick={() => onProjectPatch((p) => ({ ...p, scope: p.scope?.zoneAreas ? { zoneAreas: p.scope.zoneAreas } : null }))}
+                    onClick={() => onProjectPatch((p) => ({ ...p, scope: clearProjectScopeSelection(p) }))}
                     style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}
                   >
                     Reset to full scope
                   </button>
                 )}
               </div>
-            );
-          })()}
-
-          {project.templateType === V2_TEMPLATE_TYPE && (
-            <FormSection title="Zone Areas (m²)" accentColor="var(--accent)">
-              <FieldRow>
-                <Field label="Sales Floor Area">
-                  <input
-                    type="number"
-                    min="0"
-                    name="scope.zoneAreas.sales"
-                    value={project.scope?.zoneAreas?.sales ?? ''}
-                    onChange={(e) => {
-                      // Clamped to >=0 at entry (defense-in-depth, F-01) — the
-                      // engine (computeZoneWeights.js) is independently robust
-                      // to a negative value reaching it regardless.
-                      const v = e.target.value === '' ? '' : clamp(Number(e.target.value) || 0, 0, Infinity);
-                      onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, sales: v } } }));
-                    }}
-                    className="ds-input"
-                    placeholder="e.g. 700"
-                  />
-                </Field>
-                <Field label="Back of House Area">
-                  <input
-                    type="number"
-                    min="0"
-                    name="scope.zoneAreas.boh"
-                    value={project.scope?.zoneAreas?.boh ?? ''}
-                    onChange={(e) => {
-                      // Clamped to >=0 at entry (defense-in-depth, F-01) — the
-                      // engine (computeZoneWeights.js) is independently robust
-                      // to a negative value reaching it regardless.
-                      const v = e.target.value === '' ? '' : clamp(Number(e.target.value) || 0, 0, Infinity);
-                      onProjectPatch((p) => ({ ...p, scope: { ...p.scope, zoneAreas: { ...p.scope?.zoneAreas, boh: v } } }));
-                    }}
-                    className="ds-input"
-                    placeholder="e.g. 300"
-                  />
-                </Field>
-              </FieldRow>
-            </FormSection>
+            </>
           )}
 
           <FormSection title="Project" accentColor="var(--status-done)">
@@ -339,36 +350,22 @@ export default function ProjectEditorModal({
                   ))}
                 </div>
               </Field>
-              <Field label="Store Concept">
-                <input
-                  name="storeConcept"
-                  list="store-concept-suggestions"
-                  value={project.storeConcept || ""}
-                  onChange={onChange}
-                  className="ds-input"
-                  placeholder="e.g. Flagship"
-                />
-                {/* Suggestions only — free text, no enum, matches the frozen
-                    Retail Project Profile decision (store_concept is a plain
-                    TEXT column with zero DB-level enforcement). */}
-                <datalist id="store-concept-suggestions">
-                  {STORE_CONCEPT_SUGGESTIONS.map((opt) => <option key={opt} value={opt} />)}
-                </datalist>
-              </Field>
-              <Field label="Project Status">
-                <div style={{ display: "flex", gap: 8 }}>
-                  {["Active", "Completed"].map((label) => (
-                    <button key={label} type="button"
-                      onClick={() => onProjectPatch((p) => ({ ...p, projectStatus: label }))}
-                      style={{
-                        flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease",
-                        border: `1.5px solid ${project.projectStatus === label ? "var(--accent)" : "var(--border)"}`,
-                        background: project.projectStatus === label ? "var(--accent-subtle)" : "var(--accent-subtle)",
-                        color: project.projectStatus === label ? "var(--accent)" : "var(--text-muted)",
-                      }}>{label}</button>
-                  ))}
-                </div>
-              </Field>
+              {editingProjectId && (
+                <Field label="Project Status">
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {["Active", "Completed"].map((label) => (
+                      <button key={label} type="button"
+                        onClick={() => onProjectPatch((p) => ({ ...p, projectStatus: label }))}
+                        style={{
+                          flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease",
+                          border: `1.5px solid ${project.projectStatus === label ? "var(--accent)" : "var(--border)"}`,
+                          background: project.projectStatus === label ? "var(--accent-subtle)" : "var(--accent-subtle)",
+                          color: project.projectStatus === label ? "var(--accent)" : "var(--text-muted)",
+                        }}>{label}</button>
+                    ))}
+                  </div>
+                </Field>
+              )}
             </FieldRow>
           </FormSection>
 

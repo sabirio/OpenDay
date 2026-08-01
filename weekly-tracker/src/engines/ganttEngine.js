@@ -3,7 +3,7 @@ import { WORK_PACKAGES, PHASES, getPhaseById } from '../config/masterTaskLibrary
 import { DEPENDENCY_RULES } from '../config/dependencyRules.js';
 import { resolveTemplateWPs } from '../config/projectTemplates.js';
 import { buildV2ProgressTemplate } from '../core/projects/weights/buildV2ProgressTemplate.js';
-import { retailFitoutV2, getWPByIdV2 } from '../domains/construction/templates/retailFitoutV2.js';
+import { resolveV2TemplateData } from '../domains/construction/templates/versionedScopeTemplate.js';
 
 // Increment whenever the engine produces structurally different planned dates.
 // Any saved Gantt with a different (or null) version is considered stale.
@@ -118,7 +118,7 @@ export function buildProjectWPs(templateId, projectStart, targetOpeningDate, sto
  * from getWPGrouping(), never from this stored value — see that file's doc
  * comment.
  *
- * @param {Record<string, number>} zoneAreas — project.scope.zoneAreas, e.g. { sales: 700, boh: 300 }
+ * @param {Record<string, number>} zoneAreas — effective inputs supplied by the project-area resolver
  * @param {Date|string} projectStart
  * @param {Date|string} targetOpeningDate
  * @param {number} storeSizeSqm
@@ -139,11 +139,21 @@ export function buildProjectWPsV2(zoneAreas, projectStart, targetOpeningDate, st
   if (storeSizeSqm > 2000) sizeModifier = 1.15;
   else if (storeSizeSqm < 500) sizeModifier = 0.90;
 
-  const { activeZoneIds = null, activeCategoryIds = null, selectedWPIds = null } = options;
-  const template = buildV2ProgressTemplate(zoneAreas, activeZoneIds, activeCategoryIds);
+  const {
+    activeZoneIds = null,
+    activeCategoryIds = null,
+    selectedWPIds = null,
+    scopeTemplate = null,
+  } = options;
+  const templateData = resolveV2TemplateData(scopeTemplate);
+  const template = buildV2ProgressTemplate(zoneAreas, activeZoneIds, activeCategoryIds, templateData);
 
   let activeWPs = template.workPackages;
-  if (selectedWPIds && selectedWPIds.length > 0) {
+  // null = no filter (full scope); an array — even an explicitly empty one —
+  // is a real selection and must be applied as-is (schema v2's "[] means
+  // zero WPs" contract; see resolveProjectScopeSelection). Callers that mean
+  // "no selection, use everything" pass null, never [].
+  if (selectedWPIds !== null) {
     const set = new Set(selectedWPIds);
     activeWPs = activeWPs.filter(wp => set.has(wp.id));
   }
@@ -160,19 +170,18 @@ export function buildProjectWPsV2(zoneAreas, projectStart, targetOpeningDate, st
   );
 
   return activeWPs.map(wp => {
-    const meta = getWPByIdV2(wp.id);
-    const zone = retailFitoutV2.zones.find(z => z.id === meta?.zoneId);
+    const zone = templateData.zones.find(z => z.id === wp.zoneId);
     const raw = total_days * (phaseWeightNorm[wp.phaseId] || 0) * wp.duration_pct * sizeModifier;
     const duration_days = Math.max(1, Math.round(raw));
 
     return {
       id:              wp.id,
       label:           wp.label,
-      phaseId:         meta?.zoneId ?? wp.phaseId,
-      phaseLabel:      zone?.label ?? meta?.zoneId ?? wp.phaseId,
+      phaseId:         wp.zoneId ?? wp.phaseId,
+      phaseLabel:      zone?.label ?? wp.zoneId ?? wp.phaseId,
       categoryId:      wp.phaseId,
       duration_pct:    wp.duration_pct,
-      isBlocker:       meta?.isBlocker ?? false,
+      isBlocker:       wp.isBlocker ?? false,
       defaultLag_days: 0,
       duration_days,
       actual_progress: 0,

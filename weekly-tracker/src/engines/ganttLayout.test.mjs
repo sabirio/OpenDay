@@ -4,7 +4,7 @@
 // matched any v1 rule, so calculateLayout().arrows was always empty for v2.
 // Run: node src/engines/ganttLayout.test.mjs
 
-import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS } from './ganttLayout.js';
+import { calculateLayout, diffDays, pixelsToDays, MIN_PIXELS, computeDragEditDates, durationDaysFromRange, toHumanFinishInclusive, toInternalEndBoundary } from './ganttLayout.js';
 import { filterRulesForWPsV2 } from '../config/dependencyRulesV2.js';
 import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2.js';
 
@@ -78,6 +78,145 @@ console.log('\ndiffDays / pixelsToDays / MIN_PIXELS — drag-resize helpers (Gan
   check('pixelsToDays rounds to nearest whole day', pixelsToDays(100, 30) === 3);
   check('pixelsToDays handles negative drag (dragging left)', pixelsToDays(-100, 30) === -3);
   check('MIN_PIXELS is the documented 600px floor', MIN_PIXELS === 600);
+}
+
+console.log('\ncalculateLayout — Simplification Phase 2: unscheduled WPs (planned_start/end/duration null)');
+{
+  // Mixed list: scheduled, unscheduled, scheduled, unscheduled — must not
+  // throw, must not use epoch dates, must not corrupt the scheduled bars.
+  const mixed = [
+    { id: 'a', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: new Date('2026-08-01'), earlyFinish: new Date('2026-08-05'), duration_days: 4 },
+    { id: 'b', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: null, earlyFinish: null, duration_days: null },
+    { id: 'c', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: new Date('2026-08-10'), earlyFinish: new Date('2026-08-15'), duration_days: 5 },
+    { id: 'd', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: null, earlyFinish: null, duration_days: null },
+  ];
+  const layout = calculateLayout(mixed, 'month', 900, {}, [], {});
+  check('mixed scheduled/unscheduled list does not throw and returns a layout', layout !== null);
+
+  const byId = Object.fromEntries(layout.tasks.map(t => [t.id, t]));
+  check('unscheduled task b: hasSchedule=false', byId.b.hasSchedule === false);
+  check('unscheduled task b: x=null (no fake epoch position)', byId.b.x === null);
+  check('unscheduled task b: width=0 (no bar)', byId.b.width === 0);
+  check('unscheduled task d: hasSchedule=false', byId.d.hasSchedule === false);
+
+  check('scheduled task a: hasSchedule=true', byId.a.hasSchedule === true);
+  check('scheduled task a: has a real numeric x', typeof byId.a.x === 'number' && !Number.isNaN(byId.a.x));
+  check('scheduled task c: has a real numeric x', typeof byId.c.x === 'number' && !Number.isNaN(byId.c.x));
+  check('scheduled task c starts after scheduled task a (unscheduled b/d did not shift positions)',
+    byId.c.x > byId.a.x + byId.a.width);
+
+  // Timeline bounds must be derived only from the two real WP dates
+  // (2026-08-01 .. 2026-08-15, padded -2/+5), not pulled toward 1970 by the
+  // unscheduled rows' epoch coercion.
+  check('timelineStart is anchored near the real scheduled window, not 1970 epoch',
+    layout.timelineStart.getUTCFullYear() === 2026);
+  check('timelineEnd is anchored near the real scheduled window, not 1970 epoch',
+    layout.timelineEnd.getUTCFullYear() === 2026);
+}
+
+console.log('\ncalculateLayout — entirely-unscheduled task list (no bars, no crash, no epoch fallback window)');
+{
+  const allUnscheduled = [
+    { id: 'x', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: null, earlyFinish: null, duration_days: null },
+    { id: 'y', phaseId: 'p1', phaseLabel: 'Phase 1', phaseOrder: 1,
+      earlyStart: null, earlyFinish: null, duration_days: null },
+  ];
+  const layout = calculateLayout(allUnscheduled, 'month', 900, {}, [], {});
+  check('all-unscheduled list does not throw', layout !== null);
+  check('all-unscheduled: both tasks present as rows (still visible)', layout.tasks.length === 2);
+  check('all-unscheduled: no task has a bar', layout.tasks.every(t => t.hasSchedule === false && t.width === 0));
+  check('all-unscheduled: timeline falls back to a window anchored on today, not epoch/Invalid Date',
+    !Number.isNaN(layout.timelineStart.getTime()) &&
+    Math.abs(layout.timelineStart.getFullYear() - new Date().getFullYear()) <= 1);
+  check('all-unscheduled: zero arrows (nothing has a position to connect)', layout.arrows.length === 0);
+}
+
+console.log('\ncomputeDragEditDates — Simplification Phase 3B: canonical move/resize date math');
+{
+  const origStart  = new Date('2026-08-10');
+  const origFinish = new Date('2026-08-15'); // 5-day span
+
+  // Whole-bar move: both edges shift by the same delta, duration preserved.
+  {
+    const r = computeDragEditDates(origStart, origFinish, 'move', 3);
+    check('move +3 days: earlyStart shifts by 3', r.earlyStart.getTime() === new Date('2026-08-13').getTime());
+    check('move +3 days: earlyFinish shifts by 3', r.earlyFinish.getTime() === new Date('2026-08-18').getTime());
+    check('move: duration unchanged (5 days)', r.durationDays === 5);
+  }
+  {
+    const r = computeDragEditDates(origStart, origFinish, 'move', -4);
+    check('move -4 days: earlyStart shifts by -4', r.earlyStart.getTime() === new Date('2026-08-06').getTime());
+    check('move -4 days: earlyFinish shifts by -4', r.earlyFinish.getTime() === new Date('2026-08-11').getTime());
+    check('move -4 days: duration still unchanged', r.durationDays === 5);
+  }
+
+  // Resize right: start fixed, finish moves, duration changes.
+  {
+    const r = computeDragEditDates(origStart, origFinish, 'right', 2);
+    check('resize right +2: earlyStart unchanged', r.earlyStart.getTime() === origStart.getTime());
+    check('resize right +2: earlyFinish extends by 2', r.earlyFinish.getTime() === new Date('2026-08-17').getTime());
+    check('resize right +2: duration grows to 7', r.durationDays === 7);
+  }
+  check('resize right: dragging finish onto/past start is clamped to a minimum 1-day span, never zero/negative',
+    computeDragEditDates(origStart, origFinish, 'right', -20).durationDays >= 1);
+
+  // Resize left: finish fixed, start moves, duration changes.
+  {
+    const r = computeDragEditDates(origStart, origFinish, 'left', -2);
+    check('resize left -2: earlyFinish unchanged', r.earlyFinish.getTime() === origFinish.getTime());
+    check('resize left -2: earlyStart moves earlier by 2', r.earlyStart.getTime() === new Date('2026-08-08').getTime());
+    check('resize left -2: duration grows to 7', r.durationDays === 7);
+  }
+  check('resize left: dragging start onto/past finish is clamped to a minimum 1-day span, never zero/negative',
+    computeDragEditDates(origStart, origFinish, 'left', 20).durationDays >= 1);
+
+  // dxDays = 0 is a no-op for every handle.
+  check('move with 0 delta is a no-op', computeDragEditDates(origStart, origFinish, 'move', 0).earlyStart.getTime() === origStart.getTime());
+  check('right resize with 0 delta is a no-op', computeDragEditDates(origStart, origFinish, 'right', 0).earlyFinish.getTime() === origFinish.getTime());
+  check('left resize with 0 delta is a no-op', computeDragEditDates(origStart, origFinish, 'left', 0).earlyStart.getTime() === origStart.getTime());
+}
+
+console.log('\ndurationDaysFromRange — manual Start/Finish staging duration display (Simplification Phase 3B)');
+{
+  check('7-day range -> 7', durationDaysFromRange(new Date('2026-09-01'), new Date('2026-09-08')) === 7);
+  check('1-day range -> 1', durationDaysFromRange(new Date('2026-09-01'), new Date('2026-09-02')) === 1);
+  check('same-day range floors to 1, never 0', durationDaysFromRange(new Date('2026-09-01'), new Date('2026-09-01')) === 1);
+  check('end before start floors to 1, never negative', durationDaysFromRange(new Date('2026-09-05'), new Date('2026-09-01')) === 1);
+}
+
+console.log('\ntoHumanFinishInclusive / toInternalEndBoundary — Simplification Phase 3B.1 human date adapter');
+{
+  // Human Start Aug 1 / Finish Aug 1 -> internal planned_end = Aug 2 (1 day).
+  const internalEndFor1Day = toInternalEndBoundary(new Date('2026-08-01'));
+  check('human Finish Aug 1 -> internal end boundary Aug 2', internalEndFor1Day.getTime() === new Date('2026-08-02').getTime());
+  check('internal end Aug 2 -> human Finish Aug 1 (exact inverse)',
+    toHumanFinishInclusive(internalEndFor1Day).getTime() === new Date('2026-08-01').getTime());
+
+  // Human Start Aug 1 / Finish Aug 3 -> internal planned_end = Aug 4 (3 days).
+  const internalEndFor3Days = toInternalEndBoundary(new Date('2026-08-03'));
+  check('human Finish Aug 3 -> internal end boundary Aug 4', internalEndFor3Days.getTime() === new Date('2026-08-04').getTime());
+  check('internal end Aug 4 -> human Finish Aug 3 (exact inverse)',
+    toHumanFinishInclusive(internalEndFor3Days).getTime() === new Date('2026-08-03').getTime());
+
+  // Round-trip both directions for a spread of dates, proving no cumulative drift.
+  for (const iso of ['2026-01-01', '2026-02-28', '2026-03-01', '2026-12-31', '2027-01-01']) {
+    const d = new Date(iso);
+    check(`round-trip toHumanFinishInclusive(toInternalEndBoundary(${iso})) === ${iso}`,
+      toHumanFinishInclusive(toInternalEndBoundary(d)).getTime() === d.getTime());
+    check(`round-trip toInternalEndBoundary(toHumanFinishInclusive(${iso})) === ${iso}`,
+      toInternalEndBoundary(toHumanFinishInclusive(d)).getTime() === d.getTime());
+  }
+
+  // Null-safety: an unscheduled task's null end must stay null either way.
+  check('toHumanFinishInclusive(null) -> null', toHumanFinishInclusive(null) === null);
+  check('toInternalEndBoundary(null) -> null', toInternalEndBoundary(null) === null);
+  check('toHumanFinishInclusive(undefined) -> null', toHumanFinishInclusive(undefined) === null);
+  check('toInternalEndBoundary(undefined) -> null', toInternalEndBoundary(undefined) === null);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

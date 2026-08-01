@@ -1,5 +1,5 @@
 import { computeZoneWeights, computeZoneCategoryShares, computeCategoryProgressWeight } from './computeZoneWeights.js';
-import { retailFitoutV2, CATEGORY_LIBRARY } from '../../../domains/construction/templates/retailFitoutV2.js';
+import { resolveV2TemplateData } from '../../../domains/construction/templates/versionedScopeTemplate.js';
 
 /**
  * Converts the zoned v2 template + a project's zone areas into the exact
@@ -18,29 +18,36 @@ import { retailFitoutV2, CATEGORY_LIBRARY } from '../../../domains/construction/
  * (contractorReportAdapter.js/ContractorReport.jsx's v2 submit path builds
  * it that way — see buildV2WorkPackageStatuses in contractorReportAdapter.js).
  *
- * @param {Record<string, number>} [zoneAreas] — project.scope.zoneAreas, e.g. { sales: 700, boh: 300 }
+ * @param {Record<string, number>} [zoneAreas] — effective inputs supplied by the project-area resolver
  * @param {string[]|null} [activeZoneIds] — null = every zone active (project.scope.zones)
  * @param {string[]|null} [activeCategoryIds] — null = every category active (project.scope.categories)
  * @returns {{ workPackages: Array<{id:string,label:string,phaseId:string,duration_pct:number}>, phases: Array<{id:string,label:string,progressWeight:number,order:number}> }}
  */
-export function buildV2ProgressTemplate(zoneAreas = {}, activeZoneIds = null, activeCategoryIds = null) {
-  const zoneWeights = computeZoneWeights(retailFitoutV2, zoneAreas, activeZoneIds);
+export function buildV2ProgressTemplate(zoneAreas = {}, activeZoneIds = null, activeCategoryIds = null, projectOrTemplate = null) {
+  const templateData = resolveV2TemplateData(projectOrTemplate);
+  const zoneWeights = computeZoneWeights(templateData, zoneAreas, activeZoneIds);
   const phases = [];
   const workPackages = [];
   let order = 1;
 
-  for (const zone of retailFitoutV2.zones) {
+  for (const zone of templateData.zones) {
     const zoneWeight = zoneWeights[zone.id];
     if (zoneWeight == null) continue; // zone excluded by activeZoneIds
 
     for (const { category: cat, share } of computeZoneCategoryShares(zone, activeCategoryIds)) {
       const progressWeight = computeCategoryProgressWeight(zoneWeight, share);
-      const lib = CATEGORY_LIBRARY[cat.id];
+      const lib = cat;
 
       phases.push({ id: cat.id, label: lib?.label ?? cat.id, progressWeight, order: order++ });
 
       for (const wp of (lib?.workPackages ?? [])) {
-        workPackages.push({ id: wp.id, label: wp.label, phaseId: cat.id, duration_pct: wp.durationPct });
+        workPackages.push({
+          ...wp,
+          phaseId: cat.id,
+          categoryId: cat.id,
+          zoneId: zone.id,
+          duration_pct: wp.durationPct,
+        });
       }
     }
   }

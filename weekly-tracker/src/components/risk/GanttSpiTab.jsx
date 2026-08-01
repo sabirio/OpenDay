@@ -1,4 +1,4 @@
-import { SPI_STATUS } from "../../config/statusColors";
+import { SPI_STATUS, getScoreTier, SCORE_TIER_COLORS } from "../../config/statusColors";
 import { countDiscrepanciesByStatus } from "../../hooks/useDiscrepancyPresentation";
 import SPISparkline from "./SPISparkline";
 import Glyph from "./Glyph";
@@ -148,7 +148,7 @@ function GanttSpiTab({ ganttSpiLoading, ganttMetricsMap, allRows, projectTrends,
             {allRows.map(({ project }) => {
               const rel = reliabilityMap.get(project.id);
               if (!rel || rel.total === 0) return null;
-              const scoreColor = rel.score >= 80 ? 'var(--status-done)' : rel.score >= 60 ? 'var(--status-warn)' : 'var(--status-alert)';
+              const scoreColor = SCORE_TIER_COLORS[getScoreTier(rel.score)];
               return (
                 <div key={project.id} style={{ background: 'var(--accent-subtle)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
                   <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-primary)', marginBottom: 2 }}>{project.storeCode}</div>

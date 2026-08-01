@@ -69,6 +69,187 @@ where `canonicalWorkPackages` = `masterTaskLibrary.WORK_PACKAGES` or `constructi
 
 **A3 update (2026-07-06) — time-to-close awareness:** `constructionRetailV1.js`'s blocker WPs now also carry `typicalClearDays` (int, typical close-out duration) and `responsibleRole` (`'GC'|'PM'|'Landlord'`) — same canonical source as `openingBlocker`, no `masterTaskLibrary.js` propagation needed for the same reason as above. `computeOpeningReadiness()` now also keeps each blocker's real `wp.id` (not just phaseId+label) so it can place blockers in `dependencyRules.js`'s dependency graph and compute `requiredDays`/`slack`/`verdict`/`criticalChain` via a critical-path-method longest-path calculation — see `src/engines/openingReadinessEngine.js` header comments and `src/engines/__tests__/openingReadinessEngine.test.mjs` for the algorithm and worked examples. Also fixed in the same pass: a blocker WP with no report data at all (`status` is `null`/`undefined`) now counts as an active blocker (effectively "Not Started") instead of being silently skipped — previously this understated both the blocker count and requiredDays for any project where the contractor hadn't yet reported on that phase.
 
+## Versioned project scope-template contract (2026-07-28)
+
+- `templates.family` is the stable routing family; `family_id` remains the
+  immutable version-lineage UUID. `company_id = NULL` is the global OpenDay
+  default, while a non-null value is private to that company.
+- New `retail-fitout-v2` projects resolve the active company template first
+  and the active global template second, then persist that exact
+  `projects.template_id`. `template_type` remains for routing compatibility,
+  while project-specific selections and overrides remain in `project.scope`.
+- `resolveProjectScopeTemplate()` is the canonical read path. A valid V2 pin
+  resolves persisted `templates.data`; an historical V2 project without a
+  valid persisted V2 pin deliberately uses the certified static compatibility
+  definition. No historical project is inferred, rewritten, or silently
+  upgraded.
+- Once any project references a template version, its semantic data, family,
+  ownership, lineage, and version are immutable at the database boundary.
+  Editing creates a new version; changing the active default affects only new
+  projects.
+- V2 work-package IDs are historical identities shared by Gantt, contractor
+  reports, site visits, and evidence. Version creation never silently renames
+  an existing identity.
+- `retailFitoutV2.js` and `dependencyRulesV2.js` remain the deterministic
+  bootstrap definition and explicit legacy compatibility source. Runtime
+  semantics for pinned projects come from the resolved persisted version.
+
+## Master Catalog contract foundation — schemaVersion 2 (Slice 5C, 2026-07-28)
+
+Adds a second, explicit template **contract version** for `retail-fitout-v2`
+family templates — a distinct axis from the zoned/flat model above.
+`schemaVersion` (`templates.data.schemaVersion`) is the contract version,
+always read explicitly, never inferred from field presence:
+
+- **schemaVersion 1** (legacy, unchanged): today's certified 91-WP template
+  and every template like it. `getScopeWPIds()`'s existing "empty/null scope
+  = full template" shorthand is preserved byte-for-byte — this slice does not
+  touch it.
+- **schemaVersion 2** (Master Catalog): a distinct, explicit contract for
+  future comprehensive-catalog templates (e.g. the planned 221-WP Retail
+  Fit-Out catalog). **This slice adds only the contract — no schemaVersion 2
+  template with real catalog content exists yet.** No v1 template is
+  reinterpreted as v2, and no v1 semantics silently extend to it.
+
+### Three distinct concepts — do not conflate
+
+1. **Master Catalog** — the full set of work packages a schemaVersion 2
+   template defines (`data.zones[].categories[].workPackages[]`, same
+   zones→categories→workPackages physical shape as v1).
+2. **Default Scope** — `data.defaultScope.workPackageIds`, the template's own
+   canonical "what a brand-new project starts with" list. This is the
+   **single source of truth** for default selection — there is no parallel
+   `defaultSelected: true/false` flag persisted per WP; UI/presentation
+   derives default-selected state purely by membership in this array
+   (`getDefaultScopeWorkPackageIds()`).
+3. **Project Scope** — `project.scope.workPackages`, one project's own
+   selection, initialized from Default Scope at creation
+   (`buildNewProjectDraft`) and independently mutable afterward. Editing a
+   project's scope never mutates the template's `defaultScope` (verified:
+   `getDefaultScopeWorkPackageIds()` always returns a fresh array copy).
+
+### null / `[]` / explicit-ids semantics — schema-version-dependent, never ambiguous
+
+`resolveProjectScopeSelection({ scope, workPackages, schemaVersion })`
+(`core/projects/scope/getScopeWPIds.js`) is the **one** canonical resolver for
+this — engines, Gantt generation, and reports all call it instead of each
+deciding null/empty/schemaVersion meaning themselves:
+
+| schemaVersion | `scope` absent / `workPackages` absent | `scope.workPackages: []` | `scope.workPackages: [ids]` |
+|---|---|---|---|
+| 1 / legacy (unversioned) | full template (unchanged `getScopeWPIds` shorthand) | full template (unchanged shorthand) | exactly those ids |
+| 2 (Master Catalog) | **zero** selected | **zero** selected | exactly those ids (unknown ids dropped) |
+
+Schema v2 never uses emptiness as shorthand for "everything" — a real,
+explicit id list (`FULL_CATALOG` helper or equivalent) would be required to
+select the whole catalog, and this slice does not add one. "Reset to
+Default" (`resolveResetProjectScopeSelection`) always restores
+`defaultScope.workPackageIds`, never the full catalog and never a prior
+customization.
+
+### catalogClass and applicabilityTags — descriptive metadata only
+
+- `catalogClass: 'core' | 'optional' | 'specialized'` (optional, per WP) is
+  **purely descriptive** — "core" does **not** mean mandatory. It has no
+  effect on weights, Gantt scheduling, progress calculation, or whether a PM
+  can remove the WP from a project's scope.
+- `applicabilityTags` (optional, per WP; controlled vocabulary across
+  `projectType`/`location`/`retailProfile`/`system` dimensions — see
+  `versionedScopeTemplate.js`'s `APPLICABILITY_TAG_VOCAB`) is structure- and
+  vocabulary-validated only (`validateMasterCatalogTemplateData`). **It does
+  not drive any automatic scope selection or recommendation logic in this
+  slice** — that is explicitly reserved for a future, separately-approved
+  slice.
+
+### What this slice does NOT do
+
+No schemaVersion 2 template with real content exists after this slice — the
+next slice (after separate approval) materializes the approved Retail
+Fit-Out Master Catalog as a new immutable template version. This slice adds
+only: the schemaVersion 2 contract + validation (`isMasterCatalogTemplateData`,
+`validateMasterCatalogTemplateData`), migration 042 (additive `templates`
+CHECK-constraint widening, no RLS change, no row rewrite), the canonical
+resolver plumbing above, and a small deterministic 5-WP test fixture
+(`domains/construction/templates/masterCatalogSchemaV2.test.mjs`) — never the
+real catalog.
+
+## Master Catalog weight contract & canonical engine (Slice 5E.1, 2026-07-29)
+
+Adds the Construction Progress WEIGHT contract and engine for schemaVersion 2
+(Master Catalog) templates — no real values authored, no activation.
+
+**Model** (Slice 5E-R's "responsive category effort," approved):
+`resolvedWeight(wp) = groupShare(group) × [categoryFactor(category(wp)) ×
+baseEffort(wp)] / Σ calibratedEffort over eligible+selected WPs in the same
+group`. Deliberately two effective layers only (Group → calibrated WP
+effort) — a separately-normalized "category share" layer is algebraically
+redundant once `categoryFactor` is folded into each WP's calibrated effort,
+and is not implemented. Group share: Project-Wide is a fixed `anchorPct` of
+40; Sales/BOH split the remainder by the canonical
+Sales Area/BOH Area ratio, reusing `computeZoneWeights()` unchanged via a
+`areaBasis`/`anchorPct`/`defaultWeight` → `weightMode`/`fixedWeight`/
+`defaultWeight` adapter. Missing-area fallback is the template's explicit
+Sales 80 / BOH 20 `defaultWeight` ratio — never a silently-inherited v1
+business value.
+
+**Construction Progress eligibility is WP-level** (corrected from Slice
+5E-R's category-level proposal — the real approved catalog mixes eligible
+and ineligible facts inside the same category). The canonical example:
+Pre-Handover & Readiness contains `project_wide.pre_handover.snagging`
+("Snagging & Punch-List Resolution") — Construction, eligible — alongside
+`project_wide.pre_handover.authority_approvals` ("Authority Approval"),
+`common.pre_opening.test_reports` ("Test Reports"),
+`project_wide.pre_handover.final_cleaning` ("Final Cleaning"),
+`common.pre_opening.final_walkthrough` ("Final Readiness Walkthrough"), and
+`project_wide.pre_handover.training` ("Staff & System Training") — all
+Readiness/Document/Handover, **not** eligible. (An earlier draft of this
+contract incorrectly described Final Readiness Walkthrough as eligible;
+corrected here — it is a readiness/verification fact, not construction
+work, exactly like the others in this category.) `constructionProgressEligible: false`
+WPs contribute **zero** (not near-zero) to both the numerator and
+denominator, while remaining fully in Project Scope, reportable, and
+visible to Opening Readiness and the general scope resolver — see
+`masterCatalogWeightEngine.test.mjs` tests 3 and 16.
+
+**Canonical resolver**: `core/projects/weights/resolveProjectProgressWeights.js`,
+called from inside `progressEngine.js` (never by outer consumers) —
+schemaVersion 1 delegates byte-identical to the certified
+`computeEffectiveWeights()`; schemaVersion 2 routes to
+`engines/masterCatalogWeightEngine.js`'s `computeMasterCatalogEffectiveWeights()`.
+The actual formula lives in `engines/`, matching every other calculation in
+this codebase (architecture-guard enforced) — `core/` only validates,
+routes, and assembles the flattened template.
+
+**Duration is NOT coupled to progress weight for schemaVersion 2** —
+`baseEffort`/`categoryFactor` are never read by the canonical Duration
+resolver, and `baseDurationDays`/duration modes/bands are never read by the
+Weight Engine. The inactive Master Catalog candidate now has calibrated
+Duration metadata, but dependency authoring and Gantt integration remain
+explicitly deferred.
+
+**⚠️ ACTIVATION BLOCKER — Historical Progress Snapshot Provenance:**
+`progress_history` currently stores a resolved scalar percentage plus raw
+per-WP status, but no weight/scope/template provenance — two fields that
+already anticipate this (`snapshot.effective_weights`, `report.snapshotWeights`)
+are read by `explainAdapters.js`/`progressEngine.js` today but are **never
+written anywhere**. **The Master Catalog template MUST NOT be switched to
+`is_active = true` (or otherwise made reachable by normal project creation)
+until `progress_history` writes capture, at minimum: `templateId`,
+`templateVersion`, `schemaVersion`, `selectedWpIds`, a derived
+`selectedScopeFingerprint`, the resolved `effectiveWeights` table, and
+`calculationVersion`.** Without this, a scope or weight-authoring change
+after a project has recorded progress would silently and retroactively
+change what earlier percentages meant, with no record it happened. Not
+implemented in this slice (no schema change, no migration) — this is a
+prerequisite for a future activation slice, not for 5E.1/5E.2.
+
+**⚠️ ACTIVATION BLOCKER — Default Scope Consistency Review:** the inactive
+candidate currently default-selects CCTV Installation and Access-Control
+Installation while the corresponding CCTV Commissioning and Access-Control
+Test WPs are not default-selected. This pairing must be reviewed explicitly
+before activation. Slice 5E.2B persists weights only; it does not change
+default scope or activate schemaVersion 2.
+
 ## Retail Fit-Out v2 — zoned (zone → category → work-package) template (2026-07-07)
 
 A second, fully isolated template model was added end-to-end: seeding, dependencies, scope,
@@ -79,7 +260,8 @@ behavior** — every v1 test (pre-existing + new) still passes unchanged.
 
 | File | Role |
 |---|---|
-| `domains/construction/templates/retailFitoutV2.js` | Single source of truth: `CATEGORY_LIBRARY`, `retailFitoutV2` (zones→categories, weights), `ALL_WORK_PACKAGES_V2`, `getWPByIdV2()`. 91 WPs across 23 categories across 3 zones (common/sales/boh). |
+| `domains/construction/templates/retailFitoutV2.js` | Certified bootstrap and legacy-unpinned compatibility definition: `CATEGORY_LIBRARY`, `retailFitoutV2` (zones→categories, weights), `ALL_WORK_PACKAGES_V2`, `getWPByIdV2()`. 91 WPs across 23 categories across 3 zones (common/sales/boh). |
+| `domains/construction/templates/versionedScopeTemplate.js` | Deterministic persisted-data materializer, V2 shape checks, company/global default selection, and the canonical pinned/legacy project resolver used by runtime adapters. |
 | `config/dependencyRulesV2.js` | Real (non-flat) FS dependency chain — see file header for the full common/per-zone/cross-zone sequence description. |
 | `core/projects/weights/computeZoneWeights.js` | `zoneWeight = 0.65 * (zoneArea / (salesArea+bohArea))`, common fixed at 35%. Pre-existing from an earlier session, verified unchanged. |
 | `core/projects/weights/buildV2ProgressTemplate.js` | Converts zone areas + active zones/categories into the `{workPackages, phases}` shape `progressEngine.calculateProjectProgress()` already accepts as a custom `template` — **the only integration point needed; `progressEngine.js` itself is untouched.** Each category becomes one synthetic "phase" (`progressWeight = zoneWeight% × categoryShare%`); each WP's `phaseId` is set to its **category** id. |
@@ -112,13 +294,12 @@ back-compat). Any code that reads/writes v2 WP statuses must resolve the groupin
    `isZonedTemplate(project.templateType)`; v1's `task.phaseId` path is untouched. Also added the
    missing `scopeWPIds`/v2 `template` arguments to the `calculateProjectProgressResult()` call, which
    previously always used v1 defaults regardless of project type.
-3. **`ProjectEditorModal.jsx`: "Scope configured" button false-positive.** Found live, via Playwright:
-   typing a Zone Area value patches `project.scope.zoneAreas`, which — because of the `{...p.scope}`
-   spread on a `null` scope — makes `project.scope` a truthy (but not-yet-configured) object. The
-   button's condition was `project.scope ? "configured" : "not configured"`, so simply entering a zone
-   area (before ever opening the scope picker) made it read "Scope configured (0 WPs)". Fixed to key
-   off `project.scope?.workPackages != null` instead; "Reset to full scope" now preserves `zoneAreas`
-   rather than wiping the whole `scope` object.
+3. **`ProjectEditorModal.jsx`: "Scope configured" button false-positive.** Found live, via Playwright.
+   The button keys off `project.scope?.workPackages != null`, so an area-only legacy scope object is
+   not mistaken for a saved WP selection. Canonical-area projects now enter Total/Sales/BOH once in
+   Project Areas; the shared area resolver supplies v2 weights and Gantt inputs without persisting
+   another numeric copy in `scope`. Existing projects with explicit historical `scope.zoneAreas`
+   retain those values through scope reset/edit for backward compatibility.
 
 4. **`projectSummaryEngine.js`: detail-summary readiness still used the v1 blocker graph.** `evaluateProjectState()`
    already passed v2 `ALL_WORK_PACKAGES_V2` + `buildV2OpeningReadinessOptions()` into

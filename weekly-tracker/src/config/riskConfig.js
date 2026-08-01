@@ -1,9 +1,11 @@
-export const RISK_COLORS = {
-  LOW:      { text: "var(--status-done)",  bg: "var(--status-done-bg)",   border: "var(--border)" },
-  MEDIUM:   { text: "var(--status-warn)",  bg: "var(--status-warn-bg)",   border: "var(--border)" },
-  HIGH:     { text: "var(--status-warn)",  bg: "var(--status-warn-bg)",   border: "var(--border)" },
-  CRITICAL: { text: "var(--status-alert)", bg: "var(--status-alert-bg)",  border: "var(--border)" },
-};
+// Phase 2 status consolidation: this used to be a second, independently
+// hand-maintained copy of the exact same LOW/MEDIUM/HIGH/CRITICAL color
+// values already defined in config/statusColors.js's RISK_LEVEL_COLORS.
+// Re-exported from there now so there is exactly one canonical color table —
+// values for these four keys are unchanged (statusColors.js's version also
+// carries an extra UNKNOWN fallback this file never had, which is additive
+// and does not affect any existing consumer).
+export { RISK_LEVEL_COLORS as RISK_COLORS } from './statusColors.js';
 
 export const RISK_DIMENSIONS = [
   "Schedule", "Progress", "Resources", "Procurement",

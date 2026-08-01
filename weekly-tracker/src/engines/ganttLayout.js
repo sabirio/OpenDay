@@ -2,8 +2,8 @@
 // Converts ganttResult into pixel positions for the SVG renderer.
 
 import { filterRulesForWPs } from '../config/dependencyRules.js';
-import { filterRulesForWPsV2 } from '../config/dependencyRulesV2.js';
 import { V2_TEMPLATE_TYPE } from '../domains/construction/templates/retailFitoutV2.js';
+import { resolveProjectScopeTemplate } from '../domains/construction/templates/versionedScopeTemplate.js';
 import { diffDays } from './dateMath.js';
 
 // Re-exported (not redefined) so existing consumers of this module
@@ -30,6 +30,85 @@ function addDays(date, days) {
 /** Mouse-drag pixel delta converted to whole days at the chart's current zoom. */
 export function pixelsToDays(pixelDelta, pixelsPerDay) {
   return Math.round(pixelDelta / pixelsPerDay);
+}
+
+/**
+ * duration_days display value for a staged/manually-entered [start, end)
+ * range — same calendar-day-span convention as diffDays()/the server's
+ * planned_end - planned_start, floored at 1 so an in-progress manual edit
+ * never displays a zero/negative duration before both dates are valid.
+ */
+export function durationDaysFromRange(start, end) {
+  return Math.max(1, diffDays(start, end));
+}
+
+/**
+ * Pure date arithmetic shared by GanttChart.jsx's drag effect for all three
+ * schedule-editing interactions (Simplification Phase 3A/3B) — one
+ * canonical computation regardless of which UI gesture produced it:
+ *
+ *   'right' (resize right): start fixed, finish moves.
+ *   'left'  (resize left):  finish fixed, start moves.
+ *   'move'  (whole-bar drag): both edges shift by the same delta, duration
+ *            preserved exactly.
+ *
+ * @param {Date} origEarlyStart
+ * @param {Date} origEarlyFinish
+ * @param {'left'|'right'|'move'} handle
+ * @param {number} dxDays — whole-day delta from pixelsToDays()
+ * @returns {{ earlyStart: Date, earlyFinish: Date, durationDays: number }}
+ */
+export function computeDragEditDates(origEarlyStart, origEarlyFinish, handle, dxDays) {
+  let newStart = new Date(origEarlyStart.getTime());
+  let newEnd   = new Date(origEarlyFinish.getTime());
+
+  if (handle === 'right') {
+    newEnd = addDays(origEarlyFinish, dxDays);
+    if (newEnd <= newStart) newEnd = addDays(newStart, 1);
+  } else if (handle === 'move') {
+    newStart = addDays(origEarlyStart, dxDays);
+    newEnd   = addDays(origEarlyFinish, dxDays);
+  } else {
+    newStart = addDays(origEarlyStart, dxDays);
+    if (newStart >= newEnd) newStart = addDays(newEnd, -1);
+  }
+
+  return { earlyStart: newStart, earlyFinish: newEnd, durationDays: Math.max(1, diffDays(newStart, newEnd)) };
+}
+
+// ─── Human-facing inclusive Finish date adapter (Simplification Phase 3B.1) ───
+//
+// The internal Gantt convention (ganttEngine.js, calculateGantt, every row in
+// project_gantt_tasks) is unchanged and must stay that way: planned_end is an
+// EXCLUSIVE boundary — earlyFinish = addDays(earlyStart, duration_days), so a
+// 1-day task starting Aug 1 has planned_end = Aug 2 (the day AFTER the single
+// day of work). This is what drives bar geometry (width = duration_days *
+// pixelsPerDay) and must never change, for AUTO_GENERATED or
+// CONTRACTOR_MANAGED alike.
+//
+// A human construction planner, though, naturally reads "Start Aug 1 /
+// Finish Aug 1" as ONE calendar day of work — an inclusive Finish. These two
+// functions are the ONE place that boundary is ever crossed:
+//   toHumanFinishInclusive: internal exclusive end -> human-visible Finish.
+//   toInternalEndBoundary:  human-entered Finish -> internal exclusive end.
+// Exact inverses of each other (integer whole-day arithmetic, no rounding),
+// and both null-safe (an unscheduled task's null end stays null either way).
+//
+// Nothing that computes bar geometry (ganttLayout.js's own calculateLayout,
+// ganttEngine.js's CPM) ever calls these — they exist solely for the
+// Contractor-facing read/write boundary (WPTooltip's Finish input,
+// useContractorScheduleDraft's stage/display, and
+// save_contractor_schedule_draft's client-side callers), never for the
+// internal date used to draw a bar.
+
+/** Internal exclusive planned_end -> human-visible inclusive Finish. */
+export function toHumanFinishInclusive(internalEndBoundary) {
+  return internalEndBoundary == null ? null : addDays(internalEndBoundary, -1);
+}
+
+/** Human-entered inclusive Finish -> internal exclusive planned_end boundary. */
+export function toInternalEndBoundary(humanFinishInclusive) {
+  return humanFinishInclusive == null ? null : addDays(humanFinishInclusive, 1);
 }
 
 function startOfMonth(date) {
@@ -70,7 +149,7 @@ export function calculateLayout(
   keyDates = {},
   discrepancies = [],
   collapseState = {},
-  templateType = null
+  projectOrTemplateType = null
 ) {
   if (!ganttResult || ganttResult.length === 0) return null;
 
@@ -82,14 +161,29 @@ export function calculateLayout(
     timelineStart = addDays(new Date(keyDates.constructionStartDate), -2);
     timelineEnd   = addDays(new Date(keyDates.constructionEndDate),    5);
   } else {
-    const allDates = ganttResult.flatMap(w => [w.earlyStart, w.earlyFinish]);
+    // Unscheduled WPs (earlyStart/earlyFinish null) must never enter the
+    // timeline-bounds computation — a null here is not "no opinion", it's
+    // "no date at all", so it is filtered out rather than coerced.
+    const allDates = ganttResult
+      .flatMap(w => [w.earlyStart, w.earlyFinish])
+      .filter(d => d != null);
     if (keyDates.targetOpeningDate)          allDates.push(new Date(keyDates.targetOpeningDate));
     if (keyDates.constructionCompletionDate) allDates.push(new Date(keyDates.constructionCompletionDate));
     if (keyDates.forecastOpeningDate)        allDates.push(new Date(keyDates.forecastOpeningDate));
-    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-    timelineStart = addDays(minDate, -2);
-    timelineEnd   = addDays(maxDate, 5);
+    // Nothing scheduled at all (e.g. a fully-unscheduled workspace) — fall
+    // back to a small window anchored on today rather than Math.min/max of
+    // an empty array (which would yield Infinity/-Infinity → Invalid Date).
+    // This is a chart-viewport default, not a fabricated task date.
+    if (allDates.length === 0) {
+      const today = new Date();
+      timelineStart = addDays(today, -2);
+      timelineEnd   = addDays(today, 5);
+    } else {
+      const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+      const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+      timelineStart = addDays(minDate, -2);
+      timelineEnd   = addDays(maxDate, 5);
+    }
   }
   const totalDays = diffDays(timelineStart, timelineEnd);
 
@@ -139,8 +233,14 @@ export function calculateLayout(
 
       for (const wp of phase.wps) {
         const y = rowIndex * ROW_HEIGHT;
-        const x = dateToX(wp.earlyStart);
-        const width = Math.max(2, wp.duration_days * pixelsPerDay);
+        // hasSchedule is the one canonical flag consumers (GanttChart.jsx,
+        // buildArrows below) must check before treating x/width as real bar
+        // geometry — an unscheduled WP still gets a row (label, status), but
+        // no bar and no dependency arrow, and no epoch/fake date stands in
+        // for its missing planned_start/planned_end.
+        const hasSchedule = wp.earlyStart != null && wp.earlyFinish != null && wp.duration_days != null;
+        const x = hasSchedule ? dateToX(wp.earlyStart) : null;
+        const width = hasSchedule ? Math.max(2, wp.duration_days * pixelsPerDay) : 0;
         const discrepancy = discMap[wp.id] || null;
 
         tasks.push({
@@ -148,6 +248,7 @@ export function calculateLayout(
           x,
           y,
           width,
+          hasSchedule,
           barY:        y + (ROW_HEIGHT - BAR_HEIGHT) / 2,
           barHeight:   BAR_HEIGHT,
           rowIndex,
@@ -164,7 +265,17 @@ export function calculateLayout(
   const timelineHeaders = buildTimelineHeaders(timelineStart, timelineEnd, viewMode, dateToX, pixelsPerDay);
 
   // ── Dependency arrows ────────────────────────────────────────────────────
-  const arrows = buildArrows(tasks, ganttResult, templateType);
+  const templateType = typeof projectOrTemplateType === 'string'
+    ? projectOrTemplateType
+    : projectOrTemplateType?.templateType;
+  const scopeTemplate = templateType === V2_TEMPLATE_TYPE
+    ? resolveProjectScopeTemplate(
+        typeof projectOrTemplateType === 'string'
+          ? { templateType }
+          : projectOrTemplateType
+      )
+    : null;
+  const arrows = buildArrows(tasks, ganttResult, scopeTemplate?.dependencies ?? null);
 
   // ── Key date vertical lines ──────────────────────────────────────────────
   const keyDateLines = buildKeyDateLines(keyDates, dateToX);
@@ -231,12 +342,15 @@ function buildTimelineHeaders(timelineStart, timelineEnd, viewMode, dateToX, pix
 
 // ─── Dependency arrows ────────────────────────────────────────────────────────
 
-function buildArrows(tasks, ganttResult, templateType = null) {
+function buildArrows(tasks, ganttResult, versionedDependencies = null) {
   const wpIds = ganttResult.map(w => w.id);
   // F-11: pick the dependency-rule set matching this project's template —
   // was previously always the v1 set, so a v2 project's WP ids never
   // matched any rule and zero arrows were ever drawn.
-  const rules = templateType === V2_TEMPLATE_TYPE ? filterRulesForWPsV2(wpIds) : filterRulesForWPs(wpIds);
+  const wpIdSet = new Set(wpIds);
+  const rules = versionedDependencies
+    ? versionedDependencies.filter(rule => wpIdSet.has(rule.from) && wpIdSet.has(rule.to))
+    : filterRulesForWPs(wpIds);
   const taskMap = Object.fromEntries(tasks.map(t => [t.id, t]));
 
   const arrows = [];
@@ -244,6 +358,10 @@ function buildArrows(tasks, ganttResult, templateType = null) {
     const from = taskMap[rule.from];
     const to   = taskMap[rule.to];
     if (!from || !to) continue;
+    // An unscheduled endpoint has no real x/width — drawing an arrow to/from
+    // it would either use the null-position fallback or a stale one, both
+    // misleading. No dependency line for a task with no schedule yet.
+    if (!from.hasSchedule || !to.hasSchedule) continue;
 
     const path = generateArrowPath(from, to);
     arrows.push({

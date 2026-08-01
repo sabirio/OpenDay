@@ -30,6 +30,8 @@ const Login            = lazy(() => import("./pages/Login"));
 const ResetPassword    = lazy(() => import("./pages/ResetPassword"));
 const Unauthorized     = lazy(() => import("./pages/Unauthorized"));
 const ContractorSelect = lazy(() => import("./pages/ContractorSelect"));
+const ContractorSchedule = lazy(() => import("./pages/ContractorSchedule"));
+const PMScheduleReview   = lazy(() => import("./pages/PMScheduleReview"));
 const SiteVisitSelect  = lazy(() => import("./pages/SiteVisitSelect"));
 const SnagListPage     = lazy(() => import("./pages/snags/SnagListPage"));
 const SnagFieldPage    = lazy(() => import("./pages/snags/SnagFieldPage"));
@@ -344,6 +346,29 @@ function App() {
           }
         />
 
+        {/* Contractor Schedule Workspace (Simplification Phase 3C / 3C.1) —
+            a standalone route, same shape as /contractor-report/:projectId,
+            gated by the 'contractor_schedule' resource permission at this
+            layer (Contractor and Admin only as of 3C.1 — PM was removed,
+            see rolePermissions.js) and by two further independent checks
+            inside the page itself: isContractorManaged(project.
+            scheduleOwnershipMode) and the real session role === Contractor
+            (ProtectedRoute only knows about role-level resource access,
+            never per-project state or which non-Contractor role reached it
+            — see ContractorSchedule.jsx's own authorization check). The
+            atomic save_contractor_schedule_draft RPC independently
+            re-enforces role=contractor AND assigned_projects AND
+            CONTRACTOR_MANAGED server-side regardless of what this route or
+            the page allows through. */}
+        <Route
+          path="/contractor-schedule/:projectId"
+          element={
+            <ProtectedRoute resource="contractor_schedule">
+              <ContractorSchedule projects={projects} />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/site-visit/:projectId"
           element={
@@ -427,6 +452,20 @@ function App() {
                   <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans" element={<ProtectedRoute resource="snags"><PlanManagementPage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans/:planId" element={<ProtectedRoute resource="snags"><PlanViewerPage/></ProtectedRoute>} />
+                  {/* PM Schedule Review workspace (Simplification Phase 4B.2) —
+                      Layout-wrapped (office surface, unlike the standalone
+                      field-worker /contractor-schedule/:projectId route),
+                      same shape as /projects/:projectId/snags and
+                      /projects/:projectId/plans. Gated by the
+                      'schedule_review' resource (PM explicitly, Admin via
+                      the 'all' wildcard for read-only oversight only —
+                      Contractor and Viewer excluded, see
+                      rolePermissions.js) plus PMScheduleReview.jsx's own
+                      page-level role check hiding Approve/Request Changes
+                      from anyone but PM. The RPCs
+                      (request_schedule_changes/approve_schedule_submission)
+                      remain the final authority regardless. */}
+                  <Route path="/projects/:projectId/schedule-review" element={<ProtectedRoute resource="schedule_review"><PMScheduleReview projects={projects}/></ProtectedRoute>} />
                   <Route
                     path="/weekly-reports"
                     element={

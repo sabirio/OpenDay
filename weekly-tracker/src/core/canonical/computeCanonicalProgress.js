@@ -6,6 +6,7 @@ import { buildV2ProgressTemplate } from '../projects/weights/buildV2ProgressTemp
 import { clampProgressPct } from '../../engines/progressEngine.js';
 import { meanObservedProgress, roundCanonical } from '../../engines/canonicalCoreEngine.js';
 import { isTemplateValid } from '../projects/index.js';
+import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectArea.js';
 
 function computeVerifiedProgress(snapshot) {
   const rows = snapshot.latestSiteVisit?.wps;
@@ -20,7 +21,12 @@ export function computeCanonicalProgress(snapshot) {
   const wpCum = computeWPCumulativeStatuses(snapshot.contractorReports);
   const legCum = computeCumulativeStatuses(snapshot.contractorReports);
   const template = snapshot.project.templateType === V2_TEMPLATE_TYPE
-    ? buildV2ProgressTemplate(snapshot.project.scope?.zoneAreas, snapshot.project.scope?.zones ?? null, snapshot.project.scope?.categories ?? null)
+    ? buildV2ProgressTemplate(
+        resolveEffectiveV2ZoneAreas(snapshot.project),
+        snapshot.project.scope?.zones ?? null,
+        snapshot.project.scope?.categories ?? null,
+        snapshot.template,
+      )
     : (snapshot.template && isTemplateValid(snapshot.template) ? snapshot.template : null);
   const legacy = calculateProjectProgressResult(wpCum, legCum, snapshot.scope.workPackageIds, template, snapshot.project.scope?.weightOverrides ?? null);
   const contractorProgress = snapshot.contractorReports.length ? clampProgressPct(legacy.progress) : null;

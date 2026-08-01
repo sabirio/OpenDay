@@ -14,6 +14,7 @@ register('data:application/javascript,' + encodeURIComponent(loaderSrc), { paren
 
 const { calculateProjectProgress } = await import('../../../engines/progressEngine.js');
 const { buildV2ProgressTemplate } = await import('./buildV2ProgressTemplate.js');
+const { resolveEffectiveV2ZoneAreas } = await import('../areas/resolveProjectArea.js');
 const { retailFitoutV2, CATEGORY_LIBRARY } = await import('../../../domains/construction/templates/retailFitoutV2.js');
 
 let pass = 0, fail = 0;
@@ -72,6 +73,23 @@ console.log('\nbuildV2ProgressTemplate — scope narrowing (activeZoneIds/active
   const allComplete = statusesFor('Completed', 100, dropBoh.phases.map(p => p.id));
   const pct = calculateProjectProgress(allComplete, null, null, dropBoh);
   check('everything in the narrowed (common+sales) scope complete -> 100%', pct === 100);
+}
+
+console.log('\nbuildV2ProgressTemplate — canonical/legacy area equivalence');
+{
+  const legacyProject = {
+    salesAreaSqm: 999,
+    backOfHouseAreaSqm: 1,
+    scope: { zoneAreas: { sales: 850, boh: 180 } },
+  };
+  const canonicalProject = { salesAreaSqm: 850, backOfHouseAreaSqm: 180, scope: null };
+  const legacyTemplate = buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(legacyProject));
+  const canonicalTemplate = buildV2ProgressTemplate(resolveEffectiveV2ZoneAreas(canonicalProject));
+  check('equivalent effective old/new areas produce identical normalized v2 weights',
+    JSON.stringify(legacyTemplate.phases) === JSON.stringify(canonicalTemplate.phases));
+  check('legacy explicit zoneAreas remain effective when canonical columns disagree',
+    resolveEffectiveV2ZoneAreas(legacyProject).sales === 850
+      && resolveEffectiveV2ZoneAreas(legacyProject).boh === 180);
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

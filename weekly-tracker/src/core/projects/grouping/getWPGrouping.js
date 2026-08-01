@@ -1,6 +1,11 @@
 import { getWPById, getPhaseById } from '../../../config/masterTaskLibrary.js';
-import { getWPByIdV2, retailFitoutV2, CATEGORY_LIBRARY, ALL_WORK_PACKAGES_V2, V2_TEMPLATE_TYPE } from '../../../domains/construction/templates/retailFitoutV2.js';
-import { getScopeWPIds } from '../scope/getScopeWPIds.js';
+import { V2_TEMPLATE_TYPE } from '../../../domains/construction/templates/retailFitoutV2.js';
+import {
+  getScopeTemplateGrouping,
+  getScopeTemplateWorkPackages,
+  resolveV2TemplateData,
+} from '../../../domains/construction/templates/versionedScopeTemplate.js';
+import { resolveProjectScopeSelection } from '../scope/getScopeWPIds.js';
 
 /**
  * Single source of truth for "how should this work package's row be
@@ -18,18 +23,9 @@ import { getScopeWPIds } from '../scope/getScopeWPIds.js';
  *         | { phaseId: string, phaseLabel: string }
  *         | null} null when wpId isn't found in the resolved template at all
  */
-export function getWPGrouping(templateType, wpId) {
+export function getWPGrouping(templateType, wpId, projectOrTemplate = null) {
   if (templateType === V2_TEMPLATE_TYPE) {
-    const wp = getWPByIdV2(wpId);
-    if (!wp) return null;
-    const zone = retailFitoutV2.zones.find(z => z.id === wp.zoneId);
-    const category = CATEGORY_LIBRARY[wp.categoryId];
-    return {
-      zoneId: wp.zoneId,
-      zoneLabel: zone?.label ?? wp.zoneId,
-      categoryId: wp.categoryId,
-      categoryLabel: category?.label ?? wp.categoryId,
-    };
+    return getScopeTemplateGrouping(resolveV2TemplateData(projectOrTemplate), wpId);
   }
 
   const wp = getWPById(wpId);
@@ -57,12 +53,14 @@ export function isZonedTemplate(templateType) {
  * @param {object|null} [scope] — project.scope (zones|workPackages|categories)
  * @returns {Array<{id:string, name:string, tasks:Array<{name:string,weight:number}>, groups:Array}>}
  */
-export function getScopedGanttWorkPackagesV2(scope = null) {
-  const scopedWPIds = getScopeWPIds(scope, ALL_WORK_PACKAGES_V2); // null = full scope
+export function getScopedGanttWorkPackagesV2(scope = null, projectOrTemplate = null) {
+  const data = resolveV2TemplateData(projectOrTemplate);
+  const workPackages = getScopeTemplateWorkPackages(data);
+  const scopedWPIds = resolveProjectScopeSelection({ scope, workPackages, schemaVersion: data?.schemaVersion }); // null = full scope (schema v1); [] = explicitly empty (schema v2)
   const categoryIds = scope?.categories ?? null;                  // null = all categories
   const byCategory = new Map();
 
-  for (const wp of ALL_WORK_PACKAGES_V2) {
+  for (const wp of workPackages) {
     if (scopedWPIds && !scopedWPIds.includes(wp.id)) continue;
     if (categoryIds && !categoryIds.includes(wp.categoryId)) continue;
     if (!byCategory.has(wp.categoryId)) byCategory.set(wp.categoryId, []);
@@ -70,7 +68,9 @@ export function getScopedGanttWorkPackagesV2(scope = null) {
   }
 
   return Array.from(byCategory.entries()).map(([categoryId, wps]) => {
-    const label = CATEGORY_LIBRARY[categoryId]?.label ?? categoryId;
+    const label = data.zones
+      .flatMap(zone => zone.categories ?? [])
+      .find(category => category.id === categoryId)?.label ?? categoryId;
     const taskNames = wps.map(wp => wp.label);
     return {
       id:     categoryId,
@@ -94,10 +94,10 @@ export function getScopedGanttWorkPackagesV2(scope = null) {
  * @param {string} templateType
  * @returns {Map<string, { zoneLabel: string, categories: Map<string, { categoryLabel: string, tasks: object[] }> }>}
  */
-export function groupGanttTasksByZone(ganttTasks, templateType) {
+export function groupGanttTasksByZone(ganttTasks, templateType, projectOrTemplate = null) {
   const zones = new Map();
   for (const task of ganttTasks) {
-    const grouping = getWPGrouping(templateType, task.id);
+    const grouping = getWPGrouping(templateType, task.id, projectOrTemplate);
     if (!grouping?.zoneId) continue;
     if (!zones.has(grouping.zoneId)) {
       zones.set(grouping.zoneId, { zoneLabel: grouping.zoneLabel, categories: new Map() });

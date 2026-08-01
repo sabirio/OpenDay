@@ -15,6 +15,7 @@ register('data:application/javascript,' + encodeURIComponent(loaderSrc), { paren
 
 const { buildProjectWPsV2, calculateGantt, calculateKeyDates, addDays } = await import('./ganttEngine.js');
 const { DEPENDENCY_RULES_V2 } = await import('../config/dependencyRulesV2.js');
+const { resolveEffectiveV2ZoneAreas } = await import('../core/projects/areas/resolveProjectArea.js');
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -86,6 +87,37 @@ console.log('\nbuildProjectWPsV2 — size modifier + scope narrowing');
 
   const dropBoh = buildProjectWPsV2(ZONE_AREAS, PROJECT_START, TARGET_OPENING, 1000, { activeZoneIds: ['common', 'sales'] });
   check('dropping boh zone excludes its WPs from seeding', !dropBoh.some(w => w.phaseId === 'boh'));
+}
+
+console.log('\nbuildProjectWPsV2 — canonical/legacy area equivalence');
+{
+  const legacyProject = {
+    store_size_sqm: 1100,
+    sales_area_sqm: 1000,
+    back_of_house_area_sqm: 100,
+    scope: { zoneAreas: { sales: 850, boh: 180 } },
+  };
+  const canonicalProject = {
+    store_size_sqm: 1100,
+    sales_area_sqm: 850,
+    back_of_house_area_sqm: 180,
+    scope: { zones: ['common', 'sales', 'boh'] },
+  };
+  const legacy = buildProjectWPsV2(
+    resolveEffectiveV2ZoneAreas(legacyProject), PROJECT_START, TARGET_OPENING, 1100,
+  );
+  const canonical = buildProjectWPsV2(
+    resolveEffectiveV2ZoneAreas(canonicalProject), PROJECT_START, TARGET_OPENING, 1100,
+  );
+  check('equivalent effective old/new areas produce identical area-driven WP durations',
+    JSON.stringify(legacy.map(wp => [wp.id, wp.duration_days]))
+      === JSON.stringify(canonical.map(wp => [wp.id, wp.duration_days])));
+
+  const legacyGantt = calculateGantt(legacy, DEPENDENCY_RULES_V2, PROJECT_START);
+  const canonicalGantt = calculateGantt(canonical, DEPENDENCY_RULES_V2, PROJECT_START);
+  check('equivalent effective old/new areas produce identical generated Gantt dates',
+    JSON.stringify(legacyGantt.map(wp => [wp.id, wp.earlyStart, wp.earlyFinish]))
+      === JSON.stringify(canonicalGantt.map(wp => [wp.id, wp.earlyStart, wp.earlyFinish])));
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

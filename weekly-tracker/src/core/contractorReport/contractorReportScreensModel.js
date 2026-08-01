@@ -19,25 +19,25 @@ export async function getAllReportsForScreens() {
   const { reports, wps, projects } = await fetchAllContractorReportsRaw();
 
   const wpsByReportId = groupWpsByReportId(wps);
-  const templateTypeByProjectId = {};
-  for (const p of projects) templateTypeByProjectId[p.id] = p.template_type;
+  const projectById = {};
+  for (const p of projects) projectById[p.id] = p;
 
   return validateArray(
     ContractorReportSchema,
-    adaptContractorReportsToLegacy(reports, wpsByReportId, templateTypeByProjectId),
+    adaptContractorReportsToLegacy(reports, wpsByReportId, projectById),
     'contractor_reports'
   );
 }
 
 export async function getReportsForProjectForScreens(projectId) {
-  const { reports, wps, templateType } = await fetchContractorReportsForProjectRaw(projectId);
+  const { reports, wps, project } = await fetchContractorReportsForProjectRaw(projectId);
   if (reports.length === 0) return [];
 
   const wpsByReportId = groupWpsByReportId(wps);
 
   return validateArray(
     ContractorReportSchema,
-    adaptContractorReportsToLegacy(reports, wpsByReportId, { [projectId]: templateType }),
+    adaptContractorReportsToLegacy(reports, wpsByReportId, { [projectId]: project }),
     'contractor_reports'
   );
 }
