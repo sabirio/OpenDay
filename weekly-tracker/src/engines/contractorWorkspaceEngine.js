@@ -1,6 +1,8 @@
-import { daysSince, daysUntil, isMissingReport } from '../utils/reportUtils.js';
+import { daysSince, daysUntil } from '../utils/reportUtils.js';
 import { getAvailableSnagActions } from '../core/snags/workflow.js';
 import { deriveDueState } from './snagReadModelEngine.js';
+import { deriveReportDueState, REPORT_DUE_STATE } from './reportDueStateEngine.js';
+import { deriveScheduleCommitmentState } from '../core/schedule/scheduleCommitmentState.js';
 
 // "My Work" for a contractor is deliberately NOT the PM risk/readiness/priority
 // engine (openingReadinessEngine.js / riskEngine.js / actionEngine.js) — those
@@ -50,7 +52,17 @@ export function computeContractorWorkspaceRows(projects, reportsByProjectId, sna
     const projectReports = reportsByProjectId[project.id] || [];
     const projectSnags = snagsByProjectId[project.id] || [];
     const latestReport = latestReportOf(projectReports);
-    const missingReport = isMissingReport(latestReport, referenceDate);
+    // Phase 3D.1: no lifecycle-status/commitment-timestamp fetch is wired
+    // into this bulk contractor view yet — scheduleOwnershipMode alone
+    // (already on the project row) is enough to keep AUTO_GENERATED
+    // projects byte-identical and to stop a fresh CONTRACTOR_MANAGED
+    // project's report obligation from being fabricated before any
+    // commitment exists (the conservative default is NOT_YET_COMMITTED,
+    // never falsely COMMITTED).
+    const scheduleOwnershipMode = project?.scheduleOwnershipMode ?? null;
+    const commitmentState = deriveScheduleCommitmentState({ scheduleOwnershipMode });
+    const reportDueState = deriveReportDueState({ scheduleOwnershipMode, commitmentState, latestReport, referenceDate });
+    const missingReport = reportDueState === REPORT_DUE_STATE.OVERDUE;
     const daysSinceReport = latestReport
       ? daysSince(latestReport.reportingDate || latestReport.submittedAt, referenceDate)
       : null;
@@ -59,6 +71,7 @@ export function computeContractorWorkspaceRows(projects, reportsByProjectId, sna
     return {
       project, latestReport, missingReport, daysSinceReport, daysToOpening,
       actionableSnagCount: actionableCount, overdueSnagCount: overdueCount,
+      reportDueState,
     };
   });
 

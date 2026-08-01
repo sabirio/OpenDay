@@ -115,5 +115,26 @@ const r7 = confidenceToInsights([
 ]);
 check('null confidence → skipped',    r7.length === 0);
 
+// ── 8. Phase 3D.1: NOT_ASSESSABLE + no report at all → suppressed ─────────
+
+console.log('\n8) Phase 3D.1: NOT_ASSESSABLE, no report at all → no card (no obligation yet)');
+const r8 = confidenceToInsights([
+  { ...row('p8', conf(0, 0)), latestReport: null, assessmentAvailability: 'NOT_ASSESSABLE' },
+]);
+check('no card for a not-yet-committed project with zero reports', r8.length === 0);
+
+console.log('\n9) Phase 3D.1: NOT_ASSESSABLE but a real (stale) report exists → still emits (genuine evidence preserved)');
+const r9 = confidenceToInsights([
+  { ...row('p9', conf(1, 0)), latestReport: { reportingDate: '2020-01-01' }, assessmentAvailability: 'NOT_ASSESSABLE' },
+]);
+check('stale-report card still emitted despite NOT_ASSESSABLE', r9.length === 1);
+check('detail mentions No recent report', r9[0].detail?.includes('No recent report'));
+
+console.log('\n10) Phase 3D.1: ASSESSABLE + no report → unaffected (unchanged legacy behavior)');
+const r10 = confidenceToInsights([
+  { ...row('p10', conf(0, 0)), latestReport: null, assessmentAvailability: 'ASSESSABLE' },
+]);
+check('card still emitted for an ASSESSABLE project with no reports', r10.length === 1);
+
 console.log(`\n── RESULT: ${pass} passed, ${fail} failed ──\n`);
 process.exit(fail === 0 ? 0 : 1);

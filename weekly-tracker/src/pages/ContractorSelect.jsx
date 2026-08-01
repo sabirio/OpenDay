@@ -25,6 +25,13 @@ import { useContractorDirectory } from '../hooks/useContractorDirectory';
 // scoped project list and which actor identity feed the same workspace
 // pipeline a real Contractor session uses.
 function reportStatusFor(row) {
+  // Phase 3D.1: a CONTRACTOR_MANAGED project awaiting its first schedule
+  // commitment has no reporting obligation yet (reportDueStateEngine.js) —
+  // must read as neutral "nothing to report on yet", not the same warning
+  // tone as a genuinely overdue AUTO_GENERATED/committed project.
+  if (row.reportDueState === 'NOT_YET_DUE') {
+    return { text: 'Awaiting schedule commitment — no report due yet', tone: 'secondary' };
+  }
   if (!row.latestReport) return { text: 'No report submitted yet', tone: 'warning' };
   if (row.missingReport) {
     return { text: `Report overdue — last submitted ${row.daysSinceReport} day${row.daysSinceReport === 1 ? '' : 's'} ago`, tone: 'error' };

@@ -1,9 +1,16 @@
 import { daysSince as daysSinceFn, daysUntil } from '../utils/reportUtils';
 import { PM_MISMATCH_FACTOR_NAMES } from './riskEngine.js';
+import { deriveScheduleCommitmentState, SCHEDULE_COMMITMENT_STATE } from '../core/schedule/scheduleCommitmentState.js';
 
 export function computeRecommendedActions(riskScore, contScore, schedDev, latestReport, projSiteVisits, project) {
   const actions = [];
   if (!latestReport) {
+    // Phase 3D.1: a CONTRACTOR_MANAGED project awaiting its first schedule
+    // commitment has nothing to report on yet — "request first weekly
+    // report" would be nagging for data that isn't due (NO COMMITMENT YET
+    // != COMMITMENT MISSED). AUTO_GENERATED is unaffected (always COMMITTED).
+    const commitmentState = deriveScheduleCommitmentState({ scheduleOwnershipMode: project?.scheduleOwnershipMode ?? null });
+    if (commitmentState !== SCHEDULE_COMMITMENT_STATE.COMMITTED) return [];
     return [{ priority: "HIGH", action: "Request first weekly report from contractor", reason: "No data — risk assessment cannot be performed" }];
   }
   const dTo = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;

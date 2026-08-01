@@ -74,5 +74,24 @@ console.log('\nno opening_at_risk when readiness is healthy');
   check('no opening_at_risk command, falls through to all_clear', commands.some(c => c.id === 'all_clear') && !commands.some(c => c.id === 'opening_at_risk'));
 }
 
+console.log('\nPhase 3D.1 — no opening_at_risk/high_risk/missing_report when upstream state is NOT_ASSESSABLE');
+{
+  // getCommands() takes no schedule-commitment facts directly — it composes
+  // purely from riskScore/openingReadiness/missingReport, which are already
+  // fixed upstream (openingReadinessEngine/riskEngine/evaluateProjectState).
+  // This proves that composition: a NOT_ASSESSABLE project's already-neutral
+  // engine outputs never trigger any of these three commands.
+  const commands = getCommands({
+    project: PROJECT, progressComparison: null, prevProgressComparison: null,
+    riskScore: { level: 'LOW', score: 0, factors: [], assessmentAvailability: 'NOT_ASSESSABLE' },
+    openingReadiness: { status: 'Not Assessable', criticalBlockers: [], softBlockers: [], assessmentAvailability: 'NOT_ASSESSABLE' },
+    latestReport: null, missingReport: false,
+  });
+  check('no opening_at_risk command', !commands.some(c => c.id === 'opening_at_risk'));
+  check('no high_risk command', !commands.some(c => c.id === 'high_risk'));
+  check('no missing_report command', !commands.some(c => c.id === 'missing_report'));
+  check('falls through to all_clear', commands.some(c => c.id === 'all_clear'));
+}
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);
