@@ -334,6 +334,79 @@ export async function create(project) {
   return { ...saved, scopeTemplate: pinnedTemplate };
 }
 
+/**
+ * Atomically create a CONTRACTOR_MANAGED project via
+ * create_contractor_managed_project() (052_create_contractor_managed_project.sql):
+ * one call creates the project row, persists Scope, and materializes one
+ * unscheduled project_gantt_tasks row per active Scope WP, or rolls back
+ * everything. This is a thin RPC wrapper — it does not resolve Scope
+ * selection itself (the caller supplies the already-resolved active WP id
+ * list; see core/projects/createContractorManagedProjectCommand.js) and it
+ * never falls back to the plain create() path on failure.
+ *
+ * p_project uses the same camelCase field names as the JS project object —
+ * NOT toDB()'s snake_case shape — because the RPC reads them directly out of
+ * the jsonb payload by camelCase key. template_id and schedule_ownership_mode
+ * are deliberately absent: the server resolves the template and hardcodes
+ * ownership to CONTRACTOR_MANAGED; neither can be supplied by the client.
+ *
+ * @param {object} project — the in-progress new-project form state
+ * @param {string[]} scopeWpIds — the resolved active Scope WP ids (non-empty)
+ * @param {string} clientRequestId — uuid, stable across retries of one logical create attempt
+ * @returns {Promise<object & { materializedCount: number, idempotentReplay: boolean }>}
+ */
+export async function createContractorManagedProject(project, scopeWpIds, clientRequestId) {
+  validateProject(project);
+  const { data, error } = await supabase.rpc('create_contractor_managed_project', {
+    p_project: {
+      storeCode: project.storeCode || null,
+      shoppingMallName: project.shoppingMallName || null,
+      city: project.city || null,
+      street: project.street || null,
+      state: project.state || null,
+      country: project.country || null,
+      salesMarket: project.salesMarket || null,
+      constructionStartDate: project.constructionStartDate || null,
+      constructionEndDate: project.constructionEndDate || null,
+      targetOpeningDate: project.targetOpeningDate || null,
+      projectManager: project.projectManager || null,
+      generalContractor: project.generalContractor || null,
+      contractorEmail: project.contractorEmail || null,
+      securityManager: project.securityManager || null,
+      itManager: project.itManager || null,
+      facilityManager: project.facilityManager || null,
+      hrManager: project.hrManager || null,
+      supplyManager: project.supplyManager || null,
+      projectType: project.projectType || null,
+      projectStatus: project.projectStatus || null,
+      companyId: project.companyId || null,
+      locationType: project.locationType || null,
+      storeConcept: project.storeConcept || null,
+      salesAreaSqm: project.salesAreaSqm === '' || project.salesAreaSqm == null ? null : project.salesAreaSqm,
+      backOfHouseAreaSqm: project.backOfHouseAreaSqm === '' || project.backOfHouseAreaSqm == null ? null : project.backOfHouseAreaSqm,
+      budget: project.budget === '' || project.budget == null ? null : project.budget,
+      currencyCode: project.currencyCode || null,
+      scope: project.scope || null,
+    },
+    p_scope_wp_ids: scopeWpIds,
+    p_client_request_id: clientRequestId,
+  });
+  if (error) throw error;
+  const saved = fromDB(data);
+  // Mirror create()'s own contract: every project this service hands back
+  // carries its resolved scopeTemplate, never left for the caller to fetch
+  // separately (project.templateId was resolved server-side, not supplied by
+  // the caller, so there is no client-known template to pass through here).
+  const { fetchTemplateRecordById } = await import('./templateService.js');
+  const scopeTemplate = saved.templateId ? await fetchTemplateRecordById(saved.templateId) : null;
+  return {
+    ...saved,
+    scopeTemplate,
+    materializedCount: data?.materializedCount ?? 0,
+    idempotentReplay: data?.idempotentReplay === true,
+  };
+}
+
 export async function update(id, project) {
   if (!id) throw new Error('Project ID is required for update');
   validateProject(project);
