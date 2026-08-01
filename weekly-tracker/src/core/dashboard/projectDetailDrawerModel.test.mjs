@@ -22,6 +22,8 @@ export async function resolve(specifier, context, nextResolve) {
 register('data:application/javascript,' + encodeURIComponent(loaderSrc), { parentURL: import.meta.url });
 
 const { buildProjectDetailDrawerModel } = await import('./projectDetailDrawerModel.js');
+const { buildCanonicalProjectRows } = await import('./dashboardProjectRowsModel.js');
+const { buildScheduleCommitmentProjection } = await import('../schedule/scheduleCommitmentBatchProjection.js');
 
 let pass = 0, fail = 0;
 const check = (name, cond) => {
@@ -61,6 +63,27 @@ console.log('\nbuildProjectDetailDrawerModel — AUTO_GENERATED passes readiness
   const row = rowWithCachedSummary({ scheduleOwnershipMode: 'AUTO_GENERATED', readinessStatus: 'Critical' });
   const summary = buildProjectDetailDrawerModel(row, []);
   check('statusLabel equals status for AUTO_GENERATED', summary.opening.statusLabel === 'Critical' && summary.opening.status === 'Critical');
+}
+
+console.log('\nbuildProjectDetailDrawerModel — cached row carrying a real lifecycle status distinguishes PENDING_REVIEW from DRAFT');
+{
+  const row = { ...rowWithCachedSummary({ scheduleOwnershipMode: 'CONTRACTOR_MANAGED', readinessStatus: 'Not Assessable' }), contractorScheduleLifecycleStatus: 'PENDING_REVIEW' };
+  const summary = buildProjectDetailDrawerModel(row, []);
+  check('statusLabel is "Awaiting PM Review", not the generic DRAFT fallback', summary.opening.statusLabel === 'Awaiting PM Review');
+}
+
+console.log('\nbuildProjectDetailDrawerModel — full real chain: batch projection -> dashboard row -> drawer label (CHANGES_REQUESTED)');
+{
+  const project = { id: 'cm-drawer-1', scheduleOwnershipMode: 'CONTRACTOR_MANAGED', targetOpeningDate: '2027-06-01', scope: { workPackages: ['demo.strip_out'], zoneAreas: {} }, progressHistory: [] };
+  const projection = buildScheduleCommitmentProjection(
+    [project],
+    [{ id: 'v1', projectId: 'cm-drawer-1', submissionNumber: 1, status: 'CHANGES_REQUESTED' }],
+    [],
+  );
+  const [row] = buildCanonicalProjectRows({ projects: [project], reports: [], siteVisits: [], calculatedAt: '2027-01-20T00:00:00.000Z', scheduleCommitmentProjection: projection });
+  check('row itself carries the raw lifecycle status', row.contractorScheduleLifecycleStatus === 'CHANGES_REQUESTED');
+  const summary = buildProjectDetailDrawerModel(row, []);
+  check('drawer statusLabel is "Schedule Changes Required" end to end', summary.opening.statusLabel === 'Schedule Changes Required');
 }
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);

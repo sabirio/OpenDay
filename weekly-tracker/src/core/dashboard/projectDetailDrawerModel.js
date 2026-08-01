@@ -7,7 +7,10 @@ import { deriveOpeningStatusLabel } from './openingStatusLabel.js';
 // wording for it (see openingStatusLabel.js). Centralized here so
 // DashboardProjectOverview.jsx (a component) never needs to import core/
 // directly — components only ever read the already-composed summary.
-function withOpeningStatusLabel(summary, project) {
+// contractorScheduleLifecycleStatus (when the live projection resolved one)
+// distinguishes DRAFT from CHANGES_REQUESTED wording — commitmentState alone
+// collapses both into NOT_YET_COMMITTED.
+function withOpeningStatusLabel(summary, project, contractorScheduleLifecycleStatus) {
   if (!summary?.opening) return summary;
   return {
     ...summary,
@@ -15,6 +18,7 @@ function withOpeningStatusLabel(summary, project) {
       ...summary.opening,
       statusLabel: deriveOpeningStatusLabel({
         scheduleOwnershipMode: project?.scheduleOwnershipMode ?? null,
+        contractorScheduleLifecycleStatus: contractorScheduleLifecycleStatus ?? null,
         readinessStatus: summary.opening.status,
       }),
     },
@@ -24,7 +28,7 @@ function withOpeningStatusLabel(summary, project) {
 export function buildProjectDetailDrawerModel(row, projSiteVisits) {
   if (!row) return null;
   if (row.canonical?.compatibility?.projectSummary) {
-    return withOpeningStatusLabel(row.canonical.compatibility.projectSummary, row.project);
+    return withOpeningStatusLabel(row.canonical.compatibility.projectSummary, row.project, row.contractorScheduleLifecycleStatus);
   }
   const { templatesById = {}, activeTemplateFallback = null } = row.orchestrationOptions || {};
   const candidateTemplate = row.project?.templateId
@@ -38,5 +42,5 @@ export function buildProjectDetailDrawerModel(row, projSiteVisits) {
     progressHistory: row.project?.progressHistory,
     template,
   }, row.orchestrationOptions);
-  return withOpeningStatusLabel(result.compatibility.projectSummary, row.project);
+  return withOpeningStatusLabel(result.compatibility.projectSummary, row.project, result.contractorScheduleLifecycleStatus);
 }
