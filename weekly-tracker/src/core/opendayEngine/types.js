@@ -30,6 +30,10 @@
  * @property {object} contScore — computeContractorScores() output
  * @property {object} health — computeProjectHealth() output
  * @property {object} readiness — computeOpeningReadiness() output
+ * @property {string|null} scheduleOwnershipMode — Phase 3D.1: 'AUTO_GENERATED'|'CONTRACTOR_MANAGED'
+ * @property {string} commitmentState — Phase 3D.1: deriveScheduleCommitmentState() output
+ * @property {string} assessmentAvailability — Phase 3D.1: 'ASSESSABLE'|'NOT_ASSESSABLE'
+ * @property {string} reportDueState — Phase 3D.1: deriveReportDueState() output
  */
 
 /**

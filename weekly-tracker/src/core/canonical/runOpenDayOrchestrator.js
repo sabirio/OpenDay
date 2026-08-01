@@ -38,6 +38,14 @@ export function runOpenDayOrchestrator(raw = {}, options = {}) {
     schedule: legacyState.progressComparison || null,
     readiness: legacyState.readiness || null,
     risks: legacyState.riskScore,
+    // Phase 3D.1: promoted straight from legacyState (no second derivation
+    // path here — evaluateProjectState() remains the one place these are
+    // computed) so canonical consumers can read commitment/assessment state
+    // without reaching into compatibility.legacyState.
+    scheduleOwnershipMode: legacyState.scheduleOwnershipMode,
+    commitmentState: legacyState.commitmentState,
+    assessmentAvailability: legacyState.assessmentAvailability,
+    reportDueState: legacyState.reportDueState,
     warnings: [...snapshot.warnings, ...progress.warnings, ...discrepancy.warnings],
     calculatedAt: snapshot.metadata.calculatedAt,
     compatibility: { legacyState, projectSummary, readiness: true, risk: true, schedule: true },
