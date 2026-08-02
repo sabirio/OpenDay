@@ -4,13 +4,13 @@
     "environment": "staging",
     "projectRef": "sdndsekarwhumdbcqxni",
     "batchId": "contractor-managed-rollout-046-054",
-    "branchHead": "6e568d836ebdec6ab6bdb0419a859cb0c9d1666d",
+    "branchHead": "cf5fc00d4028bbb255e4d100a537a6d1575bd81e",
     "backupBinding": {
         "backupDirectory": "backups/staging/20260802T135704Z",
         "backupManifestSha256": "cbb3c4a1fbdefd54acb16ad727591e151e950e867332a45b4b4771efc274208f"
     },
     "releaseManifestPath": "scripts/manifests/contractor-managed-rollout-046-054.psd1",
-    "releaseManifestSha256": "a76d49267b8d5f4bd00e85e4a167e16bfd194d3962c6894cc9b91c90b66a9aea",
+    "releaseManifestSha256": "0330668aec1f3335aa98fc8696ad67a8fe624f4184076a69dc0ffab5e4157688",
     "preflight": {
         "result": null,
         "runAtUtc": null
@@ -23,8 +23,8 @@
         { "number": 50, "file": "050_contractor_schedule_draft_lifecycle_lock.sql", "sha256": "1cc114d59219cc1e31f5e4102a46f0446c95196297bc18cd694b4bda60627bb4", "startedAtUtc": null, "completedAtUtc": null, "exitCode": null, "intermediateCheck": null },
         { "number": 51, "file": "051_contractor_schedule_lifecycle_lock_integrity.sql", "sha256": "7e6d186b44ca67548b2fdf8e4cb72b7a7303d269b3e13a0b3800f61d75d382c5", "startedAtUtc": null, "completedAtUtc": null, "exitCode": null, "intermediateCheck": null },
         { "number": 52, "file": "052_create_contractor_managed_project.sql", "sha256": "2ccd788db3103e4513a1bd8611687137661e442aab7d8ca444b2899d53522a1b", "startedAtUtc": null, "completedAtUtc": null, "exitCode": null, "intermediateCheck": null },
-        { "number": 53, "file": "053_contractor_managed_project_scope_sync.sql", "sha256": "9529be1c323934210a7130d7d35c8fd150ebcd50bdcdaab77e113857478aa8fa", "startedAtUtc": null, "completedAtUtc": null, "exitCode": null, "intermediateCheck": null },
-        { "number": 54, "file": "054_fix_contractor_managed_scope_null_artifact.sql", "sha256": "3e69ad0c9b453074d667bc38b0984432ed33f7d0b42043df7f28d87a9569b77b", "startedAtUtc": null, "completedAtUtc": null, "exitCode": null, "intermediateCheck": null }
+        { "number": 53, "file": "053_contractor_managed_project_scope_sync.sql", "sha256": "a0b1ea7910d35c18709f40b3535c1303501f5539b824574dd0b73aa577a6d64f", "startedAtUtc": null, "completedAtUtc": null, "exitCode": null, "intermediateCheck": null },
+        { "number": 54, "file": "054_fix_contractor_managed_scope_null_artifact.sql", "sha256": "a84040891bb20262f40a31c94c455465534bf2be4e963ec78558a92b1565d158", "startedAtUtc": null, "completedAtUtc": null, "exitCode": null, "intermediateCheck": null }
     ],
     "migration054": {
         "preCount": null,

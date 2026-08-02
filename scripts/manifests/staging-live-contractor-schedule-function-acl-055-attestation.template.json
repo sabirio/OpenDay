@@ -1,0 +1,50 @@
+{
+    "schemaVersion": "staging-migration-attestation/v1",
+    "_comment": "External evidence record for the manually-applied staging security hotfix migration 055. The owner fills in one copy after completing the live apply and commits it to the repository. Never put STAGING_DB_URL or any password in this file.",
+    "environment": "staging",
+    "projectRef": "sdndsekarwhumdbcqxni",
+    "batchId": "contractor-schedule-function-acl-055",
+    "branchHead": "cf5fc00d4028bbb255e4d100a537a6d1575bd81e",
+    "backupBinding": {
+        "backupDirectory": "backups/staging/20260802T135704Z",
+        "backupManifestSha256": "cbb3c4a1fbdefd54acb16ad727591e151e950e867332a45b4b4771efc274208f"
+    },
+    "releaseManifestPath": "scripts/manifests/contractor-schedule-function-acl-055.psd1",
+    "releaseManifestSha256": "f5606e44b177c865a916717ddf2ff3e5a918aeaa0424b45a9ca2cff3026de63f",
+    "preflight": {
+        "result": null,
+        "runAtUtc": null,
+        "migration053Applied": null,
+        "migration054Applied": null,
+        "anonymousExecuteExposureConfirmed": null
+    },
+    "migrations": [
+        {
+            "number": 55,
+            "file": "055_restrict_contractor_schedule_function_acl.sql",
+            "sha256": "8db03764d989e20ee7f47aa9f7e05da8eca32488ae10f1948bef80643618c59c",
+            "startedAtUtc": null,
+            "completedAtUtc": null,
+            "exitCode": null,
+            "intermediateCheck": null
+        }
+    ],
+    "postflight": {
+        "anonymousUserFacingRpcExecuteCount": null,
+        "anonymousTriggerFunctionExecuteCount": null,
+        "authenticatedTriggerFunctionExecuteCount": null,
+        "authenticatedUserFacingRpcChecksPassed": null,
+        "serviceRoleExecuteChecksPassed": null,
+        "projectsTotalBefore": null,
+        "projectsTotalAfter": null,
+        "securityInventoryResult": null
+    },
+    "ownerAttestation": {
+        "targetWasStagingNotProduction": null,
+        "migration055AppliedAfter054": null,
+        "noOtherMigrationApplied": null,
+        "frontendNotDeployed": null,
+        "oldFrontendSmokeTestPassed": null,
+        "appliedByStatement": null
+    }
+}
