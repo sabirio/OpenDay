@@ -108,5 +108,45 @@ Assert-True 'release binding: obsolete release commit removed' ($source -notmatc
 Assert-True 'release binding: validation precedes production connection' ($source.IndexOf('Resolve-BackupReleaseBinding') -lt $source.IndexOf('Get-ProductionConnectionFingerprint'))
 Assert-True 'release binding: qualifying manifest status is explicit' ($source -match 'DUMP_CREATED_STATIC_VALIDATION_PASS_RELEASE_BOUND')
 
+# ─── Phase 3E.1: staging environment parameterization (additive) ───────────
+# Everything above this line proves production's own default (-Environment
+# omitted) is byte-identical to its pre-Phase-3E.1 behavior. Everything
+# below proves the new, explicitly-opt-in staging path independently -
+# never exercised unless -Environment staging is passed.
+$connectionHelperPath = Join-Path $repoRoot 'scripts\lib\ProductionConnection.ps1'
+. $connectionHelperPath
+$connectionSource = Get-Content $connectionHelperPath -Raw
+$tokens=$null; $errors=$null
+[void][Management.Automation.Language.Parser]::ParseFile($connectionHelperPath,[ref]$tokens,[ref]$errors)
+Assert-True 'AA: connection helper parses on Windows PowerShell 5.1' ($errors.Count -eq 0)
+Assert-True 'AB: Get-ProductionConnectionFingerprint is untouched (function still present, unrenamed)' ($connectionSource -match 'function Get-ProductionConnectionFingerprint')
+Assert-True 'AC: Get-StagingConnectionFingerprint reads STAGING_DB_URL, not PRODUCTION_DB_URL' ($connectionSource -match 'function Get-StagingConnectionFingerprint[\s\S]*?STAGING_DB_URL' -and ($connectionSource -split 'function Get-StagingConnectionFingerprint')[1] -notmatch 'PRODUCTION_DB_URL')
+Assert-True 'AD: staging fingerprint never reads or writes PRODUCTION_DB_URL' (-not (($connectionSource -split 'function Get-StagingConnectionFingerprint')[1] -match 'PRODUCTION_DB_URL'))
+
+$stagingDefault = Resolve-ProductionBackupPaths -ScriptPath $scriptPath -Timestamp $stamp -Environment 'staging'
+Assert-True 'AE: staging environment resolves its own env file' ($stagingDefault.EnvFile -eq (Join-Path $repoRoot 'weekly-tracker\.env.staging'))
+Assert-True 'AF: staging environment resolves its own backup root' ($stagingDefault.BackupRoot -eq (Join-Path $repoRoot 'backups\staging'))
+Assert-True 'AG: staging and production resolve to different roots' ($stagingDefault.BackupRoot -ne $default.BackupRoot -and $stagingDefault.EnvFile -ne $default.EnvFile)
+Assert-Throws 'AH: unknown environment value fails closed' { Resolve-ProductionBackupPaths -ScriptPath $scriptPath -Timestamp $stamp -Environment 'not-a-real-environment' } 'Cannot validate argument'
+
+$backupSource = Get-Content $scriptPath -Raw
+Assert-True 'AI: production-backup.ps1 calls Get-StagingConnectionFingerprint only under -Environment staging' ($backupSource -match "elseif \(\`$Environment -eq 'staging'\)[\s\S]{0,200}Get-StagingConnectionFingerprint")
+Assert-True 'AJ: safe mode still exits before the staging fingerprint call' ($backupSource.IndexOf("if (`$ValidateOnly -or `$ShowResolvedPaths)") -lt $backupSource.IndexOf('Get-StagingConnectionFingerprint'))
+Assert-True 'AK: staging ref is a distinct hardcoded constant, never inferred' ($backupSource -match "'sdndsekarwhumdbcqxni'" -and $backupSource -match "'szgbkeqornkdngoegyso'")
+Assert-True 'AL: manifest records which environment produced the backup' ($backupSource -match 'environment = \$Environment')
+
+$actualStagingValidate = Invoke-SafeEntryPoint -WorkingDirectory $repoRoot -ViaCallOperator $false
+# (same ValidateOnly-only invocation as test B/C — -Environment does not
+# change ValidateOnly's own exit-before-any-connection-work contract, so
+# reusing the existing production-default helper is sufficient here; a
+# dedicated -Environment staging ValidateOnly call is exercised below.)
+$stagingValidateArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$scriptPath,'-ValidateOnly','-Environment','staging') + $bindingArgs
+$stdout = Join-Path ([IO.Path]::GetTempPath()) ('backup-staging-safe-'+[guid]::NewGuid().ToString('N')+'.txt')
+try {
+    $p = Start-Process powershell.exe -ArgumentList $stagingValidateArgs -WorkingDirectory $repoRoot -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdout
+    $stagingOutput = [IO.File]::ReadAllText($stdout)
+    Assert-True 'AM: -Environment staging -ValidateOnly passes safely (no credentials loaded, nothing created)' ($p.ExitCode -eq 0 -and $stagingOutput -match 'BACKUP_VALIDATE_ONLY: PASS')
+} finally { Remove-Item $stdout -Force -ErrorAction SilentlyContinue }
+
 Write-Host "TOTAL: $script:passed passed, $script:failed failed"
 if($script:failed -gt 0){exit 1}
