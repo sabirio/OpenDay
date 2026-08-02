@@ -344,17 +344,22 @@ test.describe.serial('UI-Created Project Full Lifecycle (Simplification Phase 3D
     expect(reviewHref).toMatch(/\/schedule-review$/);
 
     // Followed via a full navigation (page.goto to the app's own rendered
-    // href) rather than clicking the client-side <Link> — this specific
-    // client-side transition (Dashboard's drawer -> a different lazy-loaded
-    // top-level route) proved intermittently flaky under this suite's
-    // sequential automated load (observed: the URL updates but the previous
-    // page's content remains mounted) in a way no existing certified spec
-    // ever exercises, since every other spec already reaches this exact
-    // page via a direct navigation. A full navigation to the app's own real
-    // route is itself a legitimate real user action (e.g. following a
-    // bookmarked/shared link) and is the same technique
-    // contractor-schedule-submission-workflow.spec.js already uses for this
-    // identical page.
+    // href) rather than clicking the client-side <Link>. Classification
+    // (Phase 3D.3 Section 8 investigation): LAZY_ROUTE_TEST_ENVIRONMENT —
+    // clicking this exact Link (Dashboard's drawer -> PMScheduleReview, a
+    // different React.lazy-loaded top-level route) was reproduced clean in
+    // 12/12 isolated repeated clicks (zero console/page errors) but failed
+    // 2/2 times when the identical click immediately followed this spec's
+    // own heavy preceding sequence (tests 1-5: fresh logins, dialogs, RPC
+    // calls, page reloads) in the same Playwright/Vite-dev-server session —
+    // never in isolation, only after that specific heavier load. This
+    // points to Vite's on-demand dev-server chunk transform/timing under
+    // this harness's sequential load, not a defect a production build
+    // (fully pre-bundled, no on-demand transform) or a real user would ever
+    // hit. A full navigation to the app's own real rendered route is itself
+    // a legitimate real user action (e.g. following a bookmarked/shared
+    // link) and is the same technique contractor-schedule-submission-
+    // workflow.spec.js already uses for this identical page.
     await page.goto(reviewHref);
     scheduleReviewUrl = page.url();
 
@@ -549,11 +554,25 @@ test.describe.serial('UI-Created Project Full Lifecycle (Simplification Phase 3D
     expect(versions.filter(v => v.baseline_revision_number != null)).toHaveLength(1);
     expect(versions.find(v => v.baseline_revision_number === 1).status).toBe('APPROVED');
 
+    const { data: v1TaskRows } = await client
+      .from('project_schedule_version_tasks')
+      .select('wp_id, planned_end')
+      .eq('version_id', versions[0].id);
     const { data: v2Tasks } = await client
       .from('project_schedule_version_tasks')
-      .select('wp_id')
+      .select('wp_id, planned_end')
       .eq('version_id', versions[1].id);
     expect(v2Tasks).toHaveLength(3);
+
+    // Direct proof (by stable WP identity, not row order) that Submission
+    // #1's original MEP Disconnection date and Submission #2's revised one
+    // are genuinely different immutable snapshot values — not the same row
+    // re-read, and not inferred solely from the UI.
+    const v1Mep = v1TaskRows.find(t => t.wp_id === 'common.demolition.mep_disconnect');
+    const v2Mep = v2Tasks.find(t => t.wp_id === 'common.demolition.mep_disconnect');
+    expect(v1Mep).toBeTruthy();
+    expect(v2Mep).toBeTruthy();
+    expect(v2Mep.planned_end).not.toBe(v1Mep.planned_end);
 
     const { count: draftActiveCount } = await client
       .from('project_gantt_tasks')
@@ -596,5 +615,86 @@ test.describe.serial('UI-Created Project Full Lifecycle (Simplification Phase 3D
     await expect(page.getByRole('button', { name: 'Approve', exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Request Changes', exact: true })).toHaveCount(0);
     await logout(page);
+  });
+
+  test('11. Post-approval Scope lock: direct evidence, not inference', async ({ page }) => {
+    const client = await serviceLikeAdminClient();
+
+    const { data: scopeBefore } = await client.from('projects').select('scope').eq('id', projectId).single();
+    const { data: tasksBefore } = await client
+      .from('project_gantt_tasks')
+      .select('wp_id, is_archived')
+      .eq('project_id', projectId)
+      .order('wp_id');
+    const { data: versionsBefore } = await client
+      .from('project_schedule_versions')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('submission_number');
+    const approvedBefore = versionsBefore.find(v => v.status === 'APPROVED');
+    expect(approvedBefore).toBeTruthy();
+
+    await login(page, CREDENTIALS.admin);
+    await page.goto('/projects');
+    const row = page.locator('[data-testid="portfolio-master-project"]', { hasText: STORE_CODE });
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await row.click();
+    await page.locator('.portfolio-detail-header button', { hasText: 'Edit Project' }).click();
+    const editDialog = page.getByRole('dialog', { name: 'Edit Project' });
+
+    // The Configure Project Scope control itself is not disabled/hidden —
+    // the lock is enforced by the atomic Scope-sync RPC (053), the same
+    // boundary contractor-managed-scope-edit-workflow.spec.js already
+    // certifies for PENDING_REVIEW. This proves the SAME boundary also
+    // holds once the lifecycle has moved past PENDING_REVIEW to APPROVED.
+    await editDialog.getByRole('button', { name: 'Configure Project Scope' }).click();
+    const scopeDialog = page.getByRole('dialog', { name: 'Configure Project Scope' });
+    await expect(scopeDialog).toBeVisible();
+    // Uncheck one WP within the (only) active category, not the whole
+    // category/zone — unchecking the last active category would empty the
+    // Scope entirely (0 active zones), which Save Scope is itself correctly
+    // disabled for (EMPTY_SCOPE guard, unrelated to the lock this test is
+    // certifying). This still constitutes a genuine Scope-reduction attempt.
+    // "Demolition" (unique across the whole template) must be expanded
+    // first — WP checkboxes only render once their category row is expanded.
+    await scopeDialog.getByText('Demolition', { exact: true }).click();
+    await scopeDialog.getByLabel(WP_LABELS[2]).uncheck();
+    await expect(scopeDialog.getByRole('button', { name: 'Save Scope' })).toBeEnabled();
+    await scopeDialog.getByRole('button', { name: 'Save Scope' }).click();
+
+    const [scopeSyncResponse] = await Promise.all([
+      page.waitForResponse(resp => resp.url().includes('/rpc/update_contractor_managed_project_scope')),
+      editDialog.getByRole('button', { name: 'Save Changes' }).click(),
+    ]);
+    expect(scopeSyncResponse.ok()).toBe(false);
+    const scopeSyncBody = await scopeSyncResponse.json();
+    expect(scopeSyncBody.message || '').toContain('BASELINE_ALREADY_APPROVED');
+
+    await expect(page.locator('text=Scope cannot be edited once the schedule baseline has been approved.')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('text=Project updated.')).toHaveCount(0);
+
+    const { data: scopeAfter } = await client.from('projects').select('scope').eq('id', projectId).single();
+    const { data: tasksAfter } = await client
+      .from('project_gantt_tasks')
+      .select('wp_id, is_archived')
+      .eq('project_id', projectId)
+      .order('wp_id');
+    const { data: versionsAfter } = await client
+      .from('project_schedule_versions')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('submission_number');
+    const approvedAfter = versionsAfter.find(v => v.status === 'APPROVED');
+
+    expect(JSON.stringify(scopeAfter.scope)).toBe(JSON.stringify(scopeBefore.scope));
+    expect(JSON.stringify(tasksAfter)).toBe(JSON.stringify(tasksBefore));
+    expect(versionsAfter).toHaveLength(versionsBefore.length);
+    expect(approvedAfter).toEqual(approvedBefore);
+
+    // No logout here: the rejected Save Changes attempt leaves the Edit
+    // Project dialog open (same as contractor-managed-scope-edit-workflow.
+    // spec.js's own analogous "Locked Scope" test) — this is the final test
+    // in the file, and Playwright tears down the browser context afterward
+    // regardless, so closing the dialog first would test nothing new.
   });
 });
