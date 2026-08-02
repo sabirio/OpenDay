@@ -1,11 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { createClient } from '@supabase/supabase-js';
 import { CREDENTIALS, login, logout } from './helpers.js';
 
 const UNIQUE_CODE = `TEST-${Date.now()}`;
 const UNIQUE_STREET_CODE = `TEST-ST-${Date.now()}`;
 const UNIQUE_SLICE_CODE = `TEST-SLICE1-${Date.now()}`;
 const UNIQUE_AREA_CODE = `TEST-AREAS-${Date.now()}`;
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.E2E_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 test.describe('Portfolio page', () => {
   test.beforeEach(async ({ page }) => {
@@ -242,12 +246,19 @@ test.describe('Portfolio page', () => {
     await createDialog.locator('input[name="backOfHouseAreaSqm"]').fill('150');
     await createDialog.locator('input[name="constructionStartDate"]').fill('2026-08-01');
     await createDialog.locator('input[name="constructionEndDate"]').fill('2026-12-15');
-    await createDialog.getByText('Retail Fit-Out (Zoned)', { exact: false }).click();
 
+    // New projects always use the unified Project Scope entry point (every
+    // new project is retail-fitout-v2 by construction — see
+    // usesUnifiedProjectScopeEntry(project, { isEditing: false }), which is
+    // unconditionally true when isEditing is false, regardless of
+    // templateType). The legacy per-template-type picker with a clickable
+    // "Retail Fit-Out (Zoned)" option only renders for isEditing=true on a
+    // non-V2 project — it is never reachable from Add New Project, so there
+    // is no template-type click step here at all.
     await expect(createDialog.locator('input[name^="scope.zoneAreas."]')).toHaveCount(0);
-    await createDialog.getByRole('button', { name: /Configure Scope/i }).click();
+    await createDialog.getByRole('button', { name: 'Configure Project Scope' }).click();
 
-    let scopeDialog = page.getByRole('dialog', { name: 'Configure Zoned Scope' });
+    let scopeDialog = page.getByRole('dialog', { name: 'Configure Project Scope' });
     await expect(scopeDialog).toBeVisible();
     await expect(scopeDialog.locator('input[type="number"]')).toHaveCount(0);
     await expect(scopeDialog).toContainText(/1.100 m²/);
@@ -258,8 +269,8 @@ test.describe('Portfolio page', () => {
 
     await createDialog.locator('input[name="salesAreaSqm"]').fill('850');
     await createDialog.locator('input[name="backOfHouseAreaSqm"]').fill('180');
-    await createDialog.getByRole('button', { name: /Configure Scope/i }).click();
-    scopeDialog = page.getByRole('dialog', { name: 'Configure Zoned Scope' });
+    await createDialog.getByRole('button', { name: 'Configure Project Scope' }).click();
+    scopeDialog = page.getByRole('dialog', { name: 'Configure Project Scope' });
     await expect(scopeDialog).toContainText('850 m²');
     await expect(scopeDialog).toContainText('180 m²');
     await scopeDialog.getByRole('button', { name: 'Save Scope' }).click();
@@ -278,8 +289,14 @@ test.describe('Portfolio page', () => {
     await expect(editDialog.locator('input[name="backOfHouseAreaSqm"]')).toHaveValue('180');
     await expect(editDialog.locator('input[name^="scope.zoneAreas."]')).toHaveCount(0);
 
-    await editDialog.getByRole('button', { name: /Scope configured/i }).click();
-    scopeDialog = page.getByRole('dialog', { name: 'Configure Zoned Scope' });
+    // The unified Project Scope entry (usesUnifiedProjectScopeEntry — true
+    // here too, since this project's templateType is retail-fitout-v2) uses
+    // one static "Configure Project Scope" trigger button regardless of
+    // whether Scope is already configured — unlike the legacy per-template
+    // picker's dynamic "Scope configured (N WPs)" label, which this V2
+    // project never renders.
+    await editDialog.getByRole('button', { name: 'Configure Project Scope' }).click();
+    scopeDialog = page.getByRole('dialog', { name: 'Configure Project Scope' });
     await expect(scopeDialog).toContainText('850 m²');
     await expect(scopeDialog).toContainText('180 m²');
     await expect(scopeDialog.locator('input[type="number"]')).toHaveCount(0);
@@ -329,11 +346,24 @@ test.describe('Portfolio page', () => {
     await expect(page.locator('[data-testid="portfolio-master-project"]')).toHaveCount(1, { timeout: 5_000 });
   });
 
-  test('search with no matches shows an empty state in both the list and details panes', async ({ page }) => {
+  test('search with no matches empties the list but preserves the selected project\'s details (Phase 4 cross-page consistency contract)', async ({ page }) => {
+    // Projects.jsx's own selection logic (documented at its "Phase 4
+    // cross-page consistency fix" comment) deliberately keeps the detail
+    // pane showing the previously selected project as long as that project
+    // still exists in the full (unfiltered) list — filtering must never
+    // silently swap or clear the selected detail. A zero-result search is
+    // exactly this case: the list empties, but the already-selected
+    // project's identity is unaffected by the filter, so its details persist.
+    const selectedTitle = (await page.locator('#project-detail-title').textContent()).trim();
+    expect(selectedTitle.length).toBeGreaterThan(0);
+
     await page.getByPlaceholder('Search projects...').fill('ZZZ_NO_SUCH_PROJECT_ZZZ');
 
     await expect(page.locator('.master-pane-list')).toContainText('No projects match the current filters.');
-    await expect(page.locator('.detail-pane')).toContainText('Select a project to view its details.');
+    await expect(page.locator('[data-testid="portfolio-master-project"]')).toHaveCount(0);
+    await expect(page.locator('.detail-pane')).toBeVisible();
+    await expect(page.locator('#project-detail-title')).toContainText(selectedTitle);
+    await expect(page.locator('.detail-pane')).not.toContainText('Select a project to view its details.');
   });
 
   test('Location Type filter narrows the project list to Mall projects only', async ({ page }) => {
@@ -363,18 +393,57 @@ test.describe('Portfolio page', () => {
     await expect(page.locator('.portfolio-pagination-summary')).toContainText(`of ${rowCount}`);
   });
 
-  test('changing page selects the first visible project on the new page and preserves active filters', async ({ page }) => {
-    const pageButtons = page.locator('.portfolio-page-button');
-    const pageButtonCount = await pageButtons.count();
-    test.skip(pageButtonCount < 2, 'Test dataset has a single page — needs 51+ projects to exercise real pagination');
+  test('changing page shows the new page\'s rows but preserves the selected project\'s details (Phase 4 cross-page consistency contract)', async ({ page }) => {
+    // PORTFOLIO_PAGE_SIZE is 50 (Projects.jsx) — a second page only exists
+    // once the fixture set exceeds that. Rather than skip real pagination
+    // coverage whenever the ambient fixture count happens to be small, seed
+    // enough throwaway rows directly (bypassing the UI, same technique
+    // unified-project-scope-entry.spec.js already uses for its own Supabase
+    // client) to force a second page deterministically, then remove them —
+    // this test's own fixture footprint is fully self-contained.
+    //
+    // Selection semantics match the same "Phase 4 cross-page consistency
+    // fix" documented at Projects.jsx's selectedProjectExists computation:
+    // changing page (like searching/filtering) must never silently swap or
+    // clear the selected detail — the previously selected project stays
+    // selected (and keeps rendering in the detail pane) as long as it still
+    // exists at all, even once paged out of the currently visible rows.
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { error: signInError } = await client.auth.signInWithPassword(CREDENTIALS.admin);
+    expect(signInError).toBeNull();
 
-    const secondPageButton = pageButtons.nth(1);
-    await secondPageButton.click();
+    const runPrefix = `PAGEFILL-${Date.now()}`;
+    const fillerRows = Array.from({ length: 51 }, (_, i) => ({ store_code: `${runPrefix}-${String(i).padStart(2, '0')}`, country: 'Testland' }));
 
-    const firstRowOnNewPage = page.locator('[data-testid="portfolio-master-project"]').first();
-    const codeOnNewPage = (await firstRowOnNewPage.locator('.master-row-top strong').textContent()).trim();
-    await expect(firstRowOnNewPage).toHaveClass(/is-selected/);
-    await expect(page.locator('#project-detail-title')).toContainText(codeOnNewPage);
+    try {
+      const { error: insertError } = await client.from('projects').insert(fillerRows);
+      expect(insertError).toBeNull();
+
+      await page.reload();
+      await expect(page.locator('h1')).toContainText('Portfolio');
+
+      const selectedTitleBefore = (await page.locator('#project-detail-title').textContent()).trim();
+      expect(selectedTitleBefore.length).toBeGreaterThan(0);
+      const codesOnPageOne = await page.locator('[data-testid="portfolio-master-project"] .master-row-top strong').allTextContents();
+
+      const pageButtons = page.locator('.portfolio-page-button');
+      await expect(pageButtons).toHaveCount(2, { timeout: 15_000 });
+
+      await pageButtons.nth(1).click();
+
+      const rowsOnPageTwo = page.locator('[data-testid="portfolio-master-project"]');
+      await expect(rowsOnPageTwo.first()).toBeVisible({ timeout: 10_000 });
+      const codesOnPageTwo = await rowsOnPageTwo.locator('.master-row-top strong').allTextContents();
+      expect(codesOnPageTwo.some(code => codesOnPageOne.includes(code))).toBe(false);
+
+      // The previously selected project is no longer on this page — its row
+      // (and its is-selected styling) simply isn't part of the currently
+      // rendered subset. The detail pane must still show it, unchanged.
+      await expect(page.locator('[data-testid="portfolio-master-project"].is-selected')).toHaveCount(0);
+      await expect(page.locator('#project-detail-title')).toContainText(selectedTitleBefore);
+    } finally {
+      await client.from('projects').delete().like('store_code', `${runPrefix}%`);
+    }
   });
 
   test('Export Projects button is visible and generates a real .xlsx workbook', async ({ page }) => {
