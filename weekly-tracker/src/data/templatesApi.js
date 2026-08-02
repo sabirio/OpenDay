@@ -1,31 +1,41 @@
 import { supabase } from '../lib/supabase';
+import {
+  fetchActiveLegacyTemplateRecord,
+  fetchAllTemplateRecords,
+  fetchTemplateRecordById,
+  getTemplateLoadErrorMessage,
+} from '../services/templateService.js';
+
+function flattenTemplateRecord(record) {
+  if (!record) return null;
+  return {
+    id: record.id,
+    name: record.name,
+    family: record.family,
+    familyId: record.familyId,
+    companyId: record.companyId,
+    version: record.version,
+    isActive: record.isActive,
+    ...record.data,
+  };
+}
+
+export async function fetchActiveTemplateResult() {
+  try {
+    return { template: flattenTemplateRecord(await fetchActiveLegacyTemplateRecord()), error: null, message: null };
+  } catch (error) {
+    console.error('fetchActiveTemplate:', error);
+    return { template: null, error, message: getTemplateLoadErrorMessage(error) };
+  }
+}
 
 export async function fetchActiveTemplate() {
-  try {
-    const { data, error } = await supabase
-      .from('templates')
-      .select('id, name, family, family_id, company_id, version, data')
-      .is('family', null)
-      .eq('is_active', true)
-      .limit(1)
-      .single();
-    if (error) throw error;
-    return { id: data.id, name: data.name, family: data.family, familyId: data.family_id, companyId: data.company_id, version: data.version, ...data.data };
-  } catch (err) {
-    console.error('fetchActiveTemplate:', err);
-    return null;
-  }
+  return (await fetchActiveTemplateResult()).template;
 }
 
 export async function fetchTemplateById(id) {
   try {
-    const { data, error } = await supabase
-      .from('templates')
-      .select('id, name, family, family_id, company_id, version, data')
-      .eq('id', id)
-      .single();
-    if (error) throw error;
-    return { id: data.id, name: data.name, family: data.family, familyId: data.family_id, companyId: data.company_id, version: data.version, ...data.data };
+    return flattenTemplateRecord(await fetchTemplateRecordById(id));
   } catch (err) {
     console.error('fetchTemplateById:', err);
     return null;
@@ -34,14 +44,7 @@ export async function fetchTemplateById(id) {
 
 export async function fetchAllTemplates() {
   try {
-    const { data, error } = await supabase
-      .from('templates')
-      .select('id, name, family, family_id, company_id, version, data, is_active');
-    if (error) throw error;
-    return (data || []).map(row => ({
-      id: row.id, name: row.name, family: row.family, familyId: row.family_id, companyId: row.company_id, version: row.version,
-      isActive: row.is_active, ...row.data,
-    }));
+    return (await fetchAllTemplateRecords()).map(flattenTemplateRecord);
   } catch (err) {
     console.error('fetchAllTemplates:', err);
     return [];
@@ -53,7 +56,7 @@ export async function saveTemplate(id, data) {
     // a) Load the current row.
     const { data: current, error: loadErr } = await supabase
       .from('templates')
-      .select('id, name, family, family_id, company_id, version, is_active')
+      .select('*')
       .eq('id', id)
       .single();
     if (loadErr) throw loadErr;
@@ -87,17 +90,19 @@ export async function saveTemplate(id, data) {
       .eq('is_active', true);
     if (deactivateErr) throw deactivateErr;
 
+    const versionedRow = {
+      name: current.name ?? '',
+      data,
+      family_id: current.family_id,
+      version: nextVersion,
+      is_active: true,
+    };
+    if (Object.hasOwn(current, 'family')) versionedRow.family = current.family;
+    if (Object.hasOwn(current, 'company_id')) versionedRow.company_id = current.company_id;
+
     const { data: newRow, error: insertErr } = await supabase
       .from('templates')
-      .insert({
-        name: current.name ?? '',
-        data,
-        family: current.family,
-        family_id: current.family_id,
-        company_id: current.company_id,
-        version: nextVersion,
-        is_active: true,
-      })
+      .insert(versionedRow)
       .select('id')
       .single();
     if (insertErr) throw insertErr;

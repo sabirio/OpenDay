@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights, computeTemplateWeightSums, validateTemplate, isTemplateValid, countErrors, isWithinEpsilon, WEIGHT_SUM_TARGET } from '../hooks/useTemplateEditorModel.js';
-import { fetchActiveTemplate, saveTemplate } from '../data/templatesApi.js';
+import { fetchActiveTemplateResult, saveTemplate } from '../data/templatesApi.js';
 
 const EPS = 0.001;
 
@@ -40,6 +40,7 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
   const [draft, setDraft]           = useState(initialTemplate);
   const [templateId, setTemplateId] = useState(null);
   const [loading, setLoading]       = useState(true);
+  const [loadError, setLoadError]   = useState(null);
   const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | { error: string }
   const [expanded, setExpanded]     = useState({});
 
@@ -52,12 +53,13 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
 
   // Fetch active template on mount; fall back to initialTemplate if fetch fails
   useEffect(() => {
-    fetchActiveTemplate().then(fetched => {
+    fetchActiveTemplateResult().then(({ template: fetched, message }) => {
       if (fetched) {
         const { id, name: _name, ...templateData } = fetched;
         setTemplateId(id);
         setDraft(templateData);
       }
+      setLoadError(message);
       setLoading(false);
     });
   }, []);
@@ -129,6 +131,12 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
           </span>
         )}
       </div>
+
+      {loadError && (
+        <div role="alert" style={{ ...card, marginBottom: 16, color: 'var(--status-alert)' }}>
+          {loadError}
+        </div>
+      )}
 
       {/* Weight summary bar */}
       <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>

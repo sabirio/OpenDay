@@ -1,21 +1,22 @@
 import { supabase } from '../lib/supabase';
 import { selectDefaultScopeTemplate } from '../domains/construction/templates/versionedScopeTemplate.js';
+import {
+  TEMPLATE_SELECT,
+  fromDBTemplate,
+  getTemplateLoadErrorMessage,
+  selectActiveLegacyTemplate,
+  settleOptionalTemplateRecord,
+  settleOptionalTemplateRecords,
+} from './templateRecordContract.js';
 
-export function fromDBTemplate(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    family: row.family ?? null,
-    familyId: row.family_id ?? null,
-    companyId: row.company_id ?? null,
-    version: row.version,
-    isActive: row.is_active,
-    data: row.data,
-  };
-}
-
-const TEMPLATE_COLUMNS = 'id,name,family,family_id,company_id,version,is_active,data';
+export {
+  TEMPLATE_SELECT,
+  deriveTemplateFamily,
+  fromDBTemplate,
+  getTemplateLoadErrorMessage,
+  isTemplateSchemaContractError,
+  selectActiveLegacyTemplate,
+} from './templateRecordContract.js';
 
 export async function getCurrentCompanyId() {
   const { data, error } = await supabase.rpc('current_company_id');
@@ -26,12 +27,11 @@ export async function getCurrentCompanyId() {
 export async function fetchApplicableTemplateRecords(family) {
   const { data, error } = await supabase
     .from('templates')
-    .select(TEMPLATE_COLUMNS)
-    .eq('family', family)
+    .select(TEMPLATE_SELECT)
     .eq('is_active', true)
     .order('version', { ascending: false });
   if (error) throw error;
-  return (data ?? []).map(fromDBTemplate);
+  return (data ?? []).map(fromDBTemplate).filter(record => record.family === family);
 }
 
 export async function resolveDefaultScopeTemplateForCurrentCompany(family) {
@@ -47,7 +47,7 @@ export async function fetchTemplateRecordsByIds(ids) {
   if (uniqueIds.length === 0) return new Map();
   const { data, error } = await supabase
     .from('templates')
-    .select(TEMPLATE_COLUMNS)
+    .select(TEMPLATE_SELECT)
     .in('id', uniqueIds);
   if (error) throw error;
   return new Map((data ?? []).map(row => {
@@ -56,13 +56,49 @@ export async function fetchTemplateRecordsByIds(ids) {
   }));
 }
 
+export async function fetchOptionalTemplateRecordsByIds(ids, fetcher = fetchTemplateRecordsByIds) {
+  const result = await settleOptionalTemplateRecords(ids, fetcher);
+  if (result.error) {
+    const { error } = result;
+    console.warn('[templates] Optional template hydration failed:', getTemplateLoadErrorMessage(error), error);
+  }
+  return result;
+}
+
 export async function fetchTemplateRecordById(id) {
   if (!id) return null;
   const { data, error } = await supabase
     .from('templates')
-    .select(TEMPLATE_COLUMNS)
+    .select(TEMPLATE_SELECT)
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
   return fromDBTemplate(data);
+}
+
+export async function fetchOptionalTemplateRecordById(id, fetcher = fetchTemplateRecordById) {
+  const result = await settleOptionalTemplateRecord(id, fetcher);
+  if (result.error) {
+    const { error } = result;
+    console.warn('[templates] Optional template hydration failed:', getTemplateLoadErrorMessage(error), error);
+  }
+  return result;
+}
+
+export async function fetchAllTemplateRecords() {
+  const { data, error } = await supabase
+    .from('templates')
+    .select(TEMPLATE_SELECT);
+  if (error) throw error;
+  return (data ?? []).map(fromDBTemplate);
+}
+
+export async function fetchActiveLegacyTemplateRecord() {
+  const { data, error } = await supabase
+    .from('templates')
+    .select(TEMPLATE_SELECT)
+    .eq('is_active', true)
+    .order('version', { ascending: false });
+  if (error) throw error;
+  return selectActiveLegacyTemplate(data);
 }

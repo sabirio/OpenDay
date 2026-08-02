@@ -215,8 +215,8 @@ export async function getAll() {
     .order('created_at', { ascending: true });
   if (error) throw error;
   const projects = data.map(fromDB);
-  const { fetchTemplateRecordsByIds } = await import('./templateService.js');
-  const templatesById = await fetchTemplateRecordsByIds(projects.map(project => project.templateId));
+  const { fetchOptionalTemplateRecordsByIds } = await import('./templateService.js');
+  const { templatesById } = await fetchOptionalTemplateRecordsByIds(projects.map(project => project.templateId));
   const hydratedProjects = projects.map(project => ({
     ...project,
     scopeTemplate: project.templateId ? (templatesById.get(project.templateId) ?? null) : null,
@@ -261,8 +261,8 @@ export async function getById(id) {
     .single();
   if (error) throw error;
   const project = fromDB(data);
-  const { fetchTemplateRecordById } = await import('./templateService.js');
-  const scopeTemplate = await fetchTemplateRecordById(project.templateId);
+  const { fetchOptionalTemplateRecordById } = await import('./templateService.js');
+  const { template: scopeTemplate } = await fetchOptionalTemplateRecordById(project.templateId);
   return validateOne(ProjectSchema, { ...project, scopeTemplate }, 'project');
 }
 
@@ -288,6 +288,7 @@ export async function getProgressSnapshot(isoWeekStr) {
 export async function create(project) {
   validateProject(project);
   const {
+    fetchActiveLegacyTemplateRecord,
     fetchTemplateRecordById,
     getCurrentCompanyId,
     resolveDefaultScopeTemplateForCurrentCompany,
@@ -311,14 +312,7 @@ export async function create(project) {
   // Preserve the existing database-template behavior for V1/custom projects,
   // but exclude the newly-seeded V2 family from that legacy global lookup.
   if (!payload.template_id) {
-    const { data: tpl } = await supabase
-      .from('templates')
-      .select('id')
-      .is('family', null)
-      .eq('is_active', true)
-      .order('version', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const tpl = await fetchActiveLegacyTemplateRecord();
     payload.template_id = tpl?.id ?? null;
   }
   const { data, error } = await supabase
