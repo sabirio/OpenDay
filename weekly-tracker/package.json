@@ -34,6 +34,7 @@
     "cert:seed:contractor-schedule": "npm run cert:reset:contractor-schedule && node scripts/certification/contractorScheduleFixtures.mjs",
     "cert:seed:schedule-submission": "npm run cert:reset:contractor-schedule && node scripts/certification/contractorScheduleFixtures.mjs && node scripts/certification/contractorScheduleSubmissionFixtures.mjs",
     "cert:reset:contractor-managed-project": "npm run cert:reset:contractor-schedule && node scripts/certification/applyCreateContractorManagedProjectLocal.mjs",
+    "cert:reset:contractor-managed-scope-sync": "npm run cert:reset:contractor-managed-project && node scripts/certification/applyContractorManagedScopeSyncLocal.mjs",
     "test:db": "node scripts/certification/certifyContractorReport.mjs && node scripts/certification/certifySiteVisit.mjs && node scripts/certification/certifyProgressHistory.mjs",
     "test:rls": "node scripts/certification/certifyRls.mjs",
     "test:scope-templates": "node scripts/certification/certifyVersionedScopeTemplates.mjs",
@@ -41,6 +42,7 @@
     "test:master-catalog-durations": "node scripts/certification/certifyMasterCatalogDurationCalibration.mjs",
     "test:contractor-schedule-draft": "node scripts/certification/certifyContractorScheduleDraft.mjs",
     "test:create-contractor-managed-project": "node scripts/certification/certifyCreateContractorManagedProject.mjs",
+    "test:contractor-managed-scope-sync": "node scripts/certification/certifyContractorManagedScopeSync.mjs",
     "test:storage": "node scripts/certification/certifyStorage.mjs",
     "test:import-phase2": "npm run cert:reset:import-phase2 && node scripts/certification/certifyImportPhase2.mjs",
     "test:certification": "npm run cert:reset && npm run test:db && npm run test:rls && npm run test:scope-templates && npm run test:storage"

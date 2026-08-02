@@ -382,6 +382,7 @@ export async function createContractorManagedProject(project, scopeWpIds, client
       companyId: project.companyId || null,
       locationType: project.locationType || null,
       storeConcept: project.storeConcept || null,
+      storeSizeSqm: project.storeSizeSqm === '' || project.storeSizeSqm == null ? null : project.storeSizeSqm,
       salesAreaSqm: project.salesAreaSqm === '' || project.salesAreaSqm == null ? null : project.salesAreaSqm,
       backOfHouseAreaSqm: project.backOfHouseAreaSqm === '' || project.backOfHouseAreaSqm == null ? null : project.backOfHouseAreaSqm,
       budget: project.budget === '' || project.budget == null ? null : project.budget,
@@ -403,6 +404,39 @@ export async function createContractorManagedProject(project, scopeWpIds, client
     ...saved,
     scopeTemplate,
     materializedCount: data?.materializedCount ?? 0,
+    idempotentReplay: data?.idempotentReplay === true,
+  };
+}
+
+/**
+ * Atomically edit a CONTRACTOR_MANAGED project's Scope via
+ * update_contractor_managed_project_scope() (053_contractor_managed_project_scope_sync.sql):
+ * one call updates projects.scope AND materializes/unarchives/archives the
+ * matching project_gantt_tasks rows in the same transaction. Replaces the
+ * plain projects.update() Scope-edit path for CONTRACTOR_MANAGED projects,
+ * which never touched schedule rows at all. Thin RPC wrapper — it does not
+ * resolve Scope selection itself (the caller supplies the already-resolved
+ * active WP id list) and never falls back to a plain update() on failure.
+ *
+ * @param {string|number} projectId
+ * @param {object} scope — the new project.scope value to persist verbatim
+ * @param {string[]} scopeWpIds — the resolved active Scope WP ids (non-empty)
+ * @param {string} clientRequestId — uuid, stable across retries of one logical edit attempt
+ * @returns {Promise<object & { addedCount: number, unarchivedCount: number, archivedCount: number, idempotentReplay: boolean }>}
+ */
+export async function updateContractorManagedProjectScope(projectId, scope, scopeWpIds, clientRequestId) {
+  const { data, error } = await supabase.rpc('update_contractor_managed_project_scope', {
+    p_project_id: projectId,
+    p_scope: scope || null,
+    p_scope_wp_ids: scopeWpIds,
+    p_client_request_id: clientRequestId,
+  });
+  if (error) throw error;
+  return {
+    ...fromDB(data),
+    addedCount: data?.addedCount ?? 0,
+    unarchivedCount: data?.unarchivedCount ?? 0,
+    archivedCount: data?.archivedCount ?? 0,
     idempotentReplay: data?.idempotentReplay === true,
   };
 }
