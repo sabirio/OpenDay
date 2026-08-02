@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import {
+  TEMPLATE_SELECT,
   fetchActiveLegacyTemplateRecord,
   fetchAllTemplateRecords,
   fetchTemplateRecordById,
@@ -56,7 +57,7 @@ export async function saveTemplate(id, data) {
     // a) Load the current row.
     const { data: current, error: loadErr } = await supabase
       .from('templates')
-      .select('*')
+      .select(TEMPLATE_SELECT)
       .eq('id', id)
       .single();
     if (loadErr) throw loadErr;
