@@ -111,10 +111,16 @@ function Invoke-ReadOnlyDump {
 function Test-SchemaExists {
     param(
         [Parameter(Mandatory)][string]$SchemaName,
-        [Parameter(Mandatory)][string[]]$CommonArguments
+        [Parameter(Mandatory)][string[]]$CommonArguments,
+        [Parameter(Mandatory)][string]$ConnectionUri
     )
 
-    $probeArgs = $CommonArguments + @('psql', '-v', 'ON_ERROR_STOP=1', '-tAc',
+    # Explicit --dbname=<uri> - the SAME canonical connection identity every
+    # other command in this script uses (see $canonicalDbUri below). psql
+    # accepts a full connection URI via --dbname exactly like pg_dump/
+    # pg_dumpall do; never a separately-constructed identity for this one
+    # check.
+    $probeArgs = $CommonArguments + @('psql', "--dbname=$ConnectionUri", '-v', 'ON_ERROR_STOP=1', '-tAc',
         "SELECT to_regnamespace('$SchemaName') IS NOT NULL;")
     $output = & docker @probeArgs
     $exitCode = $LASTEXITCODE
@@ -144,7 +150,8 @@ $dbUser = $conn.User
 $dbPassword = $conn.Password
 $sslMode = if ($CertificationMode) { 'disable' } else { 'require' }
 
-Write-Host 'Production fingerprint: PASS'
+$fingerprintLabel = if ($Environment -eq 'staging') { 'Staging fingerprint: PASS' } else { 'Production fingerprint: PASS' }
+Write-Host $fingerprintLabel
 Write-Host "Host: $dbHost"
 Write-Host "Port: $dbPort"
 Write-Host "Database: $dbName"
@@ -155,17 +162,32 @@ New-Item -ItemType Directory -Path $outputDirectory | Out-Null
 $outputDirectory = (Resolve-Path -LiteralPath $outputDirectory).Path
 $mount = "type=bind,source=$outputDirectory,target=/backup"
 
-# Docker receives secret material only via inherited process environment.
-$env:PGHOST = $dbHost
-$env:PGPORT = [string]$dbPort
-$env:PGDATABASE = $dbName
-$env:PGUSER = $dbUser
-Set-Item -LiteralPath Env:PGPASSWORD -Value $dbPassword
-$env:PGSSLMODE = $sslMode
+# ONE canonical, self-contained libpq connection URI - host, port, database
+# and the EXACT parsed pooler username (never a bare default like
+# "postgres") embedded together and passed explicitly via --dbname=<uri> to
+# every pg_dumpall/pg_dump/psql invocation below. This replaces the prior
+# design (PGHOST/PGPORT/PGDATABASE/PGUSER forwarded as separate --env flags,
+# then relied upon implicitly) after a real staging run proved that design
+# fragile: pg_dumpall/pg_dump each anchor an explicit --dbname-shaped target
+# internally, but the bare psql migration-history check had no explicit
+# --dbname/--username of its own at all and fell back to the container OS
+# user "postgres" instead of the forwarded PGUSER. The password is
+# deliberately NOT embedded in this URI (still forwarded only via the
+# PGPASSWORD environment variable below, the one part of the prior design
+# already proven to work identically for every command) - putting it in
+# the URI instead would put it in this process's argv, visible to anything
+# with local docker/process inspection access for the (brief, --rm) life
+# of each container; an env var is not. Never log $canonicalDbUri or
+# $dbPassword - only the already-unpacked $dbHost/$dbPort/$dbName/$dbUser
+# fields above are ever written to Host output or the manifest.
+$canonicalDbUri = "postgresql://$([Uri]::EscapeDataString($dbUser))@${dbHost}:${dbPort}/${dbName}?sslmode=$sslMode"
 
-$common = @('run', '--rm', '--network', 'bridge', '--mount', $mount,
-    '--env', 'PGHOST', '--env', 'PGPORT', '--env', 'PGDATABASE',
-    '--env', 'PGUSER', '--env', 'PGPASSWORD', '--env', 'PGSSLMODE', $PostgresImage)
+# PGPASSWORD is still forwarded via inherited process environment - never
+# via argv/URI. Every command below shares this exact same forwarding, not
+# a separate construction for any one of them.
+Set-Item -LiteralPath Env:PGPASSWORD -Value $dbPassword
+
+$common = @('run', '--rm', '--network', 'bridge', '--mount', $mount, '--env', 'PGPASSWORD', $PostgresImage)
 
 try {
     & docker image inspect $PostgresImage *> $null
@@ -175,16 +197,16 @@ try {
         if ($LASTEXITCODE -ne 0) { Stop-Safely 'official PostgreSQL image pull failed' }
     }
 
-    Invoke-ReadOnlyDump 'roles' ($common + @('pg_dumpall', '--roles-only', '--no-role-passwords', '--no-owner', '--file=/backup/roles.sql'))
-    Invoke-ReadOnlyDump 'schema' ($common + @('pg_dump', '--schema-only', '--no-owner', '--no-privileges', "--exclude-schema=$migrationHistorySchema", '--file=/backup/schema.sql'))
-    Invoke-ReadOnlyDump 'data' ($common + @('pg_dump', '--data-only', '--no-owner', '--no-privileges', "--exclude-schema=$migrationHistorySchema", '--exclude-table-data=storage.buckets_vectors', '--exclude-table-data=storage.vector_indexes', '--file=/backup/data.sql'))
+    Invoke-ReadOnlyDump 'roles' ($common + @('pg_dumpall', "--dbname=$canonicalDbUri", '--roles-only', '--no-role-passwords', '--no-owner', '--file=/backup/roles.sql'))
+    Invoke-ReadOnlyDump 'schema' ($common + @('pg_dump', "--dbname=$canonicalDbUri", '--schema-only', '--no-owner', '--no-privileges', "--exclude-schema=$migrationHistorySchema", '--file=/backup/schema.sql'))
+    Invoke-ReadOnlyDump 'data' ($common + @('pg_dump', "--dbname=$canonicalDbUri", '--data-only', '--no-owner', '--no-privileges', "--exclude-schema=$migrationHistorySchema", '--exclude-table-data=storage.buckets_vectors', '--exclude-table-data=storage.vector_indexes', '--file=/backup/data.sql'))
 
     Write-Host "Checking migration history schema presence (read-only): $migrationHistorySchema"
-    $migrationHistoryPresent = Test-SchemaExists -SchemaName $migrationHistorySchema -CommonArguments $common
+    $migrationHistoryPresent = Test-SchemaExists -SchemaName $migrationHistorySchema -CommonArguments $common -ConnectionUri $canonicalDbUri
 
     if ($migrationHistoryPresent) {
-        Invoke-ReadOnlyDump 'migration history schema' ($common + @('pg_dump', '--schema-only', '--no-owner', '--no-privileges', "--schema=$migrationHistorySchema", '--file=/backup/migration_history_schema.sql'))
-        Invoke-ReadOnlyDump 'migration history data' ($common + @('pg_dump', '--data-only', '--no-owner', '--no-privileges', "--schema=$migrationHistorySchema", '--file=/backup/migration_history_data.sql'))
+        Invoke-ReadOnlyDump 'migration history schema' ($common + @('pg_dump', "--dbname=$canonicalDbUri", '--schema-only', '--no-owner', '--no-privileges', "--schema=$migrationHistorySchema", '--file=/backup/migration_history_schema.sql'))
+        Invoke-ReadOnlyDump 'migration history data' ($common + @('pg_dump', "--dbname=$canonicalDbUri", '--data-only', '--no-owner', '--no-privileges', "--schema=$migrationHistorySchema", '--file=/backup/migration_history_data.sql'))
         Write-Host 'Migration history: PRESENT'
     } else {
         $absentComment = @(
@@ -201,6 +223,7 @@ try {
     Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
     $dbPassword = $null
     $conn = $null
+    $canonicalDbUri = $null
 }
 
 $minimumBytes = @{

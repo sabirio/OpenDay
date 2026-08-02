@@ -148,5 +148,31 @@ try {
     Assert-True 'AM: -Environment staging -ValidateOnly passes safely (no credentials loaded, nothing created)' ($p.ExitCode -eq 0 -and $stagingOutput -match 'BACKUP_VALIDATE_ONLY: PASS')
 } finally { Remove-Item $stdout -Force -ErrorAction SilentlyContinue }
 
+# ─── Phase 3E.1 fix: one canonical connection identity for every command ───
+# A real staging run proved the prior --env PGUSER/PGHOST/PGDATABASE design
+# fragile: pg_dumpall/pg_dump succeeded, but the bare psql migration-history
+# check (which had no --dbname/--username of its own) fell back to the
+# container OS user "postgres" instead of the forwarded pooler username.
+# Every assertion below is static/source-pattern based, matching this test
+# file's own established style (no assertion in this file, before or after
+# this fix, actually connects to a real database).
+$fixedSource = Get-Content $scriptPath -Raw
+Assert-True 'AN: canonical URI is derived from the parsed connection user, never a literal' ($fixedSource -match '\$canonicalDbUri\s*=\s*"postgresql://\$\(\[Uri\]::EscapeDataString\(\$dbUser\)\)')
+Assert-True 'AO: canonical URI never embeds the password (argv-visible) - password stays env-only' ($fixedSource -notmatch '\$canonicalDbUri\s*=\s*"postgresql://[^"]*dbPassword')
+Assert-True 'AP: roles (pg_dumpall) carries the canonical --dbname' ($fixedSource -match '''pg_dumpall'', "--dbname=\$canonicalDbUri"')
+Assert-True 'AQ: schema pg_dump carries the canonical --dbname' ($fixedSource -match '''schema'' \(\$common \+ @\(''pg_dump'', "--dbname=\$canonicalDbUri"')
+Assert-True 'AR: data pg_dump carries the canonical --dbname' ($fixedSource -match '''data'' \(\$common \+ @\(''pg_dump'', "--dbname=\$canonicalDbUri"')
+Assert-True 'AS: migration-history psql check carries the SAME canonical URI, not a separate construction' ($fixedSource -match '''psql'', "--dbname=\$ConnectionUri"')
+Assert-True 'AT: migration-history schema/data dumps carry the canonical --dbname (not a second construction)' (
+    (($fixedSource -split "'migration history schema'")[1] -match '^\s*\(\$common \+ @\(''pg_dump'', "--dbname=\$canonicalDbUri"') -and
+    (($fixedSource -split "'migration history data'")[1] -match '^\s*\(\$common \+ @\(''pg_dump'', "--dbname=\$canonicalDbUri"')
+)
+Assert-True 'AU: no command ever passes a bare -U/--username flag (identity comes only from the canonical URI)' ($fixedSource -notmatch '''-U''\s*,' -and $fixedSource -notmatch '''--username''')
+Assert-True 'AV: no command hardcodes the bare postgres superuser as a connection target' ($fixedSource -notmatch '-U[''"]?\s*postgres[^.]')
+Assert-True 'AW: PGPASSWORD remains the sole password-forwarding mechanism, identical for every command' ($fixedSource -match "'--env', 'PGPASSWORD'" -and ($fixedSource -split "'--env', 'PGPASSWORD'").Count -eq 2)
+Assert-True 'AX: canonical URI itself is never written to Host output' ($fixedSource -notmatch 'Write-Host[^\r\n]*canonicalDbUri')
+Assert-True 'AY: fingerprint label is environment-aware, not hardcoded to production' ($fixedSource -match "'Staging fingerprint: PASS'" -and $fixedSource -match "'Production fingerprint: PASS'" -and $fixedSource -match '\$fingerprintLabel')
+Assert-True 'AZ: production identity (expectedRef/expectedUser derivation) is untouched by this fix' ($fixedSource -match "'sdndsekarwhumdbcqxni'" -and $fixedSource -match "'szgbkeqornkdngoegyso'" -and $fixedSource -match '\$expectedUser = "postgres\.\$expectedRef"')
+
 Write-Host "TOTAL: $script:passed passed, $script:failed failed"
 if($script:failed -gt 0){exit 1}
