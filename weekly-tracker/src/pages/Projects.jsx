@@ -8,7 +8,11 @@ import {
   checkProjectConflict,
   grantContractorInviteAccess,
   sendContractorInviteLink,
+  createContractorManagedProjectCommand,
+  updateContractorManagedProjectScopeCommand,
+  createClientRequestId,
 } from "../hooks/useProjectEditorOrchestration";
+import { isContractorManaged } from "../hooks/useScheduleOwnershipMode";
 import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
 import ZonedScopeConfigurator from "../components/projects/ZonedScopeConfigurator";
 import ProjectDetailPane, { ProjectDetailHeader } from "../components/projects/ProjectDetailPane";
@@ -82,7 +86,7 @@ const inputStyle = {
 };
 
 
-function Projects({ projects, onSaveProject, onDeleteProject }) {
+function Projects({ projects, onSaveProject, onDeleteProject, onProjectCreated }) {
   const toast = useToast();
   const { role } = useAuth();
   const canImportProjects = canAccessResource(role, 'projects_import');
@@ -112,6 +116,16 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
   // Snapshot of newProject at the moment the editor opened — compared against
   // the live value to drive ProjectEditorModal's dirty-state close protection.
   const originalProjectRef = useRef(emptyProject);
+  // One clientRequestId per logical "create a new project" attempt — set once
+  // when the New Project form opens, retained across a failed-save retry (so
+  // a re-click of Save after a transient error replays instead of double-
+  // creating), and replaced only the next time the form opens fresh.
+  const createRequestIdRef = useRef(null);
+  // One clientRequestId per logical "edit this project's Scope" attempt —
+  // set once whenever the editor opens (Scope may or may not actually
+  // change before Save), retained across a failed-save retry for the same
+  // replay-safety reason createRequestIdRef exists.
+  const scopeSyncRequestIdRef = useRef(null);
 
   function openGcModal(project) {
     setGcEmail(project.contractorEmail || '');
@@ -155,6 +169,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
     originalProjectRef.current = snapshot;
     setEditingProjectId(project.id);
     setConflict(null);
+    scopeSyncRequestIdRef.current = createClientRequestId();
     setShowForm(true);
   }
 
@@ -167,6 +182,7 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       originalProjectRef.current = draft;
       setEditingProjectId(null);
       setConflict(null);
+      createRequestIdRef.current = createClientRequestId();
       setShowForm(true);
     } catch (err) {
       console.error('Failed to initialize project scope:', err);
@@ -196,46 +212,94 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
 
   async function doSaveProject() {
     try {
-      const payload = editingProjectId ? { ...newProject, id: editingProjectId } : newProject;
-      const savedProject = await onSaveProject(payload);
-
-      const projectEndDate = newProject.constructionEndDate || newProject.targetOpeningDate;
+      let savedProject;
       let ganttFailed = false;
-      if (savedProject?.id && newProject.constructionStartDate && projectEndDate) {
-        try {
-          if (savedProject.ganttGeneratedAt) {
-            // Gantt already exists — refresh planned dates without wiping actual_progress.
-            await regenerateGantt(savedProject.id);
-          } else {
-            // First-time generation — tasks start at 0 (correct for new projects).
-            // Scope configurator stores selected WPs in scope.workPackages; use those when present.
-            const isV2 = newProject.templateType === V2_TEMPLATE_TYPE;
-            const scopeWPIds = newProject.scope?.workPackages;
-            const templateId = isV2
-              ? V2_TEMPLATE_TYPE
-              : (scopeWPIds?.length > 0 ? 'custom' : newProject.templateType || 'standard_with_demo');
-            const tOptions = isV2
-              ? {
-                  zoneAreas: resolveEffectiveV2ZoneAreas(newProject),
-                  activeZoneIds: newProject.scope?.zones ?? null,
-                  activeCategoryIds: newProject.scope?.categories ?? null,
-                  selectedWPIds: newProject.scope?.workPackages ?? null,
-                  scopeTemplate: savedProject.scopeTemplate,
-                }
-              : (scopeWPIds?.length > 0 ? { selectedWPIds: scopeWPIds } : {});
-            await generateAndSaveGantt(
-              savedProject.id,
-              templateId,
-              newProject.constructionStartDate,
-              projectEndDate,
-              resolveProjectArea(newProject, PROJECT_AREA_BASIS.TOTAL_AREA) ?? 1000,
-              tOptions,
-            );
-          }
-        } catch (ganttErr) {
-          console.warn('[gantt] generation failed (non-fatal):', ganttErr);
-          ganttFailed = true;
+
+      if (editingProjectId) {
+        // Ownership never changes after creation, so the pre-save value on
+        // newProject already tells us which write path Scope must take —
+        // no need to wait for the round trip.
+        const editingContractorManaged = isContractorManaged(newProject.scheduleOwnershipMode);
+        const scopeChanged = editingContractorManaged
+          && JSON.stringify(newProject.scope) !== JSON.stringify(originalProjectRef.current.scope);
+
+        // For a CONTRACTOR_MANAGED project, Scope is the atomic Scope-sync
+        // command's exclusive responsibility (053_contractor_managed_project_scope_sync.sql)
+        // — the ordinary metadata update below must never also write Scope,
+        // or the two writes would race/duplicate against the same column
+        // with no shared transaction. Pinning it to the pre-edit value here
+        // means this update is a genuine no-op on Scope (the DB's own
+        // Scope-mutation trigger only fires on a real change), regardless of
+        // whether the sync command below actually runs.
+        const metadataPayload = editingContractorManaged
+          ? { ...newProject, id: editingProjectId, scope: originalProjectRef.current.scope }
+          : { ...newProject, id: editingProjectId };
+        savedProject = await onSaveProject(metadataPayload);
+
+        if (editingContractorManaged && scopeChanged) {
+          savedProject = await updateContractorManagedProjectScopeCommand(
+            { ...savedProject, scope: newProject.scope },
+            scopeSyncRequestIdRef.current,
+          );
         }
+
+        // CONTRACTOR_MANAGED projects' schedule belongs exclusively to the
+        // Contractor Draft workspace (save_contractor_schedule_draft) —
+        // automatic Gantt must never even be attempted here. Skipping
+        // entirely (rather than attempting and catching) avoids surfacing
+        // ganttOrchestrationModel.js's assertAutoGenerated refusal as a
+        // misleading "schedule could not be regenerated" toast on an
+        // ordinary metadata-only edit.
+        if (!editingContractorManaged) {
+          const projectEndDate = newProject.constructionEndDate || newProject.targetOpeningDate;
+          if (savedProject?.id && newProject.constructionStartDate && projectEndDate) {
+            try {
+              if (savedProject.ganttGeneratedAt) {
+                // Gantt already exists — refresh planned dates without wiping actual_progress.
+                await regenerateGantt(savedProject.id);
+              } else {
+                // First-time generation — tasks start at 0 (correct for new projects).
+                // Scope configurator stores selected WPs in scope.workPackages; use those when present.
+                const isV2 = newProject.templateType === V2_TEMPLATE_TYPE;
+                const scopeWPIds = newProject.scope?.workPackages;
+                const templateId = isV2
+                  ? V2_TEMPLATE_TYPE
+                  : (scopeWPIds?.length > 0 ? 'custom' : newProject.templateType || 'standard_with_demo');
+                const tOptions = isV2
+                  ? {
+                      zoneAreas: resolveEffectiveV2ZoneAreas(newProject),
+                      activeZoneIds: newProject.scope?.zones ?? null,
+                      activeCategoryIds: newProject.scope?.categories ?? null,
+                      selectedWPIds: newProject.scope?.workPackages ?? null,
+                      scopeTemplate: savedProject.scopeTemplate,
+                    }
+                  : (scopeWPIds?.length > 0 ? { selectedWPIds: scopeWPIds } : {});
+                await generateAndSaveGantt(
+                  savedProject.id,
+                  templateId,
+                  newProject.constructionStartDate,
+                  projectEndDate,
+                  resolveProjectArea(newProject, PROJECT_AREA_BASIS.TOTAL_AREA) ?? 1000,
+                  tOptions,
+                );
+              }
+            } catch (ganttErr) {
+              console.warn('[gantt] generation failed (non-fatal):', ganttErr);
+              ganttFailed = true;
+            }
+          }
+        }
+      } else {
+        // New project via the normal Create Project UI: one atomic
+        // CONTRACTOR_MANAGED creation command
+        // (052_create_contractor_managed_project.sql) — creates the project,
+        // persists Scope, and materializes unscheduled schedule rows in a
+        // single transaction. No automatic Gantt is ever attempted for this
+        // path; the Contractor owns the schedule from the start via Save
+        // Draft in the Workspace. No ownership selector exists in this form
+        // — every project created here is CONTRACTOR_MANAGED.
+        savedProject = await createContractorManagedProjectCommand(newProject, createRequestIdRef.current);
+        onProjectCreated?.(savedProject);
       }
 
       const wasEditing = Boolean(editingProjectId);
@@ -248,7 +312,12 @@ function Projects({ projects, onSaveProject, onDeleteProject }) {
       if (ganttFailed) toast.error("Project saved, but the schedule could not be regenerated. Reopen this project to try again.");
     } catch (err) {
       console.error("Failed to save project:", err);
-      toast.error("Failed to save project. Please try again.");
+      // createContractorManagedProjectCommand/updateContractorManagedProjectScopeCommand
+      // throw a normalized { code, message, ... } error (core/write/writeCommand.js's
+      // shape) whose message is already a safe, specific, user-facing string
+      // (e.g. "Scope cannot be edited while the schedule is pending review.")
+      // — show it directly instead of a generic fallback whenever present.
+      toast.error(err?.code && err?.message ? err.message : "Failed to save project. Please try again.");
     }
   }
 

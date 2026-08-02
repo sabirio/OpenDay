@@ -280,6 +280,15 @@ function App() {
     }
   }
 
+  // The normal Create Project UI path creates a CONTRACTOR_MANAGED project
+  // via one atomic RPC (Simplification Phase 3D.2) instead of
+  // projectService.create() — Projects.jsx calls the command directly and
+  // reports the result here purely to keep local `projects` state in sync,
+  // the same append handleSaveProject's own create branch already performs.
+  function handleProjectCreated(savedProject) {
+    setProjects((prev) => [...prev, savedProject]);
+  }
+
   async function handleDeleteProject(id) {
     await projectService.remove(id);
     setProjects((prev) => prev.filter((p) => p.id !== id));
@@ -427,6 +436,7 @@ function App() {
                           projects={projects}
                           onSaveProject={handleSaveProject}
                           onDeleteProject={handleDeleteProject}
+                          onProjectCreated={handleProjectCreated}
                         />
                       </ProtectedRoute>
                     }
