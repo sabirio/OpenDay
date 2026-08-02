@@ -1,5 +1,5 @@
 // Local-only Simplification Phase 3D.2.1 extension.
-// Applies the hash-pinned 053-054 migrations on top of the canonical
+// Applies the hash-pinned 053-055 migrations on top of the canonical
 // fresh-install baseline + 046-051 (Contractor Schedule Draft/Submission/Lock
 // foundation) + 052 (atomic Create Contractor-Managed Project):
 //   053: update_contractor_managed_project_scope() SECURITY DEFINER RPC —
@@ -12,6 +12,9 @@
 //        instead of a true SQL NULL, causing 051's Scope-mutation lock
 //        trigger to misfire on an ordinary, semantically-no-op metadata
 //        edit. See 054's own header for the full rationale.
+//   055: removes Supabase default anon EXECUTE grants from Contractor-Managed
+//        Schedule RPCs and trigger-only functions while retaining the
+//        intended authenticated RPC access.
 //
 // Deliberately NOT part of resetAndDeploy.mjs's always-on canonical chain —
 // same opt-in posture as every post-041 feature addition in this repository —
@@ -29,8 +32,9 @@ const DB_URL = process.env.CERT_DB_URL;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.resolve(__dirname, '..', '..', 'src', 'migrations');
 const migrations = [
-  ['053_contractor_managed_project_scope_sync.sql', '9529be1c323934210a7130d7d35c8fd150ebcd50bdcdaab77e113857478aa8fa'],
-  ['054_fix_contractor_managed_scope_null_artifact.sql', '3e69ad0c9b453074d667bc38b0984432ed33f7d0b42043df7f28d87a9569b77b'],
+  ['053_contractor_managed_project_scope_sync.sql', 'a0b1ea7910d35c18709f40b3535c1303501f5539b824574dd0b73aa577a6d64f'],
+  ['054_fix_contractor_managed_scope_null_artifact.sql', 'a84040891bb20262f40a31c94c455465534bf2be4e963ec78558a92b1565d158'],
+  ['055_restrict_contractor_schedule_function_acl.sql', '8db03764d989e20ee7f47aa9f7e05da8eca32488ae10f1948bef80643618c59c'],
 ];
 
 assertLocalTarget({
@@ -57,4 +61,4 @@ for (const [file, expectedHash] of migrations) {
   console.log('OK');
 }
 
-console.log('Local Contractor-Managed Scope Synchronization extension applied through 054 (atomic Scope + schedule-row sync, plus the null-artifact fix); AUTO_GENERATED Scope-edit/regenerateGantt path unaffected.');
+console.log('Local Contractor-Managed Scope Synchronization extension applied through 055 (atomic Scope + schedule-row sync, null-artifact fix, and restricted function ACL); AUTO_GENERATED Scope-edit/regenerateGantt path unaffected.');

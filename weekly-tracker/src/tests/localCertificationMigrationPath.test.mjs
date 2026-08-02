@@ -24,6 +24,9 @@ const masterCatalogDurationCalibrationLocal = readFileSync(new URL('../../script
 const contractorScheduleDraftFoundationLocal = readFileSync(new URL('../../scripts/certification/applyContractorScheduleDraftFoundationLocal.mjs', import.meta.url), 'utf8');
 const createContractorManagedProjectLocal = readFileSync(new URL('../../scripts/certification/applyCreateContractorManagedProjectLocal.mjs', import.meta.url), 'utf8');
 const contractorManagedScopeSyncLocal = readFileSync(new URL('../../scripts/certification/applyContractorManagedScopeSyncLocal.mjs', import.meta.url), 'utf8');
+const contractorManagedScopeSync053 = readFileSync(new URL('../migrations/053_contractor_managed_project_scope_sync.sql', import.meta.url), 'utf8');
+const contractorManagedScopeSync054 = readFileSync(new URL('../migrations/054_fix_contractor_managed_scope_null_artifact.sql', import.meta.url), 'utf8');
+const contractorScheduleAcl055 = readFileSync(new URL('../migrations/055_restrict_contractor_schedule_function_acl.sql', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -107,7 +110,25 @@ check('Create Contractor-Managed Project reset keeps every prior extension expli
 check('local Contractor-Managed Scope Synchronization extension uses the canonical local guard before psql', contractorManagedScopeSyncLocal.indexOf('assertLocalTarget') < contractorManagedScopeSyncLocal.indexOf("execFileSync('psql'"));
 check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 053 migration', contractorManagedScopeSyncLocal.includes('053_contractor_managed_project_scope_sync.sql') && /createHash\('sha256'\)/.test(contractorManagedScopeSyncLocal));
 check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 054 null-artifact fix migration', contractorManagedScopeSyncLocal.includes('054_fix_contractor_managed_scope_null_artifact.sql'));
+check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 055 function ACL hardening migration', contractorManagedScopeSyncLocal.includes('055_restrict_contractor_schedule_function_acl.sql'));
 check('local Contractor-Managed Scope Synchronization hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(contractorManagedScopeSyncLocal));
+check('053 scope-sync RPC explicitly revokes Supabase anon default EXECUTE', /REVOKE ALL ON FUNCTION public\.update_contractor_managed_project_scope\(bigint, jsonb, text\[\], uuid\) FROM PUBLIC, anon;/.test(contractorManagedScopeSync053));
+check('054 create RPC explicitly revokes Supabase anon default EXECUTE after CREATE OR REPLACE', /REVOKE ALL ON FUNCTION public\.create_contractor_managed_project\(jsonb, text\[\], uuid\) FROM PUBLIC, anon;/.test(contractorManagedScopeSync054));
+check('055 revokes anon EXECUTE from every Contractor-Managed user-facing RPC', [
+  /REVOKE ALL ON FUNCTION public\.save_contractor_schedule_draft\(bigint, jsonb, uuid\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.can_access_schedule_submissions\(bigint\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.contractor_schedule_lifecycle_status\(bigint\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.submit_contractor_schedule\(bigint, uuid, text\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.request_schedule_changes\(bigint, text, uuid\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.approve_schedule_submission\(bigint, text, uuid\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.create_contractor_managed_project\(jsonb, text\[\], uuid\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.update_contractor_managed_project_scope\(bigint, jsonb, text\[\], uuid\)\s+FROM PUBLIC, anon;/,
+].every(pattern => pattern.test(contractorScheduleAcl055)));
+check('055 blocks direct anon and authenticated execution of trigger-only functions', [
+  /REVOKE ALL ON FUNCTION public\.prevent_schedule_version_task_mutation\(\)\s+FROM PUBLIC, anon, authenticated;/,
+  /REVOKE ALL ON FUNCTION public\.prevent_scope_mutation_during_review\(\)\s+FROM PUBLIC, anon, authenticated;/,
+].every(pattern => pattern.test(contractorScheduleAcl055)));
+check('055 never grants EXECUTE to anon', !/TO anon;/.test(contractorScheduleAcl055));
 check('Contractor-Managed Scope Synchronization reset keeps every prior extension explicit, same precedent as cert:reset:contractor-managed-project',
   packageJson.scripts['cert:reset:contractor-managed-scope-sync'] === 'npm run cert:reset:contractor-managed-project && node scripts/certification/applyContractorManagedScopeSyncLocal.mjs');
 
@@ -135,7 +156,7 @@ const contractorScheduleDraftFoundationBatchFiles = [...contractorScheduleDraftF
 const createContractorManagedProjectBatchFiles = [...createContractorManagedProjectLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const contractorManagedScopeSyncBatchFiles = [...contractorManagedScopeSyncLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles]);
-check('fresh-install migration set is exactly covered through approved Contractor-Managed Scope Synchronization migration 053, no gaps',
+check('fresh-install migration set is exactly covered through approved Contractor-Managed Scope Synchronization migration 055, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -148,7 +169,7 @@ check('migration 044 is covered by the Master Catalog weight batch (guards again
 check('migration 045 is covered by the Master Catalog duration batch (guards against this check being vacuously true)', masterCatalogDurationCalibrationBatchFiles.length >= 1);
 check('migrations 046-051 are covered by the Contractor Schedule Draft foundation batch (guards against this check being vacuously true)', contractorScheduleDraftFoundationBatchFiles.length >= 6);
 check('migration 052 is covered by the Create Contractor-Managed Project batch (guards against this check being vacuously true)', createContractorManagedProjectBatchFiles.length >= 1);
-check('migrations 053-054 are covered by the Contractor-Managed Scope Synchronization batch (guards against this check being vacuously true)', contractorManagedScopeSyncBatchFiles.length >= 2);
+check('migrations 053-055 are covered by the Contractor-Managed Scope Synchronization batch (guards against this check being vacuously true)', contractorManagedScopeSyncBatchFiles.length >= 3);
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by

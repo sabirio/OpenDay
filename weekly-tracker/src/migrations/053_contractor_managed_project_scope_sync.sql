@@ -243,5 +243,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.update_contractor_managed_project_scope(bigint, jsonb, text[], uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.update_contractor_managed_project_scope(bigint, jsonb, text[], uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.update_contractor_managed_project_scope(bigint, jsonb, text[], uuid) TO authenticated;

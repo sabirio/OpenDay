@@ -254,5 +254,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.create_contractor_managed_project(jsonb, text[], uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.create_contractor_managed_project(jsonb, text[], uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.create_contractor_managed_project(jsonb, text[], uuid) TO authenticated;
