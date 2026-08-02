@@ -54,8 +54,36 @@ $actualBackupManifestHash = (Get-FileHash -LiteralPath $backupManifestPath -Algo
 Assert-True 'runbook backup-manifest hash matches the file on disk' ($runbook.ToLowerInvariant() -match [regex]::Escape($actualBackupManifestHash)) "expected $actualBackupManifestHash"
 
 $backupManifestJson = Get-Content -LiteralPath $backupManifestPath -Raw | ConvertFrom-Json
-Assert-True 'bound backup manifest sourceCommit is the branch HEAD this runbook targets' ($backupManifestJson.sourceCommit -eq '6e568d836ebdec6ab6bdb0419a859cb0c9d1666d')
+$backupSourceCommit = '6e568d836ebdec6ab6bdb0419a859cb0c9d1666d'
+# NOTE: this is the backup's own frozen sourceCommit - the commit the backup
+# was taken FROM, not the current branch HEAD. It is one commit before this
+# runbook was even added and stays fixed forever; the runbook's own HEAD
+# check must instead prove ancestry (see the "impossible self-referential
+# HEAD gate" regression tests below), never equality with this value.
+Assert-True 'bound backup manifest sourceCommit matches the frozen, pinned value' ($backupManifestJson.sourceCommit -eq $backupSourceCommit)
 Assert-True 'bound backup manifest environment is staging' ($backupManifestJson.environment -eq 'staging')
+
+# --- Regression: the runbook must never re-introduce an impossible
+#     self-referential HEAD gate (asserting `git rev-parse HEAD` equals a
+#     fixed literal commit SHA) - editing the runbook always changes HEAD,
+#     so pinning "current HEAD" to one exact SHA can never be satisfied by
+#     the file's own next edit. The correct, stable check is ancestry of the
+#     backup's sourceCommit, not equality of HEAD itself. ---
+Assert-True 'runbook does not assert git rev-parse HEAD equals a fixed literal commit SHA' (
+    -not [regex]::IsMatch($runbook, '(?ms)git rev-parse HEAD\s*\r?\n#\s*expect:\s*[0-9a-f]{40}')
+)
+Assert-True 'runbook verifies backup-source-commit ancestry via git merge-base --is-ancestor, not HEAD equality' (
+    $runbook -match 'git merge-base --is-ancestor \$backupSourceCommit HEAD'
+)
+Assert-True 'runbook pins the backup source commit constant to the real, frozen backup-manifest sourceCommit' (
+    $runbook -match [regex]::Escape("`$backupSourceCommit = '$backupSourceCommit'")
+)
+Assert-True 'runbook diffs migration files against the backup source commit, not against a moving HEAD literal' (
+    $runbook -match 'git diff --exit-code \$backupSourceCommit -- weekly-tracker/src/migrations/'
+)
+Assert-True 'runbook restricts post-backup file changes to docs/manifests/tests/backups paths only' (
+    $runbook -match 'docs/\|scripts/manifests/\|scripts/tests/\|backups/staging/'
+)
 
 # --- Every one of the 9 migration hashes in the runbook matches the CRLF-normalized hash of the real file ---
 $migrationFiles = @(

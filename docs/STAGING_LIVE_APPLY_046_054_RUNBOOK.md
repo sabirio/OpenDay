@@ -25,6 +25,18 @@ persist between steps. If you close the terminal, start over from Step 1.
 
 ## 1. Repository Safety Verification
 
+The post-bridge backup's `sourceCommit`,
+`6e568d836ebdec6ab6bdb0419a859cb0c9d1666d`, is **not** the current branch
+HEAD and must never be checked against `git rev-parse HEAD` directly — it is
+the commit the backup was *taken from*, one commit before this very runbook
+file was added (`734aaf8`). Editing this runbook (including this fix) moves
+HEAD again, so a hardcoded "current HEAD equals `<runbook's own commit>`"
+check is self-referential and impossible to satisfy: the commit that would
+need to be pinned always contains one more edit than the one being pinned.
+What must actually hold, and stays true across any number of later
+docs/tooling-only commits, is that `6e568d836ebdec6ab6bdb0419a859cb0c9d1666d`
+is an **ancestor** of HEAD and that no migration file has changed since it.
+
 ```powershell
 cd C:\Users\skhai\cf-tracker
 
@@ -34,14 +46,39 @@ git rev-parse --show-toplevel
 git branch --show-current
 # expect: feature/staging-bridge-037-041-preparation
 
-git rev-parse HEAD
-# expect: 6e568d836ebdec6ab6bdb0419a859cb0c9d1666d
-
 git status --porcelain
 # expect: <empty output>
 
-git diff --stat -- weekly-tracker/src/migrations/
-# expect: <empty output> - no modified migration files
+$backupSourceCommit = '6e568d836ebdec6ab6bdb0419a859cb0c9d1666d'
+
+git merge-base --is-ancestor $backupSourceCommit HEAD
+if ($LASTEXITCODE -ne 0) {
+    throw "REFUSING: $backupSourceCommit is not an ancestor of current HEAD - this branch has diverged from the commit the backup was taken from. Stop."
+}
+Write-Host "Ancestor check passed: $backupSourceCommit is an ancestor of HEAD ($(git rev-parse HEAD))."
+
+git diff --exit-code $backupSourceCommit -- weekly-tracker/src/migrations/
+if ($LASTEXITCODE -ne 0) {
+    throw "REFUSING: a migration file differs from the backup source commit. Stop - do not apply."
+}
+Write-Host "No migration file has changed since the backup source commit."
+
+# Changes since the backup source commit must be confined to approved
+# rollout tooling (docs/manifests/tests) - never application code, never
+# migrations, never the canonical security contract.
+$changedSinceBackup = git diff --name-only $backupSourceCommit HEAD
+$allowedPattern = '^(docs/|scripts/manifests/|scripts/tests/|backups/staging/)'
+$disallowed = $changedSinceBackup | Where-Object { $_ -notmatch $allowedPattern }
+if ($disallowed) {
+    Write-Host "Files outside the allowed rollout-tooling paths changed since the backup source commit:"
+    $disallowed | ForEach-Object { Write-Host "  $_" }
+    throw 'REFUSING: unexpected file changes since the backup source commit. Stop and investigate.'
+}
+Write-Host "All changes since the backup source commit are confined to docs/manifests/tests."
+
+(Get-Content 'backups\staging\20260802T135704Z\backup-manifest.json' -Raw | ConvertFrom-Json).sourceCommit
+# expect: 6e568d836ebdec6ab6bdb0419a859cb0c9d1666d - this is the backup's own
+# frozen record and must never change; it is checked again in Step 4.
 
 Get-FileHash scripts\manifests\contractor-managed-rollout-046-054.psd1 -Algorithm SHA256 |
   Select-Object -ExpandProperty Hash
@@ -52,8 +89,8 @@ Get-FileHash backups\staging\20260802T135704Z\backup-manifest.json -Algorithm SH
 # expect: CBB3C4A1FBDEFD54ACB16AD727591E151E950E867332A45B4B4771EFC274208F
 ```
 
-If any value does not match exactly, **stop** — do not continue this
-runbook. Investigate the discrepancy first.
+If any check throws or any value does not match exactly, **stop** — do not
+continue this runbook. Investigate the discrepancy first.
 
 ---
 
