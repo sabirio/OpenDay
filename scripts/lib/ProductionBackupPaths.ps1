@@ -17,7 +17,8 @@ function Resolve-ProductionBackupPaths {
         [Parameter(Mandatory)][string]$ScriptPath,
         [AllowEmptyString()][string]$EnvFile,
         [AllowEmptyString()][string]$BackupRoot,
-        [Parameter(Mandatory)][ValidatePattern('^\d{8}T\d{6}Z$')][string]$Timestamp
+        [Parameter(Mandatory)][ValidatePattern('^\d{8}T\d{6}Z$')][string]$Timestamp,
+        [ValidateSet('production','staging')][string]$Environment = 'production'
     )
 
     if ([string]::IsNullOrWhiteSpace($ScriptPath)) { throw 'canonical script path is empty' }
@@ -27,9 +28,13 @@ function Resolve-ProductionBackupPaths {
     $repoRoot = [IO.Path]::GetFullPath((Join-Path $scriptRoot '..'))
     if (-not (Test-Path -LiteralPath (Join-Path $repoRoot '.git'))) { throw "repository root is invalid: $repoRoot" }
 
-    $canonicalBackupRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot 'backups\production'))
+    # Environment-scoped defaults - 'production' is byte-identical to this
+    # function's original (pre-Phase-3E.1) behavior; 'staging' is additive,
+    # never selected unless the caller explicitly passes -Environment staging.
+    $defaultEnvRelativePath = if ($Environment -eq 'staging') { 'weekly-tracker\.env.staging' } else { 'weekly-tracker\.env.production.local' }
+    $canonicalBackupRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot "backups\$Environment"))
     if ([string]::IsNullOrWhiteSpace($EnvFile)) {
-        $resolvedEnv = [IO.Path]::GetFullPath((Join-Path $repoRoot 'weekly-tracker\.env.production.local'))
+        $resolvedEnv = [IO.Path]::GetFullPath((Join-Path $repoRoot $defaultEnvRelativePath))
     } elseif ([IO.Path]::IsPathRooted($EnvFile)) {
         $resolvedEnv = [IO.Path]::GetFullPath($EnvFile)
     } else {

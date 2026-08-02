@@ -11,7 +11,8 @@ param(
     [switch]$ValidateOnly,
     [switch]$ShowResolvedPaths,
     [switch]$CertificationMode,
-    [scriptblock]$ConnectionProvider
+    [scriptblock]$ConnectionProvider,
+    [ValidateSet('production','staging')][string]$Environment = 'production'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,11 +30,15 @@ if (-not (Test-Path -LiteralPath $pathHelper -PathType Leaf)) { throw "BACKUP ST
 . $pathHelper
 . (Join-Path $scriptDirectory 'lib\BackupReleaseBinding.ps1')
 
-$expectedRef = 'szgbkeqornkdngoegyso'
+# Staging's ref is a distinct, hardcoded fail-closed constant - same
+# fail-closed shape as production's own hardcoded $expectedRef below,
+# never inferred from whichever environment variable happens to exist.
+# Phase 3E.1 (staging backup/rehearsal of migration batch 046-054).
+$expectedRef = if ($Environment -eq 'staging') { 'sdndsekarwhumdbcqxni' } else { 'szgbkeqornkdngoegyso' }
 $expectedUser = "postgres.$expectedRef"
 $startedAt = [DateTime]::UtcNow
 $timestamp = $startedAt.ToString('yyyyMMddTHHmmssZ')
-$paths = Resolve-ProductionBackupPaths -ScriptPath $entryPointPath -EnvFile $EnvFile -BackupRoot $BackupRoot -Timestamp $timestamp
+$paths = Resolve-ProductionBackupPaths -ScriptPath $entryPointPath -EnvFile $EnvFile -BackupRoot $BackupRoot -Timestamp $timestamp -Environment $Environment
 $repoRoot = $paths.RepoRoot
 $EnvFile = $paths.EnvFile
 $BackupRoot = $paths.BackupRoot
@@ -124,6 +129,8 @@ try {
         $conn = & $ConnectionProvider
         if ($conn.Host -notin @('127.0.0.1', 'localhost', 'host.docker.internal')) { throw 'disposable certification connection must be loopback-only' }
         if ($conn.Database -eq 'postgres' -and $conn.User -eq $expectedUser) { throw 'disposable certification identity must not equal production identity' }
+    } elseif ($Environment -eq 'staging') {
+        $conn = Get-StagingConnectionFingerprint -EnvFile $EnvFile -RepoRoot $repoRoot -ExpectedProjectRef $expectedRef
     } else {
         $conn = Get-ProductionConnectionFingerprint -EnvFile $EnvFile -RepoRoot $repoRoot -ExpectedProjectRef $expectedRef
     }
@@ -232,6 +239,7 @@ $manifest = [ordered]@{
     started_at_utc = $startedAt.ToString('o')
     completed_at_utc = $completedAt.ToString('o')
     duration_seconds = [math]::Round(($completedAt - $startedAt).TotalSeconds, 3)
+    environment = $Environment
     production_project_ref = $expectedRef
     production_hostname = $dbHost
     postgres_image = $PostgresImage
