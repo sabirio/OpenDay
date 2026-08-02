@@ -23,6 +23,7 @@ const masterCatalogWeightCalibrationLocal = readFileSync(new URL('../../scripts/
 const masterCatalogDurationCalibrationLocal = readFileSync(new URL('../../scripts/certification/applyMasterCatalogDurationCalibrationLocal.mjs', import.meta.url), 'utf8');
 const contractorScheduleDraftFoundationLocal = readFileSync(new URL('../../scripts/certification/applyContractorScheduleDraftFoundationLocal.mjs', import.meta.url), 'utf8');
 const createContractorManagedProjectLocal = readFileSync(new URL('../../scripts/certification/applyCreateContractorManagedProjectLocal.mjs', import.meta.url), 'utf8');
+const contractorManagedScopeSyncLocal = readFileSync(new URL('../../scripts/certification/applyContractorManagedScopeSyncLocal.mjs', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -103,6 +104,12 @@ check('local Create Contractor-Managed Project extension pins and verifies the a
 check('local Create Contractor-Managed Project hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(createContractorManagedProjectLocal));
 check('Create Contractor-Managed Project reset keeps every prior extension explicit, same precedent as cert:reset:contractor-schedule',
   packageJson.scripts['cert:reset:contractor-managed-project'] === 'npm run cert:reset:contractor-schedule && node scripts/certification/applyCreateContractorManagedProjectLocal.mjs');
+check('local Contractor-Managed Scope Synchronization extension uses the canonical local guard before psql', contractorManagedScopeSyncLocal.indexOf('assertLocalTarget') < contractorManagedScopeSyncLocal.indexOf("execFileSync('psql'"));
+check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 053 migration', contractorManagedScopeSyncLocal.includes('053_contractor_managed_project_scope_sync.sql') && /createHash\('sha256'\)/.test(contractorManagedScopeSyncLocal));
+check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 054 null-artifact fix migration', contractorManagedScopeSyncLocal.includes('054_fix_contractor_managed_scope_null_artifact.sql'));
+check('local Contractor-Managed Scope Synchronization hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(contractorManagedScopeSyncLocal));
+check('Contractor-Managed Scope Synchronization reset keeps every prior extension explicit, same precedent as cert:reset:contractor-managed-project',
+  packageJson.scripts['cert:reset:contractor-managed-scope-sync'] === 'npm run cert:reset:contractor-managed-project && node scripts/certification/applyContractorManagedScopeSyncLocal.mjs');
 
 // Structural migration-completeness guard: the fresh-install path is a
 // multi-part composition (canonical contract's 000-029 and 041 + applySnagListLocal.mjs's
@@ -126,8 +133,9 @@ const masterCatalogWeightCalibrationBatchFiles = [...masterCatalogWeightCalibrat
 const masterCatalogDurationCalibrationBatchFiles = [...masterCatalogDurationCalibrationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const contractorScheduleDraftFoundationBatchFiles = [...contractorScheduleDraftFoundationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const createContractorManagedProjectBatchFiles = [...createContractorManagedProjectLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
-const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles]);
-check('fresh-install migration set is exactly covered through approved Create Contractor-Managed Project migration 052, no gaps',
+const contractorManagedScopeSyncBatchFiles = [...contractorManagedScopeSyncLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
+const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles]);
+check('fresh-install migration set is exactly covered through approved Contractor-Managed Scope Synchronization migration 053, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -140,6 +148,7 @@ check('migration 044 is covered by the Master Catalog weight batch (guards again
 check('migration 045 is covered by the Master Catalog duration batch (guards against this check being vacuously true)', masterCatalogDurationCalibrationBatchFiles.length >= 1);
 check('migrations 046-051 are covered by the Contractor Schedule Draft foundation batch (guards against this check being vacuously true)', contractorScheduleDraftFoundationBatchFiles.length >= 6);
 check('migration 052 is covered by the Create Contractor-Managed Project batch (guards against this check being vacuously true)', createContractorManagedProjectBatchFiles.length >= 1);
+check('migrations 053-054 are covered by the Contractor-Managed Scope Synchronization batch (guards against this check being vacuously true)', contractorManagedScopeSyncBatchFiles.length >= 2);
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by

@@ -91,6 +91,17 @@ try {
     r.check('company_id resolved to the caller\'s own company', scopeRow === 'company-a');
   }
 
+  r.section('1b. Regression (054): an explicit `scope: null` key in the payload — the exact shape projectService.js\'s real createContractorManagedProject() always sends when no Scope is supplied — never persists as a JSONB null scalar');
+  {
+    const storeCode = `3D2-NULLFIX-${randomUUID().slice(0, 8)}`;
+    const { data, error } = await callRpc(pmA, projectPayload(storeCode, { scope: null }), [WP_1]);
+    r.check('RPC succeeds', !error, error?.message);
+    const isSqlNull = queryOne(`SELECT (scope IS NULL) FROM public.projects WHERE id = ${data?.id};`);
+    r.check('scope column is a true SQL NULL, not a JSONB null scalar (051\'s Scope-mutation lock trigger only fires on a REAL change — a jsonb null scalar IS DISTINCT FROM a true SQL NULL, so this must never persist)', isSqlNull === 't');
+    const jsonbType = queryOne(`SELECT jsonb_typeof(scope) FROM public.projects WHERE id = ${data?.id};`);
+    r.check('jsonb_typeof(scope) is null (no value at all), confirming there is no jsonb null scalar stored', jsonbType === null);
+  }
+
   r.section('2. Admin allowed: can_create_project() already permits admin/pm — same rule this RPC reuses');
   {
     const storeCode = `3D2-ADMIN-${randomUUID().slice(0, 8)}`;
