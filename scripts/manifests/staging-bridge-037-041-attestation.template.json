@@ -1,0 +1,28 @@
+{
+    "schemaVersion": "staging-migration-attestation/v1",
+    "_comment": "External evidence record for a manually-applied staging migration. Staging has no supabase_migrations table (confirmed absent in backups/staging/20260802T124552Z/backup-manifest.json: migrationHistory.status = 'not_present'), so there is no in-database ledger of what has been applied. This file is the substitute accountability record. The owner fills in one copy per migration (037, then 041) immediately after running it, and it is committed to the repository so the batch's live-apply history is reviewable the same way a git commit reviews code.",
+    "environment": "staging",
+    "projectRef": "sdndsekarwhumdbcqxni",
+    "batchId": "staging-bridge-037-041",
+    "migration": {
+        "number": null,
+        "file": null,
+        "sha256": null
+    },
+    "sourceCommit": null,
+    "backupBinding": {
+        "backupDirectory": "backups/staging/20260802T124552Z",
+        "backupManifestSha256": "31e00766c36ed54c0e6bbdcd141cc6b2a825a7eea95ca96548f2116afd6b0400"
+    },
+    "startedAtUtc": null,
+    "completedAtUtc": null,
+    "exitCode": null,
+    "affectedRowsOrNotices": null,
+    "preflightResult": null,
+    "postflightResult": null,
+    "ownerAttestation": {
+        "targetWasStagingNotProduction": null,
+        "onlyThisMigrationWasApplied": null,
+        "appliedByStatement": null
+    }
+}
