@@ -214,6 +214,7 @@ export default function ZonedScopeConfigurator({ project, scopeTemplate, initial
                 >
                   <input
                     type="checkbox"
+                    data-testid={`scope-zone-checkbox-${zone.id}`}
                     checked={zoneActive}
                     ref={el => { if (el) el.indeterminate = indeterminate; }}
                     onChange={() => toggleZone(zone)}
@@ -250,6 +251,7 @@ export default function ZonedScopeConfigurator({ project, scopeTemplate, initial
                           >
                             <input
                               type="checkbox"
+                              data-testid={`scope-category-checkbox-${category.id}`}
                               checked={catActive}
                               ref={el => { if (el) el.indeterminate = catIndeterminate; }}
                               onChange={() => toggleCategory(category, zone)}
