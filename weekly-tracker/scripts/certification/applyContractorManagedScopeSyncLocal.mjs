@@ -15,7 +15,24 @@
 //   055: removes Supabase default anon EXECUTE grants from Contractor-Managed
 //        Schedule RPCs and trigger-only functions while retaining the
 //        intended authenticated RPC access.
+//   056: removes Supabase default PUBLIC/anon/service_role EXECUTE grants
+//        from the three 020 RLS helper functions (can_admin_company,
+//        can_create_project, can_write_project) while retaining the
+//        intended authenticated access. Same excess-ACL closure pattern as
+//        055, function-ACL only; service_role is explicitly revoked (not
+//        left implicit) since no code path requires it.
+//   057: bridges migration 028 Part 5's never-effective outcome (Gate 13C,
+//        Simplification Phase 3E.5) for all 15 tables it named plus every
+//        associated sequence — anon/PUBLIC get nothing, authenticated is
+//        narrowed to exactly 026's audited SELECT/INSERT/UPDATE/DELETE (or
+//        SELECT-only for audit_log) with sequence USAGE only (never
+//        TRUNCATE/REFERENCES/TRIGGER/MAINTAIN), service_role gets an
+//        exact, evidence-backed per-table/per-sequence grant derived from
+//        a repository-wide audit of genuine service-role PostgREST call
+//        sites (not a blanket "trusted role" grant) — 6 of the 15 tables
+//        get nothing at all.
 //
+
 // Deliberately NOT part of resetAndDeploy.mjs's always-on canonical chain —
 // same opt-in posture as every post-041 feature addition in this repository —
 // reproducible via `npm run cert:reset:contractor-managed-scope-sync`, not
@@ -35,6 +52,8 @@ const migrations = [
   ['053_contractor_managed_project_scope_sync.sql', 'a0b1ea7910d35c18709f40b3535c1303501f5539b824574dd0b73aa577a6d64f'],
   ['054_fix_contractor_managed_scope_null_artifact.sql', 'a84040891bb20262f40a31c94c455465534bf2be4e963ec78558a92b1565d158'],
   ['055_restrict_contractor_schedule_function_acl.sql', '8db03764d989e20ee7f47aa9f7e05da8eca32488ae10f1948bef80643618c59c'],
+  ['056_restrict_rls_helper_function_acl.sql', '1150ef166ef7d6c01efc565ba3c3e8fa33f4b9e8821cdf4d987cc9763bd4021a'],
+  ['057_part5_table_sequence_acl_bridge.sql', 'e563821f1d0e50c4fa222356d649dcce358121c995102ad01a916bc56cf18827'],
 ];
 
 assertLocalTarget({
@@ -61,4 +80,4 @@ for (const [file, expectedHash] of migrations) {
   console.log('OK');
 }
 
-console.log('Local Contractor-Managed Scope Synchronization extension applied through 055 (atomic Scope + schedule-row sync, null-artifact fix, and restricted function ACL); AUTO_GENERATED Scope-edit/regenerateGantt path unaffected.');
+console.log('Local Contractor-Managed Scope Synchronization extension applied through 057 (atomic Scope + schedule-row sync, null-artifact fix, restricted schedule-function ACL, restricted RLS-helper-function ACL, and Part-5 table/sequence ACL bridge); AUTO_GENERATED Scope-edit/regenerateGantt path unaffected.');
