@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { extractFunctionDefinition, maskExactlyOnce, normalizeLineEndings, stripLineComments } from '../../scripts/certification/sqlLineEndingNormalization.mjs';
 
 let pass = 0, fail = 0;
 function check(label, condition) {
@@ -13,19 +14,80 @@ const productionRemediationSuite = readFileSync(new URL('../../../scripts/tests/
 const canonicalContract = JSON.parse(readFileSync(new URL('../../../scripts/contracts/canonical-security-contract.json', import.meta.url), 'utf8'));
 const migrationExecutorDoc = readFileSync(new URL('../../../docs/PRODUCTION_MIGRATION_EXECUTOR.md', import.meta.url), 'utf8');
 const remediationRunbook = readFileSync(new URL('../../../docs/PRODUCTION_SECURITY_REMEDIATION_RUNBOOK.md', import.meta.url), 'utf8');
-const active058 = migration058.split('\n').filter(line => !line.trim().startsWith('--')).join('\n');
+const active058 = stripLineComments(migration058);
+const topLevel058 = maskExactlyOnce(active058, extractFunctionDefinition(active058, 'submit_contractor_report_atomic'), 'CANONICAL_CONTRACTOR_FUNCTION_DEFINITION');
 
-function contractorDefinition(sql) {
-  const match = sql.match(/CREATE OR REPLACE FUNCTION public\.submit_contractor_report_atomic\([\s\S]*?\n\$\$;/);
-  return match?.[0].replace(/\r\n/g, '\n').trim() ?? null;
+console.log('\nsqlLineEndingNormalization - detector self-test against synthetic fixtures');
+
+function buildSyntheticSource(eol) {
+  return [
+    'CREATE OR REPLACE FUNCTION public.synthetic_fn(p_id bigint)',
+    'RETURNS void',
+    'LANGUAGE plpgsql',
+    'AS $$',
+    'BEGIN',
+    '  INSERT INTO public.synthetic_ledger(id) VALUES (p_id);',
+    '  NULL;',
+    'END;',
+    '$$;',
+  ].join(eol) + eol;
 }
-const topLevel058 = active058.replace(contractorDefinition(active058) ?? '', 'CANONICAL_CONTRACTOR_FUNCTION_DEFINITION');
+// Doubled CRLF ("\r\r\n") reproduces a real, isolated finding: this
+// environment's Windows psql.exe client has been observed to double an
+// already-CRLF migration file's line endings when applying it, so a live
+// pg_proc.prosrc value can legitimately contain "\r\r\n" even though the
+// source .sql file on disk only ever had a single "\r\n" per line.
+const syntheticLf = buildSyntheticSource('\n');
+const syntheticCrlf = buildSyntheticSource('\r\n');
+const syntheticDoubledCrlf = buildSyntheticSource('\r\r\n');
+
+for (const [label, source] of [['LF', syntheticLf], ['CRLF', syntheticCrlf], ['doubled CRLF', syntheticDoubledCrlf]]) {
+  const def = extractFunctionDefinition(source, 'synthetic_fn');
+  check(`${label}: contractor-style body extraction succeeds`, def !== null);
+  check(`${label}: extraction matches the LF baseline (line endings alone never change the result)`,
+    def === extractFunctionDefinition(syntheticLf, 'synthetic_fn'));
+  const masked = maskExactlyOnce(source, def, 'PLACEHOLDER');
+  check(`${label}: masking occurs exactly once`, masked.split('PLACEHOLDER').length - 1 === 1);
+  check(`${label}: no false-positive top-level INSERT INTO after masking`, !/INSERT\s+INTO/i.test(masked));
+}
+
+check('mixed: LF expected vs CRLF actual body extraction matches after normalization',
+  extractFunctionDefinition(syntheticLf, 'synthetic_fn') === extractFunctionDefinition(syntheticCrlf, 'synthetic_fn'));
+check('mixed: CRLF expected vs LF actual body extraction matches after normalization',
+  extractFunctionDefinition(syntheticCrlf, 'synthetic_fn') === extractFunctionDefinition(syntheticLf, 'synthetic_fn'));
+check('mixed: LF expected vs doubled-CRLF actual body extraction matches after normalization',
+  extractFunctionDefinition(syntheticLf, 'synthetic_fn') === extractFunctionDefinition(syntheticDoubledCrlf, 'synthetic_fn'));
+check('mixed: normalizeLineEndings alone is idempotent across LF/CRLF/doubled-CRLF variants of the same content',
+  normalizeLineEndings(syntheticLf) === normalizeLineEndings(syntheticCrlf) &&
+  normalizeLineEndings(syntheticCrlf) === normalizeLineEndings(syntheticDoubledCrlf));
+
+check('fail-closed: masking throws instead of silently no-opping when the needle is absent from the source',
+  (() => { try { maskExactlyOnce(syntheticLf, 'NOT PRESENT ANYWHERE IN SOURCE', 'X'); return false; } catch { return true; } })());
+check('fail-closed: masking throws when the needle appears more than once',
+  (() => {
+    const duplicated = syntheticLf + '\n' + syntheticLf;
+    const def = extractFunctionDefinition(duplicated, 'synthetic_fn');
+    try { maskExactlyOnce(duplicated, def, 'X'); return false; } catch { return true; }
+  })());
+check('fail-closed: masking throws on an empty/absent needle rather than masking nothing',
+  (() => { try { maskExactlyOnce(syntheticLf, null, 'X'); return false; } catch { return true; } })());
+check('fail-closed: extraction returns null, not a false match, when the function is entirely absent',
+  extractFunctionDefinition(syntheticLf, 'nonexistent_fn_xyz') === null);
+check('fail-closed: normalization never erases a genuine semantic difference, only line-ending noise',
+  extractFunctionDefinition(syntheticLf, 'synthetic_fn') !== extractFunctionDefinition(syntheticLf.replace('p_id bigint', 'p_id text'), 'synthetic_fn'));
+check('fail-closed: a top-level mutation OUTSIDE the masked function body is still detected, not hidden by masking',
+  (() => {
+    const withOutsideMutation = syntheticLf + '\nINSERT INTO public.other_table(x) VALUES (1);\n';
+    const def = extractFunctionDefinition(withOutsideMutation, 'synthetic_fn');
+    const masked = maskExactlyOnce(withOutsideMutation, def, 'PLACEHOLDER');
+    return /INSERT\s+INTO/i.test(masked);
+  })());
 
 console.log('\natomicWriteSecurityReconciliation - migration 058 static contract');
 
 check('058 is transactionally atomic', /^BEGIN;$/m.test(active058) && /^COMMIT;$/m.test(active058));
 check('058 contractor RPC definition is byte-for-byte canonical migration 036 SQL',
-  contractorDefinition(migration058) === contractorDefinition(migration036));
+  extractFunctionDefinition(migration058, 'submit_contractor_report_atomic') === extractFunctionDefinition(migration036, 'submit_contractor_report_atomic'));
 check('058 does not replace the site-visit RPC body',
   !/CREATE OR REPLACE FUNCTION public\.submit_site_visit_atomic/.test(active058));
 

@@ -3,6 +3,7 @@
 
 import { readFileSync } from 'node:fs';
 import { makeReporter, psql, requireCertificationEnvironment } from './lib.mjs';
+import { extractFunctionBody, normalizeLineEndings } from './sqlLineEndingNormalization.mjs';
 
 await requireCertificationEnvironment();
 
@@ -10,14 +11,8 @@ const r = makeReporter('Migration 058 atomic-write security reconciliation');
 const migration036 = readFileSync(new URL('../../src/migrations/036_contractor_report_legacy_wp_scope.sql', import.meta.url), 'utf8');
 const migration028 = readFileSync(new URL('../../src/migrations/028_production_security_reconciliation.sql', import.meta.url), 'utf8');
 
-function functionBody(sql, name) {
-  const start = sql.indexOf(`CREATE OR REPLACE FUNCTION public.${name}(`);
-  if (start === -1) return null;
-  return sql.slice(start).match(/AS \$\$([\s\S]*?)\n\$\$;/)?.[1].replace(/\r\n/g, '\n').trim() ?? null;
-}
-
-const canonicalBody = functionBody(migration036, 'submit_contractor_report_atomic');
-const canonicalSiteVisitBody = functionBody(migration028, 'submit_site_visit_atomic');
+const canonicalBody = extractFunctionBody(migration036, 'submit_contractor_report_atomic');
+const canonicalSiteVisitBody = extractFunctionBody(migration028, 'submit_site_visit_atomic');
 
 function rows(sql) {
   const output = psql(sql);
@@ -52,12 +47,14 @@ r.check('contractor RPC metadata remains canonical',
   JSON.stringify(contractorMeta) === JSON.stringify(['jsonb', 'plpgsql', 't', 'v', 'f', 'u', 'postgres', 'search_path=public']),
   JSON.stringify(contractorMeta));
 
-const liveBody = psql(`SELECT prosrc FROM pg_proc WHERE oid = 'public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)'::regprocedure;`)
-  .replace(/\r\n/g, '\n').trim();
+const liveBody = normalizeLineEndings(
+  psql(`SELECT prosrc FROM pg_proc WHERE oid = 'public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)'::regprocedure;`)
+).trim();
 r.check('live contractor RPC body equals migration 036 canonical body', liveBody === canonicalBody);
 
-const liveSiteVisitBody = psql(`SELECT prosrc FROM pg_proc WHERE oid = 'public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)'::regprocedure;`)
-  .replace(/\r\n/g, '\n').trim();
+const liveSiteVisitBody = normalizeLineEndings(
+  psql(`SELECT prosrc FROM pg_proc WHERE oid = 'public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)'::regprocedure;`)
+).trim();
 r.check('live site-visit RPC body remains the migration 028 canonical body', liveSiteVisitBody === canonicalSiteVisitBody);
 
 const ownership = rows(`
