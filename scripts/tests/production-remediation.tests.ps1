@@ -93,14 +93,26 @@ Assert-True 'dynamically computed next-free migration number is strictly greater
 
 $contractPath = Join-Path $scriptsRoot 'contracts\canonical-security-contract.json'
 $contract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
-Assert-True 'canonical contract includes 028 in the migration path' (@($contract.canonicalMigrationPath.included) -contains '028_production_security_reconciliation.sql')
-Assert-True 'canonical contract includes 029 in the migration path' (@($contract.canonicalMigrationPath.included) -contains '029_production_acl_followup.sql')
 $includedMigrations = @($contract.canonicalMigrationPath.included)
+Assert-True 'canonical contract includes 028 exactly once in the migration path' (@($includedMigrations | Where-Object { $_ -eq '028_production_security_reconciliation.sql' }).Count -eq 1)
+Assert-True 'canonical contract includes 029 exactly once in the migration path' (@($includedMigrations | Where-Object { $_ -eq '029_production_acl_followup.sql' }).Count -eq 1)
+Assert-True 'canonical migration path is non-empty' ($includedMigrations.Count -gt 0)
+Assert-True 'canonical migration path entries are unique' (@($includedMigrations | Sort-Object -Unique).Count -eq $includedMigrations.Count)
+$canonicalMigrationNumbers = @($includedMigrations | ForEach-Object { [int]$_.Substring(0, 3) })
+$canonicalOrderingIsStrict = $true
+for ($i = 1; $i -lt $canonicalMigrationNumbers.Count; $i++) {
+    if ($canonicalMigrationNumbers[$i] -le $canonicalMigrationNumbers[$i - 1]) {
+        $canonicalOrderingIsStrict = $false
+        break
+    }
+}
+Assert-True 'canonical migration path ordering is deterministic and strictly increasing' $canonicalOrderingIsStrict
 $idx028 = [array]::IndexOf($includedMigrations, '028_production_security_reconciliation.sql')
 $idx029 = [array]::IndexOf($includedMigrations, '029_production_acl_followup.sql')
 Assert-True 'canonical contract lists 029 immediately after 028 (append-only ordering)' (($idx028 -ge 0) -and ($idx029 -eq $idx028 + 1))
 $migrationFiles = Get-CanonicalMigrationFileList -ContractPath $contractPath -MigrationsRoot $migrationsRoot
-Assert-True 'Get-CanonicalMigrationFileList resolves 20 files including 028 and 029' ($migrationFiles.Count -eq 20)
+Assert-True 'Get-CanonicalMigrationFileList resolves exactly the contract-declared entries' ($migrationFiles.Count -eq $includedMigrations.Count)
+Assert-True 'every canonical migration resolves to an existing file' (@($migrationFiles | Where-Object { -not (Test-Path -LiteralPath $_.FullPath) }).Count -eq 0)
 
 $migrationText = Get-Content -LiteralPath $migrationPath -Raw
 Assert-True '028 does not modify migrations 000-027 (append-only; no ALTER on their own definitions is implied by them not being edited)' (
@@ -461,7 +473,9 @@ foreach ($earlier in (Get-ChildItem -LiteralPath $migrationsRoot -Filter '0[0-2]
     if ($earlier.Name -eq '029_production_acl_followup.sql') { continue }
     Assert-True "029 does not edit $($earlier.Name) (forward-only)" ((Get-Content -LiteralPath $earlier.FullName -Raw) -notmatch '\bTHIS FILE WAS MODIFIED BY 029\b')
 }
-Assert-True 'contract lists 029 as the last included migration (append-only)' ((@($contract.canonicalMigrationPath.included) | Select-Object -Last 1) -eq '029_production_acl_followup.sql')
+$expectedCanonicalEndpoint = '041_versioned_scope_templates.sql'
+Assert-True 'contract ends at the documented frozen canonical endpoint 041' (($includedMigrations | Select-Object -Last 1) -eq $expectedCanonicalEndpoint)
+Assert-True 'post-041 migration 058 remains outside the frozen canonical path' ($includedMigrations -notcontains '058_reconcile_atomic_write_security_and_contractor_rpc.sql')
 
 # ===========================================================================
 # 9. Regression guards for the 8 anti-patterns that let 028's real

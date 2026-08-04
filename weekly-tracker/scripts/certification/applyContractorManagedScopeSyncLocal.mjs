@@ -1,5 +1,5 @@
 // Local-only Simplification Phase 3D.2.1 extension.
-// Applies the hash-pinned 053-057 migrations on top of the canonical
+// Applies the hash-pinned 053-058 migrations on top of the canonical
 // fresh-install baseline + 046-051 (Contractor Schedule Draft/Submission/Lock
 // foundation) + 052 (atomic Create Contractor-Managed Project):
 //   053: update_contractor_managed_project_scope() SECURITY DEFINER RPC —
@@ -29,6 +29,12 @@
 //        (plus their 10 associated sequences), none of which that part's
 //        original grant ever narrowed live. See 057's own header for the
 //        full rationale.
+//   058: forward-only reconciliation of staging drift on the atomic-write
+//        RPCs/ledger: restores migration 036's canonical contractor RPC
+//        body, closes anon EXECUTE and anon/authenticated sequence
+//        privileges on both atomic RPCs and their ledger sequence, and
+//        narrowly revokes a residual service_role MAINTAIN grant on the
+//        ledger table. See 058's own header for the full rationale.
 //
 // Deliberately NOT part of resetAndDeploy.mjs's always-on canonical chain —
 // same opt-in posture as every post-041 feature addition in this repository —
@@ -51,6 +57,7 @@ const migrations = [
   ['055_restrict_contractor_schedule_function_acl.sql', '8db03764d989e20ee7f47aa9f7e05da8eca32488ae10f1948bef80643618c59c'],
   ['056_restrict_rls_helper_function_acl.sql', '1150ef166ef7d6c01efc565ba3c3e8fa33f4b9e8821cdf4d987cc9763bd4021a'],
   ['057_part5_table_sequence_acl_bridge.sql', 'e563821f1d0e50c4fa222356d649dcce358121c995102ad01a916bc56cf18827'],
+  ['058_reconcile_atomic_write_security_and_contractor_rpc.sql', '21c05f99162576b737a1b41810786355047616762d816ac142f36483c4e9110d'],
 ];
 
 assertLocalTarget({
@@ -77,4 +84,4 @@ for (const [file, expectedHash] of migrations) {
   console.log('OK');
 }
 
-console.log('Local Contractor-Managed Scope Synchronization extension applied through 057 (atomic Scope + schedule-row sync, the null-artifact fix, Contractor-Managed-Schedule RPC ACL hardening, RLS helper function ACL hardening, and the Part-5 table/sequence ACL bridge); AUTO_GENERATED Scope-edit/regenerateGantt path unaffected.');
+console.log('Local Contractor-Managed Scope Synchronization extension applied through 058 (atomic Scope + schedule-row sync, the null-artifact fix, Contractor-Managed-Schedule RPC ACL hardening, RLS helper function ACL hardening, the Part-5 table/sequence ACL bridge, and atomic-write security reconciliation); AUTO_GENERATED Scope-edit/regenerateGantt path unaffected.');
