@@ -80,7 +80,8 @@ Assert-True 'accepted-exceptions starts empty' (@($exceptionsDoc.exceptions).Cou
 # 3. Migration contract extractor
 # ===========================================================================
 $migrationFiles = Get-CanonicalMigrationFileList -ContractPath $contractPath -MigrationsRoot $migrationsRoot
-Assert-True 'Get-CanonicalMigrationFileList resolves 20 files (18 original + 028 production security reconciliation + 029 production ACL followup)' ($migrationFiles.Count -eq 20)
+$includedMigrations = @($contract.canonicalMigrationPath.included)
+Assert-True 'Get-CanonicalMigrationFileList resolves exactly the contract-declared entries' ($migrationFiles.Count -eq $includedMigrations.Count)
 Assert-True 'Get-CanonicalMigrationFileList every resolved file actually exists on disk' (@($migrationFiles | Where-Object { -not (Test-Path -LiteralPath $_.FullPath) }).Count -eq 0)
 Assert-Throws 'Get-CanonicalMigrationFileList fails closed on unknown contract schema version' {
     $tmp = Join-Path ([IO.Path]::GetTempPath()) "bad-contract-$([guid]::NewGuid().ToString('N')).json"

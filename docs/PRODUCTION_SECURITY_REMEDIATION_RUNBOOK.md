@@ -132,3 +132,10 @@ This means: **every migration that creates a new table, sequence, or function in
 `029_production_acl_followup.sql` closes this specific gap. It deliberately does **not** alter the underlying `ALTER DEFAULT PRIVILEGES` rule itself — that setting is platform-wide (also covers non-`public` schemas this repository does not own) and altering it is unproven-safe and out of scope for a single migration's follow-up.
 
 **Durable guard for future migrations** (until/unless a repository-wide default-privilege change is separately proposed and proven safe): before merging any migration that runs `CREATE TABLE`, `CREATE SEQUENCE`, `CREATE FUNCTION`, or `bigserial`/`serial`-backed columns in schema `public`, explicitly verify and state in the migration's own comments what `anon`/`authenticated`/`service_role` should and should not be able to do on the new object(s), and add the `REVOKE`/`GRANT` statements needed to make that true — do not rely on the migration-derived-execution rehearsal path alone to prove this (see `scripts/production-acl-fixture-rehearsal.ps1` and `Get-SupabaseDefaultAclFixtureScript` in `scripts/lib/ProductionSecurityStateEmulator.ps1` for the disposable-only fixture that now reproduces this exact production behavior during rehearsal, and `scripts/tests/production-remediation.tests.ps1` for the regression tests that fail if this guard is skipped).
+
+That regression suite validates the 028/029 relationship against the current
+contract rather than a fixed file count, and verifies the frozen canonical
+path endpoint at migration 041. Later local certification migrations,
+including 058, are intentionally outside that frozen path unless a separate
+contract change is explicitly approved. Local certification of migration 058
+does not approve or authorize remote, staging, or production application.

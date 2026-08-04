@@ -292,12 +292,16 @@ was only ever true until later, unrelated batches were added — Snag List
 `030-035` makes it permanently false, and it is *supposed* to be false: new
 migrations are expected to keep landing after 029 forever.
 
-The suite now checks the narrower invariant it actually needs, which does
-not go stale as the repository grows: migration numbers `028` and `029`
-(the two numbers that specific remediation contract is about) each appear
-exactly once and have no gap between them; "next free migration number",
-where the suite needs one, is computed dynamically as `max(existing) + 1`,
-never hardcoded. This deliberately does **not** assert repository-wide
+The suite now checks the narrower invariants it actually needs, without a
+fixed migration count: migration numbers `028` and `029` (the two numbers
+that specific remediation contract is about) each appear exactly once and
+have no gap between them; the resolved canonical file count must equal the
+contract-declared entry count; and the frozen canonical path ends at its
+documented endpoint, `041_versioned_scope_templates.sql`. Post-041 local
+certification migrations such as 058 remain separate from that frozen path.
+"Next free migration number", where the suite needs one, is computed
+dynamically as `max(existing) + 1`, never hardcoded. This deliberately does
+**not** assert repository-wide
 migration-number uniqueness — `docs/MIGRATION_RUNBOOK.md` documents that
 this repository's raw file listing has known, intentional historical
 duplicates/skips from before the "fresh path" convention existed (both

@@ -24,6 +24,10 @@ const masterCatalogDurationCalibrationLocal = readFileSync(new URL('../../script
 const contractorScheduleDraftFoundationLocal = readFileSync(new URL('../../scripts/certification/applyContractorScheduleDraftFoundationLocal.mjs', import.meta.url), 'utf8');
 const createContractorManagedProjectLocal = readFileSync(new URL('../../scripts/certification/applyCreateContractorManagedProjectLocal.mjs', import.meta.url), 'utf8');
 const contractorManagedScopeSyncLocal = readFileSync(new URL('../../scripts/certification/applyContractorManagedScopeSyncLocal.mjs', import.meta.url), 'utf8');
+const contractorScheduleAcl055 = readFileSync(new URL('../migrations/055_restrict_contractor_schedule_function_acl.sql', import.meta.url), 'utf8');
+const rlsHelperAcl056 = readFileSync(new URL('../migrations/056_restrict_rls_helper_function_acl.sql', import.meta.url), 'utf8');
+const part5Bridge057 = readFileSync(new URL('../migrations/057_part5_table_sequence_acl_bridge.sql', import.meta.url), 'utf8');
+const atomicWriteReconciliation058 = readFileSync(new URL('../migrations/058_reconcile_atomic_write_security_and_contractor_rpc.sql', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -107,6 +111,112 @@ check('Create Contractor-Managed Project reset keeps every prior extension expli
 check('local Contractor-Managed Scope Synchronization extension uses the canonical local guard before psql', contractorManagedScopeSyncLocal.indexOf('assertLocalTarget') < contractorManagedScopeSyncLocal.indexOf("execFileSync('psql'"));
 check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 053 migration', contractorManagedScopeSyncLocal.includes('053_contractor_managed_project_scope_sync.sql') && /createHash\('sha256'\)/.test(contractorManagedScopeSyncLocal));
 check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 054 null-artifact fix migration', contractorManagedScopeSyncLocal.includes('054_fix_contractor_managed_scope_null_artifact.sql'));
+check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 055 ACL hardening migration, hash-pinned', contractorManagedScopeSyncLocal.includes('055_restrict_contractor_schedule_function_acl.sql') && /055_restrict_contractor_schedule_function_acl\.sql', '[a-f0-9]{64}'/.test(contractorManagedScopeSyncLocal));
+check('055 follows 054 in the local extension order', contractorManagedScopeSyncLocal.indexOf('054_fix_contractor_managed_scope_null_artifact.sql') < contractorManagedScopeSyncLocal.indexOf('055_restrict_contractor_schedule_function_acl.sql'));
+check('055 revokes anon EXECUTE from every Contractor-Managed user-facing RPC', [
+  /REVOKE ALL ON FUNCTION public\.save_contractor_schedule_draft\(bigint, jsonb, uuid\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.can_access_schedule_submissions\(bigint\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.contractor_schedule_lifecycle_status\(bigint\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.submit_contractor_schedule\(bigint, uuid, text\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.request_schedule_changes\(bigint, text, uuid\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.approve_schedule_submission\(bigint, text, uuid\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.create_contractor_managed_project\(jsonb, text\[\], uuid\)\s+FROM PUBLIC, anon;/,
+  /REVOKE ALL ON FUNCTION public\.update_contractor_managed_project_scope\(bigint, jsonb, text\[\], uuid\)\s+FROM PUBLIC, anon;/,
+].every(pattern => pattern.test(contractorScheduleAcl055)));
+check('055 blocks direct anon and authenticated execution of trigger-only functions', [
+  /REVOKE ALL ON FUNCTION public\.prevent_schedule_version_task_mutation\(\)\s+FROM PUBLIC, anon, authenticated;/,
+  /REVOKE ALL ON FUNCTION public\.prevent_scope_mutation_during_review\(\)\s+FROM PUBLIC, anon, authenticated;/,
+].every(pattern => pattern.test(contractorScheduleAcl055)));
+check('055 never grants EXECUTE to anon', !/TO anon;/.test(contractorScheduleAcl055));
+check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 056 RLS helper ACL migration, hash-pinned', contractorManagedScopeSyncLocal.includes('056_restrict_rls_helper_function_acl.sql') && /056_restrict_rls_helper_function_acl\.sql', '[a-f0-9]{64}'/.test(contractorManagedScopeSyncLocal));
+check('056 follows 055 in the local extension order', contractorManagedScopeSyncLocal.indexOf('055_restrict_contractor_schedule_function_acl.sql') < contractorManagedScopeSyncLocal.indexOf('056_restrict_rls_helper_function_acl.sql'));
+check('056 revokes anon, authenticated, AND service_role EXECUTE from all three RLS helper functions before re-granting authenticated (clears any pre-existing WITH GRANT OPTION - a plain GRANT does not narrow one - and keeps service_role explicit, not implicit/default-dependent, deterministic across live-Supabase, ACL-stripped-restore, and fresh-local-migration paths)', [
+  /REVOKE ALL ON FUNCTION public\.can_admin_company\(text\)\s+FROM PUBLIC, anon, authenticated, service_role;/,
+  /REVOKE ALL ON FUNCTION public\.can_create_project\(text\)\s+FROM PUBLIC, anon, authenticated, service_role;/,
+  /REVOKE ALL ON FUNCTION public\.can_write_project\(bigint\)\s+FROM PUBLIC, anon, authenticated, service_role;/,
+].every(pattern => pattern.test(rlsHelperAcl056)));
+check('056 grants EXECUTE to authenticated only for all three RLS helper functions', [
+  /GRANT EXECUTE ON FUNCTION public\.can_admin_company\(text\)\s+TO authenticated;/,
+  /GRANT EXECUTE ON FUNCTION public\.can_create_project\(text\)\s+TO authenticated;/,
+  /GRANT EXECUTE ON FUNCTION public\.can_write_project\(bigint\)\s+TO authenticated;/,
+].every(pattern => pattern.test(rlsHelperAcl056)));
+check('056 never grants EXECUTE to anon, PUBLIC, or service_role', !/TO (anon|PUBLIC|service_role)[,;]/.test(rlsHelperAcl056.split('\n').filter(l => !l.trim().startsWith('--')).join('\n')));
+check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 057 Part-5 table/sequence ACL bridge migration, hash-pinned', contractorManagedScopeSyncLocal.includes('057_part5_table_sequence_acl_bridge.sql') && /057_part5_table_sequence_acl_bridge\.sql', '[a-f0-9]{64}'/.test(contractorManagedScopeSyncLocal));
+check('057 follows 056 in the local extension order', contractorManagedScopeSyncLocal.indexOf('056_restrict_rls_helper_function_acl.sql') < contractorManagedScopeSyncLocal.indexOf('057_part5_table_sequence_acl_bridge.sql'));
+check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 058 atomic-write reconciliation migration, hash-pinned', contractorManagedScopeSyncLocal.includes('058_reconcile_atomic_write_security_and_contractor_rpc.sql') && /058_reconcile_atomic_write_security_and_contractor_rpc\.sql', '[a-f0-9]{64}'/.test(contractorManagedScopeSyncLocal));
+check('058 follows 057 in the local extension order', contractorManagedScopeSyncLocal.indexOf('057_part5_table_sequence_acl_bridge.sql') < contractorManagedScopeSyncLocal.indexOf('058_reconcile_atomic_write_security_and_contractor_rpc.sql'));
+check('058 local-path source replaces only the canonical contractor RPC body, not the site-visit body',
+  /CREATE OR REPLACE FUNCTION public\.submit_contractor_report_atomic/.test(atomicWriteReconciliation058) &&
+  !/CREATE OR REPLACE FUNCTION public\.submit_site_visit_atomic/.test(atomicWriteReconciliation058));
+check('057 revokes ALL on all 15 Part-5 tables from PUBLIC, anon, authenticated, and service_role before re-granting (deterministic regardless of pre-existing/default ACL state)', [
+  'public.audit_log', 'public.contractor_report_wps', 'public.contractor_reports', 'public.pending_invites',
+  'public.profiles', 'public.progress_history', 'public.project_gantt_tasks', 'public.projects', 'public.reports',
+  'public.site_visit_discrepancies', 'public.site_visit_wps', 'public.site_visits', 'public.task_group_members',
+  'public.task_groups', 'public.templates',
+].every(tbl => new RegExp(`REVOKE ALL ON[\\s\\S]{0,600}\\b${tbl.replace('.', '\\.')}\\b[\\s\\S]{0,500}FROM PUBLIC, anon, authenticated, service_role;`).test(part5Bridge057)));
+check('057 grants authenticated SELECT/INSERT/UPDATE/DELETE on the 14 non-audit_log tables (026\'s already-audited scope, unchanged)', [
+  'public.contractor_report_wps', 'public.contractor_reports', 'public.pending_invites', 'public.profiles',
+  'public.progress_history', 'public.project_gantt_tasks', 'public.projects', 'public.reports',
+  'public.site_visit_discrepancies', 'public.site_visit_wps', 'public.site_visits', 'public.task_group_members',
+  'public.task_groups', 'public.templates',
+].every(tbl => new RegExp(`GRANT SELECT, INSERT, UPDATE, DELETE ON[\\s\\S]{0,600}\\b${tbl.replace('.', '\\.')}\\b[\\s\\S]{0,500}TO authenticated;`).test(part5Bridge057)));
+check('057 grants authenticated SELECT-only on audit_log', /GRANT SELECT ON public\.audit_log TO authenticated;/.test(part5Bridge057));
+check('057 grants service_role exactly the evidence-backed per-table privileges (projects: full CRUD; project_gantt_tasks: S/I/D; progress_history: I/D; reports: S-only; 5 tables: D-only) and nothing on the other 6', [
+  { re: /GRANT SELECT, INSERT, UPDATE, DELETE ON public\.projects TO service_role;/, expect: true },
+  { re: /GRANT SELECT, INSERT, DELETE ON public\.project_gantt_tasks TO service_role;/, expect: true },
+  { re: /GRANT INSERT, DELETE ON public\.progress_history TO service_role;/, expect: true },
+  { re: /GRANT SELECT ON public\.reports TO service_role;/, expect: true },
+].every(({ re, expect }) => re.test(part5Bridge057) === expect)
+  && /GRANT DELETE ON[\s\S]{0,300}TO service_role;/.test(part5Bridge057)
+  && (() => {
+    const deleteOnlyGrant = part5Bridge057.match(/GRANT DELETE ON([\s\S]*?)TO service_role;/);
+    if (!deleteOnlyGrant) return false;
+    const grantedList = deleteOnlyGrant[1];
+    return ['contractor_report_wps', 'contractor_reports', 'site_visit_discrepancies', 'site_visit_wps', 'site_visits']
+      .every(tbl => grantedList.includes(tbl));
+  })()
+  && ['public.audit_log', 'public.profiles', 'public.pending_invites', 'public.task_groups', 'public.task_group_members', 'public.templates']
+    .every(tbl => !new RegExp(`GRANT[\\s\\S]{0,300}\\b${tbl.replace('.', '\\.')}\\b[\\s\\S]{0,100}TO service_role;`).test(part5Bridge057)));
+check('057 grants service_role column-level SELECT (id) only - not table-wide SELECT - on exactly the 6 tables whose only service-role DELETE/INSERT filters on id with no RETURNING (PostgreSQL DELETE requires SELECT on any column its condition reads; proven empirically, not assumed)', (() => {
+  const columnGrant = part5Bridge057.match(/GRANT SELECT \(id\) ON([\s\S]*?)TO service_role;/);
+  if (!columnGrant) return false;
+  const grantedList = columnGrant[1];
+  const expectedGranted = ['contractor_report_wps', 'contractor_reports', 'progress_history', 'site_visit_discrepancies', 'site_visit_wps', 'site_visits'];
+  const expectedNotGranted = ['audit_log', 'profiles', 'pending_invites', 'task_groups', 'task_group_members', 'templates'];
+  if (!expectedGranted.every(tbl => grantedList.includes(tbl))) return false;
+  if (!expectedNotGranted.every(tbl => !grantedList.includes(tbl))) return false;
+  const otherServiceRoleGrants = [...part5Bridge057.matchAll(/GRANT [^;]+;/g)]
+    .map(m => m[0])
+    .filter(stmt => stmt !== columnGrant[0] && /TO service_role;/.test(stmt) && /^GRANT SELECT\b/.test(stmt));
+  return expectedGranted.every(tbl => otherServiceRoleGrants.every(stmt => !stmt.includes(tbl)));
+})());
+check('057 never grants TRUNCATE, REFERENCES, TRIGGER, or MAINTAIN to anyone (zero observed need for any of the 15 tables)', !/GRANT[\s\S]*?(TRUNCATE|REFERENCES|TRIGGER|MAINTAIN)/.test(part5Bridge057.split('\n').filter(l => !l.trim().startsWith('--')).join('\n')));
+check('057 never grants anything to anon or PUBLIC', !/TO (anon|PUBLIC)[,;]/.test(part5Bridge057.split('\n').filter(l => !l.trim().startsWith('--')).join('\n')));
+check('057 revokes ALL on all 10 associated sequences from PUBLIC, anon, authenticated, and service_role before re-granting', [
+  'public.audit_log_id_seq', 'public.contractor_report_wps_id_seq', 'public.contractor_reports_id_seq',
+  'public.progress_history_id_seq', 'public.project_gantt_tasks_id_seq', 'public.projects_id_seq',
+  'public.reports_id_seq', 'public.site_visit_discrepancies_id_seq', 'public.site_visit_wps_id_seq',
+  'public.site_visits_id_seq',
+].every(seq => new RegExp(`REVOKE ALL ON SEQUENCE[\\s\\S]{0,600}\\b${seq.replace('.', '\\.')}\\b[\\s\\S]{0,400}FROM PUBLIC, anon, authenticated, service_role;`).test(part5Bridge057)));
+check('057 grants authenticated USAGE-only (never SELECT/UPDATE) on the 9 non-audit_log sequences, and nothing on audit_log_id_seq', (() => {
+  const usageGrant = part5Bridge057.match(/GRANT USAGE ON SEQUENCE([\s\S]*?)TO authenticated;/);
+  if (!usageGrant) return false;
+  const grantedList = usageGrant[1];
+  return !/audit_log_id_seq/.test(grantedList)
+    && ['contractor_report_wps_id_seq', 'contractor_reports_id_seq', 'progress_history_id_seq', 'project_gantt_tasks_id_seq', 'projects_id_seq', 'reports_id_seq', 'site_visit_discrepancies_id_seq', 'site_visit_wps_id_seq', 'site_visits_id_seq']
+      .every(seq => grantedList.includes(seq));
+})());
+check('057 grants service_role USAGE-only (never SELECT/UPDATE) on exactly the 3 sequences backing a table it actually INSERTs into without an explicit id, nothing on the other 7', (() => {
+  const expectedGranted = ['progress_history_id_seq', 'project_gantt_tasks_id_seq', 'projects_id_seq'];
+  const expectedNotGranted = ['audit_log_id_seq', 'contractor_report_wps_id_seq', 'contractor_reports_id_seq', 'reports_id_seq', 'site_visit_discrepancies_id_seq', 'site_visit_wps_id_seq', 'site_visits_id_seq'];
+  const allGrantStatements = [...part5Bridge057.matchAll(/GRANT [^;]+;/g)].map(m => m[0]);
+  const sequenceGrantsToServiceRole = allGrantStatements.filter(stmt => /ON SEQUENCE/.test(stmt) && /TO service_role;/.test(stmt));
+  if (sequenceGrantsToServiceRole.length !== 1) return false;
+  const grantedList = sequenceGrantsToServiceRole[0];
+  return expectedGranted.every(seq => grantedList.includes(seq))
+    && expectedNotGranted.every(seq => !grantedList.includes(seq))
+    && /^GRANT USAGE ON SEQUENCE/.test(grantedList);
+})());
 check('local Contractor-Managed Scope Synchronization hash verification is stable across Windows CRLF checkouts', /replace\(\/\\r\\n\/g, ['"]\\n['"]\)/.test(contractorManagedScopeSyncLocal));
 check('Contractor-Managed Scope Synchronization reset keeps every prior extension explicit, same precedent as cert:reset:contractor-managed-project',
   packageJson.scripts['cert:reset:contractor-managed-scope-sync'] === 'npm run cert:reset:contractor-managed-project && node scripts/certification/applyContractorManagedScopeSyncLocal.mjs');
@@ -135,7 +245,7 @@ const contractorScheduleDraftFoundationBatchFiles = [...contractorScheduleDraftF
 const createContractorManagedProjectBatchFiles = [...createContractorManagedProjectLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const contractorManagedScopeSyncBatchFiles = [...contractorManagedScopeSyncLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles]);
-check('fresh-install migration set is exactly covered through approved Contractor-Managed Scope Synchronization migration 053, no gaps',
+check('fresh-install migration set is exactly covered through approved atomic-write reconciliation migration 058, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -148,7 +258,7 @@ check('migration 044 is covered by the Master Catalog weight batch (guards again
 check('migration 045 is covered by the Master Catalog duration batch (guards against this check being vacuously true)', masterCatalogDurationCalibrationBatchFiles.length >= 1);
 check('migrations 046-051 are covered by the Contractor Schedule Draft foundation batch (guards against this check being vacuously true)', contractorScheduleDraftFoundationBatchFiles.length >= 6);
 check('migration 052 is covered by the Create Contractor-Managed Project batch (guards against this check being vacuously true)', createContractorManagedProjectBatchFiles.length >= 1);
-check('migrations 053-054 are covered by the Contractor-Managed Scope Synchronization batch (guards against this check being vacuously true)', contractorManagedScopeSyncBatchFiles.length >= 2);
+check('migrations 053-058 are covered by the Contractor-Managed Scope Synchronization batch (guards against this check being vacuously true)', contractorManagedScopeSyncBatchFiles.length >= 6);
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by
