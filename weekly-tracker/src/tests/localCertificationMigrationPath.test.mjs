@@ -29,6 +29,7 @@ const contractorManagedScopeSync054 = readFileSync(new URL('../migrations/054_fi
 const contractorScheduleAcl055 = readFileSync(new URL('../migrations/055_restrict_contractor_schedule_function_acl.sql', import.meta.url), 'utf8');
 const rlsHelperAcl056 = readFileSync(new URL('../migrations/056_restrict_rls_helper_function_acl.sql', import.meta.url), 'utf8');
 const part5Bridge057 = readFileSync(new URL('../migrations/057_part5_table_sequence_acl_bridge.sql', import.meta.url), 'utf8');
+const atomicWriteReconciliation058 = readFileSync(new URL('../migrations/058_reconcile_atomic_write_security_and_contractor_rpc.sql', import.meta.url), 'utf8');
 const fixtures = readFileSync(new URL('../../scripts/certification/fixtures.mjs', import.meta.url), 'utf8');
 const fixturePassword = readFileSync(new URL('../../scripts/certification/fixturePassword.mjs', import.meta.url), 'utf8');
 const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
@@ -144,6 +145,13 @@ check('056 grants EXECUTE to authenticated only for all three RLS helper functio
 ].every(pattern => pattern.test(rlsHelperAcl056)));
 check('056 never grants EXECUTE to anon, PUBLIC, or service_role', !/TO (anon|PUBLIC|service_role)[,;]/.test(rlsHelperAcl056.split('\n').filter(l => !l.trim().startsWith('--')).join('\n')));
 check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 057 Part-5 table/sequence ACL bridge migration', contractorManagedScopeSyncLocal.includes('057_part5_table_sequence_acl_bridge.sql'));
+check('local Contractor-Managed Scope Synchronization extension pins and verifies the approved 058 atomic-write reconciliation migration', contractorManagedScopeSyncLocal.includes('058_reconcile_atomic_write_security_and_contractor_rpc.sql'));
+check('058 follows 057 in the local extension and is hash-pinned',
+  contractorManagedScopeSyncLocal.indexOf('057_part5_table_sequence_acl_bridge.sql') < contractorManagedScopeSyncLocal.indexOf('058_reconcile_atomic_write_security_and_contractor_rpc.sql') &&
+  /058_reconcile_atomic_write_security_and_contractor_rpc\.sql', '[a-f0-9]{64}'/.test(contractorManagedScopeSyncLocal));
+check('058 local-path source replaces only the canonical contractor RPC body, not the site-visit body',
+  /CREATE OR REPLACE FUNCTION public\.submit_contractor_report_atomic/.test(atomicWriteReconciliation058) &&
+  !/CREATE OR REPLACE FUNCTION public\.submit_site_visit_atomic/.test(atomicWriteReconciliation058));
 check('057 revokes ALL on all 15 Part-5 tables from PUBLIC, anon, authenticated, and service_role before re-granting (deterministic regardless of pre-existing/default ACL state)', [
   'public.audit_log', 'public.contractor_report_wps', 'public.contractor_reports', 'public.pending_invites',
   'public.profiles', 'public.progress_history', 'public.project_gantt_tasks', 'public.projects', 'public.reports',
@@ -245,7 +253,7 @@ const contractorScheduleDraftFoundationBatchFiles = [...contractorScheduleDraftF
 const createContractorManagedProjectBatchFiles = [...createContractorManagedProjectLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const contractorManagedScopeSyncBatchFiles = [...contractorManagedScopeSyncLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles]);
-check('fresh-install migration set is exactly covered through approved Contractor-Managed Scope Synchronization migration 057, no gaps',
+check('fresh-install migration set is exactly covered through approved atomic-write reconciliation migration 058, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -258,7 +266,7 @@ check('migration 044 is covered by the Master Catalog weight batch (guards again
 check('migration 045 is covered by the Master Catalog duration batch (guards against this check being vacuously true)', masterCatalogDurationCalibrationBatchFiles.length >= 1);
 check('migrations 046-051 are covered by the Contractor Schedule Draft foundation batch (guards against this check being vacuously true)', contractorScheduleDraftFoundationBatchFiles.length >= 6);
 check('migration 052 is covered by the Create Contractor-Managed Project batch (guards against this check being vacuously true)', createContractorManagedProjectBatchFiles.length >= 1);
-check('migrations 053-057 are covered by the Contractor-Managed Scope Synchronization batch (guards against this check being vacuously true)', contractorManagedScopeSyncBatchFiles.length >= 5);
+check('migrations 053-058 are covered by the Contractor-Managed Scope Synchronization batch (guards against this check being vacuously true)', contractorManagedScopeSyncBatchFiles.length >= 6);
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by
