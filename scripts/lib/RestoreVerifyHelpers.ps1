@@ -16,6 +16,56 @@ function Write-Utf8NoBom {
     [System.IO.File]::WriteAllText($resolvedPath, $Value, $utf8NoBomEncoding)
 }
 
+# Reads a UTF-8 text file without allowing a BOM or invalid byte sequences,
+# applies a caller-supplied transformation one physical line at a time, and
+# preserves every original line terminator byte-for-byte. Returning $null
+# from the transform drops that line together with its terminator. This is
+# deliberately not implemented with ReadAllLines()/Environment.NewLine:
+# doing so rewrites LF-only pg_dump function bodies to CRLF on Windows and
+# changes pg_proc.prosrc.
+function Convert-Utf8FileLinesPreservingEndings {
+    param(
+        [Parameter(Mandatory)][string]$SourcePath,
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [Parameter(Mandatory)][scriptblock]$Transform
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($SourcePath)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+        throw "UTF-8 BOM is not permitted in restore input: $SourcePath"
+    }
+    $strictUtf8 = [System.Text.UTF8Encoding]::new($false, $true)
+    $text = $strictUtf8.GetString($bytes)
+    $out = [System.Text.StringBuilder]::new($text.Length)
+    $position = 0
+
+    while ($position -lt $text.Length) {
+        $lineStart = $position
+        while ($position -lt $text.Length -and $text[$position] -ne "`r" -and $text[$position] -ne "`n") {
+            $position++
+        }
+        $line = $text.Substring($lineStart, $position - $lineStart)
+        $ending = ''
+        if ($position -lt $text.Length) {
+            if ($text[$position] -eq "`r" -and ($position + 1) -lt $text.Length -and $text[$position + 1] -eq "`n") {
+                $ending = "`r`n"
+                $position += 2
+            } else {
+                $ending = [string]$text[$position]
+                $position++
+            }
+        }
+
+        $replacement = & $Transform $line $ending
+        if ($null -ne $replacement) {
+            [void]$out.Append([string]$replacement)
+            [void]$out.Append($ending)
+        }
+    }
+
+    Write-Utf8NoBom -Path $DestinationPath -Value $out.ToString()
+}
+
 # Windows PowerShell 5.1 wraps every stderr line from a native command into a
 # terminating NativeCommandError when $ErrorActionPreference = 'Stop' and that
 # stderr is captured via redirection. Docker/psql legitimately write to
@@ -138,23 +188,20 @@ function New-FilteredSchemaFile {
         [Parameter(Mandatory)][string]$DestinationPath,
         [Parameter(Mandatory)][string[]]$UnavailableExtensionNames
     )
-    $lines = [System.IO.File]::ReadAllLines($SourcePath)
-    $out = New-Object System.Collections.Generic.List[string]
     $filtered = New-Object System.Collections.Generic.List[string]
     $extNamePattern = ($UnavailableExtensionNames | ForEach-Object { [regex]::Escape($_) }) -join '|'
     $createPattern = "^CREATE EXTENSION IF NOT EXISTS `"?($extNamePattern)`"? "
     $commentPattern = "^COMMENT ON EXTENSION `"?($extNamePattern)`"? "
 
-    foreach ($line in $lines) {
+    Convert-Utf8FileLinesPreservingEndings -SourcePath $SourcePath -DestinationPath $DestinationPath -Transform {
+        param($line, $ending)
         if ($line -match $createPattern -or $line -match $commentPattern) {
-            $out.Add("-- filtered by restore-verify.ps1: unavailable on vanilla postgres:17 -- $line")
             $filtered.Add($line.Trim())
+            return "-- filtered by restore-verify.ps1: unavailable on vanilla postgres:17 -- $line"
         } else {
-            $out.Add($line)
+            return $line
         }
     }
-    $content = ($out -join [Environment]::NewLine) + [Environment]::NewLine
-    Write-Utf8NoBom -Path $DestinationPath -Value $content
     # Unary comma: see the matching note in Get-CopyBlockInventory - without
     # it, a single-element result silently unwraps to a scalar and every
     # $result.Count caller breaks.
@@ -201,34 +248,31 @@ function New-FilteredRolesFile {
         [Parameter(Mandatory)][string[]]$BootstrapRoleNames
     )
     $ident = '(?:"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_$]*)'
-    $lines = [System.IO.File]::ReadAllLines($SourcePath)
-    $out = New-Object System.Collections.Generic.List[string]
     $filtered = New-Object System.Collections.Generic.List[string]
     $rolePattern = ($BootstrapRoleNames | ForEach-Object { [regex]::Escape($_) }) -join '|'
     $createPattern = "^CREATE ROLE ($rolePattern);\s*$"
     $alterNosuperuserPattern = "^(ALTER ROLE (?:$rolePattern) WITH )NOSUPERUSER (.*;)\s*$"
     $grantedByPattern = "^(GRANT $ident TO $ident(?: WITH .+?)?) GRANTED BY $ident;\s*$"
 
-    foreach ($line in $lines) {
+    Convert-Utf8FileLinesPreservingEndings -SourcePath $SourcePath -DestinationPath $DestinationPath -Transform {
+        param($line, $ending)
         if ($line -match $createPattern) {
-            $out.Add("-- filtered by restore-verify.ps1: postgres:17 already creates this role via initdb -- $line")
             $filtered.Add($line.Trim())
+            return "-- filtered by restore-verify.ps1: postgres:17 already creates this role via initdb -- $line"
         } elseif ($line -match $alterNosuperuserPattern) {
             $rewritten = "$($Matches[1])$($Matches[2])"
-            $out.Add("-- filtered by restore-verify.ps1: bootstrap superuser cannot have SUPERUSER stripped -- $line")
-            $out.Add($rewritten)
             $filtered.Add($line.Trim())
+            $insertedEnding = if ($ending) { $ending } else { "`n" }
+            return "-- filtered by restore-verify.ps1: bootstrap superuser cannot have SUPERUSER stripped -- $line$insertedEnding$rewritten"
         } elseif ($line -match $grantedByPattern) {
             $rewritten = "$($Matches[1]);"
-            $out.Add("-- filtered by restore-verify.ps1: GRANTED BY grantor lacks ADMIN OPTION on a fresh container (grantor normalized, edge preserved) -- $line")
-            $out.Add($rewritten)
             $filtered.Add($line.Trim())
+            $insertedEnding = if ($ending) { $ending } else { "`n" }
+            return "-- filtered by restore-verify.ps1: GRANTED BY grantor lacks ADMIN OPTION on a fresh container (grantor normalized, edge preserved) -- $line$insertedEnding$rewritten"
         } else {
-            $out.Add($line)
+            return $line
         }
     }
-    $content = ($out -join [Environment]::NewLine) + [Environment]::NewLine
-    Write-Utf8NoBom -Path $DestinationPath -Value $content
     return ,$filtered
 }
 
@@ -287,40 +331,41 @@ function New-FilteredDataFile {
     )
     $ident = '(?:"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_$]*)'
     $headerPattern = "^COPY\s+($ident(?:\.$ident)?)\s*\(.*\)\s+FROM\s+stdin;\s*$"
-    $lines = [System.IO.File]::ReadAllLines($SourcePath)
-    $out = New-Object System.Collections.Generic.List[string]
     $skipped = New-Object System.Collections.Generic.List[string]
-    $inBlock = $false
-    $skippingBlock = $false
+    # The transform callback executes in a child PowerShell scope. Keep the
+    # cross-line parser state in one mutable object so assignments persist
+    # between callback invocations (plain scalar assignments would not).
+    $state = [pscustomobject]@{ InBlock = $false; SkippingBlock = $false }
 
-    foreach ($line in $lines) {
-        if (-not $inBlock) {
+    Convert-Utf8FileLinesPreservingEndings -SourcePath $SourcePath -DestinationPath $DestinationPath -Transform {
+        param($line, $ending)
+        if (-not $state.InBlock) {
             if ($line -match $headerPattern) {
                 $ref = ConvertTo-NormalizedTableRef $Matches[1]
                 $key = "$($ref.Schema).$($ref.Table)"
-                $inBlock = $true
+                $state.InBlock = $true
                 if ($TableExists.ContainsKey($key) -and -not $TableExists[$key]) {
-                    $skippingBlock = $true
+                    $state.SkippingBlock = $true
                     $skipped.Add($key)
-                    $out.Add("-- restore-verify.ps1: skipped COPY for $key - relation does not exist after schema restore (extension-dependent)")
+                    return "-- restore-verify.ps1: skipped COPY for $key - relation does not exist after schema restore (extension-dependent)"
                 } else {
-                    $skippingBlock = $false
-                    $out.Add($line)
+                    $state.SkippingBlock = $false
+                    return $line
                 }
             } else {
-                $out.Add($line)
+                return $line
             }
         } else {
             if ($line -eq '\.') {
-                $inBlock = $false
-                if (-not $skippingBlock) { $out.Add($line) }
-                $skippingBlock = $false
-            } elseif (-not $skippingBlock) {
-                $out.Add($line)
+                $state.InBlock = $false
+                if (-not $state.SkippingBlock) { return $line }
+                $state.SkippingBlock = $false
+                return $null
+            } elseif (-not $state.SkippingBlock) {
+                return $line
             }
+            return $null
         }
     }
-    $content = ($out -join [Environment]::NewLine) + [Environment]::NewLine
-    Write-Utf8NoBom -Path $DestinationPath -Value $content
     return ,$skipped
 }

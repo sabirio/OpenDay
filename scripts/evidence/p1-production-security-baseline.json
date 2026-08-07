@@ -1,0 +1,319 @@
+{
+  "schemaVersion": "openday-production-security-baseline/v1",
+  "evidenceId": "p1-templates-mixed-state-production-20260807",
+  "productionProjectRef": "szgbkeqornkdngoegyso",
+  "applicationMainCommit": "ecfa6771136b47a0372caf18fc52136997784069",
+  "capturedAt": {
+    "fullPreflight": {
+      "value": "2026-08-07T14:45:36+05:00",
+      "basis": "timestamped owner-output filename"
+    },
+    "minimalDeltaPreflight": {
+      "value": "2026-08-07T16:34:09.9209582+05:00",
+      "basis": "owner-output header"
+    }
+  },
+  "sourceEvidence": [
+    {
+      "kind": "read-only-preflight-sql",
+      "name": "p1-production-template-preflight.sql",
+      "sha256": "c9e61e6a7f621e71b7f3cb71de98de5cc429062c849e368fbc752f3219428fba"
+    },
+    {
+      "kind": "sanitized-owner-output",
+      "name": "p1-production-preflight-20260807-144536.txt",
+      "sha256": "13f842c74390f66a2d6581e9a18889b9d2e19ac177d068b0a202bb6d661383e1"
+    },
+    {
+      "kind": "read-only-preflight-sql",
+      "name": "p1-production-minimal-delta-preflight.sql",
+      "sha256": "06095198f66b714f285c850b0e6c1e8d9e968bc5add5147457da446fd3044daf"
+    },
+    {
+      "kind": "sanitized-owner-output",
+      "name": "p1-production-minimal-delta-preflight-20260807-163409.txt",
+      "sha256": "b698264295bd4a4a51cbe9f36436f75abde6ff45e29adab9d5abfe17f82aa16a"
+    }
+  ],
+  "tables": [
+    {
+      "schema": "public",
+      "name": "templates",
+      "owner": "postgres",
+      "rls": {
+        "enabled": true,
+        "forced": false
+      },
+      "policies": [
+        { "name": "templates_delete", "command": "d", "roles": "{authenticated}", "using": "is_global_admin()", "withCheck": null },
+        { "name": "templates_insert", "command": "a", "roles": "{authenticated}", "using": null, "withCheck": "is_global_admin()" },
+        { "name": "templates_select", "command": "r", "roles": "{authenticated}", "using": "(auth.uid() IS NOT NULL)", "withCheck": null },
+        { "name": "templates_update", "command": "w", "roles": "{authenticated}", "using": "is_global_admin()", "withCheck": "is_global_admin()" }
+      ],
+      "aclRows": [
+        { "grantee": "authenticated", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "REFERENCES", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "TRIGGER", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "TRUNCATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "REFERENCES", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "TRIGGER", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "TRUNCATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "UPDATE", "is_grantable": "f" }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "projects",
+      "owner": "postgres",
+      "rls": { "enabled": true, "forced": null },
+      "aclRows": [
+        { "grantee": "authenticated", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "REFERENCES", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "TRIGGER", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "TRUNCATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "REFERENCES", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "TRIGGER", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "TRUNCATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "UPDATE", "is_grantable": "f" }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "project_gantt_tasks",
+      "owner": "postgres",
+      "rls": { "enabled": true, "forced": null },
+      "aclRows": [
+        { "grantee": "authenticated", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "authenticated", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "REFERENCES", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "TRIGGER", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "TRUNCATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "REFERENCES", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "TRIGGER", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "TRUNCATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "UPDATE", "is_grantable": "f" }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "write_command_requests",
+      "owner": "postgres",
+      "rls": { "enabled": true, "forced": null },
+      "policies": [],
+      "aclRows": [
+        { "grantee": "postgres", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "REFERENCES", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "TRIGGER", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "TRUNCATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "DELETE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "INSERT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "MAINTAIN", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "REFERENCES", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "TRIGGER", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "TRUNCATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "UPDATE", "is_grantable": "f" }
+      ]
+    }
+  ],
+  "sequences": [
+    {
+      "schema": "public",
+      "name": "projects_id_seq",
+      "owner": "postgres",
+      "aclRows": [
+        { "grantee": "authenticated", "privilege_type": "USAGE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "USAGE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "USAGE", "is_grantable": "f" }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "project_gantt_tasks_id_seq",
+      "owner": "postgres",
+      "aclRows": [
+        { "grantee": "authenticated", "privilege_type": "USAGE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "USAGE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "USAGE", "is_grantable": "f" }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "write_command_requests_id_seq",
+      "owner": "postgres",
+      "aclRows": [
+        { "grantee": "postgres", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "USAGE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "SELECT", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "UPDATE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "USAGE", "is_grantable": "f" }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "schema": "public",
+      "name": "submit_contractor_report_atomic",
+      "identityArguments": "bigint,date,jsonb,jsonb,uuid",
+      "owner": "postgres",
+      "language": "plpgsql",
+      "securityMode": "DEFINER",
+      "settings": ["search_path=public"],
+      "bodyMd5": "94ae61e04f32b5917edd78063bf12f5f",
+      "definitionMd5": "be01ed978a1c2fd30dd803510eafd360",
+      "provenance": "migration-027/028",
+      "aclRows": [
+        { "grantee": "authenticated", "privilege_type": "EXECUTE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "EXECUTE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "EXECUTE", "is_grantable": "f" }
+      ]
+    },
+    {
+      "schema": "public",
+      "name": "submit_site_visit_atomic",
+      "identityArguments": "bigint,bigint,date,jsonb,jsonb,uuid",
+      "owner": "postgres",
+      "language": "plpgsql",
+      "securityMode": "DEFINER",
+      "settings": ["search_path=public"],
+      "bodyMd5": "d2a510a8c1ce8977987cc69dde48fa4e",
+      "definitionMd5": "0fff2d4052e4cc024513b8975149447c",
+      "provenance": "canonical-current-production",
+      "aclRows": [
+        { "grantee": "authenticated", "privilege_type": "EXECUTE", "is_grantable": "f" },
+        { "grantee": "postgres", "privilege_type": "EXECUTE", "is_grantable": "f" },
+        { "grantee": "service_role", "privilege_type": "EXECUTE", "is_grantable": "f" }
+      ]
+    }
+  ],
+  "defaultPrivileges": [
+    {
+      "grantor_role": "postgres",
+      "schema_name": "public",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/postgres,anon=rwU/postgres,authenticated=rwU/postgres,service_role=rwU/postgres}",
+      "aclItems": [
+        { "grantee": "postgres", "privileges": "rwU", "grantor": "postgres" },
+        { "grantee": "anon", "privileges": "rwU", "grantor": "postgres" },
+        { "grantee": "authenticated", "privileges": "rwU", "grantor": "postgres" },
+        { "grantee": "service_role", "privileges": "rwU", "grantor": "postgres" }
+      ]
+    },
+    {
+      "grantor_role": "postgres",
+      "schema_name": "public",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "aclItems": [
+        { "grantee": "postgres", "privileges": "X", "grantor": "postgres" },
+        { "grantee": "anon", "privileges": "X", "grantor": "postgres" },
+        { "grantee": "authenticated", "privileges": "X", "grantor": "postgres" },
+        { "grantee": "service_role", "privileges": "X", "grantor": "postgres" }
+      ]
+    },
+    {
+      "grantor_role": "postgres",
+      "schema_name": "public",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "aclItems": [
+        { "grantee": "postgres", "privileges": "arwdDxtm", "grantor": "postgres" },
+        { "grantee": "anon", "privileges": "arwdDxtm", "grantor": "postgres" },
+        { "grantee": "authenticated", "privileges": "arwdDxtm", "grantor": "postgres" },
+        { "grantee": "service_role", "privileges": "arwdDxtm", "grantor": "postgres" }
+      ]
+    },
+    {
+      "grantor_role": "supabase_admin",
+      "schema_name": "public",
+      "defaclobjtype": "S",
+      "defaclacl": "{postgres=rwU/supabase_admin,anon=rwU/supabase_admin,authenticated=rwU/supabase_admin,service_role=rwU/supabase_admin}",
+      "aclItems": [
+        { "grantee": "postgres", "privileges": "rwU", "grantor": "supabase_admin" },
+        { "grantee": "anon", "privileges": "rwU", "grantor": "supabase_admin" },
+        { "grantee": "authenticated", "privileges": "rwU", "grantor": "supabase_admin" },
+        { "grantee": "service_role", "privileges": "rwU", "grantor": "supabase_admin" }
+      ]
+    },
+    {
+      "grantor_role": "supabase_admin",
+      "schema_name": "public",
+      "defaclobjtype": "f",
+      "defaclacl": "{postgres=X/supabase_admin,anon=X/supabase_admin,authenticated=X/supabase_admin,service_role=X/supabase_admin}",
+      "aclItems": [
+        { "grantee": "postgres", "privileges": "X", "grantor": "supabase_admin" },
+        { "grantee": "anon", "privileges": "X", "grantor": "supabase_admin" },
+        { "grantee": "authenticated", "privileges": "X", "grantor": "supabase_admin" },
+        { "grantee": "service_role", "privileges": "X", "grantor": "supabase_admin" }
+      ]
+    },
+    {
+      "grantor_role": "supabase_admin",
+      "schema_name": "public",
+      "defaclobjtype": "r",
+      "defaclacl": "{postgres=arwdDxtm/supabase_admin,anon=arwdDxtm/supabase_admin,authenticated=arwdDxtm/supabase_admin,service_role=arwdDxtm/supabase_admin}",
+      "aclItems": [
+        { "grantee": "postgres", "privileges": "arwdDxtm", "grantor": "supabase_admin" },
+        { "grantee": "anon", "privileges": "arwdDxtm", "grantor": "supabase_admin" },
+        { "grantee": "authenticated", "privileges": "arwdDxtm", "grantor": "supabase_admin" },
+        { "grantee": "service_role", "privileges": "arwdDxtm", "grantor": "supabase_admin" }
+      ]
+    }
+  ],
+  "negativeEvidence": {
+    "publicDirectAclRowsReturned": false,
+    "anonDirectAclRowsReturned": false,
+    "secretsIncluded": false
+  }
+}

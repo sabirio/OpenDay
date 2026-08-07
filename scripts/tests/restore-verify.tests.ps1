@@ -249,6 +249,7 @@ try {
     $destDataText = Get-Content -LiteralPath $destData -Raw
     Assert-True 'data filter: existing table COPY block kept' ($destDataText -match '(?m)^COPY public\.kept')
     Assert-True 'data filter: missing table COPY header removed as live statement' ($destDataText -notmatch '(?m)^COPY vault\.secrets \(id\) FROM stdin;\s*$')
+    Assert-True 'data filter: skipped COPY payload and terminator are removed' ($destDataText -notmatch '(?m)^x\s*$' -and ([regex]::Matches($destDataText, '(?m)^\\\.\s*$')).Count -eq 1)
 } finally {
     Remove-Item -LiteralPath $srcData, $destData -ErrorAction SilentlyContinue
 }
