@@ -116,10 +116,10 @@ function RouteLoadingScreen() {
 function GlobalErrorScreen({ onRetry }) {
   return (
     <div role="alert" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: 16, fontFamily: 'sans-serif', background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <div aria-hidden="true" style={{ fontSize: 40 }}>🔌</div>
+      <div aria-hidden="true" style={{ fontSize: 40 }}>⚠️</div>
       <div style={{ fontSize: 20, fontWeight: 600 }}>Failed to load data</div>
       <div style={{ fontSize: 14, color: 'var(--text-muted)', maxWidth: 480, textAlign: 'center' }}>
-        Could not connect to the database. Check your network and try again.
+        OpenDay could not load required project data. Try again, or contact support if this continues.
       </div>
       <button
         type="button"

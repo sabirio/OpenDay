@@ -215,8 +215,15 @@ export async function getAll() {
     .order('created_at', { ascending: true });
   if (error) throw error;
   const projects = data.map(fromDB);
-  const { fetchTemplateRecordsByIds } = await import('./templateService.js');
-  const templatesById = await fetchTemplateRecordsByIds(projects.map(project => project.templateId));
+  // Template scope-metadata hydration is OPTIONAL enrichment of an already-
+  // loaded, already-critical projects list - the known templates.family/
+  // company_id schema-contract mismatch (production has not yet received
+  // migration 041) must never fail the projects load itself. Any OTHER
+  // failure (auth/RLS/network/a genuinely malformed template row/anything
+  // else) still propagates and fails this load, exactly as before - see
+  // templateService.js's settleOptionalTemplateRecords.
+  const { fetchOptionalTemplateRecordsByIds } = await import('./templateService.js');
+  const { templatesById } = await fetchOptionalTemplateRecordsByIds(projects.map(project => project.templateId));
   const hydratedProjects = projects.map(project => ({
     ...project,
     scopeTemplate: project.templateId ? (templatesById.get(project.templateId) ?? null) : null,
@@ -261,8 +268,8 @@ export async function getById(id) {
     .single();
   if (error) throw error;
   const project = fromDB(data);
-  const { fetchTemplateRecordById } = await import('./templateService.js');
-  const scopeTemplate = await fetchTemplateRecordById(project.templateId);
+  const { fetchOptionalTemplateRecordById } = await import('./templateService.js');
+  const { template: scopeTemplate } = await fetchOptionalTemplateRecordById(project.templateId);
   return validateOne(ProjectSchema, { ...project, scopeTemplate }, 'project');
 }
 
@@ -288,9 +295,10 @@ export async function getProgressSnapshot(isoWeekStr) {
 export async function create(project) {
   validateProject(project);
   const {
-    fetchTemplateRecordById,
+    fetchOptionalTemplateRecordById,
     getCurrentCompanyId,
     resolveDefaultScopeTemplateForCurrentCompany,
+    resolveLegacyGlobalDefaultTemplateId,
   } = await import('./templateService.js');
   const payload = toDB(project, { preserveLegacyZoneAreas: false });
   const companyId = payload.company_id ?? await getCurrentCompanyId();
@@ -300,26 +308,28 @@ export async function create(project) {
   // V2 projects pin the exact company-specific default when present, or the
   // global OpenDay default otherwise. RLS ensures another company's private
   // template is never among these candidates.
+  //
+  // On the current legacy production schema (no `family` column at all),
+  // resolveDefaultScopeTemplateForCurrentCompany can never find a matching
+  // row and throws TemplateConfigurationUnavailableError - it never falls
+  // back to guessing a template, and this create() call intentionally lets
+  // that error propagate uncaught: no project is ever created with an
+  // unproven/ambiguous template (see templateService.js's
+  // TemplateConfigurationUnavailableError and this task's Phase 7/6).
   if (!payload.template_id && payload.template_type === RETAIL_FITOUT_V2_FAMILY) {
     pinnedTemplate = await resolveDefaultScopeTemplateForCurrentCompany(RETAIL_FITOUT_V2_FAMILY);
-    if (!pinnedTemplate) {
-      throw new Error('No applicable active Retail Fit-Out V2 scope template is configured');
-    }
     payload.template_id = pinnedTemplate.id;
   }
 
   // Preserve the existing database-template behavior for V1/custom projects,
   // but exclude the newly-seeded V2 family from that legacy global lookup.
+  // Schema-compatible and never assumes exactly one active row exists: zero
+  // candidates preserves the pre-existing template_id = null behavior; more
+  // than one candidate throws TemplateConfigurationUnavailableError instead
+  // of picking one arbitrarily - see resolveLegacyGlobalDefaultTemplateId's
+  // own header comment for why the baseline schema permits this.
   if (!payload.template_id) {
-    const { data: tpl } = await supabase
-      .from('templates')
-      .select('id')
-      .is('family', null)
-      .eq('is_active', true)
-      .order('version', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    payload.template_id = tpl?.id ?? null;
+    payload.template_id = await resolveLegacyGlobalDefaultTemplateId();
   }
   const { data, error } = await supabase
     .from('projects')
@@ -328,8 +338,14 @@ export async function create(project) {
     .single();
   if (error) throw error;
   const saved = fromDB(data);
+  // The project row already exists at this point (the insert above
+  // succeeded) - a scope-template hydration failure here must not make
+  // create() throw and mislead the caller into thinking nothing was
+  // created. Degrades to scopeTemplate: null on the known schema-contract
+  // mismatch only; any other error still propagates.
   if (!pinnedTemplate && saved.templateId) {
-    pinnedTemplate = await fetchTemplateRecordById(saved.templateId);
+    const { template } = await fetchOptionalTemplateRecordById(saved.templateId);
+    pinnedTemplate = template;
   }
   return { ...saved, scopeTemplate: pinnedTemplate };
 }

@@ -77,7 +77,7 @@ export async function getLastReport(projectId) {
 // core/contractorReport/contractorReportScreensModel.js) ───────────────────────
 
 export async function fetchAllContractorReportsRaw() {
-  const { fetchTemplateRecordsByIds } = await import('./templateService.js');
+  const { fetchOptionalTemplateRecordsByIds } = await import('./templateService.js');
   const [reportsRes, wpsRes, projectsRes] = await Promise.all([
     supabase
       .from('contractor_reports')
@@ -94,7 +94,11 @@ export async function fetchAllContractorReportsRaw() {
   if (wpsRes.error) throw wpsRes.error;
   if (projectsRes.error) throw projectsRes.error;
 
-  const templatesById = await fetchTemplateRecordsByIds((projectsRes.data ?? []).map(project => project.template_id));
+  // Optional scope-template enrichment - see projectService.getAll()'s
+  // matching comment. The confirmed-critical contractor_reports/
+  // contractor_report_wps/projects queries above are unaffected: they still
+  // throw normally.
+  const { templatesById } = await fetchOptionalTemplateRecordsByIds((projectsRes.data ?? []).map(project => project.template_id));
   return {
     reports:  reportsRes.data || [],
     wps:      wpsRes.data || [],
@@ -108,7 +112,7 @@ export async function fetchAllContractorReportsRaw() {
 }
 
 export async function fetchContractorReportsForProjectRaw(projectId) {
-  const { fetchTemplateRecordById } = await import('./templateService.js');
+  const { fetchOptionalTemplateRecordById } = await import('./templateService.js');
   const [{ data: reports, error }, { data: projectRow, error: projectError }] = await Promise.all([
     supabase
       .from('contractor_reports')
@@ -125,10 +129,14 @@ export async function fetchContractorReportsForProjectRaw(projectId) {
   if (projectError) throw projectError;
 
   const reports_ = reports || [];
+  // Optional scope-template enrichment - see projectService.getAll()'s
+  // matching comment. The confirmed-critical contractor_reports/projects
+  // queries above are unaffected.
+  const { template: scopeTemplateForProject } = await fetchOptionalTemplateRecordById(projectRow?.template_id);
   const project = {
     templateType: projectRow?.template_type,
     templateId: projectRow?.template_id,
-    scopeTemplate: await fetchTemplateRecordById(projectRow?.template_id),
+    scopeTemplate: scopeTemplateForProject,
   };
   const reportIds = reports_.map((report) => report.id);
   if (reportIds.length === 0) return { reports: [], wps: [], project };
