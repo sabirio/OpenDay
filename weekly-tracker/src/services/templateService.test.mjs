@@ -23,6 +23,7 @@ const {
   settleOptionalTemplateRecords,
   settleOptionalTemplateRecord,
   TemplateConfigurationUnavailableError,
+  selectLegacyCompatibilityTemplateForFamily,
 } = await import('./templateService.js');
 
 let pass = 0;
@@ -151,6 +152,36 @@ check('exactly one candidate is used unambiguously', makeResolver([{ id: 'only-o
 await checkRejects('16/23. more than one active candidate throws TemplateConfigurationUnavailableError instead of guessing (the exact forbidden "missing family -> query every active template -> limit(1) -> arbitrary row" pattern)',
   async () => makeResolver([{ id: 'a' }, { id: 'b' }]),
   (e) => e instanceof TemplateConfigurationUnavailableError && e.code === 'TEMPLATE_CONFIGURATION_UNAVAILABLE' && e.reason === 'AMBIGUOUS_ACTIVE_TEMPLATES');
+
+const validLegacyV2 = {
+  id: 'legacy-v2',
+  name: 'Legacy V2',
+  family: null,
+  familyId: 'lineage-a',
+  companyId: null,
+  version: 1,
+  isActive: true,
+  data: { schemaVersion: 1, model: 'zoned', templateType: 'retail-fitout-v2', zones: [], dependencies: [] },
+};
+const compatibleLegacy = selectLegacyCompatibilityTemplateForFamily(
+  [validLegacyV2],
+  { family: 'retail-fitout-v2', companyId: 'company-a' },
+);
+check('single active pre-041 V2-shaped legacy row is resolved with in-memory family metadata',
+  compatibleLegacy?.id === validLegacyV2.id
+  && compatibleLegacy.family === 'retail-fitout-v2'
+  && compatibleLegacy.companyId === null);
+check('single non-V2 legacy row is not misrepresented as the V2 family',
+  selectLegacyCompatibilityTemplateForFamily(
+    [{ ...validLegacyV2, data: { phases: [], workPackages: [] } }],
+    { family: 'retail-fitout-v2', companyId: 'company-a' },
+  ) === null);
+await checkRejects('multiple pre-041 active lineages remain truthfully blocked',
+  async () => selectLegacyCompatibilityTemplateForFamily(
+    [validLegacyV2, { ...validLegacyV2, id: 'legacy-v2-b', familyId: 'lineage-b' }],
+    { family: 'retail-fitout-v2', companyId: 'company-a' },
+  ),
+  (e) => e instanceof TemplateConfigurationUnavailableError && e.reason === 'AMBIGUOUS_ACTIVE_TEMPLATES');
 
 check('projectService.create() never assigns an existing production row automatically - no hardcoded template id/uuid literal is ever assigned to payload.template_id',
   !/payload\.template_id\s*=\s*['"][0-9a-f-]{10,}['"]/.test(projectSource));

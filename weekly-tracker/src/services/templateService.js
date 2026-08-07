@@ -57,13 +57,23 @@ export async function resolveDefaultScopeTemplateForCurrentCompany(family) {
     fetchApplicableTemplateRecords(family),
   ]);
   const resolved = selectDefaultScopeTemplate(records, { family, companyId });
-  if (!resolved) {
-    throw new TemplateConfigurationUnavailableError(
-      `No applicable active "${family}" scope template is configured for this company or globally.`,
-      { reason: 'NO_APPLICABLE_TEMPLATE' }
-    );
-  }
-  return resolved;
+  if (resolved) return resolved;
+
+  // During the pre-041 rollout state, valid V2 template data exists but the
+  // physical `family`/`company_id` routing columns do not. A single active
+  // family-less row is the only unambiguous compatibility default; validate
+  // its data through the normal V2 selector and supply routing metadata only
+  // in memory. Multiple active legacy lineages still throw rather than guess.
+  const legacyResolved = selectLegacyCompatibilityTemplateForFamily(
+    await fetchLegacyGlobalDefaultCandidates(),
+    { family, companyId },
+  );
+  if (legacyResolved) return legacyResolved;
+
+  throw new TemplateConfigurationUnavailableError(
+    `No applicable active "${family}" scope template is configured for this company or globally.`,
+    { reason: 'NO_APPLICABLE_TEMPLATE' }
+  );
 }
 
 // Legacy (pre-family, family IS NULL) global default template lookup -
@@ -98,6 +108,18 @@ function resolveSingleLegacyCandidate(candidates) {
     );
   }
   return candidates[0];
+}
+
+export function selectLegacyCompatibilityTemplateForFamily(candidates, {
+  family,
+  companyId = null,
+} = {}) {
+  const legacy = resolveSingleLegacyCandidate(candidates);
+  if (!legacy) return null;
+  return selectDefaultScopeTemplate(
+    [{ ...legacy, family, companyId: null }],
+    { family, companyId },
+  );
 }
 
 export async function resolveLegacyGlobalDefaultTemplateId() {
