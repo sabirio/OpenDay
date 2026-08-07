@@ -70,7 +70,7 @@ export default function ProjectEditorModal({
             <input
               className="ds-input"
               name="storeCode"
-              value={project.storeCode}
+              value={project.storeCode ?? ""}
               onChange={onChange}
               placeholder="e.g. SE001"
               style={{ maxWidth: 200, fontWeight: 700, fontSize: 15 }}
@@ -80,10 +80,10 @@ export default function ProjectEditorModal({
           <FormSection title="Identity & Location" accentColor="var(--accent)">
             <FieldRow>
               <Field label="Country">
-                <input name="country" value={project.country} onChange={onChange} className="ds-input" placeholder="Country" />
+                <input name="country" value={project.country ?? ""} onChange={onChange} className="ds-input" placeholder="Country" />
               </Field>
               <Field label="City">
-                <input name="city" value={project.city} onChange={onChange} className="ds-input" placeholder="City" />
+                <input name="city" value={project.city ?? ""} onChange={onChange} className="ds-input" placeholder="City" />
               </Field>
               <Field label="Sales Market">
                 <input name="salesMarket" value={project.salesMarket || ""} onChange={onChange} className="ds-input" placeholder="e.g. Sweden" />
@@ -155,13 +155,13 @@ export default function ProjectEditorModal({
           <FormSection title="Planned Dates" accentColor="var(--status-warn)">
             <FieldRow>
               <Field label="Construction Start Date">
-                <input type="date" name="constructionStartDate" value={project.constructionStartDate} onChange={onChange} className="ds-input" />
+                <input type="date" name="constructionStartDate" value={project.constructionStartDate ?? ""} onChange={onChange} className="ds-input" />
               </Field>
               <Field label="Construction End Date">
-                <input type="date" name="constructionEndDate" value={project.constructionEndDate} onChange={onChange} className="ds-input" />
+                <input type="date" name="constructionEndDate" value={project.constructionEndDate ?? ""} onChange={onChange} className="ds-input" />
               </Field>
               <Field label="Target Opening Date">
-                <input type="date" name="targetOpeningDate" value={project.targetOpeningDate} onChange={onChange} className="ds-input" />
+                <input type="date" name="targetOpeningDate" value={project.targetOpeningDate ?? ""} onChange={onChange} className="ds-input" />
               </Field>
             </FieldRow>
           </FormSection>
@@ -223,10 +223,10 @@ export default function ProjectEditorModal({
           <FormSection title="Stakeholders" accentColor="var(--status-done)">
             <FieldRow>
               <Field label="Project Manager">
-                <input name="projectManager" value={project.projectManager} onChange={onChange} className="ds-input" placeholder="Full name" />
+                <input name="projectManager" value={project.projectManager ?? ""} onChange={onChange} className="ds-input" placeholder="Full name" />
               </Field>
               <Field label="General Contractor">
-                <input name="generalContractor" value={project.generalContractor} onChange={onChange} className="ds-input" placeholder="Company name" />
+                <input name="generalContractor" value={project.generalContractor ?? ""} onChange={onChange} className="ds-input" placeholder="Company name" />
               </Field>
               <Field label="Security Manager">
                 <input name="securityManager" value={project.securityManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
