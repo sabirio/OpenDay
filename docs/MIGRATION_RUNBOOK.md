@@ -1,5 +1,13 @@
 # Migration runbook
 
+For the current canonical owner-executed production workflow, including
+immutable hashes, fresh backup/restore, explicit approval, cross-platform Git
+guards, one outer transaction, separated postflight, classifier semantics, and
+browser smoke, see
+[`production/PRODUCTION_DATABASE_CHANGE_RUNBOOK.md`](production/PRODUCTION_DATABASE_CHANGE_RUNBOOK.md).
+The historical fresh-install notes below remain applicable to their recorded
+migration chain but do not replace that production workflow.
+
 **Update 2026-07-10 (Sprint 4.5):** this runbook has now actually been
 executed, three times end to end, against a real local Supabase stack — not
 just written. Two real defects surfaced only by running it (not by reading

@@ -87,6 +87,170 @@ function Test-ProductionSecurityStateHydrationDeterministic {
     return ($a -eq $b)
 }
 
+function Import-P1ProductionSecurityBaseline {
+    # Loads only a caller-supplied, checksum-bound local artifact. This helper
+    # never opens a production connection and never accepts credentials.
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$ExpectedSha256
+    )
+
+    if ($ExpectedSha256 -cnotmatch '^[0-9a-f]{64}$') {
+        throw 'P1 SECURITY BASELINE REJECTED: expected SHA-256 must be lowercase hexadecimal'
+    }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "P1 SECURITY BASELINE REJECTED: artifact is missing: $Path"
+    }
+    $actualSha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualSha256 -cne $ExpectedSha256) {
+        throw "P1 SECURITY BASELINE REJECTED: SHA-256 mismatch (expected=$ExpectedSha256 actual=$actualSha256)"
+    }
+
+    try { $baseline = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json }
+    catch { throw "P1 SECURITY BASELINE REJECTED: invalid JSON: $($_.Exception.Message)" }
+
+    if ([string]$baseline.schemaVersion -cne 'openday-production-security-baseline/v1') {
+        throw 'P1 SECURITY BASELINE REJECTED: unsupported schemaVersion'
+    }
+    if ([string]$baseline.productionProjectRef -cne 'szgbkeqornkdngoegyso') {
+        throw 'P1 SECURITY BASELINE REJECTED: production project ref mismatch'
+    }
+    if (@($baseline.tables).Count -ne 4 -or @($baseline.sequences).Count -ne 3 -or
+        @($baseline.functions).Count -ne 2 -or @($baseline.defaultPrivileges).Count -ne 6) {
+        throw 'P1 SECURITY BASELINE REJECTED: required ACL inventory cardinality mismatch'
+    }
+
+    return $baseline
+}
+
+function New-P1ProductionSecurityStateHydrationScript {
+    # Produces deterministic SQL for a disposable restored-backup rehearsal.
+    # Direct ACLs are rebuilt from the exact owner-preflight rows. Default ACL
+    # entries are rebuilt for BOTH observed grantor roles, postgres and
+    # supabase_admin. The SQL returned here must never be used against a live
+    # environment; this module has no connection or execution capability.
+    param([Parameter(Mandatory)]$Baseline)
+
+    $identifierPattern = '^[a-z_][a-z0-9_]*$'
+    $allowedTablePrivileges = @('SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER','MAINTAIN')
+    $allowedSequencePrivileges = @('USAGE','SELECT','UPDATE')
+    $allowedFunctionPrivileges = @('EXECUTE')
+    $knownRoles = @('PUBLIC','anon','authenticated','service_role','postgres')
+    $statements = New-Object System.Collections.Generic.List[string]
+
+    function Assert-Identifier([string]$Value, [string]$Label) {
+        if ($Value -cnotmatch $identifierPattern) { throw "P1 SECURITY BASELINE REJECTED: invalid $Label identifier: $Value" }
+    }
+
+    function Add-DirectAclStatements {
+        param(
+            [Parameter(Mandatory)][string]$ObjectKind,
+            [Parameter(Mandatory)][string]$QualifiedName,
+            [Parameter(Mandatory)]$AclRows,
+            [Parameter(Mandatory)][string[]]$AllowedPrivileges
+        )
+
+        $statements.Add("REVOKE ALL PRIVILEGES ON $ObjectKind $QualifiedName FROM $($knownRoles -join ', ');")
+        foreach ($group in @($AclRows | Group-Object grantee)) {
+            $grantee = [string]$group.Name
+            Assert-Identifier $grantee 'grantee'
+            $privileges = @($group.Group | ForEach-Object {
+                $privilege = ([string]$_.privilege_type).ToUpperInvariant()
+                if ($AllowedPrivileges -notcontains $privilege) {
+                    throw "P1 SECURITY BASELINE REJECTED: unsupported $ObjectKind privilege: $privilege"
+                }
+                if ([string]$_.is_grantable -cnotin @('t','f')) {
+                    throw 'P1 SECURITY BASELINE REJECTED: is_grantable must preserve owner output as t or f'
+                }
+                $privilege
+            } | Sort-Object -Unique)
+            if (@($group.Group | Where-Object { [string]$_.is_grantable -eq 't' }).Count -gt 0) {
+                throw 'P1 SECURITY BASELINE REJECTED: mixed/grantable ACL rows require an explicit future schema version'
+            }
+            $statements.Add("GRANT $($privileges -join ', ') ON $ObjectKind $QualifiedName TO $grantee;")
+        }
+    }
+
+    foreach ($table in @($Baseline.tables)) {
+        Assert-Identifier ([string]$table.schema) 'schema'
+        Assert-Identifier ([string]$table.name) 'table'
+        Add-DirectAclStatements -ObjectKind 'TABLE' -QualifiedName "$($table.schema).$($table.name)" `
+            -AclRows $table.aclRows -AllowedPrivileges $allowedTablePrivileges
+    }
+    foreach ($sequence in @($Baseline.sequences)) {
+        Assert-Identifier ([string]$sequence.schema) 'schema'
+        Assert-Identifier ([string]$sequence.name) 'sequence'
+        Add-DirectAclStatements -ObjectKind 'SEQUENCE' -QualifiedName "$($sequence.schema).$($sequence.name)" `
+            -AclRows $sequence.aclRows -AllowedPrivileges $allowedSequencePrivileges
+    }
+    foreach ($function in @($Baseline.functions)) {
+        Assert-Identifier ([string]$function.schema) 'schema'
+        Assert-Identifier ([string]$function.name) 'function'
+        if ([string]$function.identityArguments -cnotmatch '^[a-z0-9_, ]+$') {
+            throw "P1 SECURITY BASELINE REJECTED: invalid function identity arguments: $($function.identityArguments)"
+        }
+        $signature = "$($function.schema).$($function.name)($($function.identityArguments))"
+        Add-DirectAclStatements -ObjectKind 'FUNCTION' -QualifiedName $signature `
+            -AclRows $function.aclRows -AllowedPrivileges $allowedFunctionPrivileges
+    }
+
+    $defaultRoles = @($Baseline.defaultPrivileges | ForEach-Object { [string]$_.grantor_role } | Sort-Object -Unique)
+    if (($defaultRoles -join ',') -cne 'postgres,supabase_admin') {
+        throw 'P1 SECURITY BASELINE REJECTED: default ACL grantors must be exactly postgres and supabase_admin'
+    }
+    foreach ($entry in @($Baseline.defaultPrivileges)) {
+        $grantor = [string]$entry.grantor_role
+        $schema = [string]$entry.schema_name
+        Assert-Identifier $grantor 'default ACL grantor'
+        Assert-Identifier $schema 'default ACL schema'
+
+        $objectClause = switch ([string]$entry.defaclobjtype) {
+            'r' { 'TABLES' }
+            'S' { 'SEQUENCES' }
+            'f' { 'FUNCTIONS' }
+            default { throw "P1 SECURITY BASELINE REJECTED: unsupported defaclobjtype: $($entry.defaclobjtype)" }
+        }
+        $expectedCodes = switch ([string]$entry.defaclobjtype) {
+            'r' { 'arwdDxtm' }
+            'S' { 'rwU' }
+            'f' { 'X' }
+        }
+        $grantPrivileges = switch ([string]$entry.defaclobjtype) {
+            'r' { 'ALL PRIVILEGES' }
+            'S' { 'SELECT, UPDATE, USAGE' }
+            'f' { 'EXECUTE' }
+        }
+
+        $rawItems = @()
+        foreach ($item in @($entry.aclItems)) {
+            Assert-Identifier ([string]$item.grantee) 'default ACL grantee'
+            Assert-Identifier ([string]$item.grantor) 'default ACL item grantor'
+            if ([string]$item.grantor -cne $grantor -or [string]$item.privileges -cne $expectedCodes) {
+                throw 'P1 SECURITY BASELINE REJECTED: normalized default ACL item disagrees with raw evidence'
+            }
+            $rawItems += "$($item.grantee)=$($item.privileges)/$($item.grantor)"
+        }
+        $reconstructedRaw = '{' + ($rawItems -join ',') + '}'
+        if ($reconstructedRaw -cne [string]$entry.defaclacl) {
+            throw 'P1 SECURITY BASELINE REJECTED: defaclacl raw array does not match its lossless item expansion'
+        }
+
+        $statements.Add("ALTER DEFAULT PRIVILEGES FOR ROLE $grantor IN SCHEMA $schema REVOKE ALL PRIVILEGES ON $objectClause FROM $($knownRoles -join ', ');")
+        foreach ($item in @($entry.aclItems)) {
+            $statements.Add("ALTER DEFAULT PRIVILEGES FOR ROLE $grantor IN SCHEMA $schema GRANT $grantPrivileges ON $objectClause TO $($item.grantee);")
+        }
+    }
+
+    return ($statements -join [Environment]::NewLine) + [Environment]::NewLine
+}
+
+function Test-P1ProductionSecurityHydrationDeterministic {
+    param([Parameter(Mandatory)]$Baseline)
+    $a = New-P1ProductionSecurityStateHydrationScript -Baseline $Baseline
+    $b = New-P1ProductionSecurityStateHydrationScript -Baseline $Baseline
+    return ($a -ceq $b)
+}
+
 function Get-SupabaseDefaultAclFixtureScript {
     # Disposable-rehearsal-only fixture reproducing a real, platform-level
     # Postgres mechanism that a vanilla postgres:17 container does not have

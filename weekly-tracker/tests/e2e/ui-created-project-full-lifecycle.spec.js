@@ -38,8 +38,8 @@ import { CREDENTIALS, login, logout } from './helpers.js';
 // via an authenticated-as-Admin anon-key client — the same technique
 // contractor-managed-scope-edit-workflow.spec.js already established.
 
-const STORE_CODE = '3D3-LIFECYCLE';
-const MALL_NAME = 'Phase 3D.3 Lifecycle Mall';
+const STORE_CODE = process.env.E2E_LIFECYCLE_STORE_CODE || '3D3-LIFECYCLE';
+const MALL_NAME = process.env.E2E_LIFECYCLE_MALL_NAME || 'Phase 3D.3 Lifecycle Mall';
 
 const PM = CREDENTIALS.pm;
 const VIEWER = CREDENTIALS.viewer;

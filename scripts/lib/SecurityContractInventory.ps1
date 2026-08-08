@@ -87,7 +87,7 @@ function New-ReadOnlyCatalogScript {
     $query = $query.TrimEnd().TrimEnd(';').TrimEnd()
     if ([string]::IsNullOrWhiteSpace($query)) { throw 'catalog query has no executable statement' }
 
-    return @"
+    $scriptText = @"
 \set ON_ERROR_STOP on
 \pset format unaligned
 \pset fieldsep '\t'
@@ -99,6 +99,7 @@ SET LOCAL lock_timeout = '5s';
 $query;
 ROLLBACK;
 "@
+    return $scriptText.Replace("`r`n", "`n")
 }
 
 # ---------------------------------------------------------------------------

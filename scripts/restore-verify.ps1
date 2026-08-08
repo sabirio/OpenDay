@@ -19,7 +19,7 @@ if (-not $BackupRoot) {
     $BackupRoot = Join-Path $PSScriptRoot '..\backups\production'
 }
 
-$ScriptVersion = '1.0'
+$ScriptVersion = '1.1'
 $ExpectedManifestStatus = 'DUMP_CREATED_STATIC_VALIDATION_PASS_RELEASE_BOUND'
 $RequiredFiles = @('roles.sql', 'schema.sql', 'data.sql', 'migration_history_schema.sql', 'migration_history_data.sql', 'checksums.sha256', 'backup-manifest.json')
 $MinimumBytes = @{
