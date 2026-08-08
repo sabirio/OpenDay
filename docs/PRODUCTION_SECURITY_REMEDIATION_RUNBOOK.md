@@ -1,5 +1,10 @@
 # Production Security Remediation Runbook
 
+The canonical cross-release owner workflow is now
+[`production/PRODUCTION_DATABASE_CHANGE_RUNBOOK.md`](production/PRODUCTION_DATABASE_CHANGE_RUNBOOK.md).
+This document remains the domain-specific security-remediation record and does
+not override the generic transaction/postflight failure semantics there.
+
 ## Supabase Secret-Key Migration status
 
 **`DEFERRED — SAFE BLOCKED STATE`**

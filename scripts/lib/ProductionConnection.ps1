@@ -11,6 +11,8 @@
 # username) before returning anything - callers must treat a thrown
 # exception here as "do not proceed."
 
+. (Join-Path $PSScriptRoot 'GitIsolation.ps1')
+
 function Get-ProductionConnectionFingerprint {
     param(
         [Parameter(Mandatory)][string]$EnvFile,
@@ -25,8 +27,7 @@ function Get-ProductionConnectionFingerprint {
     }
 
     $resolvedEnvFile = (Resolve-Path -LiteralPath $EnvFile).Path
-    & git -c core.excludesFile=NUL -C $RepoRoot check-ignore -- $resolvedEnvFile 2>$null | Out-Null
-    if ($LASTEXITCODE -ne 0) {
+    if (-not (Test-GitPathIgnored -RepoRoot $RepoRoot -Path $resolvedEnvFile)) {
         throw 'production environment file is not ignored by Git'
     }
 
@@ -66,6 +67,7 @@ function Get-ProductionConnectionFingerprint {
         Port = $dbPort
         Database = $dbName
         User = $dbUser
+        ProjectRef = $ExpectedProjectRef
         Password = $dbPassword
         RawUri = $rawUri
         EnvironmentText = $environmentText

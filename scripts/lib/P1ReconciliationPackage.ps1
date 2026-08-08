@@ -6,6 +6,79 @@ function Get-P1Sha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+function Get-P1Migration037ColumnContract {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$MigrationPath)
+
+    if (-not (Test-Path -LiteralPath $MigrationPath -PathType Leaf)) {
+        throw "Migration 037 source is missing: $MigrationPath"
+    }
+
+    $text = [IO.File]::ReadAllText($MigrationPath, [Text.UTF8Encoding]::new($false, $true))
+    $matches = [regex]::Matches(
+        $text,
+        '(?im)^\s*ADD COLUMN IF NOT EXISTS\s+([a-z_][a-z0-9_]*)\s+([^;\r\n]+?)[,;]\s*$'
+    )
+    $columns = @(
+        foreach ($match in $matches) {
+            $definition = $match.Groups[2].Value.Trim()
+            [pscustomobject][ordered]@{
+                Name = $match.Groups[1].Value
+                Type = $definition
+                Nullable = ($definition -notmatch '(?i)\bNOT\s+NULL\b')
+                HasDefault = ($definition -match '(?i)\bDEFAULT\b')
+            }
+        }
+    )
+
+    if ($columns.Count -ne 10) {
+        throw "Migration 037 must define exactly ten project-profile columns; found $($columns.Count)."
+    }
+    if (@($columns | Where-Object { -not $_.Nullable -or $_.HasDefault }).Count -ne 0) {
+        throw 'Migration 037 project-profile columns must all be nullable and have no default.'
+    }
+    if (@($columns.Name | Sort-Object -Unique).Count -ne 10) {
+        throw 'Migration 037 project-profile column names must be unique.'
+    }
+
+    return $columns
+}
+
+function ConvertTo-P1SqlIdentifierList {
+    param([Parameter(Mandatory)][object[]]$ColumnContract)
+    return (@($ColumnContract | ForEach-Object { "'$($_.Name)'" }) -join ',')
+}
+
+function Test-P1Migration037ColumnSet {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$MigrationPath,
+        [Parameter(Mandatory)][string[]]$ColumnNames
+    )
+    $expected = @((Get-P1Migration037ColumnContract -MigrationPath $MigrationPath).Name | Sort-Object)
+    $actual = @($ColumnNames | Sort-Object -Unique)
+    return ($actual.Count -eq 10 -and ($actual -join "`n") -ceq ($expected -join "`n"))
+}
+
+function Get-P1Migration037PostflightSql {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$MigrationPath)
+
+    $columnSql = ConvertTo-P1SqlIdentifierList (Get-P1Migration037ColumnContract -MigrationPath $MigrationPath)
+    return @"
+SELECT CASE
+  WHEN count(*) = 10
+   AND count(*) FILTER (WHERE is_nullable = 'YES') = 10
+   AND count(*) FILTER (WHERE column_default IS NULL) = 10
+    THEN 'MIGRATION_037_POSTFLIGHT=PASS'
+  ELSE 'MIGRATION_037_POSTFLIGHT=FAIL'
+END
+FROM information_schema.columns
+WHERE table_schema='public' AND table_name='projects'
+  AND column_name IN ($columnSql);
+"@
+}
+
 function Import-P1ReconciliationContract {
     param(
         [Parameter(Mandatory)][string]$RepoRoot,
@@ -31,6 +104,10 @@ function Import-P1ReconciliationContract {
     if (-not (Test-Path -LiteralPath $profileSource -PathType Leaf)) { throw "Missing project-profile repair source: $($profileRepair.sourceMigration)" }
     $profileActual = Get-P1Sha256 $profileSource
     if ($profileActual -cne $profileRepair.sourceSha256) { throw "Project-profile repair SHA-256 mismatch: expected=$($profileRepair.sourceSha256) actual=$profileActual" }
+    $profileColumns = Get-P1Migration037ColumnContract -MigrationPath $profileSource
+    if ($profileColumns.Count -ne [int]$profileRepair.requiredPostColumnCount) {
+        throw 'Migration 037 parsed column count differs from the reconciliation manifest.'
+    }
     return [pscustomobject]@{ RepoRoot=$root; ManifestPath=$path; Manifest=$manifest }
 }
 
@@ -51,10 +128,13 @@ function New-P1ReconciliationSql {
     )
     $contract = Import-P1ReconciliationContract -RepoRoot $RepoRoot -ManifestPath $ManifestPath
     $manifest = $contract.Manifest
+    $profileRepair = $manifest.explicitForwardReconciliation.projectProfileSchemaRepair
+    $profileSource = Join-Path $contract.RepoRoot (Join-Path $manifest.migrationsDirectory $profileRepair.sourceMigration)
+    $profileColumnSql = ConvertTo-P1SqlIdentifierList (Get-P1Migration037ColumnContract -MigrationPath $profileSource)
     $wrapped = @(41,42,43,44,45,58)
     $parts = New-Object System.Collections.Generic.List[string]
     $parts.Add("\set ON_ERROR_STOP on`n\echo P1_RECONCILIATION_BEGIN`nBEGIN;")
-    $parts.Add(@'
+    $preconditionSql = @'
 DO $p1_pre$
 DECLARE
   v text;
@@ -63,7 +143,7 @@ BEGIN
     RAISE EXCEPTION 'RECONCILIATION_PRECONDITION_FAIL: templates family/company_id must both be absent';
   END IF;
   IF (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='projects' AND column_name IN
-      ('location_type','store_concept','sales_area_sqm','back_of_house_area_sqm','actual_construction_start_date','actual_construction_completion_date','actual_opening_date','budget','actual_cost','currency_code')) <> 0 THEN
+      (__P1_037_COLUMNS__)) <> 0 THEN
     RAISE EXCEPTION 'RECONCILIATION_PRECONDITION_FAIL: project profile columns must all be absent';
   END IF;
   IF (SELECT count(*) FROM public.templates WHERE id IN ('dc92175a-251c-45ab-a4fd-c83c1c668ef4','e4ef4d98-5688-4d12-9fca-2d7cded88d29')) <> 0 THEN
@@ -103,9 +183,8 @@ BEGIN
   IF v IS DISTINCT FROM '9|4|2|true|0|true' THEN RAISE EXCEPTION 'RECONCILIATION_PRECONDITION_FAIL: write_command_requests %',v; END IF;
 END
 $p1_pre$;
-'@)
-    $profileRepair = $manifest.explicitForwardReconciliation.projectProfileSchemaRepair
-    $profileSource = Join-Path $contract.RepoRoot (Join-Path $manifest.migrationsDirectory $profileRepair.sourceMigration)
+'@
+    $parts.Add($preconditionSql.Replace('__P1_037_COLUMNS__', $profileColumnSql))
     $profileText = [IO.File]::ReadAllText($profileSource, [Text.UTF8Encoding]::new($false, $true)).Replace("`r`n","`n")
     if ($profileText -match '(?m)^(BEGIN;|COMMIT;)$') { throw 'Project-profile repair source must not contain a transaction wrapper.' }
     $parts.Add("\echo P1_FORWARD_REPAIR $($profileRepair.sourceMigration) SHA256=$($profileRepair.sourceSha256)`n$profileText")
@@ -116,7 +195,7 @@ $p1_pre$;
         elseif ($text -match '(?m)^(BEGIN;|COMMIT;)$') { throw "Unexpected top-level transaction wrapper in $($migration.file)." }
         $parts.Add("\echo P1_MIGRATION $($migration.file) SHA256=$($migration.sha256)`n$text")
     }
-    $parts.Add(@'
+    $postconditionSql = @'
 -- Production carries broad default ACLs. Normalize every relation created by
 -- this reconciliation without changing pg_default_acl itself.
 REVOKE ALL ON TABLE public.project_schedule_versions, public.project_schedule_version_tasks
@@ -154,7 +233,7 @@ DECLARE v text;
 BEGIN
   IF (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='templates' AND column_name IN ('family','company_id')) <> 2 THEN RAISE EXCEPTION 'P1_POST_FAIL: template columns'; END IF;
   IF (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='projects' AND column_name IN
-      ('location_type','store_concept','sales_area_sqm','back_of_house_area_sqm','actual_construction_start_date','actual_construction_completion_date','actual_opening_date','budget','actual_cost','currency_code')) <> 10 THEN RAISE EXCEPTION 'P1_POST_FAIL: project profile columns'; END IF;
+      (__P1_037_COLUMNS__)) <> 10 THEN RAISE EXCEPTION 'P1_POST_FAIL: project profile columns'; END IF;
   SELECT id::text||'|'||md5(data::text)||'|'||is_active::text INTO v FROM public.templates WHERE id='e330a625-d0fd-48ef-ba5f-e96a75e67e6b';
   IF v IS DISTINCT FROM 'e330a625-d0fd-48ef-ba5f-e96a75e67e6b|cf63f05ba67c26e027c01c242dcb36f5|true' THEN RAISE EXCEPTION 'P1_POST_FAIL: legacy template %',v; END IF;
   SELECT family||'|'||(data->>'schemaVersion')||'|'||(SELECT count(*) FROM jsonb_path_query(data,'$.zones[*].categories[*].workPackages[*]'))::text||'|'||is_active::text INTO v FROM public.templates WHERE id='dc92175a-251c-45ab-a4fd-c83c1c668ef4';
@@ -200,8 +279,9 @@ END
 $p1_post$;
 COMMIT;
 \echo P1_RECONCILIATION_COMMITTED
-'@)
-    $sql = (($parts -join "`n`n").TrimEnd() + "`n")
+'@
+    $parts.Add($postconditionSql.Replace('__P1_037_COLUMNS__', $profileColumnSql))
+    $sql = ((($parts -join "`n`n").Replace("`r`n", "`n")).TrimEnd() + "`n")
     $dir = Split-Path -Parent $OutputPath
     if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
     [IO.File]::WriteAllText($OutputPath, $sql, [Text.UTF8Encoding]::new($false))
@@ -209,21 +289,27 @@ COMMIT;
 }
 
 function Get-P1ReconciliationStateSql {
-    return @'
+    [CmdletBinding()]
+    param([string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path)
+
+    $migrationPath = Join-Path $RepoRoot 'weekly-tracker\src\migrations\037_retail_historical_project_profile.sql'
+    $profileColumnSql = ConvertTo-P1SqlIdentifierList (Get-P1Migration037ColumnContract -MigrationPath $migrationPath)
+    $sql = @'
 SELECT CASE
   WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='templates' AND column_name='family')
-   AND (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='projects' AND column_name IN ('location_type','store_concept','sales_area_sqm','back_of_house_area_sqm','actual_construction_start_date','actual_construction_completion_date','actual_opening_date','budget','actual_cost','currency_code'))=10
+   AND (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='projects' AND column_name IN (__P1_037_COLUMNS__))=10
    AND EXISTS (SELECT 1 FROM public.templates WHERE id='dc92175a-251c-45ab-a4fd-c83c1c668ef4' AND is_active)
    AND EXISTS (SELECT 1 FROM public.templates WHERE id='e4ef4d98-5688-4d12-9fca-2d7cded88d29' AND NOT is_active)
    AND (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)'::regprocedure)='53ddc257aaa05053822b30e8c7e8d72f'
    AND (SELECT confdeltype FROM pg_constraint WHERE conname='projects_template_id_fkey' AND conrelid='public.projects'::regclass)='r'
     THEN 'ALREADY_RECONCILED'
   WHEN NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='templates' AND column_name IN ('family','company_id'))
-   AND (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='projects' AND column_name IN ('location_type','store_concept','sales_area_sqm','back_of_house_area_sqm','actual_construction_start_date','actual_construction_completion_date','actual_opening_date','budget','actual_cost','currency_code'))=0
+   AND (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='projects' AND column_name IN (__P1_037_COLUMNS__))=0
    AND NOT EXISTS (SELECT 1 FROM public.templates WHERE id IN ('dc92175a-251c-45ab-a4fd-c83c1c668ef4','e4ef4d98-5688-4d12-9fca-2d7cded88d29'))
    AND (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)'::regprocedure)='94ae61e04f32b5917edd78063bf12f5f'
     THEN 'READY'
   ELSE 'NOT_APPLICABLE'
 END;
 '@
+    return $sql.Replace('__P1_037_COLUMNS__', $profileColumnSql)
 }
