@@ -65,6 +65,45 @@ the Constitution. A database/security change needs schema/migrations/RLS/
 RPC and their application callers plus relevant tests/docs. A cross-domain
 feature needs a broader architecture pass first.
 
+### Canonical branch start and lifecycle
+
+Before substantial new implementation:
+
+1. fetch origin and resolve the current `origin/main`;
+2. verify the repository, worktree, staging, and active-operation state;
+3. create a new short-lived, task-specific branch from that exact current
+   `origin/main`;
+4. audit the affected architecture and existing behavior;
+5. plan before implementing.
+
+Never use a `main` SHA remembered from a previous task, chat, report, or
+certification as the default base. New product work must not start from an
+old feature, fix, hotfix, security, reconciliation, staging, or production
+branch. If the available worktree is dirty or historical, preserve it and
+create a separate clean worktree from current `origin/main`.
+
+One bounded objective means one branch and one reviewable PR. Examples are
+`feature/rfi-workflow`, `feature/procurement`,
+`fix/weekly-report-export`, and `docs/canonical-branch-lifecycle`. Keep
+unrelated feature work, cleanup, redesign, migration work, security work,
+and production tooling out of that branch unless the objective has a proven
+dependency on them.
+
+The mandatory lifecycle is:
+
+```
+current origin/main → task branch → audit → plan → implementation
+→ targeted certification → full required certification → commit → push
+→ PR → review → explicit merge approval → merge to main → retire branch
+```
+
+A merged branch is retired and must not become the base of subsequent
+development. Historical or materially divergent branches are evidence, not
+sources of truth. Do not wholesale merge, automatically rebase, or
+wholesale cherry-pick a scope-contaminated branch. Create a clean branch
+from current `origin/main`, compare candidate changes semantically, and
+classify each as `KEEP`, `ALREADY_IN_MAIN`, `REIMPLEMENT`, or `DISCARD`.
+
 ## 3. Progressive context loading
 
 Do not read every document for every task. Always know the Constitution
@@ -151,12 +190,24 @@ stating why the existing one doesn't suffice.
 - Preserve unrelated user changes — don't discard, reset, stash, or delete
   work that isn't yours without explicit authorization.
 - Don't force-push. Don't push unless explicitly requested. Don't deploy
-  unless explicitly requested. Don't touch production/staging unless
-  explicitly requested and required.
+  unless explicitly requested.
 - Don't commit unless the task explicitly requests or clearly authorizes it.
 - Don't silently switch branches in a way that could affect the user's
   in-progress work.
 - Report a blocker instead of taking a destructive shortcut around it.
+
+When the task authorizes them, ordinary local development actions may include
+fetching, creating a branch/worktree, implementation, tests, committing,
+pushing, and opening a PR. Those permissions are independent gates:
+
+- merging requires explicit owner approval;
+- live staging and production database mutations are owner-executed-only;
+- permission to branch, commit, push, or open a PR never implies permission
+  to merge, deploy, or mutate a live database;
+- agents may prepare and audit immutable artifacts and offline commands for a
+  live database change, but must not execute the live mutation.
+
+Preserve any stronger release-specific safety boundary.
 
 ## 9. Validation strategy
 

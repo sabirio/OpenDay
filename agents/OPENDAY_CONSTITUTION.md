@@ -272,6 +272,15 @@ the signal — resolve it before writing the implementation, not after.
 
 ## 13. Conflict and Governance
 
+### Canonical Development Lineage
+
+`origin/main` is OpenDay's canonical development lineage. Substantial new
+work starts from its current state on a new short-lived, task-specific
+branch, with one bounded objective producing one reviewable branch and PR.
+Merged branches are retired. Historical or divergent branches are evidence,
+not sources of truth; recovering work from them requires explicit semantic
+reconciliation against current main rather than wholesale reuse.
+
 An agent must not silently violate a constitutional principle to satisfy a
 request. If a requested implementation appears to conflict with this
 Constitution, say so — identify the specific conflict — before implementing
