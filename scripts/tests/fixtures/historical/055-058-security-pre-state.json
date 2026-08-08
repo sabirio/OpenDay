@@ -1,0 +1,290 @@
+{
+  "schemaVersion": "1.0.0",
+  "classification": "HISTORICAL_RELEASE_CERTIFICATION_ONLY",
+  "purpose": "Immutable forensic fixture for reproducing the exact migration 055-058 PRE security boundaries and fail-closed regression scenarios.",
+  "declarations": [
+    "NOT_CURRENT_PRODUCTION_TRUTH",
+    "NOT_AN_APPLY_PLAN",
+    "NOT_AN_AUTHORIZATION_SOURCE",
+    "NOT_CONSUMED_BY_PRODUCTION_SCRIPTS",
+    "NOT_THE_CANONICAL_POST_SECURITY_CONTRACT"
+  ],
+  "provenance": {
+    "historicalRunbook": {
+      "file": "OPENDAY_PRODUCTION_PREP_055_058.ps1",
+      "version": "1.0.3",
+      "sha256": "c47cace2e034afd5ba5ac41fe7b1104475e4ba5be6847d04258b7a53cbb7a655"
+    },
+    "historicalTests": {
+      "file": "OPENDAY_PRODUCTION_PREP_055_058.tests.ps1",
+      "sha256": "d2a033e1cabce4d8c929f895420f9cdb9f5a21cde6d9b4eb74decc8b98e6d261"
+    },
+    "migrationHashAlgorithm": "SHA-256 of UTF-8 text after CRLF/CR to LF normalization",
+    "canonicalMigrations": {
+      "055": {
+        "file": "055_restrict_contractor_schedule_function_acl.sql",
+        "normalizedSha256": "8db03764d989e20ee7f47aa9f7e05da8eca32488ae10f1948bef80643618c59c"
+      },
+      "056": {
+        "file": "056_restrict_rls_helper_function_acl.sql",
+        "normalizedSha256": "1150ef166ef7d6c01efc565ba3c3e8fa33f4b9e8821cdf4d987cc9763bd4021a"
+      },
+      "057": {
+        "file": "057_part5_table_sequence_acl_bridge.sql",
+        "normalizedSha256": "e563821f1d0e50c4fa222356d649dcce358121c995102ad01a916bc56cf18827"
+      },
+      "058": {
+        "file": "058_reconcile_atomic_write_security_and_contractor_rpc.sql",
+        "normalizedSha256": "21c05f99162576b737a1b41810786355047616762d816ac142f36483c4e9110d"
+      }
+    },
+    "referenceMigrations": [
+      {
+        "file": "020_rls_company_role_hardening.sql",
+        "normalizedSha256": "b1fbfad19a970547878cb52ec3c363b148ceb1c2cd1359d22562a3c808d9b62e"
+      },
+      {
+        "file": "025_atomic_write_commands.sql",
+        "normalizedSha256": "2efde48806bf5f9202b6593ac93f2f36ca071bc59a4f89eda8adade5b5d55530"
+      },
+      {
+        "file": "028_production_security_reconciliation.sql",
+        "normalizedSha256": "aceaa6b216a7f4330ff9b15e470a7acc81860537678a058ad03cb2bd2724573c"
+      },
+      {
+        "file": "036_contractor_report_legacy_wp_scope.sql",
+        "normalizedSha256": "d5dea739612de2e1f74335d2132392a7ff0f0eb69e1bc1bc6ba1485db74e1738"
+      },
+      {
+        "file": "053_contractor_managed_project_scope_sync.sql",
+        "normalizedSha256": "9529be1c323934210a7130d7d35c8fd150ebcd50bdcdaab77e113857478aa8fa"
+      },
+      {
+        "file": "054_fix_contractor_managed_scope_null_artifact.sql",
+        "normalizedSha256": "3e69ad0c9b453074d667bc38b0984432ed33f7d0b42043df7f28d87a9569b77b"
+      }
+    ],
+    "origin": "Recovered selectively from verified retired preparation artifacts after semantic reconciliation against current main.",
+    "evidenceBasis": "Historical runbook v1.0.3 comments, canonical migration text, and its disposable PostgreSQL evidence. No live environment is represented."
+  },
+  "preState": {
+    "migration055": {
+      "boundary": "canonical schema through migration 054",
+      "functions": [
+        {
+          "identity": "public.create_contractor_managed_project(jsonb,text[],uuid)",
+          "metadata": {
+            "owner": "postgres",
+            "language": "plpgsql",
+            "securityDefiner": true,
+            "volatility": "v",
+            "strict": false,
+            "parallel": "u",
+            "searchPath": "search_path=public",
+            "resultType": "jsonb"
+          },
+          "bodyProvenance": {
+            "sourceMigration": "054_fix_contractor_managed_scope_null_artifact.sql",
+            "functionPrefix": "CREATE OR REPLACE FUNCTION public.create_contractor_managed_project(",
+            "bodyStoredInFixture": false
+          },
+          "directAcl": [
+            { "role": "anon", "privileges": ["EXECUTE"] },
+            { "role": "authenticated", "privileges": ["EXECUTE"] }
+          ],
+          "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+        },
+        {
+          "identity": "public.update_contractor_managed_project_scope(bigint,jsonb,text[],uuid)",
+          "metadata": {
+            "owner": "postgres",
+            "language": "plpgsql",
+            "securityDefiner": true,
+            "volatility": "v",
+            "strict": false,
+            "parallel": "u",
+            "searchPath": "search_path=public",
+            "resultType": "jsonb"
+          },
+          "bodyProvenance": {
+            "sourceMigration": "053_contractor_managed_project_scope_sync.sql",
+            "functionPrefix": "CREATE OR REPLACE FUNCTION public.update_contractor_managed_project_scope(",
+            "bodyStoredInFixture": false
+          },
+          "directAcl": [
+            { "role": "anon", "privileges": ["EXECUTE"] },
+            { "role": "authenticated", "privileges": ["EXECUTE"] }
+          ],
+          "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+        }
+      ]
+    },
+    "migration056": {
+      "boundary": "canonical schema through migration 055",
+      "bodyProvenance": {
+        "sourceMigration": "020_rls_company_role_hardening.sql",
+        "bodiesStoredInFixture": false
+      },
+      "functions": [
+        {
+          "identity": "public.can_admin_company(text)",
+          "directAcl": [
+            { "role": "PUBLIC", "privileges": ["EXECUTE"] },
+            { "role": "anon", "privileges": ["EXECUTE"] },
+            { "role": "authenticated", "privileges": ["EXECUTE"] },
+            { "role": "service_role", "privileges": ["EXECUTE"] }
+          ],
+          "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+        },
+        {
+          "identity": "public.can_create_project(text)",
+          "directAcl": [
+            { "role": "PUBLIC", "privileges": ["EXECUTE"] },
+            { "role": "anon", "privileges": ["EXECUTE"] },
+            { "role": "authenticated", "privileges": ["EXECUTE"] },
+            { "role": "service_role", "privileges": ["EXECUTE"] }
+          ],
+          "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+        },
+        {
+          "identity": "public.can_write_project(bigint)",
+          "directAcl": [
+            { "role": "PUBLIC", "privileges": ["EXECUTE"] },
+            { "role": "anon", "privileges": ["EXECUTE"] },
+            { "role": "authenticated", "privileges": ["EXECUTE"] },
+            { "role": "service_role", "privileges": ["EXECUTE"] }
+          ],
+          "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+        }
+      ]
+    },
+    "migration057": {
+      "boundary": "canonical schema through migration 056",
+      "tables": {
+        "objects": [
+          "audit_log",
+          "contractor_report_wps",
+          "contractor_reports",
+          "pending_invites",
+          "profiles",
+          "progress_history",
+          "project_gantt_tasks",
+          "projects",
+          "reports",
+          "site_visit_discrepancies",
+          "site_visit_wps",
+          "site_visits",
+          "task_group_members",
+          "task_groups",
+          "templates"
+        ],
+        "uniformDirectAcl": [
+          { "role": "anon", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"] },
+          { "role": "authenticated", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"] },
+          { "role": "service_role", "privileges": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER", "MAINTAIN"] }
+        ],
+        "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+      },
+      "sequences": {
+        "objects": [
+          "audit_log_id_seq",
+          "contractor_report_wps_id_seq",
+          "contractor_reports_id_seq",
+          "progress_history_id_seq",
+          "project_gantt_tasks_id_seq",
+          "projects_id_seq",
+          "reports_id_seq",
+          "site_visit_discrepancies_id_seq",
+          "site_visit_wps_id_seq",
+          "site_visits_id_seq"
+        ],
+        "uniformDirectAcl": [
+          { "role": "anon", "privileges": ["SELECT", "UPDATE", "USAGE"] },
+          { "role": "authenticated", "privileges": ["SELECT", "UPDATE", "USAGE"] },
+          { "role": "service_role", "privileges": ["SELECT", "UPDATE", "USAGE"] }
+        ],
+        "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+      }
+    },
+    "migration058": {
+      "boundary": "canonical schema through migration 057",
+      "bodyIdentities": {
+        "contractorRpcPredecessor": {
+          "classification": "MIGRATION_028_PREDECESSOR_BODY",
+          "sourceMigration": "028_production_security_reconciliation.sql",
+          "functionPrefix": "CREATE OR REPLACE FUNCTION public.submit_contractor_report_atomic(",
+          "normalizedBodySha256": "a294b8a1177835440bbb1da84282afb763197bb7f98a6c349c2f1de60ddeed43",
+          "bodyStoredInFixture": false
+        },
+        "siteVisitRpc": {
+          "classification": "MIGRATION_028_CANONICAL_BODY",
+          "sourceMigration": "028_production_security_reconciliation.sql",
+          "functionPrefix": "CREATE OR REPLACE FUNCTION public.submit_site_visit_atomic(",
+          "normalizedBodySha256": "489647f7bce9f0dbc10b0cbd37bf6af6d15d4b1d92f08676c80bf32d5e7e358f",
+          "bodyStoredInFixture": false
+        }
+      },
+      "functions": [
+        {
+          "identity": "public.submit_contractor_report_atomic(bigint,date,jsonb,jsonb,uuid)",
+          "directAcl": [
+            { "role": "authenticated", "privileges": ["EXECUTE"] },
+            { "role": "service_role", "privileges": ["EXECUTE"] }
+          ],
+          "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+        },
+        {
+          "identity": "public.submit_site_visit_atomic(bigint,bigint,date,jsonb,jsonb,uuid)",
+          "directAcl": [
+            { "role": "authenticated", "privileges": ["EXECUTE"] },
+            { "role": "service_role", "privileges": ["EXECUTE"] }
+          ],
+          "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+        }
+      ],
+      "sequence": {
+        "identity": "write_command_requests_id_seq",
+        "directAcl": [
+          { "role": "service_role", "privileges": ["SELECT", "UPDATE", "USAGE"] }
+        ],
+        "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL"
+      },
+      "ledger": {
+        "identity": "write_command_requests",
+        "directAcl": [
+          { "role": "service_role", "privileges": ["DELETE", "INSERT", "MAINTAIN", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"] }
+        ],
+        "effectiveAclRelation": "EXACTLY_EQUALS_DIRECT_ACL",
+        "structuralBoundary": {
+          "tableMustExist": true,
+          "sequenceMustExist": true,
+          "canonicalDefinitionSources": [
+            "025_atomic_write_commands.sql",
+            "028_production_security_reconciliation.sql"
+          ],
+          "duplicatedColumnConstraintOrIndexDefinitionStored": false
+        }
+      }
+    }
+  },
+  "postTruthReferences": {
+    "strategy": "DERIVE_FROM_CURRENT_CANONICAL_MIGRATIONS_AND_CERTIFICATION",
+    "storesPostAclMatrix": false,
+    "migrations": [
+      "055_restrict_contractor_schedule_function_acl.sql",
+      "056_restrict_rls_helper_function_acl.sql",
+      "057_part5_table_sequence_acl_bridge.sql",
+      "058_reconcile_atomic_write_security_and_contractor_rpc.sql"
+    ],
+    "genericComparators": [
+      "scripts/lib/SecurityContractComparators.ps1",
+      "scripts/lib/SecurityDifferenceModel.ps1"
+    ],
+    "currentCertification": [
+      "weekly-tracker/src/tests/localCertificationMigrationPath.test.mjs",
+      "weekly-tracker/src/tests/rlsHelperFunctionAclHardening.test.mjs",
+      "weekly-tracker/src/tests/atomicWriteSecurityReconciliation.test.mjs",
+      "weekly-tracker/scripts/certification/certifyAtomicWriteSecurityReconciliation.mjs"
+    ]
+  }
+}
