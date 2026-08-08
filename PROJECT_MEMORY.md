@@ -248,3 +248,22 @@ Full description and the "how to add a new calculation" workflow live in
 - `npm test`: 66 suites / 1667 checks — all green.
 - `npm run build`: OK. `npm run typecheck`: clean. `npm run lint`: 0 errors (32 pre-existing warnings, unrelated to arch work).
 - `architectureGuard.test.mjs`: 0 violations (A:0, B:0, C:0; layer-import/calculation/service-purity/status-literal all 0). No allowlist file exists — any new violation fails CI immediately, with file/line/rule and fix guidance printed inline.
+
+---
+
+## Canonical Branch Lifecycle Decision (ADOPTED 2026-08-08)
+
+OpenDay adopted the current `origin/main` as the sole canonical base for new
+development after the Security / Production Reconciliation work demonstrated
+the risk of long-lived, divergent, scope-contaminated branches.
+
+A clean reconciliation of the retired historical security branch confirmed
+that useful changes had already reached canonical main or had been
+superseded, while unsafe or duplicate dirty changes should not be recovered.
+New development therefore restarts from current main instead of continuing a
+historical branch.
+
+- `AGENTS.md` owns mandatory operational enforcement.
+- `agents/OPENDAY_CONSTITUTION.md` owns the durable development-lineage
+  principle.
+- Project Memory records why this decision exists.
