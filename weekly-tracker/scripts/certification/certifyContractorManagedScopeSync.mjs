@@ -13,10 +13,11 @@
 
 import { randomUUID } from 'node:crypto';
 import { psql, queryOne, countRows, signInAs, anonClient, makeReporter, requireCertificationEnvironment } from './lib.mjs';
+import { getLocalFixturePassword } from './fixturePassword.mjs';
 
 await requireCertificationEnvironment();
 
-const PASSWORD = 'Cert-Test-Pass-1!';
+const PASSWORD = getLocalFixturePassword();
 const r = makeReporter('Contractor-Managed Scope Synchronization certification (Simplification Phase 3D.2.1)');
 
 const WP1 = 'common.demolition.strip_out';

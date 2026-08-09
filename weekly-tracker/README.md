@@ -33,6 +33,30 @@ Run this canonical path on a new Supabase database. Do not run historical migrat
 | 21 | `src/migrations/029_production_acl_followup.sql` | Captures the remaining canonical ACL and function grants required by the application. |
 | 22 | `src/migrations/041_versioned_scope_templates.sql` | Adds company/global versioned scope-template routing, referenced-version immutability, project pin integrity, tenant-aware template RLS, and the exact certified global Retail Fit-Out V2 version. Existing projects and scope JSON are not backfilled. |
 
+### Local development login
+
+**LOCAL DEVELOPMENT ONLY — never use these against staging or production.**
+
+Once the local Supabase stack is running and seeded (`npm run cert:reset:local`, from `weekly-tracker/`), sign into the app at your local dev URL with any of:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin-a@cert.local` | `Cert-Test-Pass-1!` |
+| PM | `pm-a-assigned@cert.local` | `Cert-Test-Pass-1!` |
+| Contractor | `contractor-a-assigned@cert.local` | `Cert-Test-Pass-1!` |
+
+These are the **canonical** local accounts — the single source of truth for the password is `scripts/certification/fixturePassword.mjs` (`getLocalFixturePassword()`), and the accounts themselves (plus their `profiles` role/company/project assignment and fixture project `CERT-A1`) are (re)created by `scripts/certification/fixtures.mjs`, which every `cert:reset:*` npm script chains in after resetting the database — a local reset never leaves the app with zero usable accounts. Re-running the reset is idempotent: existing accounts get their password/profile refreshed in place rather than duplicated.
+
+Do **not** use `admin@openday.fit` / `pm@openday.fit` / `gc@openday.fit` / `viewer@construction.com` as your local dev login. Those are a separate, self-contained fixture set (`scripts/seed-test-users.mjs`) that the numbered Playwright E2E suite (`tests/e2e/01-login.spec.js` etc.) depends on internally — they are not guaranteed present after a plain `cert:reset:local`, and are not the credentials to use for manually poking around the app in a browser.
+
+To sanity-check local login without opening the app, run (from `weekly-tracker/`, with the local certification env vars set — see `../docs/LOCAL_E2E_SAFETY.md`):
+
+```
+npm run cert:check-local-auth
+```
+
+It prints PASS/FAIL per canonical account against `http://127.0.0.1:54321` only — no tokens or keys.
+
 ### Existing databases
 
 Do not replay the fresh-install path blindly on production. Apply only missing migrations, in numeric order, after checking which files were already applied. `010_rls_by_roles.sql` is idempotent and may be re-run to replace stale permissive policies, but it intentionally drops and recreates policies on the covered tables.

@@ -10,10 +10,11 @@
 
 import { randomUUID } from 'node:crypto';
 import { countRows, makeReporter, psql, requireCertificationEnvironment, signInAs } from './lib.mjs';
+import { getLocalFixturePassword } from './fixturePassword.mjs';
 
 await requireCertificationEnvironment();
 
-const PASSWORD = 'Cert-Test-Pass-1!';
+const PASSWORD = getLocalFixturePassword();
 // Contractor Workspace v1 fixture: KZ-TEST-02, zero project_gantt_tasks rows
 // (the legacy/non-Gantt regression scenario this whole fix targets).
 const LEGACY_PROJECT = 950002;
