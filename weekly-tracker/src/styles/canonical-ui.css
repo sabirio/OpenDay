@@ -221,6 +221,27 @@
   text-align: right;
 }
 
+/* Shared detail-content flow -------------------------------- */
+.canonical-detail-content {
+  min-width: 0;
+  min-height: 100%;
+  padding: var(--space-4);
+}
+
+.canonical-detail-flow {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.canonical-detail-flow.is-spaced {
+  gap: var(--space-4);
+}
+
+.canonical-detail-flow > * {
+  min-width: 0;
+}
+
 /* Responsive and protected field/mobile behavior ------------ */
 @media (max-width: 900px) {
   .sidebar {
@@ -274,5 +295,13 @@
   .detail-pane-tabs {
     gap: var(--space-4);
     padding-inline: var(--space-3);
+  }
+
+  .canonical-detail-flow.is-spaced {
+    gap: var(--space-3);
+  }
+
+  .canonical-detail-content {
+    padding: var(--space-3);
   }
 }

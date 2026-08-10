@@ -528,7 +528,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
             id="dashboard-detail-tabpanel"
             role="tabpanel"
             aria-labelledby={`dashboard-tab-${activeView}`}
-            className="dashboard-detail-tabpanel"
+            className="dashboard-detail-tabpanel canonical-detail-content"
           >
             {detailContent}
           </div>

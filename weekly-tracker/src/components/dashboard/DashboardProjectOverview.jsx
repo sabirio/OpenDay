@@ -3,27 +3,14 @@ import { formatDate } from '../../utils/reportUtils';
 import { getScheduleRiskLabel } from '../../hooks/useScheduleRiskPresentation';
 import { SchedBadge } from './DashboardWidgets';
 import { RiskBadge } from '../RiskGauge';
+import AttentionSurface from '../shared/detail/AttentionSurface.jsx';
+import AnalyticalSection from '../shared/detail/AnalyticalSection.jsx';
+import EmptyState from '../shared/detail/EmptyState.jsx';
+import EvidenceLedger from '../shared/detail/EvidenceLedger.jsx';
+import MetadataRows from '../shared/detail/MetadataRows.jsx';
 
 function displayValue(value, fallback = 'Not set') {
   return value === null || value === undefined || value === '' ? fallback : value;
-}
-
-function DetailField({ label, children }) {
-  return (
-    <div className="dashboard-detail-field">
-      <dt>{label}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
-
-function DetailSection({ title, children, className = '' }) {
-  return (
-    <section className={`dashboard-overview-region ${className}`.trim()}>
-      <h3>{title}</h3>
-      {children}
-    </section>
-  );
 }
 
 function AttentionItem({ title, evidence, context }) {
@@ -116,22 +103,82 @@ export default function DashboardProjectOverview({ row, siteVisits = [] }) {
     });
   }
 
+  const scheduleMetadata = [
+    {
+      label: 'Schedule status',
+      value: contractor.scheduleStatus ? <SchedBadge status={contractor.scheduleStatus} /> : 'Unavailable',
+    },
+    {
+      label: 'Construction window',
+      value: project.constructionStartDate || project.constructionEndDate
+        ? `${project.constructionStartDate ? formatDate(project.constructionStartDate) : 'Not set'} — ${project.constructionEndDate ? formatDate(project.constructionEndDate) : 'Not set'}`
+        : 'Not set',
+    },
+    {
+      label: 'Target opening',
+      value: project.targetOpeningDate ? formatDate(project.targetOpeningDate) : 'Not set',
+    },
+    {
+      label: 'Report source',
+      value: latestReportDate ? `Contractor report · ${formatDate(latestReportDate)}` : 'No current report',
+    },
+  ];
+
+  const evidenceItems = [
+    {
+      label: 'Contractor report',
+      value: latestReportDate ? formatDate(latestReportDate) : 'No report',
+      secondary: `${projReports?.length ?? 0} reports submitted`,
+    },
+    {
+      label: 'PM site visit',
+      value: pmVisit.latestVisitDate ? formatDate(pmVisit.latestVisitDate) : 'No visit',
+      secondary: `${siteVisits.length} visits · ${pmVisit.discrepancies ?? 0} discrepancies`,
+    },
+    {
+      label: 'Current-period freshness',
+      value: risk.missingReport ? 'Overdue' : 'Current',
+      secondary: risk.missingReport ? 'Contractor report' : 'Latest report available',
+    },
+    {
+      label: 'Coverage',
+      value: confidenceLabel,
+      secondary: `${projReports?.length ?? 0} reports · ${siteVisits.length} visits`,
+    },
+  ];
+
+  const contextItems = [
+    {
+      label: 'Project',
+      value: [
+        project.storeConcept || project.projectType,
+        project.storeSizeSqm ? `${project.storeSizeSqm} m²` : null,
+      ].filter(Boolean).join(' · ') || 'Not set',
+    },
+    { label: 'Location', value: displayValue(location) },
+    { label: 'Project manager', value: displayValue(project.projectManager) },
+    { label: 'General contractor', value: displayValue(project.generalContractor) },
+    { label: 'Location type', value: displayValue(project.locationType) },
+    { label: 'Sales market', value: displayValue(project.salesMarket) },
+  ];
+
   return (
-    <div className="dashboard-project-overview">
-      <DetailSection title="Needs Attention" className="dashboard-needs-attention">
-        <div className="dashboard-needs-attention-heading">
-          <span>{attentionItems.length === 1 ? '1 issue' : `${attentionItems.length} issues`}</span>
-        </div>
+    <div className="dashboard-project-overview canonical-detail-flow is-spaced">
+      <AttentionSurface
+        title="Needs Attention"
+        accessory={attentionItems.length === 1 ? '1 issue' : `${attentionItems.length} issues`}
+        className="dashboard-needs-attention"
+      >
         {attentionItems.length > 0 ? (
           <div className="dashboard-needs-attention-list">
-            {attentionItems.map((item) => <AttentionItem key={item.key} {...item} />)}
+            {attentionItems.map(({ key, ...item }) => <AttentionItem key={key} {...item} />)}
           </div>
         ) : (
-          <p className="dashboard-attention-empty">No current attention items</p>
+          <EmptyState title="No current attention items" className="dashboard-attention-empty" />
         )}
-      </DetailSection>
+      </AttentionSurface>
 
-      <DetailSection title="Operational Status" className="dashboard-operational-status">
+      <AnalyticalSection title="Operational Status" className="dashboard-operational-status" ruled={false}>
         <div className="dashboard-status-strip">
           <StatusItem label="Progress" value={`${progress}%`} detail="Canonical overall" className="is-progress">
             <div
@@ -159,63 +206,19 @@ export default function DashboardProjectOverview({ row, siteVisits = [] }) {
             detail={risk.missingReport ? 'Current period overdue' : 'Current period available'}
           />
         </div>
-      </DetailSection>
+      </AnalyticalSection>
 
-      <DetailSection title="Schedule & Progress" className="dashboard-schedule-section">
-        <dl className="dashboard-detail-grid dashboard-schedule-grid">
-          <DetailField label="Schedule status">
-            {contractor.scheduleStatus ? <SchedBadge status={contractor.scheduleStatus} /> : 'Unavailable'}
-          </DetailField>
-          <DetailField label="Construction window">
-            {project.constructionStartDate || project.constructionEndDate
-              ? `${project.constructionStartDate ? formatDate(project.constructionStartDate) : 'Not set'} — ${project.constructionEndDate ? formatDate(project.constructionEndDate) : 'Not set'}`
-              : 'Not set'}
-          </DetailField>
-          <DetailField label="Target opening">
-            {project.targetOpeningDate ? formatDate(project.targetOpeningDate) : 'Not set'}
-          </DetailField>
-          <DetailField label="Report source">
-            {latestReportDate ? `Contractor report · ${formatDate(latestReportDate)}` : 'No current report'}
-          </DetailField>
-        </dl>
-      </DetailSection>
+      <AnalyticalSection title="Schedule & Progress" className="dashboard-schedule-section">
+        <MetadataRows items={scheduleMetadata} columns={4} className="dashboard-detail-grid dashboard-schedule-grid" />
+      </AnalyticalSection>
 
-      <DetailSection title="Recent Operational Evidence" className="dashboard-evidence-section">
-        <dl className="dashboard-evidence-ledger">
-          <DetailField label="Contractor report">
-            <strong>{latestReportDate ? formatDate(latestReportDate) : 'No report'}</strong>
-            <span>{projReports?.length ?? 0} reports submitted</span>
-          </DetailField>
-          <DetailField label="PM site visit">
-            <strong>{pmVisit.latestVisitDate ? formatDate(pmVisit.latestVisitDate) : 'No visit'}</strong>
-            <span>{siteVisits.length} visits · {pmVisit.discrepancies ?? 0} discrepancies</span>
-          </DetailField>
-          <DetailField label="Current-period freshness">
-            <strong>{risk.missingReport ? 'Overdue' : 'Current'}</strong>
-            <span>{risk.missingReport ? 'Contractor report' : 'Latest report available'}</span>
-          </DetailField>
-          <DetailField label="Coverage">
-            <strong>{confidenceLabel}</strong>
-            <span>{projReports?.length ?? 0} reports · {siteVisits.length} visits</span>
-          </DetailField>
-        </dl>
-      </DetailSection>
+      <AnalyticalSection title="Recent Operational Evidence" className="dashboard-evidence-section">
+        <EvidenceLedger items={evidenceItems} layout="grid" columns={4} className="dashboard-evidence-ledger" />
+      </AnalyticalSection>
 
-      <DetailSection title="Project Context" className="dashboard-secondary-context">
-        <dl className="dashboard-context-list">
-          <DetailField label="Project">
-            {[
-              project.storeConcept || project.projectType,
-              project.storeSizeSqm ? `${project.storeSizeSqm} m²` : null,
-            ].filter(Boolean).join(' · ') || 'Not set'}
-          </DetailField>
-          <DetailField label="Location">{displayValue(location)}</DetailField>
-          <DetailField label="Project manager">{displayValue(project.projectManager)}</DetailField>
-          <DetailField label="General contractor">{displayValue(project.generalContractor)}</DetailField>
-          <DetailField label="Location type">{displayValue(project.locationType)}</DetailField>
-          <DetailField label="Sales market">{displayValue(project.salesMarket)}</DetailField>
-        </dl>
-      </DetailSection>
+      <AnalyticalSection title="Project Context" className="dashboard-secondary-context">
+        <MetadataRows items={contextItems} columns={6} className="dashboard-context-list" />
+      </AnalyticalSection>
     </div>
   );
 }

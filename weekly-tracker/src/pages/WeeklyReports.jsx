@@ -39,6 +39,9 @@ import WeeklyReportTabs from "../components/weekly/WeeklyReportTabs";
 import ActionRequiredPanel from "../components/weekly/ActionRequiredPanel";
 import PhaseBoard from "../components/weekly/PhaseBoard";
 import CompactProgressTrend from "../components/weekly/CompactProgressTrend";
+import AnalyticalSection from "../components/shared/detail/AnalyticalSection.jsx";
+import EmptyState from "../components/shared/detail/EmptyState.jsx";
+import EvidenceLedger from "../components/shared/detail/EvidenceLedger.jsx";
 
 const GanttChart = React.lazy(() => import("../components/GanttChart"));
 
@@ -339,7 +342,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           detail={(
             <div
               id="weekly-detail-tabpanel"
-              className="weekly-detail-tabpanel"
+              className="weekly-detail-tabpanel canonical-detail-content"
               role={selectedReport ? "tabpanel" : undefined}
               aria-labelledby={selectedReport ? `weekly-tab-${activeReviewTab}` : undefined}
             >
@@ -388,14 +391,16 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
             {/* Empty state */}
             {projectReports.length === 0 && selectedProject && (
-              <div className="dashboard-summary-card weekly-report-empty">
-                <h2>No contractor reports yet</h2>
-                <p>This project has no weekly contractor submission to verify. Once a report is submitted, progress, risks, photos, and PM comparison will appear here.</p>
-              </div>
+              <EmptyState
+                size="pane"
+                title="No contractor reports yet"
+                description="This project has no weekly contractor submission to verify. Once a report is submitted, progress, risks, photos, and PM comparison will appear here."
+                className="weekly-report-empty"
+              />
             )}
 
             {selectedReport && activeReviewTab === "overview" && (
-              <section className="weekly-overview-main">
+              <section className="weekly-overview-main canonical-detail-flow">
                 <ActionRequiredPanel
                   report={selectedReport}
                   svKpis={svKpis}
@@ -403,15 +408,19 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                   additionalWorksList={additionalWorksList}
                 />
 
-                <section className="weekly-overview-section" aria-labelledby="weekly-progress-heading">
-                  <div className="weekly-section-title-row">
-                    <h2 id="weekly-progress-heading">Weekly progress and change</h2>
+                <AnalyticalSection
+                  title="Weekly progress and change"
+                  headingLevel="h2"
+                  id="weekly-progress-heading"
+                  className="weekly-overview-section"
+                  accessory={(
                     <CompactProgressTrend
                       series={progressSeries}
                       scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
                       spi={engineOutputs?.progressComparison?.spi}
                     />
-                  </div>
+                  )}
+                >
                   <ReportTruthBar
                     overallProgress={overallProgress}
                     progressComparison={engineOutputs?.progressComparison}
@@ -421,7 +430,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                     portfolioKpis={portfolioKpis}
                     additionalWorksList={additionalWorksList}
                   />
-                </section>
+                </AnalyticalSection>
 
                 <ProgressNarrative
                   progressComparison={engineOutputs?.progressComparison}
@@ -429,23 +438,32 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                   explainResult={explainResult}
                 />
 
-                <section className="weekly-overview-section" aria-labelledby="weekly-lookahead-heading">
-                  <h2 id="weekly-lookahead-heading">Key exceptions and lookahead</h2>
+                <AnalyticalSection
+                  title="Key exceptions and lookahead"
+                  headingLevel="h2"
+                  id="weekly-lookahead-heading"
+                  className="weekly-overview-section"
+                >
                   <ReportLinksBlock report={selectedReport} />
-                </section>
+                </AnalyticalSection>
 
-                <section className="weekly-evidence-summary" aria-labelledby="weekly-evidence-heading">
-                  <div className="weekly-section-title-row">
-                    <h2 id="weekly-evidence-heading">Recent evidence summary</h2>
-                    <span>{selectedReport.photos?.length ?? 0} photos</span>
-                  </div>
-                  <div className="weekly-evidence-ledger">
-                    <div><span>Contractor report</span><strong>{selectedReport.reportingDate || formatDate(selectedReport.submittedAt)}</strong></div>
-                    <div><span>PM verification</span><strong>{svKpis.totalVisits > 0 ? `${svKpis.overallMatchRate ?? '—'}% match · ${svKpis.totalDiscrepancies} discrepancies` : 'Not verified'}</strong></div>
-                    <div><span>Photo evidence</span><strong>{selectedReport.photos?.length ? `${selectedReport.photos.length} attached` : 'No photos attached'}</strong></div>
-                    <div><span>Additional works</span><strong>{additionalWorksList.entries.length} reported</strong></div>
-                  </div>
-                </section>
+                <AnalyticalSection
+                  title="Recent evidence summary"
+                  headingLevel="h2"
+                  id="weekly-evidence-heading"
+                  className="weekly-evidence-summary"
+                  accessory={`${selectedReport.photos?.length ?? 0} photos`}
+                >
+                  <EvidenceLedger
+                    className="weekly-evidence-ledger"
+                    items={[
+                      { label: 'Contractor report', value: selectedReport.reportingDate || formatDate(selectedReport.submittedAt) },
+                      { label: 'PM verification', value: svKpis.totalVisits > 0 ? `${svKpis.overallMatchRate ?? '—'}% match · ${svKpis.totalDiscrepancies} discrepancies` : 'Not verified' },
+                      { label: 'Photo evidence', value: selectedReport.photos?.length ? `${selectedReport.photos.length} attached` : 'No photos attached' },
+                      { label: 'Additional works', value: `${additionalWorksList.entries.length} reported` },
+                    ]}
+                  />
+                </AnalyticalSection>
 
                 <PhaseBoard
                   phases={phaseClassifications}

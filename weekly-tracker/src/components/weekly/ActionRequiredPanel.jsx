@@ -24,12 +24,15 @@ export default function ActionRequiredPanel({ report, svKpis, portfolioKpis, add
   const allClear = !hasRisk && !hasBlocked && !hasSupport && !hasAdditionalWorks && missingReports === 0 && hasPmVisit && hasPhotos;
 
   return (
-    <aside className={allClear ? 'weekly-action-panel is-clear' : 'weekly-action-panel'} aria-label="Action required">
-      <div className="weekly-action-heading">
-        <h2>Report status and attention</h2>
-        <span>PM review</span>
-      </div>
-
+    <AttentionSurface
+      as="aside"
+      title="Report status and attention"
+      headingLevel="h2"
+      accessory="PM review"
+      tone={allClear ? 'calm' : 'attention'}
+      className="weekly-action-panel"
+      aria-label="Action required"
+    >
       {allClear ? (
         <div className="weekly-action-clear">
           <strong>All clear</strong>
@@ -60,6 +63,7 @@ export default function ActionRequiredPanel({ report, svKpis, portfolioKpis, add
           )}
         </div>
       )}
-    </aside>
+    </AttentionSurface>
   );
 }
+import AttentionSurface from '../shared/detail/AttentionSurface.jsx';

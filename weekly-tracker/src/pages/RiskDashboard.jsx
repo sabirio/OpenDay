@@ -247,7 +247,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
         detail={(
           <div
             id="risk-detail-tabpanel"
-            className="risk-detail-tabpanel"
+            className="risk-detail-tabpanel canonical-detail-content"
             role="tabpanel"
             aria-labelledby={`risk-tab-${activeTab}`}
           >
