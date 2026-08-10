@@ -64,17 +64,15 @@ console.log('\nDashboard hierarchy — Level 1 attention before secondary/static
 
 const attentionIdx = dashboard.indexOf('<DashboardAttentionStrip');
 const alertsIdx     = dashboard.indexOf('<PortfolioAlerts');
-const healthIdx     = dashboard.indexOf('<PortfolioHealthSummary');
-const scopeIdx      = dashboard.indexOf('<PortfolioScopeSummary');
+const panelIdx      = dashboard.indexOf('<PortfolioSummaryPanel');
 const snapshotIdx   = dashboard.indexOf('dashboard-snapshot-disclosure');
 const matrixIdx     = dashboard.indexOf('<StatusMatrix');
 
-check('all five Dashboard Overview regions are present', [attentionIdx, alertsIdx, healthIdx, scopeIdx, snapshotIdx, matrixIdx].every((i) => i !== -1));
+check('all compact Dashboard Overview regions are present', [attentionIdx, alertsIdx, panelIdx, snapshotIdx, matrixIdx].every((i) => i !== -1));
 check('Level-1 attention strip renders before the SPI alert list', attentionIdx < alertsIdx);
-check('Level-1 signals (attention strip + alerts) render before Level-2 health', alertsIdx < healthIdx);
-check('Level-2 health renders before Level-3 static scope', healthIdx < scopeIdx);
-check('Level-3 scope renders before the demoted Snapshot disclosure', scopeIdx < snapshotIdx);
-check('Snapshot disclosure renders before the per-project StatusMatrix detail table', snapshotIdx < matrixIdx);
+check('Level-1 signals render before the compact Portfolio panel', alertsIdx < panelIdx);
+check('the Project Status Matrix follows the compact Portfolio panel directly in the decision flow', panelIdx < matrixIdx);
+check('the demoted Snapshot disclosure follows the Project Status Matrix', matrixIdx < snapshotIdx);
 
 check('Snapshot is now a closed-by-default disclosure, not a permanently-visible control', dashboard.includes('<details className="dashboard-snapshot-disclosure"') && dashboard.includes('open={Boolean(snapshotWeek)}'));
 
@@ -85,7 +83,7 @@ check('DashboardAttentionStrip only reads pre-computed kpis fields (no Math., no
 check('DashboardAttentionStrip does not import any engine directly', !/from ['"].*\/engines\//.test(attentionStrip));
 check('DashboardAttentionStrip consumes the same kpis fields computePortfolioKpis already produces (critical/atRisk/missing/blocked/support)', ['critical', 'atRisk', 'missing', 'blocked', 'support'].every((key) => attentionStrip.includes(`'${key}'`) || attentionStrip.includes(`"${key}"`)));
 check('Dashboard.jsx does not import engines/core directly (still goes through the useDashboardModel hook)', !/from ["']\.\.\/(engines|core)\//.test(dashboard));
-check('SummaryPanel.jsx split preserves the single existing hook call (no new calculation introduced by the split)', (summaryPanel.match(/useDashboardSummaryPanelModel\(/g) || []).length === 1);
+check('SummaryPanel.jsx preserves the single existing hook call (no new calculation introduced by consolidation)', (summaryPanel.match(/useDashboardSummaryPanelModel\(/g) || []).length === 1);
 
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail ? 1 : 0);

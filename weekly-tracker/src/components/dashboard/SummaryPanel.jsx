@@ -1,151 +1,202 @@
-import { KpiCard } from './DashboardWidgets';
 import Icon from '../shared/Icon';
 import { formatDate } from '../../utils/reportUtils';
-import { maxOf } from '../../hooks/useChartMathPresentation';
+import { computeGaugeArc, ratioToPercent } from '../../hooks/useChartMathPresentation';
 import { useDashboardSummaryPanelModel } from '../../hooks/useDashboardSummaryPanelModel';
 
-const DONUT_SEGMENTS = [
-  { label: 'On Track',  key: 'On Track',  color: 'var(--status-done)'   },
-  { label: 'At Risk',   key: 'At Risk',   color: 'var(--status-warn)'   },
-  { label: 'Delayed',   key: 'Delayed',   color: 'var(--status-warn)'   },
-  { label: 'Critical',  key: 'Critical',  color: 'var(--status-alert)'  },
-  { label: 'No Report', key: null,        color: 'var(--border-strong)' },
+const STATUS_SEGMENTS = [
+  { label: 'On Track', key: 'On Track', color: 'var(--status-done)' },
+  { label: 'At Risk', key: 'At Risk', color: 'var(--status-warn)' },
+  { label: 'Delayed', key: 'Delayed', color: 'var(--status-warn)' },
+  { label: 'Critical', key: 'Critical', color: 'var(--status-alert)' },
+  { label: 'No Report', key: null, color: 'var(--border-strong)' },
 ];
 
-function SmallDonut({ counts, total }) {
-  const r = 20, cx = 32, cy = 32, sw = 9;
-  const circ = 2 * Math.PI * r;
-  const safeTotal = maxOf([total, 1]);
-  const allOnTrack = total > 0 && (counts['On Track'] ?? 0) === total;
-  const onTrack = counts['On Track'] ?? 0;
-  const centerLabel = allOnTrack ? '100% OK' : `${onTrack} OK`;
+function StatusLegend({ counts }) {
+  return (
+    <div className="dashboard-portfolio-status-legend">
+      {STATUS_SEGMENTS.map(({ label, key, color }) => {
+        const count = counts[key] ?? 0;
+        return (
+          <div className="dashboard-portfolio-status-row" key={label}>
+            <span className="dashboard-portfolio-status-label">
+              <span className="dashboard-portfolio-status-dot" style={{ background: color, opacity: count === 0 ? 0.35 : 1 }} />
+              {label}
+            </span>
+            <strong style={{ color: count === 0 ? 'var(--text-muted)' : color }}>{count}</strong>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-  let cumOffset = 0;
-  const arcs = DONUT_SEGMENTS.map(seg => {
-    const n = counts[seg.key] ?? 0;
-    const segLen = (n / safeTotal) * circ;
-    const dashoffset = circ - cumOffset;
-    cumOffset += segLen;
-    return { ...seg, n, segLen, dashoffset };
-  });
+function PortfolioStatusBar({ counts, total }) {
+  return (
+    <div
+      className="dashboard-portfolio-status-bar"
+      role="img"
+      aria-label={`Portfolio status distribution for ${total} projects`}
+    >
+      {STATUS_SEGMENTS.map(({ label, key, color }) => {
+        const count = counts[key] ?? 0;
+        if (count === 0) return null;
+        return (
+          <span
+            key={label}
+            title={`${label}: ${count}`}
+            style={{ width: `${ratioToPercent(count, total)}%`, background: color }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function PortfolioDonut({ counts, total }) {
+  const radius = 22;
+  const onTrackArc = computeGaugeArc(counts['On Track'] ?? 0, total, radius);
+  const atRiskArc = computeGaugeArc(counts['At Risk'] ?? 0, total, radius);
+  const delayedArc = computeGaugeArc(counts.Delayed ?? 0, total, radius);
+  const criticalArc = computeGaugeArc(counts.Critical ?? 0, total, radius);
+  const noReportArc = computeGaugeArc(counts.null ?? 0, total, radius);
+  const arcs = [
+    { ...STATUS_SEGMENTS[0], count: counts['On Track'] ?? 0, dash: onTrackArc.dash, dashOffset: 'var(--ring-circumference)' },
+    { ...STATUS_SEGMENTS[1], count: counts['At Risk'] ?? 0, dash: atRiskArc.dash, dashOffset: 'calc(var(--ring-circumference) - var(--ring-on-track))' },
+    { ...STATUS_SEGMENTS[2], count: counts.Delayed ?? 0, dash: delayedArc.dash, dashOffset: 'calc(var(--ring-circumference) - var(--ring-on-track) - var(--ring-at-risk))' },
+    { ...STATUS_SEGMENTS[3], count: counts.Critical ?? 0, dash: criticalArc.dash, dashOffset: 'calc(var(--ring-circumference) - var(--ring-on-track) - var(--ring-at-risk) - var(--ring-delayed))' },
+    { ...STATUS_SEGMENTS[4], count: counts.null ?? 0, dash: noReportArc.dash, dashOffset: 'calc(var(--ring-circumference) - var(--ring-on-track) - var(--ring-at-risk) - var(--ring-delayed) - var(--ring-critical))' },
+  ];
 
   return (
-    <div className="dashboard-donut-wrap">
-      <svg width={104} height={104} viewBox="0 0 64 64" style={{ flexShrink: 0 }}>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border)" strokeWidth={sw} />
-        {allOnTrack ? (
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--status-done)" strokeWidth={sw} />
-        ) : arcs.map(({ label, color, n, segLen, dashoffset }) =>
-          n > 0 ? (
-            <circle
-              key={label}
-              cx={cx} cy={cy} r={r}
-              fill="none"
-              stroke={color}
-              strokeWidth={sw}
-              strokeDasharray={`${segLen} ${circ - segLen}`}
-              strokeDashoffset={dashoffset}
-              style={{ transform: 'rotate(-90deg)', transformOrigin: '32px 32px' }}
-            />
-          ) : null
-        )}
-        <text x={cx} y={cy - 1} textAnchor="middle" fontSize={10} fontWeight={800} fill="var(--text-primary)">{centerLabel}</text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="var(--text-muted)">{total} projects</text>
-      </svg>
+    <svg
+      className="dashboard-portfolio-donut"
+      width="92"
+      height="92"
+      viewBox="0 0 64 64"
+      role="img"
+      aria-label={`Portfolio status distribution for ${total} projects`}
+      style={{
+        '--ring-circumference': onTrackArc.circumference,
+        '--ring-on-track': onTrackArc.dash,
+        '--ring-at-risk': atRiskArc.dash,
+        '--ring-delayed': delayedArc.dash,
+        '--ring-critical': criticalArc.dash,
+      }}
+    >
+      {arcs.map(({ label, color, count, dash, dashOffset }) => count > 0 && (
+        <circle
+          key={label}
+          cx="32"
+          cy="32"
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="8"
+          style={{
+            strokeDasharray: `${dash} var(--ring-circumference)`,
+            strokeDashoffset: dashOffset,
+            transform: 'rotate(-90deg)',
+            transformOrigin: '32px 32px',
+          }}
+        />
+      ))}
+      <text x="32" y="31" textAnchor="middle" fontSize="13" fontWeight="800" fill="var(--text-primary)">{total}</text>
+      <text x="32" y="40" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="var(--text-muted)">Projects</text>
+    </svg>
+  );
+}
 
-      <div className="dashboard-donut-legend">
-        {DONUT_SEGMENTS.map(({ label, key, color }) => {
-          const n = counts[key] ?? 0;
-          return (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, opacity: n === 0 ? 0.3 : 1 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 64 }}>{label}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: n === 0 ? 'var(--text-muted)' : color }}>{n}</span>
-            </div>
-          );
-        })}
+function PortfolioHealth({ counts, total }) {
+  return (
+    <div className="dashboard-portfolio-column dashboard-portfolio-health-column">
+      <h2>Portfolio Health</h2>
+      {total > 0 ? (
+        <>
+          <div className={total <= 5 ? 'dashboard-portfolio-health-compact' : 'dashboard-portfolio-health-donut'}>
+            {total <= 5
+              ? <PortfolioStatusBar counts={counts} total={total} />
+              : <PortfolioDonut counts={counts} total={total} />}
+            <StatusLegend counts={counts} />
+          </div>
+        </>
+      ) : (
+        <p className="dashboard-portfolio-empty">No health signal yet</p>
+      )}
+    </div>
+  );
+}
+
+function PortfolioScope({ kpis }) {
+  const closed = kpis.total - kpis.active;
+
+  return (
+    <div className="dashboard-portfolio-column dashboard-portfolio-scope-column">
+      <h2>Portfolio Scope</h2>
+      <div className="dashboard-portfolio-total"><strong>{kpis.total}</strong><span>Projects</span></div>
+      <dl className="dashboard-portfolio-scope-grid">
+        <div><dt>Active</dt><dd>{kpis.active}</dd></div>
+        <div><dt>Closed</dt><dd>{closed}</dd></div>
+        <div><dt>New Opening</dt><dd>{kpis.newOpening}</dd></div>
+        <div><dt>Rebuilding</dt><dd>{kpis.rebuilding}</dd></div>
+      </dl>
+    </div>
+  );
+}
+
+function PortfolioReporting({ kpis, reportsTotal, svKpis, lastVisitDate }) {
+  const siteVisits = svKpis?.totalVisits ?? 0;
+  const siteVisitMeta = siteVisits > 0 && lastVisitDate ? `Last ${formatDate(lastVisitDate)}` : 'No visits yet';
+
+  return (
+    <div className="dashboard-portfolio-column dashboard-portfolio-reporting-column">
+      <h2>Reporting &amp; Site Visits</h2>
+      <div className="dashboard-portfolio-reporting-grid">
+        <div>
+          <span>Reports This Week</span>
+          <strong>{kpis.reportsThisWeek}</strong>
+          <small>{reportsTotal} total</small>
+        </div>
+        <div>
+          <span>Site Visits</span>
+          <strong>{siteVisits}</strong>
+          <small>{siteVisitMeta}</small>
+        </div>
       </div>
+      {kpis.total > 0 && kpis.missing > 0 && (
+        <p className="dashboard-portfolio-missing-callout">
+          {kpis.missing} of {kpis.total} projects missing current reporting
+        </p>
+      )}
     </div>
   );
 }
 
 /**
- * Level-2 portfolio health signal (the donut) plus its Monte Carlo warning
- * — split from the former combined "Portfolio Scope & Health" section so
- * Dashboard.jsx can position this ahead of the Level-3 static Scope cluster
- * (Phase 2 information-hierarchy fix). Same canonical model/hook as before,
- * no new calculation.
+ * Compact Portfolio Overview surface. All values are existing canonical model
+ * outputs; the total-project status bar is a presentation-only alternative to
+ * the donut for portfolios of five projects or fewer.
  */
-export function PortfolioHealthSummary({ rows, allRows = [] }) {
+export function PortfolioSummaryPanel({ rows, allRows = [], kpis, reportsTotal, svKpis, lastVisitDate }) {
   const { analytics, donutCounts, donutTotal } = useDashboardSummaryPanelModel(rows, allRows);
 
   return (
     <>
       {analytics?.mcRiskyCount > 0 && (
-        <div style={{
-          background: 'var(--status-warn-bg)',
-          border: '1px solid var(--status-warn)',
-          borderRadius: 10,
-          padding: '8px 14px',
-          marginBottom: 10,
-          display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
-        }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, color: 'var(--status-warn)' }}>
-            <Icon name="warning" size={14} /> Monte Carlo Warning:
-          </span>
-          <span style={{ color: 'var(--status-warn)' }}>
-            {analytics.mcRiskyCount} project{analytics.mcRiskyCount > 1 ? 's' : ''} have &lt;50% probability of opening on time
-          </span>
+        <div className="dashboard-portfolio-monte-carlo-warning">
+          <strong><Icon name="warning" size={14} /> Monte Carlo Warning:</strong>
+          <span>{analytics.mcRiskyCount} project{analytics.mcRiskyCount > 1 ? 's' : ''} have &lt;50% probability of opening on time</span>
         </div>
       )}
-
-      <div className="dashboard-kpi-cluster dashboard-health-card">
-        <div className="dashboard-kpi-cluster-title">Portfolio Health</div>
-        {donutTotal > 0 ? <SmallDonut counts={donutCounts} total={donutTotal} /> : (
-          <div className="empty-state" style={{ padding: 12 }}>
-            <div className="empty-state__title">No health signal yet</div>
-          </div>
-        )}
-      </div>
+      <section className="dashboard-portfolio-panel" aria-label="Portfolio overview summary">
+        <PortfolioHealth counts={donutCounts} total={donutTotal} />
+        <PortfolioScope kpis={kpis} />
+        <PortfolioReporting
+          kpis={kpis}
+          reportsTotal={reportsTotal}
+          svKpis={svKpis}
+          lastVisitDate={lastVisitDate}
+        />
+      </section>
     </>
-  );
-}
-
-/**
- * Level-3 static portfolio scope counts (total/active/new-opening/
- * rebuilding) — reference metadata, not a decision signal. Demoted below
- * Health/Reporting in Dashboard.jsx's Phase 2 hierarchy.
- */
-export function PortfolioScopeSummary({ kpis }) {
-  return (
-    <div className="dashboard-kpi-cluster">
-      <div className="dashboard-kpi-cluster-title">Portfolio Scope</div>
-      <div className="dashboard-kpi-mini-grid">
-        <KpiCard label="Total Projects" value={kpis.total} color="var(--text-secondary)" />
-        <KpiCard label="Active" value={kpis.active} color="var(--status-done)" sub={`${kpis.total - kpis.active} closed`} />
-      </div>
-      <div className="dashboard-kpi-meta">
-        <span>{kpis.newOpening} new opening</span>
-        <span>{kpis.rebuilding} rebuilding</span>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Inspector "Reporting" section — reporting activity/evidence-flow
- * context. Secondary to Main Workspace's headline scope/health signals,
- * so it lives in the narrow rail rather than competing for primary
- * reading-path space.
- */
-export function ReportingSummary({ kpis, reportsTotal, svKpis, lastVisitDate }) {
-  const siteVisitValue = svKpis?.totalVisits ?? 0;
-  const siteVisitSub = siteVisitValue > 0 && lastVisitDate ? `Last ${formatDate(lastVisitDate)}` : 'No visits yet';
-
-  return (
-    <div className="dashboard-kpi-mini-grid">
-      <KpiCard label="Reports This Week" value={kpis.reportsThisWeek} color="var(--accent)" sub={`${reportsTotal} total`} />
-      <KpiCard label="Site Visits" value={siteVisitValue} color="var(--text-secondary)" sub={siteVisitSub} />
-    </div>
   );
 }

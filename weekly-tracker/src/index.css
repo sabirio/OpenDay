@@ -535,11 +535,9 @@ body {
 
 
 /* Project Dashboard polish: operational KPI row, desktop-fit matrix, controls, tabs. */
-/* Phase 3 chrome reduction: both consumers (PortfolioHealthSummary,
-   PortfolioScopeSummary in SummaryPanel.jsx) always render inside a
-   .dashboard-detail-section, which already supplies the border/background/
-   padding — this class previously repeated the identical bg-surface fill
-   with its own radius/padding, a no-payoff nested box. Now title-only. */
+/* Phase 3 chrome reduction: remaining legacy KPI-cluster consumers inherit
+   their surface chrome from their parent section instead of nesting another
+   border/background/padding layer. */
 .dashboard-kpi-cluster {
   min-width: 0;
 }
@@ -3580,21 +3578,6 @@ button.weekly-phase-row {
   overflow: hidden;
 }
 
-.dashboard-page-header {
-  flex-shrink: 0;
-  margin-bottom: 14px;
-}
-
-.dashboard-current-date {
-  align-self: center;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.dashboard-master-detail {
-  background: var(--bg-surface);
-}
-
 .master-pane-header {
   padding: 13px 14px 11px;
   border-bottom: 1px solid var(--border);
@@ -4099,6 +4082,206 @@ button.weekly-phase-row {
   height: 28px;
 }
 
+.dashboard-portfolio-panel {
+  display: grid;
+  grid-template-areas: "health scope reporting";
+  grid-template-columns: minmax(0, 1.05fr) minmax(190px, 0.85fr) minmax(260px, 1.15fr);
+  min-width: 0;
+  min-height: 172px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+}
+
+.dashboard-portfolio-column {
+  min-width: 0;
+  min-height: 170px;
+  padding: 14px 16px;
+}
+
+.dashboard-portfolio-column + .dashboard-portfolio-column {
+  border-left: 1px solid var(--border);
+}
+
+.dashboard-portfolio-health-column { grid-area: health; }
+.dashboard-portfolio-scope-column { grid-area: scope; }
+.dashboard-portfolio-reporting-column { grid-area: reporting; }
+
+.dashboard-portfolio-column h2 {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.dashboard-portfolio-health-compact {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-portfolio-health-donut {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.dashboard-portfolio-status-bar {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+}
+
+.dashboard-portfolio-status-bar > span {
+  display: block;
+  height: 100%;
+}
+
+.dashboard-portfolio-donut {
+  flex-shrink: 0;
+}
+
+.dashboard-portfolio-status-legend {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dashboard-portfolio-status-row,
+.dashboard-portfolio-status-label {
+  display: flex;
+  align-items: center;
+}
+
+.dashboard-portfolio-status-row {
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 15px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+
+.dashboard-portfolio-status-label {
+  gap: 7px;
+}
+
+.dashboard-portfolio-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: var(--radius-full);
+}
+
+.dashboard-portfolio-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-portfolio-total {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.dashboard-portfolio-total strong {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  line-height: 1.1;
+}
+
+.dashboard-portfolio-total span {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.dashboard-portfolio-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.dashboard-portfolio-scope-grid dt,
+.dashboard-portfolio-reporting-grid span {
+  color: var(--text-muted);
+  font-size: 0.5625rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.dashboard-portfolio-scope-grid dd {
+  margin: 1px 0 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.dashboard-portfolio-reporting-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-portfolio-reporting-grid > div {
+  display: grid;
+  align-content: start;
+}
+
+.dashboard-portfolio-reporting-grid strong {
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.dashboard-portfolio-reporting-grid small {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  line-height: 1.4;
+}
+
+.dashboard-portfolio-missing-callout {
+  margin: 10px 0 0;
+  padding: 7px 10px;
+  border-radius: 4px;
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.dashboard-portfolio-monte-carlo-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--status-warn);
+  border-radius: 6px;
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
+  font-size: 0.75rem;
+}
+
+.dashboard-portfolio-monte-carlo-warning strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .dashboard-portfolio-tools {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
@@ -4193,6 +4376,18 @@ button.weekly-phase-row {
 }
 
 @media (max-width: 1180px) {
+  .dashboard-portfolio-panel {
+    grid-template-areas:
+      "health scope"
+      "reporting reporting";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-portfolio-reporting-column {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
   .dashboard-project-overview {
     grid-template-columns: 1fr;
   }
@@ -4274,12 +4469,26 @@ button.weekly-phase-row {
 }
 
 @media (max-width: 640px) {
-  .dashboard-current-date {
-    display: none;
+  .dashboard-portfolio-panel {
+    grid-template-areas:
+      "health"
+      "reporting"
+      "scope";
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .dashboard-page-header {
-    margin-bottom: 12px;
+  .dashboard-portfolio-column + .dashboard-portfolio-column {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .dashboard-portfolio-health-donut {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-portfolio-monte-carlo-warning {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .master-pane-header {
@@ -4337,6 +4546,579 @@ button.weekly-phase-row {
   .dashboard-attention-row > span:nth-child(4),
   .dashboard-attention-row > span:nth-child(5) {
     display: none;
+  }
+}
+
+/* ============================================================
+   PROJECT DASHBOARD — Phase 10 certified Figma presentation
+   Dashboard-scoped overrides only. Shared MasterDetail behavior, domain
+   models, filters, actions and tab mechanics remain owned by React.
+   ============================================================ */
+.dashboard-page .dashboard-master-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dashboard-page .dashboard-master-title-row,
+.dashboard-page .dashboard-master-heading {
+  display: flex;
+  align-items: center;
+}
+
+.dashboard-page .dashboard-master-title-row {
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.dashboard-page .dashboard-master-heading {
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dashboard-page .master-pane-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.dashboard-page .dashboard-master-heading > span {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.dashboard-page .master-filter-select {
+  width: auto;
+  min-width: 88px;
+}
+
+.dashboard-page .master-filter-row {
+  margin: 0;
+}
+
+.dashboard-page .master-quick-filters {
+  gap: var(--space-1);
+}
+
+.dashboard-page .master-list-row:not(.master-list-row--portfolio) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(88px, 0.8fr);
+  grid-template-rows: repeat(3, minmax(0, auto));
+  column-gap: var(--space-2);
+  padding-block: var(--space-1);
+}
+
+.dashboard-page .master-row-top {
+  grid-column: 1 / -1;
+  min-height: 20px;
+}
+
+.dashboard-page .master-row-top strong {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dashboard-page .master-row-name {
+  margin-top: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.dashboard-page .master-row-location {
+  display: block;
+  margin-top: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-page .master-row-bottom {
+  grid-column: 1 / -1;
+  min-height: 16px;
+  margin-top: 0;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.dashboard-page .master-row-progress {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.dashboard-page .dashboard-detail-identity {
+  align-items: flex-start;
+}
+
+.dashboard-page .dashboard-detail-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2px);
+  min-width: 0;
+}
+
+.dashboard-page .dashboard-detail-code,
+.dashboard-page .dashboard-detail-context {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dashboard-page .dashboard-detail-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.dashboard-page .dashboard-health-reporting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.7fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.dashboard-page .dashboard-detail-meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.dashboard-page .dashboard-detail-status-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.dashboard-page .dashboard-detail-actions {
+  gap: var(--space-3);
+}
+
+.dashboard-page .dashboard-detail-actions .btn {
+  height: var(--control-height-md);
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-4);
+  font-size: 0.8125rem;
+}
+
+.dashboard-page .dashboard-detail-tabs-shell {
+  position: relative;
+  min-width: 0;
+}
+
+.dashboard-page .dashboard-project-overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dashboard-page .dashboard-overview-region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.dashboard-page .dashboard-overview-region > h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.dashboard-page .dashboard-needs-attention {
+  position: relative;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--status-alert);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--status-alert) 10%, var(--bg-surface));
+}
+
+.dashboard-page .dashboard-needs-attention-heading {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  color: var(--status-alert);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dashboard-page .dashboard-needs-attention-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-page .dashboard-needs-attention-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-2) 0;
+}
+
+.dashboard-page .dashboard-needs-attention-item + .dashboard-needs-attention-item {
+  border-top: 1px solid color-mix(in srgb, var(--status-alert) 24%, transparent);
+}
+
+.dashboard-page .dashboard-needs-attention-copy {
+  min-width: 0;
+}
+
+.dashboard-page .dashboard-needs-attention-copy h4,
+.dashboard-page .dashboard-needs-attention-copy p,
+.dashboard-page .dashboard-attention-empty {
+  margin: 0;
+}
+
+.dashboard-page .dashboard-needs-attention-copy h4 {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.dashboard-page .dashboard-needs-attention-copy p {
+  display: flex;
+  gap: var(--space-1);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.dashboard-page .dashboard-needs-attention-copy p strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.dashboard-page .dashboard-attention-empty {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.dashboard-page .dashboard-status-strip {
+  display: grid;
+  grid-template-columns: 1.15fr repeat(4, minmax(0, 1fr));
+  gap: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.dashboard-page .dashboard-status-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.dashboard-page .dashboard-status-label,
+.dashboard-page .dashboard-status-detail {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.dashboard-page .dashboard-status-value {
+  min-height: 21px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.dashboard-page .dashboard-status-value .status-badge {
+  vertical-align: middle;
+}
+
+.dashboard-page .dashboard-progress-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+}
+
+.dashboard-page .dashboard-progress-track > span {
+  display: block;
+  width: var(--dashboard-progress);
+  height: 100%;
+  border-radius: inherit;
+}
+
+.dashboard-page .dashboard-detail-grid {
+  gap: var(--space-3) var(--space-5);
+}
+
+.dashboard-page .dashboard-detail-field dt {
+  margin-bottom: var(--space-1);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.dashboard-page .dashboard-detail-field dd {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.dashboard-page .dashboard-schedule-section,
+.dashboard-page .dashboard-evidence-section {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+}
+
+.dashboard-page .dashboard-schedule-grid,
+.dashboard-page .dashboard-evidence-ledger {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dashboard-page .dashboard-evidence-ledger,
+.dashboard-page .dashboard-context-list {
+  display: grid;
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+
+.dashboard-page .dashboard-evidence-ledger .dashboard-detail-field dd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dashboard-page .dashboard-evidence-ledger .dashboard-detail-field dd strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.dashboard-page .dashboard-evidence-ledger .dashboard-detail-field dd span {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-page .dashboard-secondary-context {
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.dashboard-page .dashboard-secondary-context > h3 {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.dashboard-page .dashboard-context-list {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+@media (max-width: 1180px) {
+  .dashboard-page .dashboard-health-reporting {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .dashboard-status-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-page .dashboard-schedule-grid,
+  .dashboard-page .dashboard-evidence-ledger {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-page .dashboard-context-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dashboard-page .dashboard-detail-actions .btn-secondary {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-page .dashboard-detail-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .dashboard-page .dashboard-detail-identity,
+  .dashboard-page .dashboard-detail-status-actions,
+  .dashboard-page .dashboard-detail-actions {
+    width: 100%;
+  }
+
+  .dashboard-page .dashboard-detail-identity {
+    flex-basis: auto;
+  }
+
+  .dashboard-page .dashboard-detail-status-actions {
+    align-items: flex-start;
+  }
+
+  .dashboard-page .dashboard-detail-actions {
+    flex-wrap: wrap;
+    padding-left: 0;
+  }
+
+}
+
+@media (max-width: 640px) {
+  .dashboard-page.is-mobile-master .dashboard-master-header {
+    padding-top: 56px;
+  }
+
+  .dashboard-page .master-list-row:not(.master-list-row--portfolio) {
+    display: flex;
+  }
+
+  .dashboard-page .master-row-location {
+    margin-top: var(--space-1);
+    text-align: left;
+  }
+
+  .dashboard-page .dashboard-detail-actions .btn {
+    flex: 0 1 auto;
+  }
+
+  .dashboard-page .dashboard-detail-tabs {
+    padding-right: 30px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-behavior: smooth;
+  }
+
+  .dashboard-page .dashboard-tabs-overflow-cue {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    display: grid;
+    width: 30px;
+    height: 36px;
+    place-items: center;
+    border-left: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    font-weight: 700;
+    pointer-events: none;
+  }
+
+  .dashboard-page .dashboard-detail-tabpanel {
+    padding: var(--space-3);
+  }
+
+  .dashboard-page .dashboard-status-strip,
+  .dashboard-page .dashboard-schedule-grid,
+  .dashboard-page .dashboard-evidence-ledger,
+  .dashboard-page .dashboard-context-list {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .dashboard-status-strip {
+    gap: 0;
+    padding: var(--space-3);
+  }
+
+  .dashboard-page .dashboard-status-item {
+    display: grid;
+    grid-template-columns: minmax(104px, 1fr) minmax(0, 1.5fr);
+    gap: var(--space-1) var(--space-3);
+    align-items: center;
+    padding: var(--space-2) 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .dashboard-page .dashboard-status-item:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .dashboard-page .dashboard-status-value,
+  .dashboard-page .dashboard-status-detail {
+    text-align: right;
+  }
+
+  .dashboard-page .dashboard-status-item .dashboard-progress-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .dashboard-page .dashboard-status-item.is-progress .dashboard-status-detail {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .dashboard-page .dashboard-needs-attention-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .dashboard-page .dashboard-needs-attention-copy p {
+    display: block;
+    font-size: 0.75rem;
+  }
+
+  .dashboard-page .dashboard-needs-attention-copy p strong {
+    margin-right: var(--space-1);
+  }
+
+  .dashboard-page .dashboard-schedule-grid,
+  .dashboard-page .dashboard-evidence-ledger {
+    gap: 0;
+  }
+
+  .dashboard-page .dashboard-schedule-grid .dashboard-detail-field,
+  .dashboard-page .dashboard-evidence-ledger .dashboard-detail-field {
+    display: grid;
+    grid-template-columns: minmax(112px, 1fr) minmax(0, 1.6fr);
+    gap: var(--space-3);
+    align-items: start;
+    padding: var(--space-2) 0;
+  }
+
+  .dashboard-page .dashboard-schedule-grid .dashboard-detail-field dd,
+  .dashboard-page .dashboard-evidence-ledger .dashboard-detail-field dd {
+    margin: 0;
+    text-align: right;
+  }
+
+  .dashboard-page .dashboard-context-list {
+    gap: var(--space-1);
+  }
+
+  .dashboard-page .dashboard-context-list .dashboard-detail-field {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .dashboard-page .dashboard-context-list .dashboard-detail-field dt::after {
+    content: ':';
+  }
+
+  .dashboard-page .dashboard-context-list .dashboard-detail-field dd {
+    margin: 0;
   }
 }
 

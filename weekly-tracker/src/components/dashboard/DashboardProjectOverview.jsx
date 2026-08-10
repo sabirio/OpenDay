@@ -17,16 +17,39 @@ function DetailField({ label, children }) {
   );
 }
 
-function DetailSection({ title, children }) {
+function DetailSection({ title, children, className = '' }) {
   return (
-    <section className="dashboard-detail-section">
+    <section className={`dashboard-overview-region ${className}`.trim()}>
       <h3>{title}</h3>
       {children}
     </section>
   );
 }
 
-export default function DashboardProjectOverview({ row, siteVisits }) {
+function AttentionItem({ title, evidence, context }) {
+  return (
+    <article className="dashboard-needs-attention-item">
+      <div className="dashboard-needs-attention-copy">
+        <h4>{title}</h4>
+        <p><strong>Evidence</strong><span>{evidence}</span></p>
+        {context && <p><strong>Context</strong><span>{context}</span></p>}
+      </div>
+    </article>
+  );
+}
+
+function StatusItem({ label, value, detail, className = '', children }) {
+  return (
+    <div className={`dashboard-status-item ${className}`.trim()}>
+      <span className="dashboard-status-label">{label}</span>
+      <div className="dashboard-status-value">{value}</div>
+      {children}
+      <span className="dashboard-status-detail">{detail}</span>
+    </div>
+  );
+}
+
+export default function DashboardProjectOverview({ row, siteVisits = [] }) {
   const summary = useProjectDetailDrawerModel(row, siteVisits);
   if (!row || !summary) return null;
 
@@ -34,71 +57,163 @@ export default function DashboardProjectOverview({ row, siteVisits }) {
   const { contractor, pmVisit, risk, opening } = summary;
   const location = [project.city, project.country].filter(Boolean).join(', ');
   const latestReportDate = latestReport?.reportingDate || latestReport?.submittedAt;
+  const scheduleLabel = getScheduleRiskLabel(risk.scheduleRisk);
+  const openingLabel = displayValue(opening.statusLabel ?? opening.status, 'Unavailable');
+  const confidenceLabel = displayValue(row.confidence?.label, 'Unavailable');
+  const hasPmIssue = !pmVisit.hasVisit || pmVisit.discrepancies > 0;
+  const attentionItems = [];
+
+  if (risk.missingReport) {
+    attentionItems.push({
+      key: 'report',
+      title: 'Contractor report missing / overdue',
+      evidence: [
+        'Current contractor report missing',
+        project.generalContractor,
+      ].filter(Boolean).join(' · '),
+      context: `Schedule status ${contractor.scheduleStatus || scheduleLabel || 'Unavailable'}`,
+    });
+  }
+
+  if (hasPmIssue) {
+    attentionItems.push({
+      key: 'pm',
+      title: !pmVisit.hasVisit ? 'PM verification required' : `${pmVisit.discrepancies} PM discrepancies require review`,
+      evidence: !pmVisit.hasVisit
+        ? 'No PM site visit available'
+        : [
+            pmVisit.latestVisitDate ? `PM visit ${formatDate(pmVisit.latestVisitDate)}` : 'Latest PM visit',
+            `${pmVisit.discrepancies} discrepancies`,
+          ].join(' · '),
+      context: risk.supportRequired ? 'Client support required' : null,
+    });
+  }
+
+  if (risk.blocked) {
+    attentionItems.push({
+      key: 'blocked',
+      title: 'Blocked work requires attention',
+      evidence: 'Canonical risk state: Blocked',
+      context: risk.supportRequired ? 'Client support required' : null,
+    });
+  }
+
+  if (!risk.missingReport && risk.scheduleRisk !== 'OK') {
+    attentionItems.push({
+      key: 'schedule',
+      title: `Schedule ${scheduleLabel.toLowerCase()}`,
+      evidence: latestReportDate ? `Contractor report ${formatDate(latestReportDate)}` : 'Schedule evidence unavailable',
+      context: `Opening readiness ${openingLabel}`,
+    });
+  }
+
+  if (risk.supportRequired && !hasPmIssue && !risk.blocked) {
+    attentionItems.push({
+      key: 'support',
+      title: 'Client support required',
+      evidence: 'Canonical risk state: Support required',
+      context: null,
+    });
+  }
 
   return (
     <div className="dashboard-project-overview">
-      <DetailSection title="Project Information">
-        <dl className="dashboard-detail-grid">
-          <DetailField label="Store code">{displayValue(project.storeCode)}</DetailField>
-          <DetailField label="Project">{displayValue(project.shoppingMallName)}</DetailField>
-          <DetailField label="Location">{displayValue(location)}</DetailField>
-          <DetailField label="Project type">{displayValue(project.projectType)}</DetailField>
-          <DetailField label="Project manager">{displayValue(project.projectManager)}</DetailField>
-          <DetailField label="General contractor">{displayValue(project.generalContractor)}</DetailField>
-        </dl>
+      <DetailSection title="Needs Attention" className="dashboard-needs-attention">
+        <div className="dashboard-needs-attention-heading">
+          <span>{attentionItems.length === 1 ? '1 issue' : `${attentionItems.length} issues`}</span>
+        </div>
+        {attentionItems.length > 0 ? (
+          <div className="dashboard-needs-attention-list">
+            {attentionItems.map((item) => <AttentionItem key={item.key} {...item} />)}
+          </div>
+        ) : (
+          <p className="dashboard-attention-empty">No current attention items</p>
+        )}
       </DetailSection>
 
-      <DetailSection title="Schedule & Progress">
-        <dl className="dashboard-detail-grid">
-          <DetailField label="Canonical progress"><strong>{progress}%</strong></DetailField>
+      <DetailSection title="Operational Status" className="dashboard-operational-status">
+        <div className="dashboard-status-strip">
+          <StatusItem label="Progress" value={`${progress}%`} detail="Canonical overall" className="is-progress">
+            <div
+              className="dashboard-progress-track"
+              role="progressbar"
+              aria-label="Canonical overall progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+              style={{ '--dashboard-progress': `${progress}%` }}
+            >
+              <span />
+            </div>
+          </StatusItem>
+          <StatusItem
+            label="Schedule"
+            value={contractor.scheduleStatus ? <SchedBadge status={contractor.scheduleStatus} /> : 'Unavailable'}
+            detail={latestReportDate ? `Report · ${formatDate(latestReportDate)}` : 'No current report'}
+          />
+          <StatusItem label="Overall risk" value={<RiskBadge level={risk.level} />} detail="Current engine output" />
+          <StatusItem label="Opening readiness" value={openingLabel} detail="Current available data" />
+          <StatusItem
+            label="Evidence coverage"
+            value={confidenceLabel}
+            detail={risk.missingReport ? 'Current period overdue' : 'Current period available'}
+          />
+        </div>
+      </DetailSection>
+
+      <DetailSection title="Schedule & Progress" className="dashboard-schedule-section">
+        <dl className="dashboard-detail-grid dashboard-schedule-grid">
           <DetailField label="Schedule status">
             {contractor.scheduleStatus ? <SchedBadge status={contractor.scheduleStatus} /> : 'Unavailable'}
           </DetailField>
-          <DetailField label="Construction start">
-            {project.constructionStartDate ? formatDate(project.constructionStartDate) : 'Not set'}
-          </DetailField>
-          <DetailField label="Construction end">
-            {project.constructionEndDate ? formatDate(project.constructionEndDate) : 'Not set'}
+          <DetailField label="Construction window">
+            {project.constructionStartDate || project.constructionEndDate
+              ? `${project.constructionStartDate ? formatDate(project.constructionStartDate) : 'Not set'} — ${project.constructionEndDate ? formatDate(project.constructionEndDate) : 'Not set'}`
+              : 'Not set'}
           </DetailField>
           <DetailField label="Target opening">
             {project.targetOpeningDate ? formatDate(project.targetOpeningDate) : 'Not set'}
           </DetailField>
-          <DetailField label="Opening readiness">{displayValue(opening.statusLabel ?? opening.status, 'Unavailable')}</DetailField>
+          <DetailField label="Report source">
+            {latestReportDate ? `Contractor report · ${formatDate(latestReportDate)}` : 'No current report'}
+          </DetailField>
         </dl>
       </DetailSection>
 
-      <DetailSection title="Project Context">
-        <dl className="dashboard-detail-grid">
-          <DetailField label="Concept">{displayValue(project.storeConcept)}</DetailField>
+      <DetailSection title="Recent Operational Evidence" className="dashboard-evidence-section">
+        <dl className="dashboard-evidence-ledger">
+          <DetailField label="Contractor report">
+            <strong>{latestReportDate ? formatDate(latestReportDate) : 'No report'}</strong>
+            <span>{projReports?.length ?? 0} reports submitted</span>
+          </DetailField>
+          <DetailField label="PM site visit">
+            <strong>{pmVisit.latestVisitDate ? formatDate(pmVisit.latestVisitDate) : 'No visit'}</strong>
+            <span>{siteVisits.length} visits · {pmVisit.discrepancies ?? 0} discrepancies</span>
+          </DetailField>
+          <DetailField label="Current-period freshness">
+            <strong>{risk.missingReport ? 'Overdue' : 'Current'}</strong>
+            <span>{risk.missingReport ? 'Contractor report' : 'Latest report available'}</span>
+          </DetailField>
+          <DetailField label="Coverage">
+            <strong>{confidenceLabel}</strong>
+            <span>{projReports?.length ?? 0} reports · {siteVisits.length} visits</span>
+          </DetailField>
+        </dl>
+      </DetailSection>
+
+      <DetailSection title="Project Context" className="dashboard-secondary-context">
+        <dl className="dashboard-context-list">
+          <DetailField label="Project">
+            {[
+              project.storeConcept || project.projectType,
+              project.storeSizeSqm ? `${project.storeSizeSqm} m²` : null,
+            ].filter(Boolean).join(' · ') || 'Not set'}
+          </DetailField>
+          <DetailField label="Location">{displayValue(location)}</DetailField>
+          <DetailField label="Project manager">{displayValue(project.projectManager)}</DetailField>
+          <DetailField label="General contractor">{displayValue(project.generalContractor)}</DetailField>
           <DetailField label="Location type">{displayValue(project.locationType)}</DetailField>
           <DetailField label="Sales market">{displayValue(project.salesMarket)}</DetailField>
-          <DetailField label="Area">
-            {project.storeSizeSqm ? `${project.storeSizeSqm} m²` : 'Not set'}
-          </DetailField>
-        </dl>
-      </DetailSection>
-
-      <DetailSection title="Latest Risks">
-        <dl className="dashboard-detail-grid">
-          <DetailField label="Overall risk"><RiskBadge level={risk.level} /></DetailField>
-          <DetailField label="Schedule risk">{getScheduleRiskLabel(risk.scheduleRisk)}</DetailField>
-          <DetailField label="Reporting">{risk.missingReport ? 'Missing / overdue' : 'Up to date'}</DetailField>
-          <DetailField label="Blocked">{risk.blocked ? 'Yes' : 'No'}</DetailField>
-          <DetailField label="PM comparison">
-            {!pmVisit.hasVisit ? 'No site visit' : pmVisit.discrepancies > 0 ? `${pmVisit.discrepancies} discrepancies` : 'Matched'}
-          </DetailField>
-          <DetailField label="Client support">{risk.supportRequired ? 'Required' : 'None'}</DetailField>
-        </dl>
-      </DetailSection>
-
-      <DetailSection title="Recent Reports">
-        <dl className="dashboard-detail-grid">
-          <DetailField label="Latest report">
-            {latestReportDate ? formatDate(latestReportDate) : 'No report'}
-          </DetailField>
-          <DetailField label="Reports submitted">{projReports?.length ?? 0}</DetailField>
-          <DetailField label="Site visits">{siteVisits.length}</DetailField>
-          <DetailField label="Data confidence">{displayValue(row.confidence?.label, 'Unavailable')}</DetailField>
         </dl>
       </DetailSection>
     </div>
