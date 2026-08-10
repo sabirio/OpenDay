@@ -1,65 +1,62 @@
 /* ============================================================
-   C&F Tracker — Design System
-   Monochrome dark/light theme. Only --status-alert (red) and
-   --status-warn (orange) break the greyscale rule.
+   OpenDay canonical design system
+   Primitive values -> semantic tokens -> shared component rules.
+   Field and print palettes remain deliberate exceptions below.
    ============================================================ */
 
 
 /* ── 1. Dark mode tokens (default) ───────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --bg-base:           oklch(0.2679 0.0036 106.6427);
-  --bg-surface:        oklch(0.2679 0.0036 106.6427);
-  --bg-elevated:       oklch(0.3085 0.0035 106.6039);
-  --bg-input:          oklch(0.3085 0.0035 106.6039);
+  --bg-base:           #1e2023;
+  --bg-surface:        #24272b;
+  --bg-elevated:       #2a2e33;
+  --bg-input:          #2a2e33;
 
   /* Theme consolidation (2026-07-22): app shell sidebar recessed one notch
      from --bg-base, same direction/magnitude as --bg-elevated steps up —
      gives the sidebar a slight, warm-neutral shell identity distinct from
      the page canvas without diverging into its own color system. */
-  --bg-sidebar:        oklch(0.2337 0.0036 106.6427);
+  --bg-sidebar:        oklch(0.221269 0.006599 258.3651);
 
   /* Borders */
-  --border:            oklch(0.3618 0.0101 106.8928);
-  --border-strong:     oklch(0.4336 0.0113 100.2195);
+  --border:            #3a4047;
+  --border-strong:     #545c66;
 
   /* Text */
-  --text-primary:      oklch(0.8074 0.0142 93.0137);
-  --text-secondary:    oklch(0.9211 0.0040 106.4781);
-  --text-muted:        oklch(0.7713 0.0169 99.0657);
-  --text-inverse:      oklch(1.0000 0 0);
+  --text-primary:      #eef0f2;
+  --text-secondary:    #c1c7ce;
+  --text-muted:        #929ba5;
+  --text-inverse:      #ffffff;
 
   /* Accent */
-  --accent:            oklch(0.6724 0.1308 38.7559);
-  --accent-subtle:     oklch(0.6724 0.1308 38.7559 / 0.12);
+  --accent:            #e07a55;
+  --accent-subtle:     #372b27;
+  --selection:         #7fa6c5;
+  --selection-subtle:  #2b343d;
 
-  /* Status: functional color signals only.
-     Token reconciliation (2026-07-25): --status-done previously duplicated
-     --accent exactly, so "done/completed" and "selected/interactive"
-     rendered as the identical color — the two most distinct semantic roles
-     in the palette were visually indistinguishable. Per color philosophy,
-     normal/on-track/completed states get neutral treatment; accent is
-     reserved for selection/interactivity. --status-done now matches the
-     existing --status-active neutral tone (same normal-state tier) instead
-     of inventing a new value. --accent-success (design-system.css legacy
-     alias) inherits this fix automatically since it points at --status-done. */
-  --status-done:       oklch(0.7713 0.0169 99.0657);
-  --status-done-bg:    oklch(0.7713 0.0169 99.0657 / 0.10);
-
-  --status-active:     oklch(0.7713 0.0169 99.0657);
-  --status-active-bg:  oklch(0.7713 0.0169 99.0657 / 0.10);
-
-  --status-todo:       oklch(0.4336 0.0113 100.2195);
-  --status-todo-bg:    transparent;
-
-  --status-alert:      oklch(0.6368 0.2078 25.3313);
-  --status-alert-bg:   oklch(0.6368 0.2078 25.3313 / 0.12);
-
-  --status-warn:       oklch(0.5583 0.1276 42.9956);
-  --status-warn-bg:    oklch(0.5583 0.1276 42.9956 / 0.12);
+  /* Functional state colors remain independent from action, selection,
+     progress and focus. Legacy aliases below preserve existing consumers. */
+  --status-done:       #79a98f;
+  --status-done-bg:    #26352e;
+  --status-active:     var(--status-info);
+  --status-active-bg:  var(--status-info-bg);
+  --status-todo:       var(--status-muted);
+  --status-todo-bg:    var(--status-muted-bg);
+  --status-alert:      #d87676;
+  --status-alert-bg:   #3a292b;
+  --status-warn:       #d3a05b;
+  --status-warn-bg:    #3a3124;
+  --status-info:       #7ea7c9;
+  --status-info-bg:    #27333d;
+  --status-neutral:    #c1c7ce;
+  --status-neutral-bg: #30353b;
+  --status-muted:      #929ba5;
+  --status-muted-bg:   #2a2e33;
 
   /* Progress bar fill */
-  --progress-fill:     oklch(0.6724 0.1308 38.7559);
+  --progress-fill:     #6fa0a8;
+  --progress-track:    #3a4047;
 
   /* Shadows */
   --shadow:            0 1px 3px oklch(0 0 0 / 0.35);
@@ -69,21 +66,24 @@
      fix (2026-07-16): ProjectDetailDrawer.jsx and ProjectFormParts.jsx each
      hardcoded an identical rgba(0,0,0,0.15) literal for this — one shared
      token instead. */
-  --overlay-dim:       oklch(0 0 0 / 0.15);
+  --overlay-dim:       rgb(0 0 0 / 0.15);
 
   /* Focus ring */
-  --focus-ring:        0 0 0 2px oklch(0.6724 0.1308 38.7559 / 0.30);
+  --focus-ring-color:  #7fa6c5;
+  --focus-ring:        0 0 0 2px var(--focus-ring-color);
 
   /* Spacing */
-  --space-1: 0.25rem;  --space-2: 0.5rem;   --space-3: 0.75rem;
-  --space-4: 1rem;     --space-5: 1.25rem;  --space-6: 1.5rem;
-  --space-8: 2rem;
+  --space-2px: 2px;
+  --space-1: 4px;      --space-2: 8px;      --space-3: 12px;
+  --space-4: 16px;     --space-6: 24px;     --space-8: 32px;
+  --space-5: 20px; /* Legacy compatibility only; not canonical vocabulary. */
 
   /* Radii */
-  --radius-sm:   0.375rem;
-  --radius-md:   0.5rem;
-  --radius-lg:   0.75rem;
-  --radius-xl:   1rem;
+  --radius-none: 0;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   var(--radius-lg); /* Retained alias; ordinary 16px radius retired. */
   --radius-full: 9999px;
 
   /* Control heights — the minimal shared sizing vocabulary compact controls
@@ -96,14 +96,24 @@
 
   /* Data Surface geometry (Phase 5D). A single standard and dense rhythm is
      shared by semantic tables, comparison grids and master lists. */
-  --table-cell-padding-y: 8px;
-  --table-cell-padding-x: 10px;
-  --table-cell-padding-y-dense: 6px;
-  --table-cell-padding-x-dense: 8px;
+  --table-cell-padding-y: 10px;
+  --table-cell-padding-x: 12px;
+  --table-cell-padding-y-dense: 8px;
+  --table-cell-padding-x-dense: 10px;
 
   /* Typography */
-  --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-interface: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-sans: var(--font-interface);
+  --font-mono: 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+  --type-page-size: 22px;       --type-page-line: 28px;       --type-page-weight: 700;
+  --type-entity-size: 18px;     --type-entity-line: 24px;     --type-entity-weight: 700;
+  --type-section-size: 15px;    --type-section-line: 20px;    --type-section-weight: 700;
+  --type-body-size: 14px;       --type-body-line: 20px;       --type-body-weight: 400;
+  --type-body-strong-size: 14px;--type-body-strong-line: 20px;--type-body-strong-weight: 600;
+  --type-data-size: 13px;       --type-data-line: 18px;       --type-data-weight: 600;
+  --type-label-size: 12px;      --type-label-line: 16px;      --type-label-weight: 700;
+  --type-caption-size: 11px;    --type-caption-line: 15px;    --type-caption-weight: 600;
+  --type-mono-size: 12px;       --type-mono-line: 18px;       --type-mono-weight: 500;
 
   /* ── Legacy aliases (used by index.css & older component code) ── */
   --bg-page:           var(--bg-base);
@@ -115,7 +125,7 @@
   --accent-warning:    var(--status-warn);
   --accent-error:      var(--status-alert);
   --accent-inactive:   var(--border-strong);
-  --shadow-card:       var(--shadow);
+  --shadow-card:       none;
 
   /* ── Chip shorthands ── */
   --chip-bg-green:     var(--status-done-bg);
@@ -150,6 +160,10 @@
   --color-border:       var(--border);
   --color-text:         var(--text-primary);
   --color-muted:        var(--text-muted);
+  --color-selection:    var(--selection);
+  --color-selection-bg: var(--selection-subtle);
+  --color-progress:     var(--progress-fill);
+  --color-focus:        var(--focus-ring-color);
 
   /* ── Field-mode palette (P2.1/P2.2 job-site forms) ──────────────────────
      ContractorReport/SiteVisitReport and their subcomponents render with a
@@ -260,46 +274,51 @@
 
 /* ── 2. Light mode overrides ─────────────────────────────────────────────── */
 [data-theme="light"] {
-  --bg-base:           oklch(0.9818 0.0054 95.0986);
-  --bg-surface:        oklch(0.9818 0.0054 95.0986);
-  --bg-elevated:       oklch(1.0000 0 0);
-  --bg-input:          oklch(1.0000 0 0);
-  --bg-sidebar:        oklch(0.9530 0.0060 95.0986);
+  --bg-base:           #f4f6f8;
+  --bg-surface:        #ffffff;
+  --bg-elevated:       #f8fafb;
+  --bg-input:          #ffffff;
+  --bg-sidebar:        oklch(0.956717 0.005156 247.8779);
 
---border:            oklch(0.8847 0.0069 97.3627);
-  --border-strong:     oklch(0.7621 0.0156 98.3528);
+  --border:            #d8dee5;
+  --border-strong:     #b8c1cb;
 
-  --text-primary:      oklch(0.3438 0.0269 95.7226);
-  --text-secondary:    oklch(0.4334 0.0177 98.6048);
-  --text-muted:        oklch(0.6059 0.0075 97.4233);
-  --text-inverse:      oklch(1.0000 0 0);
+  --text-primary:      #20262d;
+  --text-secondary:    #4e5965;
+  --text-muted:        #5b6670;
+  --text-inverse:      #ffffff;
 
-  --accent:            oklch(0.6171 0.1375 39.0427);
-  --accent-subtle:     oklch(0.6171 0.1375 39.0427 / 0.10);
+  --accent:            #a84628;
+  --accent-subtle:     #f8eae5;
+  --selection:         #365f7e;
+  --selection-subtle:  #eaf0f5;
 
-  /* Same reconciliation as the dark tokens above — neutral, matching --status-active. */
-  --status-done:       oklch(0.4334 0.0177 98.6048);
-  --status-done-bg:    oklch(0.4334 0.0177 98.6048 / 0.08);
-
-  --status-active:     oklch(0.4334 0.0177 98.6048);
-  --status-active-bg:  oklch(0.4334 0.0177 98.6048 / 0.08);
-
-  --status-todo:       oklch(0.7621 0.0156 98.3528);
-  --status-todo-bg:    transparent;
-
-  --status-alert:      oklch(0.1908 0.0020 106.5859);
-  --status-alert-bg:   oklch(0.1908 0.0020 106.5859 / 0.08);
-
-  --status-warn:       oklch(0.5583 0.1276 42.9956);
-  --status-warn-bg:    oklch(0.5583 0.1276 42.9956 / 0.10);
+  --status-done:       #3f765e;
+  --status-done-bg:    #eaf3ee;
+  --status-active:     var(--status-info);
+  --status-active-bg:  var(--status-info-bg);
+  --status-todo:       var(--status-muted);
+  --status-todo-bg:    var(--status-muted-bg);
+  --status-alert:      #a84747;
+  --status-alert-bg:   #f8e9e9;
+  --status-warn:       #94631e;
+  --status-warn-bg:    #f8f0e3;
+  --status-info:       #426a8a;
+  --status-info-bg:    #eaf1f7;
+  --status-neutral:    #4e5965;
+  --status-neutral-bg: #eef1f4;
+  --status-muted:      #74808c;
+  --status-muted-bg:   #f2f4f6;
 
   --shadow:            0 1px 3px oklch(0 0 0 / 0.10);
   --shadow-lg:         0 4px 16px oklch(0 0 0 / 0.12);
 
-  --overlay-dim:       oklch(0 0 0 / 0.06);
+  --overlay-dim:       rgb(32 38 45 / 0.35);
 
-  --focus-ring:        0 0 0 2px oklch(0.6171 0.1375 39.0427 / 0.25);
-  --progress-fill:     oklch(0.6171 0.1375 39.0427);
+  --focus-ring-color:  #365f7e;
+  --focus-ring:        0 0 0 2px var(--focus-ring-color);
+  --progress-fill:     #3f7580;
+  --progress-track:    #e4e9ee;
 }
 
 
@@ -358,23 +377,23 @@
 .status-badge--positive { background: var(--status-done-bg);  color: var(--status-done);  }
 .status-badge--caution  { background: var(--status-warn-bg);  color: var(--status-warn);  }
 .status-badge--danger   { background: var(--status-alert-bg); color: var(--status-alert); }
-.status-badge--info     { background: var(--accent-subtle);   color: var(--accent);       }
-.status-badge--neutral  { background: var(--bg-elevated);     color: var(--text-secondary); border-color: var(--border); }
-.status-badge--muted    { background: transparent;            color: var(--text-muted);   border-color: var(--border); }
+.status-badge--info     { background: var(--status-info-bg);   color: var(--status-info);  }
+.status-badge--neutral  { background: var(--status-neutral-bg); color: var(--status-neutral); border-color: var(--border); }
+.status-badge--muted    { background: var(--status-muted-bg); color: var(--status-muted); border-color: var(--border); }
 
 
 /* ── 5. Progress Bars ────────────────────────────────────────────────────── */
 .progress-track {
-  background: var(--border);
-  border-radius: var(--radius-full);
+  background: var(--progress-track);
+  border-radius: var(--radius-sm);
   height: 0.375rem;
   overflow: hidden;
 }
 .progress-fill {
   height: 100%;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
 }
-.progress-fill--active  { background: var(--accent);        }
+.progress-fill--active  { background: var(--progress-fill); }
 .progress-fill--done    { background: var(--status-done);   }
 .progress-fill--warning { background: var(--status-warn);   }
 .progress-fill--error   { background: var(--status-alert);  }
@@ -385,9 +404,9 @@
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  box-shadow: var(--shadow);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: none;
 }
 .card--orange { border-color: var(--status-warn); }
 .card--red    { border-color: var(--status-alert); }
@@ -510,7 +529,7 @@
 .btn-icon:disabled { opacity: 0.45; cursor: not-allowed; }
 
 :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 
@@ -529,12 +548,15 @@
 .ds-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: var(--type-data-size);
+  line-height: var(--type-data-line);
   font-variant-numeric: tabular-nums;
 }
 .ds-table thead th {
   padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-label-weight);
+  line-height: var(--type-caption-line);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -545,12 +567,13 @@
   padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
   color: var(--text-primary);
   border-bottom: 1px solid var(--border);
-  font-size: 0.875rem;
+  font-size: var(--type-data-size);
+  line-height: var(--type-data-line);
   vertical-align: middle;
 }
-.ds-table tbody tr:hover { background: var(--accent-subtle); }
+.ds-table tbody tr:hover { background: var(--bg-elevated); }
 .ds-table tbody tr.row--alert { background: var(--status-alert-bg); }
-.ds-table tbody tr.is-selected { background: var(--accent-subtle); }
+.ds-table tbody tr.is-selected { background: var(--selection-subtle); }
 .ds-table tbody tr:focus-visible {
   outline: none;
   box-shadow: inset var(--focus-ring);
@@ -602,8 +625,8 @@
   background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--text-primary);
-  border-radius: var(--radius-md);
-  font-size: 0.875rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--type-body-size);
   outline: none;
   font-family: var(--font-sans);
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -622,7 +645,7 @@
 .ds-input:focus,
 .ds-select:focus,
 .ds-textarea:focus {
-  border-color: var(--accent);
+  border-color: var(--focus-ring-color);
   box-shadow: var(--focus-ring);
 }
 .ds-input::placeholder,
