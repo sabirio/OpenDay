@@ -177,13 +177,6 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
 
   return (
     <div className="risk-dashboard-page">
-      <div className="page-header risk-page-header">
-        <div>
-          <h1>Risk Dashboard</h1>
-          <p>Operational risk priority, evidence, schedule context, and forecast analysis.</p>
-        </div>
-      </div>
-
       <PrintHeader
         title="Risk & Readiness Dashboard"
         projectLabel={selectedRow ? detailTitle : undefined}

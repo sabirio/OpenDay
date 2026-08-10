@@ -24,10 +24,46 @@ function DetailSection({ title, children }) {
 export function RiskSelectedOverview({ row }) {
   const reportDate = row.latestReport?.reportingDate || row.latestReport?.submittedAt;
   const positiveFactors = row.riskScore.factors.filter((factor) => factor.pts > 0);
+  const nextAction = row.actions?.[0];
 
   return (
     <div className="risk-selected-overview">
-      <DetailSection title="Why this project is at risk">
+      <section className="risk-attention-surface" aria-labelledby="risk-current-heading">
+        <div className="risk-section-heading">
+          <h3 id="risk-current-heading">Current risk & attention</h3>
+          <StatusBadge tone={riskLevelToTone(row.riskScore.level)}>
+            {row.riskScore.level} · score {row.riskScore.score}
+          </StatusBadge>
+        </div>
+        {positiveFactors.length > 0 ? (
+          <ul className="risk-attention-list">
+            {positiveFactors.slice(0, 2).map((factor) => (
+              <li key={factor.name}>
+                <strong>{factor.name}</strong>
+                <span>Risk engine · {formatSignedRiskPoints(factor.pts)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="risk-detail-empty">The current risk model exposes no positive risk factors.</p>
+        )}
+      </section>
+
+      <DetailSection title="Operational risk">
+        <dl className="risk-operational-strip">
+          <DetailField label="Overall risk">
+            <StatusBadge tone={riskLevelToTone(row.riskScore.level)}>{row.riskScore.level}</StatusBadge>
+          </DetailField>
+          <DetailField label="Schedule">
+            {row.schedDev?.predictedDelayDays > 0 ? `+${row.schedDev.predictedDelayDays} days` : 'On track'}
+          </DetailField>
+          <DetailField label="Opening readiness">{row.readiness?.status || 'Unavailable'}</DetailField>
+          <DetailField label="Latest report">{reportDate ? formatDate(reportDate) : 'No contractor report'}</DetailField>
+          <DetailField label="Evidence confidence">{row.confidence?.label || row.confidence?.level || 'Unavailable'}</DetailField>
+        </dl>
+      </DetailSection>
+
+      <DetailSection title="Risk drivers">
         {positiveFactors.length > 0 ? (
           <ul className="risk-reason-list">
             {positiveFactors.map((factor) => (
@@ -38,38 +74,37 @@ export function RiskSelectedOverview({ row }) {
             ))}
           </ul>
         ) : (
-          <p className="risk-detail-empty">The canonical risk model exposes no positive risk factors for this project.</p>
+          <p className="risk-detail-empty">No positive risk factors are present in the current engine output.</p>
         )}
       </DetailSection>
 
-      <DetailSection title="Schedule & progress">
-        <dl className="risk-detail-grid">
-          <DetailField label="Expected progress">{row.schedDev ? `${row.schedDev.expectedPct}%` : 'Unavailable'}</DetailField>
-          <DetailField label="Actual progress">{row.schedDev ? `${row.schedDev.actualPct}%` : `${row.progress}%`}</DetailField>
-          <DetailField label="Schedule deviation">{row.schedDev ? `${row.schedDev.deviationPct > 0 ? '−' : ''}${row.schedDev.deviationPct}%` : 'Unavailable'}</DetailField>
-          <DetailField label="Predicted delay">{row.schedDev?.predictedDelayDays > 0 ? `+${row.schedDev.predictedDelayDays} days` : 'On track'}</DetailField>
-        </dl>
-      </DetailSection>
-
-      <DetailSection title="Readiness & reporting">
-        <dl className="risk-detail-grid">
-          <DetailField label="Opening readiness">{row.readiness?.status || 'Unavailable'}</DetailField>
-          <DetailField label="Readiness verdict">{row.readiness?.verdict || 'Unavailable'}</DetailField>
-          <DetailField label="Latest report">{reportDate ? formatDate(reportDate) : 'No contractor report'}</DetailField>
-          <DetailField label="Reports submitted">{row.sorted?.length ?? 0}</DetailField>
+      <DetailSection title="Evidence summary">
+        <dl className="risk-evidence-ledger">
+          <DetailField label="Contractor reports">{row.sorted?.length ?? 0}</DetailField>
+          <DetailField label="Latest report">{reportDate ? formatDate(reportDate) : 'Unavailable'}</DetailField>
           <DetailField label="PM site visits">{row.projSiteVisits?.length ?? 0}</DetailField>
-          <DetailField label="Data confidence">{row.confidence?.label || row.confidence?.level || 'Unavailable'}</DetailField>
-        </dl>
-      </DetailSection>
-
-      <DetailSection title="Operational context">
-        <dl className="risk-detail-grid">
-          <DetailField label="Health">{row.health?.label || `${row.health?.score ?? '—'}`}</DetailField>
-          <DetailField label="Contractor performance">{row.contScore?.performanceScore ?? 'Unavailable'}</DetailField>
-          <DetailField label="PM alignment">{row.contScore?.pmAlignmentScore ?? 'Unavailable'}</DetailField>
           <DetailField label="Escalations">{row.escalations?.length ?? 0}</DetailField>
         </dl>
       </DetailSection>
+
+      <DetailSection title="Inspect next">
+        {nextAction ? (
+          <div className="risk-next-action">
+            <strong>{nextAction.action}</strong>
+            <span>{nextAction.reason}</span>
+          </div>
+        ) : (
+          <p className="risk-detail-empty">Review the current drivers and evidence ledger.</p>
+        )}
+      </DetailSection>
+
+      <section className="risk-secondary-context" aria-label="Project context">
+        <span>{row.project.generalContractor || 'Contractor unavailable'}</span>
+        <span>{row.progress}% progress</span>
+        <span>{row.health?.label || `Health ${row.health?.score ?? '—'}`}</span>
+        <span>{row.contScore?.performanceScore ?? '—'} contractor performance</span>
+        <span>{row.contScore?.pmAlignmentScore ?? '—'} PM alignment</span>
+      </section>
     </div>
   );
 }
@@ -124,6 +159,13 @@ export function RiskSelectedDrivers({ row }) {
           <p className="risk-detail-empty">The existing action engine exposes no actions for this project.</p>
         )}
       </DetailSection>
+
+      <section className="risk-secondary-context" aria-label="Driver source context">
+        <span>Risk snapshot · current engine output</span>
+        <span>{row.sorted?.length ?? 0} contractor reports</span>
+        <span>{row.projSiteVisits?.length ?? 0} PM site visits</span>
+        <span>{row.confidence?.label || row.confidence?.level || 'Confidence unavailable'}</span>
+      </section>
     </div>
   );
 }

@@ -31,7 +31,7 @@ export default function RiskDashboardMasterList({
   return (
     <>
       <div className="master-pane-header risk-master-header">
-        <h2 className="master-pane-title">Risks</h2>
+        <h1 className="master-pane-title">Risks</h1>
         <label className="master-search">
           <span className="sr-only">Search project or risk</span>
           <Icon name="search" size={15} />
@@ -57,6 +57,9 @@ export default function RiskDashboardMasterList({
           ))}
         </div>
 
+      </div>
+
+      <div className="risk-master-list-tools">
         <div className="risk-forecast-control" role="group" aria-label="Global forecast model">
           <span>Forecast</span>
           <button type="button" aria-pressed={!useSCurve} onClick={() => onForecastModelChange(false)}>Linear</button>

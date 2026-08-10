@@ -5516,9 +5516,9 @@ button.weekly-phase-row {
   overflow: hidden;
 }
 
-.risk-page-header {
-  flex-shrink: 0;
-  margin-bottom: 14px;
+.risk-master-detail {
+  flex: 1;
+  min-height: 0;
 }
 
 .risk-master-header {
@@ -5530,12 +5530,17 @@ button.weekly-phase-row {
   margin-top: 0;
 }
 
+.risk-master-list-tools {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
 .risk-forecast-control {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-top: 7px;
-  border-top: 1px solid var(--border);
 }
 
 .risk-forecast-control > span {
@@ -5649,51 +5654,115 @@ button.weekly-phase-row {
 .risk-selected-overview,
 .risk-selected-drivers {
   display: grid;
-  gap: 12px;
+  gap: 0;
   min-width: 0;
 }
 
 .risk-portfolio-summary {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(250px, 0.75fr);
-  gap: 18px;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.risk-portfolio-summary > div {
+  padding: 14px 16px;
 }
 
 .risk-portfolio-summary > div + div {
-  padding-left: 18px;
   border-left: 1px solid var(--border);
 }
 
 .risk-portfolio-summary h3,
-.risk-detail-section h3 {
+.risk-detail-section h3,
+.risk-attention-surface h3 {
   margin: 0 0 12px;
   color: var(--text-primary);
   font-size: 0.8125rem;
   font-weight: 750;
 }
 
-.risk-selected-overview {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.risk-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(62px, 1fr));
+  border: 1px solid var(--border);
 }
 
-.risk-selected-drivers {
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+.risk-kpi-strip-supporting {
+  grid-template-columns: repeat(3, minmax(62px, 1fr));
 }
 
-.risk-selected-drivers .risk-detail-section:last-child {
-  grid-column: 1 / -1;
+.risk-kpi-item {
+  min-width: 0;
+  padding: 10px 8px;
+  border-left: 1px solid var(--risk-kpi-border, var(--border));
+  background: var(--risk-kpi-bg, transparent);
+  text-align: center;
+}
+
+.risk-kpi-item:first-child {
+  border-left: 0;
+}
+
+.risk-kpi-value {
+  color: var(--risk-kpi-color, var(--text-primary));
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.risk-kpi-label {
+  margin-top: 4px;
+  color: var(--risk-kpi-color, var(--text-muted));
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.risk-attention-surface {
+  padding: 14px 16px;
+  border: 1px solid var(--status-alert);
+  background: var(--status-alert-bg);
+}
+
+.risk-section-heading,
+.risk-critical-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.risk-section-heading h3 {
+  margin: 0;
+}
+
+.risk-attention-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.risk-attention-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.risk-attention-list span {
+  color: var(--status-alert);
+  font-weight: 700;
 }
 
 .risk-detail-section {
   min-width: 0;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .risk-detail-grid {
@@ -5701,6 +5770,30 @@ button.weekly-phase-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 16px;
   margin: 0;
+}
+
+.risk-operational-strip,
+.risk-evidence-ledger {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--border);
+}
+
+.risk-evidence-ledger {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.risk-operational-strip .risk-detail-field,
+.risk-evidence-ledger .risk-detail-field {
+  padding: 10px 12px;
+  border-left: 1px solid var(--border);
+}
+
+.risk-operational-strip .risk-detail-field:first-child,
+.risk-evidence-ledger .risk-detail-field:first-child {
+  border-left: 0;
 }
 
 .risk-detail-field {
@@ -5789,10 +5882,8 @@ button.weekly-phase-row {
 .risk-action-list > div {
   display: grid;
   gap: 2px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-elevated);
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
 }
 
 .risk-action-list strong {
@@ -5808,20 +5899,90 @@ button.weekly-phase-row {
   line-height: 1.5;
 }
 
+.risk-next-action {
+  display: grid;
+  gap: 4px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.risk-next-action strong {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.risk-next-action span,
+.risk-secondary-context {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+.risk-secondary-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 10px 0;
+}
+
+.risk-critical-warnings {
+  padding: 14px 16px;
+  border: 1px solid var(--status-alert);
+  background: var(--status-alert-bg);
+}
+
+.risk-critical-heading {
+  justify-content: flex-start;
+  color: var(--status-alert);
+  font-size: 0.8125rem;
+}
+
+.risk-critical-heading span {
+  display: inline-flex;
+}
+
+.risk-critical-list {
+  display: grid;
+  margin-top: 10px;
+}
+
+.risk-critical-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) repeat(4, minmax(110px, 1fr));
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid color-mix(in srgb, var(--status-alert) 24%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.risk-critical-row > strong,
+.risk-critical-row b,
+.risk-critical-row .is-alert {
+  color: var(--status-alert);
+}
+
+.risk-critical-row .is-warning {
+  color: var(--status-warn);
+}
+
+.risk-critical-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .risk-detail-tabpanel .dashboard-summary-card {
   max-width: 100%;
   min-width: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
 }
 
 @media (max-width: 1180px) {
-  .risk-portfolio-summary,
-  .risk-selected-overview,
-  .risk-selected-drivers {
+  .risk-portfolio-summary {
     grid-template-columns: 1fr;
-  }
-
-  .risk-selected-drivers .risk-detail-section:last-child {
-    grid-column: auto;
   }
 
   .risk-portfolio-summary > div + div {
@@ -5831,29 +5992,30 @@ button.weekly-phase-row {
   }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 900px) {
   .risk-dashboard-page {
-    height: auto;
-    overflow: visible;
+    height: 100%;
+    overflow: hidden;
   }
 
   .risk-master-detail {
     display: block;
-    overflow: visible;
+    height: 100%;
+    overflow: hidden;
     border: 0;
     background: transparent;
   }
 
   .risk-master-detail .master-pane,
   .risk-master-detail .detail-pane {
-    overflow: visible;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
+    height: 100%;
+    overflow: hidden;
+    border: 0;
   }
 
   .risk-master-detail .master-pane-list,
   .risk-master-detail .detail-pane-content {
-    overflow: visible;
+    overflow-y: auto;
   }
 
   .risk-master-detail[data-mobile-view="master"] .detail-pane {
@@ -5871,10 +6033,6 @@ button.weekly-phase-row {
 }
 
 @media (max-width: 640px) {
-  .risk-page-header p {
-    display: none;
-  }
-
   .risk-detail-header {
     flex-wrap: wrap;
   }
@@ -5893,7 +6051,30 @@ button.weekly-phase-row {
   }
 
   .risk-detail-grid,
-  .risk-dimension-grid {
+  .risk-dimension-grid,
+  .risk-operational-strip,
+  .risk-evidence-ledger,
+  .risk-critical-row {
     grid-template-columns: 1fr;
+  }
+
+  .risk-operational-strip .risk-detail-field,
+  .risk-evidence-ledger .risk-detail-field {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .risk-operational-strip .risk-detail-field:first-child,
+  .risk-evidence-ledger .risk-detail-field:first-child {
+    border-top: 0;
+  }
+
+  .risk-kpi-strip {
+    grid-template-columns: repeat(3, minmax(62px, 1fr));
+  }
+
+  .risk-attention-list li,
+  .risk-critical-row {
+    align-items: flex-start;
   }
 }
