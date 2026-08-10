@@ -1,7 +1,6 @@
 import { Fragment } from 'react';
 import { formatDate } from '../../utils/reportUtils';
 import { getScoreTier, SCORE_TIER_COLORS } from '../../config/statusColors';
-import { KpiCard } from '../dashboard/DashboardWidgets';
 
 const SCHED_CHIP = {
   'On Track': { bg: 'var(--status-done-bg)',  color: 'var(--status-done)'  },
@@ -26,13 +25,12 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
         </div>
       </div>
 
-      {/* KPI row */}
-      <div className="weekly-comparison-kpis">
-        <KpiCard label="Total Visits"  value={svKpis.totalVisits} color="var(--accent)" />
-        <KpiCard label="Match Rate"    value={svKpis.overallMatchRate !== null ? `${svKpis.overallMatchRate}%` : '—'} color={matchRateColor(svKpis.overallMatchRate)} sub="PM vs GC agreement" />
-        <KpiCard label="Discrepancies" value={svKpis.totalDiscrepancies} color={svKpis.totalDiscrepancies > 0 ? 'var(--status-alert)' : 'var(--status-done)'} sub="GC overclaiming" />
-        <KpiCard label="PM Ahead"      value={svKpis.totalPmAhead}       color={svKpis.totalPmAhead > 0 ? 'var(--status-warn)' : 'var(--status-done)'} sub="PM sees more progress" />
-        <KpiCard label="Matched Items" value={svKpis.totalMatches}       color="var(--status-done)" sub={`of ${svKpis.totalAssessed} assessed`} />
+      <div className="weekly-verification-ledger" aria-label="Verification summary">
+        <div><span>PM visits</span><strong>{svKpis.totalVisits}</strong></div>
+        <div><span>Match rate</span><strong style={{ color: matchRateColor(svKpis.overallMatchRate) }}>{svKpis.overallMatchRate !== null ? `${svKpis.overallMatchRate}%` : '—'}</strong></div>
+        <div><span>Discrepancies</span><strong className={svKpis.totalDiscrepancies > 0 ? 'is-critical' : ''}>{svKpis.totalDiscrepancies}</strong></div>
+        <div><span>PM ahead</span><strong className={svKpis.totalPmAhead > 0 ? 'is-warning' : ''}>{svKpis.totalPmAhead}</strong></div>
+        <div><span>Matched items</span><strong>{svKpis.totalMatches} / {svKpis.totalAssessed}</strong></div>
       </div>
 
       {svData.length === 0 ? (
@@ -41,9 +39,9 @@ export default function SiteVisitComparison({ svData, svKpis, expandedVisitId, o
           <p>No site visits are recorded for this project, so contractor progress is not independently verified here yet.</p>
         </div>
       ) : (
-        <div className="dashboard-summary-card weekly-comparison-list">
-          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 4 }}>Site Visit Comparison</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>PM observed statuses vs GC weekly reports · click row to expand detail</div>
+        <div className="weekly-comparison-list">
+          <h3>Evidence reconciliation</h3>
+          <p>PM observed statuses compared with contractor reports. Select a visit for discrepancy detail.</p>
           <div style={{ display: 'grid', gap: 8 }}>
             {svData.map(({ visit, project, gcReport, items, discrepancies, pmAhead, matchRate }) => {
               const toggleId   = visit.id || visit.submittedAt;

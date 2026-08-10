@@ -29,7 +29,7 @@ export default function WeeklyReportsMasterList({
   return (
     <>
       <div className="master-pane-header">
-        <h2 className="master-pane-title">Weekly Reports</h2>
+        <h1 className="master-pane-title">Weekly Reports</h1>
         <label className="master-search">
           <span className="sr-only">Search projects or reports</span>
           <Icon name="search" size={15} />

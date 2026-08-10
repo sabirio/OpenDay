@@ -229,13 +229,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   return (
     <ErrorBoundary>
       <div className="weekly-reports-surface">
-        <div className="page-header weekly-page-title">
-          <div>
-            <h1>Weekly Reports</h1>
-            <p>Verified weekly progress, PM comparison, risks, evidence, and opening readiness by project.</p>
-          </div>
-        </div>
-
         {selectedProject && (
           <PrintHeader
             title="Weekly Progress Report"
@@ -287,6 +280,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 </div>
                 <div className="weekly-detail-meta">
                   <span>{selectedReportSummary?.reportingContext || "No contractor report"}</span>
+                  {selectedRow?.contractorName && <span>{selectedRow.contractorName}</span>}
                   {selectedProject.city && <span>{selectedProject.city}</span>}
                   {selectedProject.country && <span>{selectedProject.country}</span>}
                   {selectedProject.projectManager && <span>PM: {selectedProject.projectManager}</span>}
@@ -311,14 +305,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                         ))}
                   </select>
                 </label>
-                <button
-                  type="button"
-                  className={showGantt ? "btn btn-secondary is-active" : "btn btn-secondary"}
-                  aria-pressed={showGantt}
-                  onClick={() => setShowGantt((value) => !value)}
-                >
-                  {showGantt ? "Hide Gantt" : "View Gantt"}
-                </button>
                 <WeeklyReportExportButton
                   project={selectedProject}
                   report={selectedReport}
@@ -331,6 +317,14 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                   overallProgress={overallProgress}
                   onError={toast.error}
                 />
+                <button
+                  type="button"
+                  className={showGantt ? "btn btn-secondary is-active" : "btn btn-secondary"}
+                  aria-pressed={showGantt}
+                  onClick={() => setShowGantt((value) => !value)}
+                >
+                  {showGantt ? "Hide Gantt" : "View Gantt"}
+                </button>
               </div>
             </header>
           ) : null}
@@ -349,9 +343,9 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               role={selectedReport ? "tabpanel" : undefined}
               aria-labelledby={selectedReport ? `weekly-tab-${activeReviewTab}` : undefined}
             >
-            {selectedProject && (
-              <section className="weekly-truth-console">
-                {templateErrorIssues.length > 0 && (
+            {selectedProject && templateErrorIssues.length > 0 && (
+              <section className="weekly-template-alert-wrap">
+                {(
                   <div role="alert" className="weekly-template-alert">
                     <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
                       Active template is invalid — using built-in default weights. Fix in Template Editor:
@@ -363,15 +357,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                     </ul>
                   </div>
                 )}
-                <ReportTruthBar
-                  overallProgress={overallProgress}
-                  progressComparison={engineOutputs?.progressComparison}
-                  selectedProgress={engineOutputs?.selectedProgress}
-                  svKpis={svKpis}
-                  report={selectedReport}
-                  portfolioKpis={portfolioKpis}
-                  additionalWorksList={additionalWorksList}
-                />
               </section>
             )}
 
@@ -411,29 +396,56 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
             {selectedReport && activeReviewTab === "overview" && (
               <section className="weekly-overview-main">
-                <div className="weekly-overview-context">
-                  <div className="weekly-detail-section">
-                    <ActionRequiredPanel
-                      report={selectedReport}
-                      svKpis={svKpis}
-                      portfolioKpis={portfolioKpis}
-                      additionalWorksList={additionalWorksList}
-                    />
-                  </div>
-                  <div className="weekly-detail-section">
+                <ActionRequiredPanel
+                  report={selectedReport}
+                  svKpis={svKpis}
+                  portfolioKpis={portfolioKpis}
+                  additionalWorksList={additionalWorksList}
+                />
+
+                <section className="weekly-overview-section" aria-labelledby="weekly-progress-heading">
+                  <div className="weekly-section-title-row">
+                    <h2 id="weekly-progress-heading">Weekly progress and change</h2>
                     <CompactProgressTrend
                       series={progressSeries}
                       scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
                       spi={engineOutputs?.progressComparison?.spi}
                     />
                   </div>
-                </div>
+                  <ReportTruthBar
+                    overallProgress={overallProgress}
+                    progressComparison={engineOutputs?.progressComparison}
+                    selectedProgress={engineOutputs?.selectedProgress}
+                    svKpis={svKpis}
+                    report={selectedReport}
+                    portfolioKpis={portfolioKpis}
+                    additionalWorksList={additionalWorksList}
+                  />
+                </section>
 
                 <ProgressNarrative
                   progressComparison={engineOutputs?.progressComparison}
                   selectedProgress={engineOutputs?.selectedProgress}
                   explainResult={explainResult}
                 />
+
+                <section className="weekly-overview-section" aria-labelledby="weekly-lookahead-heading">
+                  <h2 id="weekly-lookahead-heading">Key exceptions and lookahead</h2>
+                  <ReportLinksBlock report={selectedReport} />
+                </section>
+
+                <section className="weekly-evidence-summary" aria-labelledby="weekly-evidence-heading">
+                  <div className="weekly-section-title-row">
+                    <h2 id="weekly-evidence-heading">Recent evidence summary</h2>
+                    <span>{selectedReport.photos?.length ?? 0} photos</span>
+                  </div>
+                  <div className="weekly-evidence-ledger">
+                    <div><span>Contractor report</span><strong>{selectedReport.reportingDate || formatDate(selectedReport.submittedAt)}</strong></div>
+                    <div><span>PM verification</span><strong>{svKpis.totalVisits > 0 ? `${svKpis.overallMatchRate ?? '—'}% match · ${svKpis.totalDiscrepancies} discrepancies` : 'Not verified'}</strong></div>
+                    <div><span>Photo evidence</span><strong>{selectedReport.photos?.length ? `${selectedReport.photos.length} attached` : 'No photos attached'}</strong></div>
+                    <div><span>Additional works</span><strong>{additionalWorksList.entries.length} reported</strong></div>
+                  </div>
+                </section>
 
                 <PhaseBoard
                   phases={phaseClassifications}
@@ -501,10 +513,10 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
                 {/* Audit log — who changed progress and when */}
                 {selectedProject && (
-                  <div className="dashboard-summary-card" style={{ marginBottom: 20 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "var(--text-primary)" }}>Change History</div>
+                  <section className="weekly-support-section weekly-change-history">
+                    <h2>Report metadata and change history</h2>
                     <AuditLogPanel projectId={selectedProject.id} />
-                  </div>
+                  </section>
                 )}
               </section>
             )}

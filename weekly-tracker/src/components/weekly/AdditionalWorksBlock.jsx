@@ -2,11 +2,11 @@ export default function AdditionalWorksBlock({ entries, total }) {
   const hasEntries = entries?.length > 0;
 
   return (
-    <div className="dashboard-summary-card" style={{ marginBottom: 20, borderTop: hasEntries ? '3px solid var(--status-warn)' : undefined }}>
-      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: hasEntries ? 'var(--status-warn)' : 'var(--text-primary)' }}>
+    <section className={hasEntries ? 'weekly-support-section weekly-additional-works has-entries' : 'weekly-support-section weekly-additional-works'}>
+      <h2>
         Additional Works
         {total && <span style={{ marginLeft: 10, fontSize: 14, color: 'var(--status-warn)' }}>{total} total</span>}
-      </div>
+      </h2>
       {!hasEntries ? (
         <div style={{ fontSize: 13, color: 'var(--status-done)', fontWeight: 600 }}>✓ No additional works</div>
       ) : (
@@ -30,6 +30,6 @@ export default function AdditionalWorksBlock({ entries, total }) {
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

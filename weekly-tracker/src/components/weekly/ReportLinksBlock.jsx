@@ -8,8 +8,8 @@ export default function ReportLinksBlock({ report }) {
 
   return (
     <div className="weekly-report-links">
-      <div className="dashboard-summary-card" style={{ margin: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--text-primary)' }}>Look Ahead</div>
+      <section className="weekly-support-section">
+        <h3>Look ahead</h3>
         {hasLookAhead ? (
           <>
             <ExpandableTextBlock label="Top 3 - Next Week" value={report.nextWeekTop3} plain />
@@ -21,10 +21,10 @@ export default function ReportLinksBlock({ report }) {
         ) : (
           <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No look-ahead submitted</div>
         )}
-      </div>
+      </section>
 
-      <div className="dashboard-summary-card" style={{ margin: 0 }}>
-        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: 'var(--text-primary)' }}>Declaration</div>
+      <section className="weekly-support-section">
+        <h3>Declaration and comments</h3>
         {hasDeclaration ? (
           <>
             <ExpandableTextBlock label="Pending Issues" value={report.pendingIssues} plain />
@@ -41,7 +41,7 @@ export default function ReportLinksBlock({ report }) {
           }} />
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Confirmed by contractor</span>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

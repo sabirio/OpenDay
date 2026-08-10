@@ -24,9 +24,11 @@ export default function ActionRequiredPanel({ report, svKpis, portfolioKpis, add
   const allClear = !hasRisk && !hasBlocked && !hasSupport && !hasAdditionalWorks && missingReports === 0 && hasPmVisit && hasPhotos;
 
   return (
-    <aside className="weekly-action-panel" aria-label="Action required">
-      <div className="weekly-section-kicker">Action required</div>
-      <h2>PM attention queue</h2>
+    <aside className={allClear ? 'weekly-action-panel is-clear' : 'weekly-action-panel'} aria-label="Action required">
+      <div className="weekly-action-heading">
+        <h2>Report status and attention</h2>
+        <span>PM review</span>
+      </div>
 
       {allClear ? (
         <div className="weekly-action-clear">
