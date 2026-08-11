@@ -77,6 +77,7 @@ export default function RiskDashboardMasterList({
           type="button"
           className={selectedRiskProjectId === null ? 'master-list-row risk-master-row risk-portfolio-row is-selected' : 'master-list-row risk-master-row risk-portfolio-row'}
           aria-pressed={selectedRiskProjectId === null}
+          aria-current={selectedRiskProjectId === null ? 'true' : undefined}
           onClick={() => onSelect(null)}
           data-testid="risk-master-portfolio"
         >
@@ -86,7 +87,8 @@ export default function RiskDashboardMasterList({
           </span>
           <span className="master-row-name">Portfolio risk overview</span>
           <span className="master-row-bottom">
-            <span>{summaryStats.HIGH} high · {summaryStats.MEDIUM} medium · Avg score {summaryStats.avgScore}</span>
+            <span>{summaryStats.HIGH} high · {summaryStats.MEDIUM} medium</span>
+            <span>Avg score {summaryStats.avgScore}</span>
           </span>
         </button>
 
@@ -97,12 +99,19 @@ export default function RiskDashboardMasterList({
         ) : filteredRows.map((row) => {
           const selected = selectedRiskProjectId === String(row.project.id);
           const delay = row.schedDev?.predictedDelayDays;
+          const primaryFactor = row.riskScore.factors
+            .filter((factor) => factor.pts > 0)
+            .sort((a, b) => b.pts - a.pts)[0];
+          const primaryReason = primaryFactor
+            ? `${primaryFactor.name}: ${primaryFactor.value}`
+            : row.riskScore.reasons?.[0]?.text || 'No positive risk signal';
           return (
             <button
               key={row.project.id}
               type="button"
               className={selected ? 'master-list-row risk-master-row is-selected' : 'master-list-row risk-master-row'}
               aria-pressed={selected}
+              aria-current={selected ? 'true' : undefined}
               onClick={() => onSelect(String(row.project.id))}
               data-testid="risk-master-project"
               data-project-id={row.project.id}
@@ -115,7 +124,8 @@ export default function RiskDashboardMasterList({
                 {row.project.shoppingMallName || 'Project name not set'}
               </span>
               <span className="master-row-bottom">
-                <span>{delay > 0 ? `+${delay} days` : 'On track'} · Risk Score {row.riskScore.score}</span>
+                <span title={primaryReason}>{primaryReason}</span>
+                <span>{delay > 0 ? `+${delay}d` : 'On track'} · Score {row.riskScore.score}</span>
               </span>
             </button>
           );

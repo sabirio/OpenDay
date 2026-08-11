@@ -5903,7 +5903,7 @@ button.weekly-phase-row {
 }
 
 .risk-master-row {
-  min-height: 82px;
+  min-height: 96px;
 }
 
 .risk-portfolio-row {
@@ -6066,6 +6066,68 @@ button.weekly-phase-row {
   font-weight: 700;
 }
 
+.risk-conclusion-copy {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+}
+
+.risk-conclusion-copy strong {
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+}
+
+.risk-conclusion-copy span,
+.risk-section-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+
+.risk-explanation-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+}
+
+.risk-explanation-list li {
+  display: grid;
+  min-width: 0;
+  padding: 0 14px;
+  border-left: 1px solid var(--border);
+  gap: 3px;
+}
+
+.risk-explanation-list li:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.risk-explanation-list strong,
+.risk-explanation-list span,
+.risk-explanation-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.risk-explanation-list strong {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.risk-explanation-list span {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.risk-explanation-list small {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
 .risk-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6137,6 +6199,24 @@ button.weekly-phase-row {
   display: grid;
 }
 
+.risk-driver-row > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.risk-driver-row > span > strong {
+  color: var(--text-primary);
+  font-size: 0.75rem;
+}
+
+.risk-driver-row > span > small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+}
+
 .risk-dimension-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6200,6 +6280,21 @@ button.weekly-phase-row {
 .risk-next-action span {
   color: var(--text-muted);
   font-size: 0.6875rem;
+}
+
+.risk-next-action small {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.risk-next-action p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.45;
 }
 
 .risk-secondary-context {
@@ -6311,6 +6406,12 @@ button.weekly-phase-row {
   .risk-back-to-master {
     display: inline-flex;
     flex-shrink: 0;
+    min-height: 44px;
+  }
+
+  .risk-forecast-control button {
+    min-height: 44px;
+    padding: 0 12px;
   }
 }
 
@@ -6331,8 +6432,21 @@ button.weekly-phase-row {
   .risk-detail-grid,
   .risk-dimension-grid,
   .risk-operational-strip,
-  .risk-critical-row {
+  .risk-critical-row,
+  .risk-explanation-list {
     grid-template-columns: 1fr;
+  }
+
+  .risk-explanation-list li,
+  .risk-explanation-list li:first-child {
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .risk-explanation-list li:first-child {
+    padding-top: 0;
+    border-top: 0;
   }
 
   .risk-operational-strip .ds-metadata-row {
