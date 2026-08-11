@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAllRows } from "../hooks/useAllRows";
 import { useWeeklyReportReviewModel } from "../hooks/useWeeklyReportReviewModel";
 import { useWeeklyGanttTasks } from "../hooks/useWeeklyGanttTasks";
@@ -67,13 +68,15 @@ class ErrorBoundary extends React.Component {
 function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [searchParams] = useSearchParams();
+  const linkedProjectId = searchParams.get("project");
+  const [selectedProjectId, setSelectedProjectId] = useState(() => linkedProjectId || "");
   const [selectedReportId,  setSelectedReportId]  = useState("");
   const [showMissingModal,  setShowMissingModal]  = useState(false);
   const [showGantt,         setShowGantt]         = useState(false);
   const [expandedVisitId,   setExpandedVisitId]   = useState(null);
   const [activeReviewTab,   setActiveReviewTab]   = useState("overview");
-  const [mobileView,        setMobileView]        = useState("master");
+  const [mobileView,        setMobileView]        = useState(() => (linkedProjectId ? "detail" : "master"));
   const [masterSearch,      setMasterSearch]      = useState("");
   const [masterFilter,      setMasterFilter]      = useState("all");
 

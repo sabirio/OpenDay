@@ -6,6 +6,7 @@ const LOCAL_FIXTURE_PASSWORD = getLocalFixturePassword();
 const DASHBOARD_USERS = {
   admin: { email: 'admin-a@cert.local', password: LOCAL_FIXTURE_PASSWORD },
   pm: { email: 'pm-a-assigned@cert.local', password: LOCAL_FIXTURE_PASSWORD },
+  viewer: { email: 'viewer-a@cert.local', password: LOCAL_FIXTURE_PASSWORD },
 };
 
 async function expectNoCorruptDashboardValues(page) {
@@ -55,7 +56,7 @@ test.describe('Project Dashboard — Admin', () => {
     expect(mobileColumnOrder).toEqual(['Portfolio Health', 'Reporting & Site Visits', 'Portfolio Scope']);
   });
 
-  test('selected project removes Dashboard-only actions and preserves five tabs and keyboard semantics', async ({ page }) => {
+  test('selected project exposes role-aware workflow handoffs and preserves five tabs and keyboard semantics', async ({ page }) => {
     const projectRows = page.locator('[data-testid="dashboard-master-project"]');
     await expect(projectRows.first()).toBeVisible({ timeout: 15_000 });
 
@@ -67,13 +68,24 @@ test.describe('Project Dashboard — Admin', () => {
     await expect(page.locator('.dashboard-status-strip')).toBeVisible();
     await expect(page.locator('.dashboard-health-metrics')).toHaveCount(0);
     const overviewSections = page.locator('.dashboard-project-overview > section');
-    await expect(overviewSections).toHaveCount(5);
+    await expect(overviewSections).toHaveCount(6);
     await expect(overviewSections.nth(0)).toContainText('Needs Attention');
-    await expect(overviewSections.nth(1)).toContainText('Operational Status');
-    await expect(overviewSections.nth(2)).toContainText('Schedule & Progress');
-    await expect(overviewSections.nth(3)).toContainText('Recent Operational Evidence');
-    await expect(overviewSections.nth(4)).toContainText('Project Context');
-    await expect(page.getByRole('link', { name: 'Site Visit' })).toHaveCount(0);
+    await expect(overviewSections.nth(1)).toContainText('Continue project work');
+    await expect(overviewSections.nth(2)).toContainText('Operational Status');
+    await expect(overviewSections.nth(3)).toContainText('Schedule & Progress');
+    await expect(overviewSections.nth(4)).toContainText('Recent Operational Evidence');
+    await expect(overviewSections.nth(5)).toContainText('Project Context');
+
+    const selectedProjectId = await projectRows.first().getAttribute('data-project-id');
+    const workflow = page.getByRole('list', { name: 'Project workflow' });
+    await expect(workflow.getByRole('link')).toHaveCount(4);
+    await expect(workflow.getByRole('link', { name: /Reports/ })).toHaveAttribute('href', `/weekly-reports?project=${selectedProjectId}`);
+    await expect(workflow.getByRole('link', { name: /Site Visit/ })).toHaveAttribute('href', `/site-visit/${selectedProjectId}`);
+    await expect(workflow.getByRole('link', { name: /Risk/ })).toHaveAttribute('href', `/risk?project=${selectedProjectId}`);
+    await expect(workflow.getByRole('link', { name: /Snags/ })).toHaveAttribute('href', `/projects/${selectedProjectId}/snags`);
+    await expect(page.locator('.dashboard-project-workflows')).toContainText('Actions stay with source workflows');
+    await expect(workflow).toContainText('Owned in source workflows');
+    await expect(workflow.getByRole('link', { name: /Actions/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Copy report link' })).toHaveCount(0);
 
     const tabs = page.getByRole('tablist', { name: 'Dashboard detail views' }).getByRole('tab');
@@ -135,6 +147,25 @@ test.describe('Project Dashboard — Admin', () => {
     await page.unrouteAll({ behavior: 'wait' });
   });
 
+  test('Reports and Risk handoffs preserve the selected project context', async ({ page }) => {
+    const projectRows = page.locator('[data-testid="dashboard-master-project"]');
+    await expect(projectRows.first()).toBeVisible({ timeout: 15_000 });
+    await projectRows.first().click();
+
+    const selectedProjectId = await projectRows.first().getAttribute('data-project-id');
+    const selectedProjectName = await projectRows.first().locator('.master-row-name').innerText();
+
+    await page.getByRole('list', { name: 'Project workflow' }).getByRole('link', { name: /Reports/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/weekly-reports\\?project=${selectedProjectId}$`));
+    await expect(page.locator('.weekly-detail-header')).toContainText(selectedProjectName);
+
+    await page.goto(`/?project=${selectedProjectId}`);
+    await expect(page.locator('.dashboard-project-overview')).toBeVisible();
+    await page.getByRole('list', { name: 'Project workflow' }).getByRole('link', { name: /Risk/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/risk\\?project=${selectedProjectId}$`));
+    await expect(page.locator('.risk-detail-header')).toContainText(selectedProjectName);
+  });
+
   test('responsive Master to Detail to Back preserves state and captures the Dashboard region', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const projectRows = page.locator('[data-testid="dashboard-master-project"]');
@@ -160,6 +191,10 @@ test.describe('Project Dashboard — Admin', () => {
       (desktopMasterHeaderBox.y + desktopMasterHeaderBox.height)
       - (desktopDetailTabsBox.y + desktopDetailTabsBox.height),
     )).toBeLessThanOrEqual(0.5);
+    const desktopSectionTops = await page.locator('.dashboard-project-overview > section').evaluateAll(
+      sections => sections.map(section => section.getBoundingClientRect().top),
+    );
+    expect(desktopSectionTops).toEqual([...desktopSectionTops].sort((a, b) => a - b));
     await page.screenshot({ path: testInfo.outputPath('dashboard-desktop-full.png') });
     await page.locator('.dashboard-page').screenshot({ path: testInfo.outputPath('dashboard-desktop.png') });
 
@@ -197,6 +232,15 @@ test.describe('Project Dashboard — Admin', () => {
     await expect(page.locator('.dashboard-page-header')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Back to Projects' })).toBeVisible();
     await expect(page.locator('.dashboard-tabs-overflow-cue')).toBeVisible();
+    const workflowRowHeights = await page.locator('.dashboard-workflow-handoffs > li').evaluateAll(
+      rows => rows.map(row => row.getBoundingClientRect().height),
+    );
+    expect(workflowRowHeights).toHaveLength(5);
+    expect(workflowRowHeights.every(height => height >= 44)).toBe(true);
+    const horizontalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(horizontalOverflow).toBe(0);
     await page.locator('.dashboard-page').screenshot({ path: testInfo.outputPath('dashboard-mobile-detail.png') });
     await expect(page.locator('.dashboard-detail-tabs')).toHaveCSS('overflow-x', 'auto');
     await expectNoCorruptDashboardValues(page);
@@ -209,5 +253,21 @@ test.describe('Project Dashboard — PM', () => {
     await page.goto('/');
     await expect(page.locator('h1')).toContainText('Portfolio Overview', { timeout: 10_000 });
     await expect(page.locator('aside nav').getByRole('link', { name: 'Users', exact: true })).not.toBeVisible();
+  });
+});
+
+test.describe('Project Dashboard Viewer workflow boundary', () => {
+  test('workflow handoffs follow the existing Viewer permission boundary', async ({ page }) => {
+    await login(page, DASHBOARD_USERS.viewer);
+    await page.goto('/');
+    const projectRows = page.locator('[data-testid="dashboard-master-project"]');
+    await expect(projectRows.first()).toBeVisible({ timeout: 15_000 });
+    await projectRows.first().click();
+
+    const workflow = page.getByRole('list', { name: 'Project workflow' });
+    await expect(workflow.getByRole('link')).toHaveCount(1);
+    await expect(workflow.getByRole('link', { name: /Snags/ })).toBeVisible();
+    await expect(workflow.getByRole('link', { name: /Reports|Site Visit|Risk/ })).toHaveCount(0);
+    await expect(workflow).toContainText('Actions');
   });
 });

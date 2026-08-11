@@ -4723,6 +4723,10 @@ button.weekly-phase-row {
   align-items: start;
 }
 
+.dashboard-page .dashboard-project-overview {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .dashboard-page .dashboard-detail-meta {
   margin: 0;
   color: var(--text-secondary);
@@ -4810,6 +4814,66 @@ button.weekly-phase-row {
   align-items: flex-start;
   padding: var(--space-2) 0 0;
   text-align: left;
+}
+
+.dashboard-page .dashboard-workflow-handoffs {
+  display: grid;
+  grid-template-columns: repeat(var(--workflow-columns), minmax(0, 1fr));
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  list-style: none;
+}
+
+.dashboard-page .dashboard-workflow-handoffs li {
+  min-width: 0;
+}
+
+.dashboard-page .dashboard-workflow-handoffs li + li {
+  border-left: 1px solid var(--border);
+}
+
+.dashboard-page .dashboard-workflow-handoffs a,
+.dashboard-page .dashboard-workflow-boundary {
+  display: flex;
+  min-height: 68px;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.dashboard-page .dashboard-workflow-handoffs a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.dashboard-page .dashboard-workflow-handoffs a:hover {
+  background: var(--bg-hover);
+}
+
+.dashboard-page .dashboard-workflow-handoffs a:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+}
+
+.dashboard-page .dashboard-workflow-handoffs strong {
+  color: var(--selection);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.dashboard-page .dashboard-workflow-handoffs span {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+
+.dashboard-page .dashboard-workflow-boundary strong {
+  color: var(--text-secondary);
 }
 
 .dashboard-page .dashboard-status-strip {
@@ -4970,6 +5034,34 @@ button.weekly-phase-row {
   .dashboard-page .dashboard-evidence-ledger,
   .dashboard-page .dashboard-context-list {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .dashboard-project-workflows .ds-section-heading {
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .dashboard-page .dashboard-workflow-handoffs {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .dashboard-workflow-handoffs li + li {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .dashboard-page .dashboard-workflow-handoffs a,
+  .dashboard-page .dashboard-workflow-boundary {
+    min-height: 44px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .dashboard-page .dashboard-workflow-handoffs span {
+    text-align: right;
   }
 
   .dashboard-page .dashboard-status-strip {

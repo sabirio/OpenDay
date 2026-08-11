@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useRiskRows } from '../hooks/useRiskRows';
 import { loadProjectTrend } from '../hooks/useProjectTrend';
 import { useGanttMetrics } from '../hooks/useGanttMetrics';
@@ -32,9 +33,11 @@ import ExportButton from '../components/print/ExportButton';
 
 function RiskDashboard({ projects, reports, siteVisits = [] }) {
   const { user } = useAuth();
-  const [selectedRiskProjectId, setSelectedRiskProjectId] = useState(null);
+  const [searchParams] = useSearchParams();
+  const linkedProjectId = searchParams.get('project');
+  const [selectedRiskProjectId, setSelectedRiskProjectId] = useState(() => linkedProjectId);
   const [activeTab, setActiveTab] = useState('overview');
-  const [mobileView, setMobileView] = useState('master');
+  const [mobileView, setMobileView] = useState(() => (linkedProjectId ? 'detail' : 'master'));
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState('all');
   const [expandedRow, setExpandedRow] = useState(null);

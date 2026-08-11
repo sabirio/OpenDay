@@ -466,7 +466,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
   let detailContent;
   if (activeView === "overview") {
     detailContent = selectedRow ? (
-      <DashboardProjectOverview row={selectedRow} siteVisits={selectedSiteVisits} />
+      <DashboardProjectOverview row={selectedRow} siteVisits={selectedSiteVisits} role={role} />
     ) : (
       <PortfolioOverview
         kpis={kpis}

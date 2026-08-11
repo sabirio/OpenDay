@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import { useProjectDetailDrawerModel } from '../../hooks/useProjectDetailDrawerModel';
+import { canAccessResource } from '../../hooks/usePermission';
 import { formatDate } from '../../utils/reportUtils';
 import { getScheduleRiskLabel } from '../../hooks/useScheduleRiskPresentation';
 import { SchedBadge } from './DashboardWidgets';
@@ -36,7 +38,64 @@ function StatusItem({ label, value, detail, className = '', children }) {
   );
 }
 
-export default function DashboardProjectOverview({ row, siteVisits = [] }) {
+function ProjectWorkflowHandoffs({ projectId, role }) {
+  const encodedProjectId = encodeURIComponent(projectId);
+  const handoffs = [
+    {
+      label: 'Reports',
+      description: 'Review latest submission',
+      resource: 'weekly_reports',
+      to: `/weekly-reports?project=${encodedProjectId}`,
+    },
+    {
+      label: 'Site Visit',
+      description: 'Verify progress on site',
+      resource: 'site_visit',
+      to: `/site-visit/${encodedProjectId}`,
+    },
+    {
+      label: 'Risk',
+      description: 'Review drivers and impact',
+      resource: 'risk_engine',
+      to: `/risk?project=${encodedProjectId}`,
+    },
+    {
+      label: 'Snags',
+      description: 'Resolve field observations',
+      resource: 'snags',
+      to: `/projects/${encodedProjectId}/snags`,
+    },
+  ].filter(item => canAccessResource(role, item.resource));
+
+  return (
+    <AnalyticalSection
+      title="Continue project work"
+      accessory="Actions stay with source workflows"
+      className="dashboard-project-workflows"
+    >
+      <ul
+        className="dashboard-workflow-handoffs"
+        aria-label="Project workflow"
+        style={{ '--workflow-columns': handoffs.length + 1 }}
+      >
+        {handoffs.map(item => (
+          <li key={item.to}>
+            <Link to={item.to}>
+              <strong>{item.label}</strong>
+              <span>{item.description}</span>
+            </Link>
+          </li>
+        ))}
+        <li className="dashboard-workflow-boundary">
+          <strong>Actions</strong>
+          <span>Owned in source workflows</span>
+        </li>
+      </ul>
+    </AnalyticalSection>
+  );
+}
+
+export default function DashboardProjectOverview({ row, siteVisits = [], role }) {
   const summary = useProjectDetailDrawerModel(row, siteVisits);
   if (!row || !summary) return null;
 
@@ -177,6 +236,8 @@ export default function DashboardProjectOverview({ row, siteVisits = [] }) {
           <EmptyState title="No current attention items" className="dashboard-attention-empty" />
         )}
       </AttentionSurface>
+
+      <ProjectWorkflowHandoffs projectId={project.id} role={role} />
 
       <AnalyticalSection title="Operational Status" className="dashboard-operational-status" ruled={false}>
         <div className="dashboard-status-strip">
