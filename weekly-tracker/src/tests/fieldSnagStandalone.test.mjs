@@ -57,7 +57,7 @@ check('Field Snag workspace still exposes Plan | List | Add', snagFieldShell.inc
 
 // ── 7. White, Site-Visit-like field shell (theme-independent) ───────
 check('Field Snag shell uses the fixed --field-* palette, not the app theme tokens directly', fieldModeCss.includes('--field-bg-snag') && fieldModeCss.includes('--field-text-heading') && fieldModeCss.includes("--bg-base: var(--field-bg-snag)"));
-check('Field Snag header presents project identity in a card, like Site Visit’s header card', fieldModeCss.includes('snag-field-header-card') && snagFieldShell.includes('snag-field-header-card') && snagFieldShell.includes('snag-field-eyebrow'));
+check('Field Snag header presents project identity as a flat operational context row', fieldModeCss.includes('snag-field-header-context') && snagFieldShell.includes('snag-field-header-context') && !snagFieldShell.includes('snag-field-eyebrow'));
 check('Field Snag shell no longer reserves space for a sidebar (top-level route has none)', !fieldModeCss.includes("left: 200px") && !fieldModeCss.includes('left: 216px'));
 
 // ── 8. Observation Back / Previous-Next context is not regressed ────

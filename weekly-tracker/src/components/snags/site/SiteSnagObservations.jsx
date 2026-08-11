@@ -15,7 +15,9 @@ function isQuickViewActive(view, filters, actor) {
 
 function ObservationRow({ snag, catalog, selected, onSelect }) {
   const stakeholder = catalog.stakeholders.find((item) => String(item.id) === String(snag.stakeholderId));
+  const trade = catalog.trades.find((item) => String(item.id) === String(snag.tradeId));
   const responsible = stakeholder?.company_name || stakeholder?.name || 'Not assigned';
+  const publicationTone = snag.publicationState === 'CAPTURED' ? 'is-captured' : snag.publicationState === 'ARCHIVED' ? 'is-archived' : 'is-published';
 
   return (
     <button
@@ -28,11 +30,15 @@ function ObservationRow({ snag, catalog, selected, onSelect }) {
     >
       <span className="master-row-top">
         <strong>SN-{snag.snagNumber}</strong>
-        <SnagStatus status={snag.status} label={snag.statusLabel} tone={snag.statusTone} />
+        <span className={`publication-badge ${publicationTone}`}>{snag.publicationState}</span>
       </span>
       <span className="master-row-name" title={snag.title}>{snag.title}</span>
+      <span className="site-snag-master-responsibility" title={`${trade?.name || 'Trade not set'} · ${responsible}`}>
+        {trade?.name || 'Trade not set'} · {responsible}
+      </span>
       <span className="master-row-bottom">
-        <span title={responsible}>{responsible}</span>
+        <span title={snag.locationLabel}>{snag.locationLabel}</span>
+        <span className="site-snag-master-state"><SnagStatus status={snag.status} label={snag.statusLabel} tone={snag.statusTone} /></span>
         <span>{snag.dueStateLabel} · {snag.dueDateLabel}</span>
       </span>
     </button>

@@ -25,7 +25,6 @@ export default function SnagFieldListView({ projectId, status, reload, model, fi
     <div className="snag-field-list">
       <div className="snag-field-list-toolbar">
         <nav className="snag-quick-views" aria-label="Quick views">
-          <button type="button" onClick={() => setFilters({ publicationState: 'CAPTURED' })}>Captured</button>
           {SNAG_QUICK_VIEWS.map(view => <button type="button" key={view.label} onClick={() => selectQuickView(view)}>{view.label}</button>)}
         </nav>
         <button type="button" className="btn snag-field-filter-trigger" onClick={() => setSheetOpen(true)}>
