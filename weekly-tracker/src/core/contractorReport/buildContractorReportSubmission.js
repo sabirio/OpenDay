@@ -14,6 +14,7 @@ import { resolveEffectiveV2ZoneAreas } from '../projects/areas/resolveProjectAre
 // eslint-disable-next-line no-restricted-imports
 import { encodeLegacyWpTaskId } from '../../config/workPackages';
 import { legacyStatusToDbStatus } from '../../config/statusScores';
+import { assertReportItemConfirmationMode, assertReportItemEvidenceState } from '../reporting/reportEvidenceState.js';
 
 /**
  * Pure composition of one contractor report submission: synthesizes
@@ -53,6 +54,7 @@ function buildLegacyWpProgressArray(workPackageStatuses, currentPackages) {
         progress_pct: resolveLegacyTaskEffectiveProgressPct(entry.status, entry.progress),
         status: legacyStatusToDbStatus(entry.status),
         comment: entry.comment || '',
+        ...(entry.reportItemState ? { reportItemState: assertReportItemEvidenceState(entry.reportItemState), sourceReportWpId: entry.sourceReportWpId ?? null, confirmationMode: assertReportItemConfirmationMode(entry.confirmationMode ?? null), batchConfirmationId: entry.batchConfirmationId ?? null } : {}),
       });
     }
   }
@@ -134,11 +136,12 @@ export function buildContractorReportSubmission({
         progress_pct: value.progress_pct ?? 0,
         status: value.status ?? "not_started",
         comment: value.comment ?? "",
+        ...(value.reportItemState ? { reportItemState: assertReportItemEvidenceState(value.reportItemState), sourceReportWpId: value.sourceReportWpId ?? null, confirmationMode: assertReportItemConfirmationMode(value.confirmationMode ?? null), batchConfirmationId: value.batchConfirmationId ?? null } : {}),
       };
     })
     : buildLegacyWpProgressArray(workPackageStatuses, form.currentPackages);
 
   const contractorRawAverageProgress = calculateRawWPAverageProgress(wpProgressArray, cumulativeProgress);
 
-  return { mainReportPayload, wpProgressArray, cumulativeProgress, contractorRawAverageProgress };
+  return { mainReportPayload, wpProgressArray, cumulativeProgress, contractorRawAverageProgress, scopeTemplate, effectiveWeights: v2Template?.effectiveWeights ?? null };
 }

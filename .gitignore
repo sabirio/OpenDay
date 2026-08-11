@@ -4,6 +4,7 @@ dist-ssr
 *.local
 .env
 .env.local
+.env.*
 .env.*.local
 backups/
 work/
@@ -11,6 +12,9 @@ weekly-tracker/skills-lock.json
 .claude/settings.local.json
 *.log
 .DS_Store
+.vscode/
+artifacts/
+weekly-tracker/artifacts/
 .agents/
 .codex/
 .impeccable/

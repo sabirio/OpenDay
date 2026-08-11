@@ -20,6 +20,8 @@ export async function submitReport(projectId, wpProgressArray, meta = {}) {
     photoUrls: meta.photoUrls || [],
     calculatedAt: meta.calculatedAt,
     calculationVersion: meta.calculationVersion,
+    effectiveWeights: meta.effectiveWeights ?? null,
+    reportScopeSnapshot: meta.reportScopeSnapshot ?? null,
   };
 
   const { data, error } = await supabase.rpc('submit_contractor_report_atomic', {
