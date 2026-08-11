@@ -48,3 +48,72 @@ export function displayAction(role, recommendedAction) {
   if (!recommendedAction) return null;
   return role === 'PM' ? recommendedAction : 'Needs review';
 }
+
+export function getAttentionInsights(insights = []) {
+  return insights.filter(insight => insight.severity === 'critical' || insight.severity === 'warning');
+}
+
+export function getInsightDisplayTitle(insight, projects = []) {
+  if (!insight) return '';
+  const project = projects.find(candidate => String(candidate.id) === String(insight.projectId));
+  const code = project?.storeCode;
+  if (!code || insight.title.includes(code)) return insight.title;
+  return `${code} — ${insight.title}`;
+}
+
+function validTimestamp(value) {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+export function buildRecentActivity({ projects = [], reports = [], siteVisits = [], limit = 4 }) {
+  const projectsById = new Map(projects.map(project => [String(project.id), project]));
+  const identify = (projectId) => {
+    const project = projectsById.get(String(projectId));
+    return {
+      code: project?.storeCode || 'Unknown project',
+      name: project?.shoppingMallName || null,
+    };
+  };
+
+  const reportItems = reports.flatMap((report) => {
+    const occurredAt = report.submittedAt || report.reportingDate;
+    const timestamp = validTimestamp(occurredAt);
+    if (timestamp === null) return [];
+    return [{
+      key: `report-${report.id ?? report.projectId}-${occurredAt}`,
+      type: 'Weekly report',
+      ...identify(report.projectId),
+      action: 'submitted',
+      occurredAt,
+      timestamp,
+    }];
+  });
+
+  const visitItems = siteVisits.flatMap((visit) => {
+    const occurredAt = visit.visitDate || visit.submittedAt;
+    const timestamp = validTimestamp(occurredAt);
+    if (timestamp === null) return [];
+    return [{
+      key: `visit-${visit.id ?? visit.projectId}-${occurredAt}`,
+      type: 'PM site visit',
+      ...identify(visit.projectId),
+      action: 'recorded',
+      occurredAt,
+      timestamp,
+    }];
+  });
+
+  return [...reportItems, ...visitItems]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, limit);
+}
+
+export function formatActivityDate(value) {
+  return new Date(value).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
