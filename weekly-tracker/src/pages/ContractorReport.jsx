@@ -19,10 +19,10 @@ import ReportHeaderCard from "../components/contractor/ReportHeaderCard";
 import ReportingWorkPackagesSection from "../components/contractor/ReportingWorkPackagesSection";
 import ScheduleRiskSection from "../components/contractor/ScheduleRiskSection";
 import StickySubmitBar from "../components/contractor/StickySubmitBar";
-import SupportWorksSection from "../components/contractor/SupportWorksSection";
+import { AdditionalWorksSection, ClientSupportSection } from "../components/contractor/SupportWorksSection";
 import ValidationErrors from "../components/contractor/ValidationErrors";
 import WorkPackageProgressSection from "../components/contractor/WorkPackageProgressSection";
-import LookAheadDeclarationSection from "../components/contractor/LookAheadDeclarationSection";
+import { EvidenceDeclarationSection, ForwardCommitmentsSection } from "../components/contractor/LookAheadDeclarationSection";
 import DraftRecoveryBanner from "../components/contractor/DraftRecoveryBanner";
 import { buildContractorDraftEnvelope, findContractorDraft, removeContractorDraft, saveContractorDraft, useContractorReportWorkflow } from "../hooks/useContractorReportWorkflow";
 import {
@@ -332,8 +332,8 @@ function ContractorReport({ projects, reports }) {
 
 
   return (
-    <div data-testid="contractor-report-form" className="field-form-page" style={{ minHeight: "100vh", background: "var(--field-bg-contractor)", padding: "36px 20px 80px" }}>
-      <div style={{ maxWidth: 860, margin: "0 auto" }}>
+    <div data-testid="contractor-report-form" className="field-form-page contractor-report-page">
+      <div className="contractor-report-document">
 
         <ReportHeaderCard
           project={project}
@@ -349,46 +349,80 @@ function ContractorReport({ projects, reports }) {
         <ValidationErrors errors={validationErrors} summaryRef={validationSummaryRef} />
         {workflow.state.formError && <div role="alert" aria-live="assertive" className="field-form-error-summary"><strong>Report not confirmed.</strong> {workflow.state.formError} {workflow.canRetry && <button type="button" className="btn-ghost" onClick={saveReport}>Retry with the same request</button>}</div>}
 
-        <ReportingWorkPackagesSection
-          reportingDate={form.reportingDate}
-          selectedPackages={form.currentPackages || []}
-          ganttTasks={ganttTasks}
-          ganttLoading={ganttLoading}
-          onReportingDateChange={(value) => updateField("reportingDate", value)}
-          onTogglePackage={togglePackage}
-        />
+        <section className="contractor-report-group" aria-labelledby="contractor-report-reality-heading">
+          <div className="contractor-report-group-heading">
+            <span>1</span>
+            <div>
+              <h2 id="contractor-report-reality-heading">Reporting reality</h2>
+              <p>Confirm the period, active work, progress, schedule, and exceptions that are true this week.</p>
+            </div>
+          </div>
+          <ReportingWorkPackagesSection
+            reportingDate={form.reportingDate}
+            selectedPackages={form.currentPackages || []}
+            ganttTasks={ganttTasks}
+            ganttLoading={ganttLoading}
+            onReportingDateChange={(value) => updateField("reportingDate", value)}
+            onTogglePackage={togglePackage}
+          />
+          <WorkPackageProgressSection
+            ganttLoading={ganttLoading}
+            ganttTasks={ganttTasks}
+            ganttWpProgress={ganttWpProgress}
+            onUpdateProgress={updateWPProgress}
+            projectId={project.id}
+            form={form}
+            prevReport={prevReport}
+            onLegacyChange={updateWPStatuses}
+            templateType={project.templateType}
+            project={project}
+          />
+          <ScheduleRiskSection form={form} updateField={updateField} toggleCheckbox={toggleCheckbox} />
+          <ClientSupportSection form={form} updateField={updateField} toggleCheckbox={toggleCheckbox} />
+        </section>
 
-        <WorkPackageProgressSection
-          ganttLoading={ganttLoading}
-          ganttTasks={ganttTasks}
-          ganttWpProgress={ganttWpProgress}
-          onUpdateProgress={updateWPProgress}
-          projectId={project.id}
-          form={form}
-          prevReport={prevReport}
-          onLegacyChange={updateWPStatuses}
-          templateType={project.templateType}
-          project={project}
-        />
+        <section className="contractor-report-group" aria-labelledby="contractor-report-forward-heading">
+          <div className="contractor-report-group-heading">
+            <span>2</span>
+            <div>
+              <h2 id="contractor-report-forward-heading">Forward commitments</h2>
+              <p>Record next-period activities and disclose anything that blocks them.</p>
+            </div>
+          </div>
+          <ForwardCommitmentsSection form={form} updateField={updateField} />
+        </section>
 
-        {/* в”Ђв”Ђ 3-4. Schedule Status & Risk в”Ђв”Ђ */}
-        <ScheduleRiskSection form={form} updateField={updateField} toggleCheckbox={toggleCheckbox} />
+        <section className="contractor-report-group" aria-labelledby="contractor-report-commercial-heading">
+          <div className="contractor-report-group-heading">
+            <span>3</span>
+            <div>
+              <h2 id="contractor-report-commercial-heading">Commercial exceptions</h2>
+              <p>Report potential additional work without implying review or approval.</p>
+            </div>
+          </div>
+          <AdditionalWorksSection form={form} updateField={updateField} />
+        </section>
 
-        {/* в”Ђв”Ђ 5-6. Client Support & Additional Works в”Ђв”Ђ */}
-        <SupportWorksSection form={form} updateField={updateField} toggleCheckbox={toggleCheckbox} />
-
-        {/* в”Ђв”Ђ 7-8. Look Ahead & Declaration в”Ђв”Ђ */}
-        <LookAheadDeclarationSection
-          form={form}
-          updateField={updateField}
-          photoUrls={photoUrls}
-          projectId={project.id}
-          onPhotoUpload={(paths) => { workflow.dispatch({ type: 'EDIT' }); setPhotoUrls((prev) => [...prev, ...paths]); }}
-          onPhotoRemove={(path) => { workflow.dispatch({ type: 'EDIT' }); setPhotoUrls((prev) => prev.filter((p) => p !== path)); }}
-          onPhotoError={(msg) => setPhotoError(msg)}
-          onPhotoUploadingChange={(uploading) => { setPhotosUploading(uploading); workflow.dispatch({ type: 'UPLOADS_CHANGED', items: uploading ? [{ id: 'active-batch', status: 'uploading' }] : photoUrls.map(path => ({ path, status: 'uploaded' })) }); }}
-          onPhotoItemsChange={(items) => workflow.dispatch({ type: 'UPLOADS_CHANGED', items })}
-        />
+        <section className="contractor-report-group" aria-labelledby="contractor-report-evidence-heading">
+          <div className="contractor-report-group-heading">
+            <span>4</span>
+            <div>
+              <h2 id="contractor-report-evidence-heading">Evidence and submission</h2>
+              <p>Attach current-period evidence, review comments, and confirm the declaration.</p>
+            </div>
+          </div>
+          <EvidenceDeclarationSection
+            form={form}
+            updateField={updateField}
+            photoUrls={photoUrls}
+            projectId={project.id}
+            onPhotoUpload={(paths) => { workflow.dispatch({ type: 'EDIT' }); setPhotoUrls((prev) => [...prev, ...paths]); }}
+            onPhotoRemove={(path) => { workflow.dispatch({ type: 'EDIT' }); setPhotoUrls((prev) => prev.filter((p) => p !== path)); }}
+            onPhotoError={(msg) => setPhotoError(msg)}
+            onPhotoUploadingChange={(uploading) => { setPhotosUploading(uploading); workflow.dispatch({ type: 'UPLOADS_CHANGED', items: uploading ? [{ id: 'active-batch', status: 'uploading' }] : photoUrls.map(path => ({ path, status: 'uploaded' })) }); }}
+            onPhotoItemsChange={(items) => workflow.dispatch({ type: 'UPLOADS_CHANGED', items })}
+          />
+        </section>
         <PhotoErrorAlert message={photoError} />
 
         {/* в”Ђв”Ђ Submit в”Ђв”Ђ */}

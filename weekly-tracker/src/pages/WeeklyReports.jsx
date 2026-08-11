@@ -257,6 +257,10 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               onSearchChange={setMasterSearch}
               filterStatus={masterFilter}
               onFilterChange={setMasterFilter}
+              onClearFilters={() => {
+                setMasterSearch("");
+                setMasterFilter("all");
+              }}
               onProjectChange={(event) => {
                 setSelectedProjectId(event.target.value);
                 setSelectedReportId("");

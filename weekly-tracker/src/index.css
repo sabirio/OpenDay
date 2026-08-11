@@ -2668,6 +2668,82 @@ button.weekly-phase-row {
    !important is deliberate here: every input in these two forms sets its
    own inline font-size (13-14px), which otherwise always wins over a class
    rule regardless of specificity. Scoped narrowly to .field-form-page. */
+.contractor-report-page {
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-5) 80px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  --field-bg-contractor: var(--bg-base);
+  --field-bg-card: var(--bg-surface);
+  --field-bg-faint: var(--bg-base);
+  --field-bg-subtle: var(--bg-elevated);
+  --field-border: var(--border);
+  --field-border-strong: var(--border-strong);
+  --field-text-heading: var(--text-primary);
+  --field-text-body: var(--text-primary);
+  --field-text-secondary: var(--text-secondary);
+  --field-text-muted: var(--text-muted);
+  --field-text-label: var(--text-muted);
+  --field-accent-contractor: var(--accent);
+  --field-success-bg: var(--status-done-bg);
+  --field-success-border: var(--border);
+  --field-success-fg: var(--status-done);
+  --field-warning-bg: var(--status-warn-bg);
+  --field-warning-border: var(--border);
+  --field-warning-fg: var(--status-warn);
+  --field-danger-bg: var(--status-alert-bg);
+  --field-danger-border: var(--border);
+  --field-danger-fg: var(--status-alert);
+}
+.contractor-report-document { width: min(100%, 900px); margin: 0 auto; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface); }
+.contractor-report-header { display: grid; gap: var(--space-4); padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--border); background: var(--bg-surface); }
+.contractor-report-header-main,
+.contractor-report-history,
+.contractor-report-week-progress > div,
+.contractor-report-page .field-form-sticky-submit { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.contractor-report-header-main { align-items: flex-start; }
+.contractor-report-eyebrow { margin-bottom: var(--space-1); color: var(--accent); font-size: .75rem; font-weight: 700; }
+.contractor-report-header h1 { margin: 0; color: var(--text-primary); font-size: 1.25rem; line-height: 1.3; }
+.contractor-report-header-main p { margin: var(--space-1) 0 0; color: var(--text-muted); font-size: .8125rem; }
+.contractor-report-continuity { display: grid; gap: 2px; min-width: 190px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--status-done-bg); color: var(--status-done); font-size: .75rem; }
+.contractor-report-continuity span { color: var(--text-muted); font-size: .6875rem; }
+.contractor-report-context { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+.contractor-report-week-progress { display: grid; gap: var(--space-2); color: var(--text-muted); font-size: .75rem; }
+.contractor-report-week-progress strong { color: var(--accent); }
+.contractor-report-week-progress .progress-track { height: 5px; }
+.contractor-report-week-progress .progress-fill { background: var(--accent); }
+.contractor-report-history { flex-wrap: wrap; padding-top: var(--space-3); border-top: 1px solid var(--border); color: var(--text-muted); font-size: .75rem; }
+.contractor-report-history > div { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.contractor-report-history strong { color: var(--text-primary); }
+.contractor-report-history .status-dot { width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--status-done); }
+.contractor-report-history .status-dot.is-warn { background: var(--status-warn); }
+.contractor-report-group { padding: 0 var(--space-6); }
+.contractor-report-group + .contractor-report-group { border-top: 6px solid var(--bg-base); }
+.contractor-report-group-heading { display: flex; gap: var(--space-3); padding: var(--space-5) 0 var(--space-2); }
+.contractor-report-group-heading > span { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; flex: 0 0 24px; border-radius: var(--radius-full); background: var(--accent-subtle); color: var(--accent); font-size: .75rem; font-weight: 700; }
+.contractor-report-group-heading h2 { margin: 1px 0 0; color: var(--text-primary); font-size: .9375rem; }
+.contractor-report-group-heading p { margin: var(--space-1) 0 0; color: var(--text-muted); font-size: .75rem; line-height: 1.45; }
+.contractor-report-section { margin: 0; }
+.contractor-report-section-content { min-width: 0; }
+.contractor-report-inheritance-note,
+.contractor-report-boundary-note,
+.contractor-report-evidence-count { margin: 0; color: var(--text-muted); font-size: .75rem; line-height: 1.5; }
+.contractor-report-inheritance-note,
+.contractor-report-boundary-note { margin-bottom: var(--space-4); }
+.contractor-report-field-label { display: block; margin-bottom: var(--space-2); color: var(--text-muted); font-size: .6875rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.contractor-report-input-narrow { box-sizing: border-box; width: min(100%, 320px); min-height: 44px; padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+.contractor-report-declaration { display: flex; align-items: flex-start; gap: var(--space-3); min-height: 44px; color: var(--text-primary); font-size: .8125rem; line-height: 1.6; cursor: pointer; }
+.contractor-report-checkbox { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex: 0 0 22px; margin-top: 1px; border: 2px solid var(--border-strong); border-radius: var(--radius-md); background: var(--bg-surface); cursor: pointer; }
+.contractor-report-checkbox.is-checked { border-color: var(--accent); background: var(--accent); color: var(--bg-surface); }
+.contractor-report-checkbox:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.contractor-report-page .field-form-sticky-submit { padding: var(--space-3) var(--space-6); border-top: 1px solid var(--border); background: var(--bg-surface); }
+.contractor-report-autosave-note { color: var(--text-muted); font-size: .75rem; }
+.contractor-report-submit { width: auto; min-width: 190px; min-height: 44px; }
+.master-list-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-8) var(--space-4); text-align: center; }
+.master-list-empty strong { color: var(--text-primary); }
+.master-list-empty span { color: var(--text-muted); font-size: .75rem; line-height: 1.5; }
+.master-list-empty .btn { margin-top: var(--space-2); }
+
 .field-form-page input,
 .field-form-page select,
 .field-form-page textarea {
@@ -2717,6 +2793,15 @@ button.weekly-phase-row {
 /* Submit button pinned to the bottom of the viewport on mobile only —
    on desktop it stays in normal document flow. */
 @media (max-width: 640px) {
+  .contractor-report-page { padding: 0 0 80px; }
+  .contractor-report-document { border-right: 0; border-left: 0; border-radius: 0; }
+  .contractor-report-header { padding: var(--space-4); }
+  .contractor-report-header-main { flex-direction: column; }
+  .contractor-report-continuity { box-sizing: border-box; width: 100%; }
+  .contractor-report-context { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .contractor-report-group { padding: 0 var(--space-3); }
+  .contractor-report-group-heading { padding-top: var(--space-4); }
+  .contractor-report-section.is-ruled { padding: var(--space-3) 0; }
   .field-form-sticky-submit {
     position: fixed;
     left: 0;
@@ -2727,6 +2812,9 @@ button.weekly-phase-row {
     padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
   }
+  .contractor-report-page .field-form-sticky-submit { flex-direction: column; align-items: stretch; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: var(--bg-surface); }
+  .contractor-report-autosave-note { display: none; }
+  .contractor-report-submit { width: 100%; }
   .field-form-sticky-submit-spacer {
     /* Reserves scroll room so the fixed bar never covers the last field. */
     height: 84px;

@@ -17,6 +17,7 @@ export default function WeeklyReportsMasterList({
   onSearchChange,
   filterStatus,
   onFilterChange,
+  onClearFilters,
   onProjectChange,
   onSelect,
 }) {
@@ -81,7 +82,11 @@ export default function WeeklyReportsMasterList({
 
         {filteredRows.length === 0 ? (
           <div className="master-list-empty">
-            {rows.length === 0 ? "No projects yet. Add a project to begin." : "No weekly reports match the current search and filter."}
+            <strong>{rows.length === 0 ? "No projects yet" : "No matching reports"}</strong>
+            <span>{rows.length === 0 ? "Add a project to begin." : "Clear the search and filters to return to all project reports."}</span>
+            {rows.length > 0 && (
+              <button type="button" className="btn btn-secondary" onClick={onClearFilters}>Clear filters</button>
+            )}
           </div>
         ) : filteredRows.map((row) => {
           const selected = selectedKey === row.key;

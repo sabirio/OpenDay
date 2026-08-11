@@ -1,19 +1,18 @@
 // ── Generic reusable form building blocks ──────────────────────────────────
 
 import { useId } from "react";
+import AnalyticalSection from "../shared/detail/AnalyticalSection.jsx";
 
 export function FormSection({ title, accentColor = "var(--field-accent-contractor)", badge, children }) {
   return (
-    <div style={{ background: "var(--field-bg-card)", border: "1px solid var(--field-border)", borderRadius: 14, marginBottom: 14, overflow: "hidden", boxShadow: "var(--field-shadow)" }}>
-      <div style={{ padding: "12px 22px", borderBottom: "1px solid var(--field-bg-subtle)", background: "var(--field-bg-faint)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h3 style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 700, color: "var(--field-text-heading)", margin: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: accentColor, flexShrink: 0 }} />
-          {title}
-        </h3>
-        {badge}
-      </div>
-      <div style={{ padding: "20px 22px" }}>{children}</div>
-    </div>
+    <AnalyticalSection
+      title={title}
+      accessory={badge}
+      className="contractor-report-section"
+      data-accent-color={accentColor}
+    >
+      <div className="contractor-report-section-content">{children}</div>
+    </AnalyticalSection>
   );
 }
 
