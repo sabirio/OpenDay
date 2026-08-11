@@ -1,239 +1,274 @@
-// Audited, intentional legacy-fallback import — tracked in
-// src/tests/architectureGuard.test.mjs's ALLOWED_LEGACY_IMPORTERS.
-// Migrating would rewrite live legacy-report compatibility behavior;
-// out of scope here and hard-constraint-protected (no business-semantics
-// changes).
+// Audited, intentional legacy fallback. Migrating this import would change
+// report-compatibility semantics and is outside the presentation-only G1.10 scope.
 // eslint-disable-next-line no-restricted-imports
-import { WORK_PACKAGES } from "../../config/workPackages";
-import FormSection, { ACCENT } from "./FormSection";
-import LegacyPMTaskRow from "./LegacyPMTaskRow";
-import { getGCTaskEntry } from "./gcReferenceHelpers";
-import PhotoUpload from "../shared/PhotoUpload";
-import SiteVisitDraftRecovery from "./SiteVisitDraftRecovery";
-import SiteVisitTaskNavigator from "./SiteVisitTaskNavigator";
+import { WORK_PACKAGES } from '../../config/workPackages';
+import AnalyticalSection from '../shared/detail/AnalyticalSection.jsx';
+import AttentionSurface from '../shared/detail/AttentionSurface.jsx';
+import EvidenceLedger from '../shared/detail/EvidenceLedger.jsx';
+import MetadataRows from '../shared/detail/MetadataRows.jsx';
+import PhotoUpload from '../shared/PhotoUpload';
+import FormSection from './FormSection';
+import LegacyPMTaskRow from './LegacyPMTaskRow';
+import SiteVisitDraftRecovery from './SiteVisitDraftRecovery';
+import SiteVisitTaskNavigator from './SiteVisitTaskNavigator';
+import { getGCTaskEntry } from './gcReferenceHelpers';
 
 function SiteVisitFormView({
-  project, projectReports, form, set, errors, submitError, submitting, canRetry,
-  referenceReport, handleReferenceChange, updateWPTask,
-  ganttLoading, ganttTasks, pmWpObservations, updatePMObservation,
+  project,
+  projectReports,
+  form,
+  set,
+  errors,
+  submitError,
+  submitting,
+  canRetry,
+  referenceReport,
+  handleReferenceChange,
+  updateWPTask,
+  ganttLoading,
+  ganttTasks,
+  pmWpObservations,
+  updatePMObservation,
   onSubmit,
-  photoUrls, projectId, onPhotoUpload, onPhotoRemove, onPhotoError, photoError,
-  draftCandidate, onContinueDraft, onDiscardDraft,
-  filteredTasks, activeFilter, reviewCounts, navigation, onFilter, onNavigate,
-  onPhotoItemsChange, submitDisabled,
+  photoUrls,
+  projectId,
+  onPhotoUpload,
+  onPhotoRemove,
+  onPhotoError,
+  photoError,
+  draftCandidate,
+  onContinueDraft,
+  onDiscardDraft,
+  filteredTasks,
+  activeFilter,
+  reviewCounts,
+  navigation,
+  onFilter,
+  onNavigate,
+  onPhotoItemsChange,
+  submitDisabled,
 }) {
-  return (
-    <div data-testid="pm-site-visit-form" className="field-form-page" style={{ minHeight: "100vh", background: "var(--field-bg-sitevisit)", padding: "36px 20px 80px" }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+  const referenceDate = referenceReport
+    ? referenceReport.reportingDate || new Date(referenceReport.submittedAt).toLocaleDateString('en-GB')
+    : 'No contractor report selected';
+  const nextLabel = activeFilter === 'all' ? 'Next item' : `Next ${activeFilter.replace('discrepant', 'discrepancy')}`;
 
-        {submitError && <div role="alert" aria-live="assertive" className="field-form-error-summary"><strong>Site visit not confirmed.</strong> {submitError} {canRetry&&<button type="button" className="btn-ghost" onClick={onSubmit}>Retry with the same request</button>}</div>}
+  return (
+    <div data-testid="pm-site-visit-form" className="field-form-page site-visit-page">
+      <div className="site-visit-document">
+        <header className="site-visit-header">
+          <div className="site-visit-header-main">
+            <div>
+              <div className="site-visit-eyebrow">PM Site Visit</div>
+              <h1>{project.storeCode}{project.shoppingMallName ? ` · ${project.shoppingMallName}` : ''}</h1>
+              {project.city && <p>{project.city}</p>}
+            </div>
+            <div className="site-visit-save-state" role="status">
+              <strong>Draft autosave active</strong>
+              <span>{reviewCounts.completedCount} verified · {reviewCounts.incompleteCount} untouched</span>
+            </div>
+          </div>
+          <MetadataRows
+            className="site-visit-project-context"
+            density="compact"
+            columns={4}
+            items={[
+              { label: 'Visit date', value: form.visitDate || 'Required' },
+              { label: 'Reference report', value: referenceDate },
+              { label: 'General contractor', value: project.generalContractor || 'Not assigned' },
+              { label: 'Visit evidence', value: `${photoUrls.length} photo${photoUrls.length === 1 ? '' : 's'}` },
+            ]}
+          />
+        </header>
+
+        {submitError && (
+          <AttentionSurface
+            title="Site visit not confirmed"
+            description={submitError}
+            className="site-visit-submit-error"
+            accessory={canRetry ? <button type="button" className="btn btn-secondary" onClick={onSubmit}>Retry with the same request</button> : null}
+            role="alert"
+            aria-live="assertive"
+          />
+        )}
 
         <SiteVisitDraftRecovery result={draftCandidate} project={project} onContinue={onContinueDraft} onDiscard={onDiscardDraft} />
 
-        {/* Header card */}
-        <div style={{ background: "var(--field-bg-card)", borderRadius: 16, border: "1px solid var(--field-border)", padding: "24px 28px", marginBottom: 16, boxShadow: "var(--field-shadow-lg)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: ACCENT, marginBottom: 6 }}>PM Site Visit Report</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: "var(--field-text-heading)", lineHeight: 1.1 }}>{project.storeCode}</div>
-              <div style={{ color: "var(--field-text-secondary)", fontSize: 14, marginTop: 4 }}>
-                {project.shoppingMallName}{project.city ? ` · ${project.city}` : ""}
-              </div>
-            </div>
-            {project.projectManager && (
-              <div style={{ background: "var(--field-info-bg)", border: "1px solid var(--field-info-border)", borderRadius: 12, padding: "10px 18px", textAlign: "right" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: ACCENT, marginBottom: 4 }}>Project Manager</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--field-text-heading)" }}>{project.projectManager}</div>
-              </div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 28, flexWrap: "wrap", paddingTop: 16, borderTop: "1px solid var(--field-bg-subtle)" }}>
-            {project.generalContractor && <div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 3 }}>General Contractor</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--field-text-heading)" }}>{project.generalContractor}</div>
-            </div>}
-            {project.constructionStartDate && <div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 3 }}>Construction Start</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--field-text-heading)" }}>{project.constructionStartDate}</div>
-            </div>}
-            {project.constructionEndDate && <div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 3 }}>Construction End</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--field-text-heading)" }}>{project.constructionEndDate}</div>
-            </div>}
-            {project.targetOpeningDate && <div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 3 }}>Target Opening</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--field-text-heading)" }}>{project.targetOpeningDate}</div>
-            </div>}
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 3 }}>GC Reports</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--field-text-heading)" }}>{projectReports.length} submitted</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Validation errors */}
         {errors.length > 0 && (
-          <div role="alert" aria-live="assertive" tabIndex={-1} autoFocus style={{ background: "var(--field-danger-bg)", border: "1px solid var(--field-danger-border)", borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, color: "var(--field-danger-fg-dark)", marginBottom: 8, fontSize: 13 }}>Please fix the following required fields:</div>
-            <ul style={{ margin: 0, paddingLeft: 18, color: "var(--field-danger-fg-dark)", fontSize: 13, lineHeight: 1.8 }}>
-              {errors.map((e) => <li key={e}>{e}</li>)}
-            </ul>
+          <div role="alert" aria-live="assertive" tabIndex={-1} autoFocus className="field-form-error-summary site-visit-validation-summary">
+            <strong>Complete the required visit fields.</strong>
+            <ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul>
           </div>
         )}
 
-        {/* 1. Visit Info */}
-        <FormSection title="Visit Information" accentColor={ACCENT}>
+        <AnalyticalSection
+          title="Visit context"
+          description="Choose the visit date and the contractor report used for comparison."
+          className="site-visit-context-section"
+        >
           <div className="field-form-2col">
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Visit Date</div>
-              <input type="date" value={form.visitDate} onChange={(e) => set("visitDate", e.target.value)}
-                style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 14, color: "var(--field-text-heading)", background: "var(--field-bg-card)", outline: "none", width: "100%", boxSizing: "border-box" }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Compare Against GC Report</div>
+            <label className="site-visit-field">
+              <span>Visit date</span>
+              <input id="site-visit-date" type="date" value={form.visitDate} onChange={(event) => set('visitDate', event.target.value)} />
+            </label>
+            <label className="site-visit-field">
+              <span>Compare against contractor report</span>
               {projectReports.length === 0 ? (
-                <div style={{ fontSize: 13, color: "var(--field-warning-fg)", fontWeight: 600, padding: "10px 14px", background: "var(--field-warning-bg-subtle)", borderRadius: 10, border: "1px solid var(--field-warning-border)" }}>
-                  No contractor reports submitted yet
-                </div>
+                <strong className="site-visit-no-report">No contractor reports submitted yet</strong>
               ) : (
-                <select value={form.referenceReportId} onChange={(e) => handleReferenceChange(e.target.value)}
-                  style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 13, color: "var(--field-text-heading)", background: "var(--field-bg-card)", outline: "none", width: "100%", cursor: "pointer" }}>
+                <select value={form.referenceReportId} onChange={(event) => handleReferenceChange(event.target.value)}>
                   <option value="">— No comparison —</option>
-                  {projectReports.map((r) => (
-                    <option key={r.id} value={String(r.id)}>
-                      {r.reportingDate || new Date(r.submittedAt).toLocaleDateString("en-GB")} — {r.contractor || "GC"}
-                      {r.workPackageStatuses ? " (new format)" : ""}
+                  {projectReports.map((report) => (
+                    <option key={report.id} value={String(report.id)}>
+                      {report.reportingDate || new Date(report.submittedAt).toLocaleDateString('en-GB')} — {report.contractor || 'Contractor'}
                     </option>
                   ))}
                 </select>
               )}
-            </div>
+            </label>
           </div>
-          {referenceReport && (
-            <div style={{ marginTop: 14, padding: "10px 14px", background: "var(--field-info-bg)", borderRadius: 10, border: "1px solid var(--field-info-border)", fontSize: 12, color: "var(--field-info-fg-dark)" }}>
-              Comparing against <strong>{referenceReport.reportingDate || new Date(referenceReport.submittedAt).toLocaleDateString("en-GB")}</strong>
-              {" · "}Schedule: <strong>{referenceReport.projectScheduleStatus || "—"}</strong>
-              {referenceReport.workPackageStatuses
-                ? <span style={{ marginLeft: 8, padding: "1px 6px", background: "var(--field-accent-sitevisit)", color: "var(--field-text-on-accent)", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>WP Format</span>
-                : <span style={{ marginLeft: 8, padding: "1px 6px", background: "var(--field-text-muted)", color: "var(--field-text-on-accent)", borderRadius: 4, fontSize: 10, fontWeight: 700 }}>Legacy Format</span>
-              }
-            </div>
-          )}
-        </FormSection>
+        </AnalyticalSection>
 
-        {/* 2. Work Package Observation Sections */}
         {ganttLoading ? (
-          <FormSection title="Work Package Observations" accentColor={ACCENT}>
-            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--field-text-muted)', fontSize: 13 }}>Loading schedule…</div>
-          </FormSection>
+          <div className="site-visit-loading" role="status">Loading scoped work packages…</div>
         ) : ganttTasks.length > 0 ? (
-          <SiteVisitTaskNavigator tasks={filteredTasks} allTasks={ganttTasks} navigation={navigation} filter={activeFilter} counts={reviewCounts} onFilter={onFilter} onNavigate={onNavigate} pmWpObservations={pmWpObservations} updatePMObservation={updatePMObservation} projectId={projectId} />
+          <SiteVisitTaskNavigator
+            tasks={filteredTasks}
+            allTasks={ganttTasks}
+            filter={activeFilter}
+            counts={reviewCounts}
+            onFilter={onFilter}
+            navigation={navigation}
+            onNavigate={onNavigate}
+            pmWpObservations={pmWpObservations}
+            updatePMObservation={updatePMObservation}
+          />
         ) : (
-          WORK_PACKAGES.map((wp) => (
-            <FormSection key={wp.id} title={wp.name} accentColor="var(--field-accent-orange-fg)">
-              {wp.tasks.map((task) => (
-                <LegacyPMTaskRow
-                  key={task.name}
-                  wpId={wp.id}
-                  taskName={task.name}
-                  entry={form.pmWorkPackageStatuses?.[wp.id]?.[task.name]}
-                  gcEntry={getGCTaskEntry(referenceReport, wp.id, task.name)}
-                  onChange={(entry) => updateWPTask(wp.id, task.name, entry)}
-                />
-              ))}
-            </FormSection>
-          ))
+          <section className="site-visit-legacy-scope" aria-labelledby="site-visit-legacy-title">
+            <div className="site-visit-legacy-heading">
+              <h2 id="site-visit-legacy-title">Legacy report scope</h2>
+              <p>No scoped Gantt plan is available. Existing legacy comparison behavior remains active.</p>
+            </div>
+            {WORK_PACKAGES.map((workPackage) => (
+              <FormSection key={workPackage.id} title={workPackage.name} accentColor="var(--field-accent-orange-fg)">
+                {workPackage.tasks.map((task) => (
+                  <LegacyPMTaskRow
+                    key={task.name}
+                    wpId={workPackage.id}
+                    taskName={task.name}
+                    entry={form.pmWorkPackageStatuses?.[workPackage.id]?.[task.name]}
+                    gcEntry={getGCTaskEntry(referenceReport, workPackage.id, task.name)}
+                    onChange={(entry) => updateWPTask(workPackage.id, task.name, entry)}
+                  />
+                ))}
+              </FormSection>
+            ))}
+          </section>
         )}
 
-        {/* 3. PM Assessment */}
-        <FormSection title="PM Assessment" accentColor="var(--field-accent-slate)">
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 6 }}>Schedule Assessment (PM view)</div>
-            {referenceReport?.projectScheduleStatus && (
-              <div style={{ fontSize: 12, color: "var(--field-text-secondary)", marginBottom: 10 }}>GC reported: <strong>{referenceReport.projectScheduleStatus}</strong></div>
-            )}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {[
-                { label: "On Track", bg: "var(--field-success-bg)", color: "var(--field-success-fg-dark)", border: "var(--field-success-border)" },
-                { label: "At Risk",  bg: "var(--field-warning-bg)", color: "var(--field-warning-fg-dark)", border: "var(--field-warning-border)" },
-                { label: "Critical", bg: "var(--field-danger-bg)", color: "var(--field-danger-fg-dark)", border: "var(--field-danger-fg)" },
-              ].map(({ label, bg, color, border }) => {
-                const sel = form.pmScheduleAssessment === label;
-                return (
-                  <button key={label} type="button"
-                    data-testid={`pm-schedule-btn-${label}`}
-                    onClick={() => set("pmScheduleAssessment", label)} style={{
-                    padding: "9px 24px", borderRadius: 10,
-                    border: `2px solid ${sel ? border : "var(--field-border)"}`,
-                    background: sel ? bg : "var(--field-bg-card)",
-                    color: sel ? color : "var(--field-text-muted)",
-                    fontSize: 13, fontWeight: sel ? 700 : 400, cursor: "pointer",
-                  }}>{label}</button>
-                );
-              })}
+        <div className="site-visit-supporting-sections">
+          <AnalyticalSection
+            title="Visit assessment"
+            description="This visit-level assessment remains separate from per-work-package discrepancy results."
+            className="site-visit-assessment"
+          >
+            {referenceReport?.projectScheduleStatus && <p className="site-visit-reported-assessment">Contractor reported: <strong>{referenceReport.projectScheduleStatus}</strong></p>}
+            <div className="site-visit-assessment-options" role="group" aria-label="PM schedule assessment">
+              {['On Track', 'At Risk', 'Critical'].map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  data-testid={`pm-schedule-btn-${label}`}
+                  aria-pressed={form.pmScheduleAssessment === label}
+                  onClick={() => set('pmScheduleAssessment', label)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 8 }}>Site Observations & Notes</div>
-            <textarea value={form.observations} onChange={(e) => set("observations", e.target.value)}
-              rows={4} placeholder="Record key observations, concerns, or positive findings from the site visit..."
-              style={{ width: "100%", padding: "12px 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 13, color: "var(--field-text-body)", resize: "vertical", outline: "none", fontFamily: "inherit", lineHeight: 1.6, background: "var(--field-bg-faint)", boxSizing: "border-box" }}
-              onFocus={(e) => { e.target.style.borderColor = ACCENT; e.target.style.boxShadow = `0 0 0 3px rgba(8,145,178,0.1)`; }}
-              onBlur={(e)  => { e.target.style.borderColor = "var(--field-border-strong)"; e.target.style.boxShadow = "none"; }}
+            <label className="site-visit-note-control">
+              <span>Overall visit notes <small>Optional</small></span>
+              <textarea
+                value={form.observations}
+                onChange={(event) => set('observations', event.target.value)}
+                rows={4}
+                placeholder="Record visit-level observations, concerns, or positive findings."
+              />
+            </label>
+          </AnalyticalSection>
+
+          <AnalyticalSection
+            title="Visit evidence"
+            description="Photos belong to the visit record. They are not assigned to an individual work package."
+            className="site-visit-evidence"
+          >
+            <EvidenceLedger
+              density="compact"
+              contained
+              items={[
+                { label: 'Ownership', value: 'Visit-level evidence', secondary: 'Existing persistence model' },
+                { label: 'Attached', value: `${photoUrls.length} photo${photoUrls.length === 1 ? '' : 's'}`, secondary: photoUrls.length ? 'Ready with this visit' : 'No evidence attached yet' },
+              ]}
             />
-          </div>
-        </FormSection>
+            <PhotoUpload projectId={projectId} existingPaths={photoUrls} onUpload={onPhotoUpload} onRemove={onPhotoRemove} onError={onPhotoError} onItemsChange={onPhotoItemsChange} />
+            {photoError && <div role="alert" aria-live="assertive" className="site-visit-photo-error">{photoError}</div>}
+          </AnalyticalSection>
+        </div>
 
-        {/* 4. Photos */}
-        <FormSection title="Site Photos" accentColor="var(--field-text-secondary)">
-          <PhotoUpload projectId={projectId} existingPaths={photoUrls} onUpload={onPhotoUpload} onRemove={onPhotoRemove} onError={onPhotoError} onItemsChange={onPhotoItemsChange} />
-          {photoUrls.length > 0 && (
-            <p style={{ fontSize: 12, color: "var(--field-text-muted)", marginTop: 8 }}>{photoUrls.length} photo{photoUrls.length > 1 ? "s" : ""} attached</p>
-          )}
-          {photoError && (
-            <div role="alert" aria-live="assertive" style={{ marginTop: 10, background: "var(--field-danger-bg)", border: "1px solid var(--field-danger-border)", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "var(--field-danger-fg-dark)" }}>
-              {photoError}
-            </div>
-          )}
-        </FormSection>
-
-        {/* 5. Declaration */}
-        <FormSection title="Declaration" accentColor="var(--field-accent-slate)">
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", minHeight: 44 }}>
-            <div
+        <AnalyticalSection title="Declaration" className="site-visit-declaration-section">
+          <label className="site-visit-declaration">
+            <span
               data-testid="pm-declaration-checkbox"
               role="checkbox"
               tabIndex={0}
               aria-checked={form.declarationConfirmed}
               aria-required="true"
-              onClick={() => set("declarationConfirmed", !form.declarationConfirmed)}
-              onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); set("declarationConfirmed", !form.declarationConfirmed); } }}
-              style={{
-                width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
-                border: `2px solid ${form.declarationConfirmed ? ACCENT : "var(--field-border-strong)"}`,
-                background: form.declarationConfirmed ? ACCENT : "var(--field-bg-card)",
-                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+              className={`site-visit-checkbox ${form.declarationConfirmed ? 'is-checked' : ''}`}
+              onClick={() => set('declarationConfirmed', !form.declarationConfirmed)}
+              onKeyDown={(event) => {
+                if (event.key === ' ' || event.key === 'Enter') {
+                  event.preventDefault();
+                  set('declarationConfirmed', !form.declarationConfirmed);
+                }
               }}
             >
-              {form.declarationConfirmed && <span style={{ color: "var(--field-text-on-accent)", fontSize: 13, fontWeight: 800, lineHeight: 1 }}>✓</span>}
-            </div>
-            <span style={{ fontSize: 13, color: "var(--field-text-body)", lineHeight: 1.6, fontWeight: 500 }}>
-              I confirm that the observations recorded reflect the actual site status as witnessed during this visit.
+              {form.declarationConfirmed && <span aria-hidden="true">✓</span>}
             </span>
+            <span>I confirm that these observations reflect the actual site status witnessed during this visit.</span>
           </label>
-        </FormSection>
+        </AnalyticalSection>
 
-        {ganttTasks.length > 0 && <section className="site-visit-review" aria-labelledby="site-visit-review-title"><h2 id="site-visit-review-title">Review visit</h2><p>{reviewCounts.completedCount} of {reviewCounts.totalCount} checked. {reviewCounts.incompleteCount} incomplete. {reviewCounts.discrepancyCount} discrepant.</p><div><button type="button" onClick={()=>onFilter('incomplete')}>Review incomplete</button><button type="button" onClick={()=>onFilter('discrepant')}>Review discrepancies</button></div></section>}
+        {ganttTasks.length > 0 && (
+          <section className="site-visit-review" aria-labelledby="site-visit-review-title">
+            <div>
+              <h2 id="site-visit-review-title">Review visit</h2>
+              <p>{reviewCounts.completedCount} verified · {reviewCounts.incompleteCount} untouched · {reviewCounts.discrepancyCount} discrepant</p>
+            </div>
+            <div>
+              <button type="button" className="btn btn-secondary" onClick={() => onFilter('incomplete')}>Review untouched</button>
+              <button type="button" className="btn btn-secondary" onClick={() => onFilter('discrepant')}>Review discrepancies</button>
+            </div>
+          </section>
+        )}
 
-        {/* Submit */}
         <div className="field-form-sticky-submit-spacer" />
-        <div className="field-form-sticky-submit">
-          <button type="button" data-testid="save-site-visit-report" onClick={onSubmit} disabled={submitting || submitDisabled} aria-busy={submitting}
-            style={{ width: "100%", minHeight: 44, padding: "16px", borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${ACCENT} 0%, var(--field-accent-sitevisit-2) 100%)`, color: "var(--field-text-on-accent)", fontSize: 16, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.65 : 1, letterSpacing: "0.02em", boxShadow: "0 4px 14px rgba(8,145,178,0.35)" }}>
-            {submitting ? "Submitting site visit…" : "Submit Site Visit Report"}
+        <div className="field-form-sticky-submit site-visit-sticky-actions">
+          <span className="site-visit-autosave-note">Edits autosave locally · untouched work packages remain unsubmitted</span>
+          <div className="site-visit-progression" aria-label="Work package progression">
+            <button type="button" className="btn btn-secondary" disabled={!navigation.previousId} onClick={() => onNavigate(navigation.previousId)}>Previous</button>
+            <button type="button" className="btn btn-secondary" disabled={!navigation.nextId} onClick={() => onNavigate(navigation.nextId)}>{nextLabel}</button>
+          </div>
+          <button
+            type="button"
+            data-testid="save-site-visit-report"
+            className="btn btn-primary site-visit-submit"
+            onClick={onSubmit}
+            disabled={submitting || submitDisabled}
+            aria-busy={submitting}
+          >
+            {submitting ? 'Submitting site visit…' : reviewCounts.incompleteCount > 0 ? 'Submit partial visit' : 'Submit site visit'}
           </button>
         </div>
-
       </div>
     </div>
   );

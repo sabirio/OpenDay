@@ -2,23 +2,13 @@ import { test, expect } from '@playwright/test';
 import { CREDENTIALS, login, logout } from './helpers.js';
 
 async function getFirstProjectId(page) {
-  await page.goto('/projects');
-  const count = await page.locator('[data-testid="portfolio-master-project"]').count();
-  if (count === 0) return null;
-
-  // Select the first project to get the site-visit link from its details pane
-  await page.locator('[data-testid="portfolio-master-project"]').first().click();
-  await expect(page.locator('.detail-pane')).toBeVisible();
-
-  const siteVisitBtn = page.locator('.portfolio-detail-header a', { hasText: 'Site Visit' });
-  const [newPage] = await Promise.all([
-    page.context().waitForEvent('page'),
-    siteVisitBtn.click(),
-  ]);
-  await newPage.waitForLoadState('networkidle');
-
-  const url = newPage.url();
-  await newPage.close();
+  await page.goto('/site-visit-select');
+  await page.waitForLoadState('networkidle');
+  const projectButton = page.getByRole('button', { name: /Start site visit for/i }).first();
+  if (await projectButton.count() === 0) return null;
+  await projectButton.click();
+  await expect(page).toHaveURL(/\/site-visit\//, { timeout: 15_000 });
+  const url = page.url();
 
   const match = url.match(/\/site-visit\/([^/]+)/);
   return match ? match[1] : null;
@@ -39,20 +29,22 @@ test.describe('PM site visit — comparison view', () => {
 
     // Status buttons should be in each task row
     const firstRow = page.locator('[data-testid="pm-task-row"]').first();
-    await expect(firstRow.locator('[data-testid="pm-status-btn-Not Applicable"]')).toBeVisible();
-    await expect(firstRow.locator('[data-testid="pm-status-btn-Not Started"]')).toBeVisible();
-    await expect(firstRow.locator('[data-testid="pm-status-btn-In Progress"]')).toBeVisible();
-    await expect(firstRow.locator('[data-testid="pm-status-btn-Completed"]')).toBeVisible();
+    await expect(firstRow.locator('[data-testid="pm-status-btn-not_started"]')).toBeVisible();
+    await expect(firstRow.locator('[data-testid="pm-status-btn-in_progress"]')).toBeVisible();
+    await expect(firstRow.locator('[data-testid="pm-status-btn-completed"]')).toBeVisible();
+    await expect(firstRow.locator('[data-testid="pm-status-btn-delayed"]')).toBeVisible();
+    await expect(firstRow.locator('[data-testid="pm-status-btn-blocked"]')).toBeVisible();
 
     // Schedule assessment buttons
     await expect(page.locator('[data-testid="pm-schedule-btn-On Track"]')).toBeVisible();
     await expect(page.locator('[data-testid="pm-schedule-btn-At Risk"]')).toBeVisible();
-    await expect(page.locator('[data-testid="pm-schedule-btn-Delayed"]')).toBeVisible();
     await expect(page.locator('[data-testid="pm-schedule-btn-Critical"]')).toBeVisible();
 
     await expect(page.locator('[data-testid="pm-declaration-checkbox"]')).toBeVisible();
     await expect(page.locator('[data-testid="save-site-visit-report"]')).toBeVisible();
+    await page.screenshot({ path: 'test-results/g110-desktop-site-visit.png', fullPage: true });
 
+    await page.goto('/');
     await logout(page);
   });
 
@@ -92,10 +84,11 @@ test.describe('PM site visit — comparison view', () => {
       await expect(gcChip.first()).toBeVisible();
     }
 
+    await page.goto('/');
     await logout(page);
   });
 
-  test('submitting site visit shows comparison summary stat boxes', async ({ page }) => {
+  test('submitting a partial Gantt visit shows the persisted comparison summary', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
 
     const projectId = await getFirstProjectId(page);
@@ -110,7 +103,7 @@ test.describe('PM site visit — comparison view', () => {
 
     // Observe at least one task — set status on first preconstruction task
     const firstRow = page.locator('[data-testid="pm-task-row"]').first();
-    await firstRow.locator('[data-testid="pm-status-btn-In Progress"]').click();
+    await firstRow.locator('[data-testid="pm-status-btn-in_progress"]').click();
 
     // Set PM schedule assessment
     await page.locator('[data-testid="pm-schedule-btn-On Track"]').click();
@@ -124,14 +117,12 @@ test.describe('PM site visit — comparison view', () => {
     // Comparison view should appear
     await expect(page.locator('text=Site Visit Recorded')).toBeVisible({ timeout: 20_000 });
 
-    // All four stat boxes must be present
-    await expect(page.locator('[data-testid="summary-items-assessed"]')).toBeVisible();
-    await expect(page.locator('[data-testid="summary-matches"]')).toBeVisible();
-    await expect(page.locator('[data-testid="summary-discrepancies"]')).toBeVisible();
+    // Gantt-backed visits use the canonical persisted three-way summary.
+    await expect(page.locator('[data-testid="summary-confirmed"]')).toBeVisible();
+    await expect(page.locator('[data-testid="summary-discrepancy"]')).toBeVisible();
     await expect(page.locator('[data-testid="summary-pm-ahead"]')).toBeVisible();
-
-    // Comparison table should be visible
-    await expect(page.locator('[data-testid="comparison-table"]')).toBeVisible();
+    const persistedTotal = await page.locator('[data-testid^="summary-"] > div:first-child').allTextContents();
+    expect(persistedTotal.map(Number).reduce((sum, value) => sum + value, 0)).toBe(1);
 
     // The comparison screen is a field-mode page with no nav bar / Sign out
     // button — navigate home before logging out.
@@ -139,7 +130,7 @@ test.describe('PM site visit — comparison view', () => {
     await logout(page);
   });
 
-  test('comparison row data-testid attributes are present per work package', async ({ page }) => {
+  test('a Gantt submission exposes canonical persisted discrepancy totals', async ({ page }) => {
     await login(page, CREDENTIALS.admin);
 
     const projectId = await getFirstProjectId(page);
@@ -156,7 +147,7 @@ test.describe('PM site visit — comparison view', () => {
     const rowCount = await taskRows.count();
     // Set status on first few task rows
     for (let i = 0; i < Math.min(rowCount, 3); i++) {
-      await taskRows.nth(i).locator('[data-testid="pm-status-btn-In Progress"]').click();
+      await taskRows.nth(i).locator('[data-testid="pm-status-btn-in_progress"]').click();
     }
 
     await page.locator('[data-testid="pm-schedule-btn-On Track"]').click();
@@ -164,16 +155,9 @@ test.describe('PM site visit — comparison view', () => {
     await page.locator('[data-testid="save-site-visit-report"]').click();
 
     await expect(page.locator('text=Site Visit Recorded')).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator('[data-testid="comparison-table"]')).toBeVisible();
-
-    // At least one comparison-row-{wpId} should be present (for WPs with assessed tasks)
-    const comparisonRows = page.locator('[data-testid^="comparison-row-"]');
-    const compRowCount = await comparisonRows.count();
-    expect(compRowCount).toBeGreaterThan(0);
-
-    // Each comparison row should contain task rows
-    const firstCompRow = comparisonRows.first();
-    await expect(firstCompRow).toBeVisible();
+    await expect(page.locator('[data-testid="summary-confirmed"]')).toBeVisible();
+    await expect(page.locator('[data-testid="summary-discrepancy"]')).toBeVisible();
+    await expect(page.locator('[data-testid="summary-pm-ahead"]')).toBeVisible();
 
     // The comparison screen is a field-mode page with no nav bar / Sign out
     // button — navigate home before logging out.

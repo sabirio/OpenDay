@@ -5,12 +5,8 @@ import SnagFieldTabBar from './SnagFieldTabBar.jsx';
 import SnagFieldPlanView from './SnagFieldPlanView.jsx';
 import SnagFieldListView from './SnagFieldListView.jsx';
 
-// Mobile Field Mode shell — the "PLAN | LIST | ADD" surface a PM uses while
-// walking the site. All data (project snags, capture catalog, product
-// commands) is fetched once by SnagListPage using the same hooks the
-// desktop view uses, then handed down as props: this shell only owns which
-// of the three field screens is showing, nothing about the Observation
-// domain itself.
+// Mobile Field Mode owns only presentation and tab state. The desktop and
+// field surfaces continue to consume the same Snag hooks and commands.
 export default function SnagFieldShell({ projectId, project, status, reload, model, filters, setFilters, selected, setSelected, publish, publishNotice, catalog }) {
   const [query, setQuery] = useSearchParams();
   const mode = query.get('tab') === 'list' ? 'list' : 'plan';
@@ -29,8 +25,7 @@ export default function SnagFieldShell({ projectId, project, status, reload, mod
     <div className="snag-field-shell">
       <Link className="snag-field-back-link" to="/field-snag">← Field Snag List</Link>
       <header className="snag-field-header">
-        <div className="snag-field-header-card">
-          <div className="snag-field-eyebrow">Field Snag List</div>
+        <div className="snag-field-header-context">
           <h1>{project?.storeCode || `Project ${projectId}`}</h1>
           <p>
             {[project?.shoppingMallName, project?.city].filter(Boolean).join(' · ')}

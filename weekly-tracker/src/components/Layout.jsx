@@ -3,7 +3,7 @@ import Sidebar from "./Sidebar";
 import Icon from "./shared/Icon";
 
 function Layout({ children }) {
-  // Sidebar is a fixed 240px column on desktop but becomes an off-canvas
+  // Sidebar is a fixed 224px column on desktop but becomes an off-canvas
   // drawer below 640px (see index.css) — the toggle/backdrop below only
   // render visibly at that breakpoint (CSS-gated), so this state has no
   // effect on desktop layout.

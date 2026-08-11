@@ -1,111 +1,120 @@
+import AttentionSurface from '../shared/detail/AttentionSurface.jsx';
 import { computeWPObservationDiscrepancy, progressGapPp } from '../../hooks/useDiscrepancyPresentation';
 import { getDefaultProgressForGanttStatus } from '../../hooks/useProgressPresentation';
 
-const ACCENT = "var(--field-accent-sitevisit)";
-
-const DISC_STYLE = {
-  warning:  { bg: 'var(--field-warning-bg)', color: 'var(--field-warning-fg-dark)', border: 'var(--field-warning-border)', icon: '⚠' },
-  critical: { bg: 'var(--field-danger-bg)', color: 'var(--field-danger-fg-dark)', border: 'var(--field-danger-border)', icon: '⚠' },
-};
-
-const GANTT_STATUS_OPTS_SV = [
-  { value: 'not_started', label: 'Not Started', bg: 'var(--field-bg-subtle)', color: 'var(--field-text-secondary)', border: 'var(--field-border-strong)' },
-  { value: 'in_progress', label: 'In Progress', bg: 'var(--field-warning-bg)', color: 'var(--field-warning-fg)', border: 'var(--field-warning-border)' },
-  { value: 'completed',   label: 'Completed',   bg: 'var(--field-success-bg)', color: 'var(--field-success-fg)', border: 'var(--field-success-border)' },
-  { value: 'delayed',     label: 'Delayed',     bg: 'var(--field-delayed-bg)', color: 'var(--field-delayed-fg)', border: 'var(--field-delayed-border)' },
-  { value: 'blocked',     label: 'Blocked',     bg: 'var(--field-danger-bg)', color: 'var(--field-danger-fg)', border: 'var(--field-danger-border)' },
+const STATUS_OPTIONS = [
+  { value: 'not_started', label: 'Not started' },
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'delayed', label: 'Delayed' },
+  { value: 'blocked', label: 'Blocked' },
 ];
 
-function GanttPMTaskRow({ task, pmEntry, onChange }) {
+function GanttPMTaskRow({ task, pmEntry, onChange, focused = false }) {
   const gcStatus = task.status || 'not_started';
   const gcProgress = task.actual_progress ?? 0;
-  const pmStatus = pmEntry?.observed_status ?? gcStatus;
-  const curProgress = pmEntry?.observed_progress ?? gcProgress;
-
-  // Live mismatch/"suspicious jump" indicator (P2.2) — reuses the exact
-  // function siteVisitService.submitSiteVisit() persists the real
-  // discrepancy with, so what the PM sees while entering data matches what
-  // gets saved. Only surfaces once the PM's entry actually diverges from the
-  // untouched default (observed === GC's own claim shouldn't self-flag).
-  const touched = pmEntry != null;
-  const { discStatus } = touched
-    ? computeWPObservationDiscrepancy({ gc_progress: gcProgress, gc_status: gcStatus, observed_progress: curProgress, observed_status: pmStatus })
-    : { discStatus: 'ok' };
-  const discStyle = discStatus !== 'ok' ? DISC_STYLE[discStatus] : null;
+  const hasObservation = Boolean(
+    pmEntry?.observed_status && Number.isFinite(Number(pmEntry.observed_progress)),
+  );
+  const pmStatus = hasObservation ? pmEntry.observed_status : gcStatus;
+  const currentProgress = hasObservation ? Number(pmEntry.observed_progress) : gcProgress;
+  const discrepancy = hasObservation
+    ? computeWPObservationDiscrepancy({
+        gc_progress: gcProgress,
+        gc_status: gcStatus,
+        observed_progress: currentProgress,
+        observed_status: pmStatus,
+      })
+    : null;
 
   function handleStatusClick(statusValue) {
-    const autoPct = getDefaultProgressForGanttStatus(statusValue, curProgress);
-    onChange({ ...(pmEntry || {}), observed_progress: autoPct, observed_status: statusValue });
+    const autoProgress = getDefaultProgressForGanttStatus(statusValue, currentProgress);
+    onChange({ ...(pmEntry || {}), observed_progress: autoProgress, observed_status: statusValue });
   }
 
   return (
-    <div data-testid="pm-task-row" data-wp-id={task.id} style={{ borderBottom: '1px solid var(--field-bg-subtle)', padding: '9px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 180px', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <span style={{ fontSize: 13, color: 'var(--field-text-body)', lineHeight: 1.35 }}>{task.label}</span>
-          {task.isCritical && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'var(--field-danger-bg)', color: 'var(--field-danger-fg)', border: '1px solid var(--field-danger-border)', flexShrink: 0 }}>CRITICAL</span>
-          )}
+    <article
+      data-testid="pm-task-row"
+      data-wp-id={task.id}
+      className={`site-visit-observation ${focused ? 'is-focused' : ''}`}
+    >
+      <section className="site-visit-reported" aria-labelledby={`reported-${task.id}`}>
+        <div className="site-visit-concept-label">Reported by contractor</div>
+        <h3 id={`reported-${task.id}`}>{gcStatus.replaceAll('_', ' ')} · {gcProgress}%</h3>
+        <p>Current scoped schedule state used by the canonical discrepancy comparison.</p>
+      </section>
+
+      <section className="site-visit-observed" aria-labelledby={`observed-${task.id}`}>
+        <div className="site-visit-concept-label">Observed by PM</div>
+        <h3 id={`observed-${task.id}`}>{hasObservation ? `${pmStatus.replaceAll('_', ' ')} · ${currentProgress}%` : 'Not recorded yet'}</h3>
+        <div className="site-visit-status-options" role="group" aria-label={`Observed status for ${task.label}`}>
+          {STATUS_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              data-testid={`pm-status-btn-${option.value}`}
+              aria-pressed={hasObservation && pmStatus === option.value}
+              onClick={() => handleStatusClick(option.value)}
+            >
+              {option.label}
+              {gcStatus === option.value && <span>Reported</span>}
+            </button>
+          ))}
         </div>
-        <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-          {GANTT_STATUS_OPTS_SV.map(opt => {
-            const isPM = pmStatus === opt.value;
-            const isGC = gcStatus === opt.value && !isPM;
-            return (
-              <button key={opt.value} type="button"
-                data-testid={`pm-status-btn-${opt.value}`}
-                aria-pressed={isPM}
-                aria-label={`${task.label}: ${opt.label}`}
-                onClick={() => handleStatusClick(opt.value)}
-                style={{
-                  position: 'relative',
-                  padding: '8px 9px', minHeight: 44, borderRadius: 6, fontSize: 11,
-                  border: isPM ? `1.5px solid ${opt.border}` : isGC ? `1px solid ${opt.border}` : '1px solid var(--field-border)',
-                  background: isPM ? opt.bg : isGC ? opt.bg + '80' : 'var(--field-bg-card)',
-                  color: isPM ? opt.color : isGC ? opt.color : 'var(--field-text-muted)',
-                  fontWeight: isPM ? 700 : 400,
-                  cursor: 'pointer', whiteSpace: 'nowrap', outline: 'none',
-                }}>
-                {opt.label}
-                {isGC && (
-                  <span style={{
-                    position: 'absolute', top: -6, right: -4,
-                    fontSize: 8, fontWeight: 800, lineHeight: 1.2,
-                    background: ACCENT, color: 'var(--field-text-on-accent)',
-                    padding: '1px 3px', borderRadius: 3,
-                    letterSpacing: '0.02em', pointerEvents: 'none',
-                  }}>GC</span>
-                )}
-              </button>
-            );
-          })}
+
+        {(pmStatus === 'in_progress' || pmStatus === 'delayed') && (
+          <label className="site-visit-progress-control">
+            <span>Observed progress</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="10"
+              value={currentProgress}
+              onChange={(event) => onChange({
+                ...(pmEntry || {}),
+                observed_progress: Number(event.target.value),
+                observed_status: pmStatus,
+              })}
+            />
+            <strong>{currentProgress}%</strong>
+          </label>
+        )}
+
+        {hasObservation && (
+          <label className="site-visit-note-control">
+            <span>Observation note <small>Optional</small></span>
+            <textarea
+              rows={3}
+              value={pmEntry?.pm_note || ''}
+              onChange={(event) => onChange({ ...(pmEntry || {}), pm_note: event.target.value })}
+              placeholder="Record what you observed for this work package."
+            />
+          </label>
+        )}
+      </section>
+
+      {!hasObservation ? (
+        <div className="site-visit-discrepancy-state is-pending" role="status">
+          <strong>Discrepancy not evaluated</strong>
+          <span>Record an observed status to compare reported and observed reality.</span>
         </div>
-      </div>
-      {(pmStatus === 'in_progress' || pmStatus === 'delayed') && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, paddingLeft: 4 }}>
-          <input
-            type="range" min="0" max="100" step="10"
-            aria-label={`Observed progress for ${task.label}`}
-            value={curProgress}
-            onChange={e => onChange({ ...(pmEntry || {}), observed_progress: Number(e.target.value), observed_status: pmStatus })}
-            style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
-          />
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', minWidth: 34, textAlign: 'right' }}>
-            {curProgress}%
-          </span>
+      ) : discrepancy.discStatus === 'ok' ? (
+        <div className="site-visit-discrepancy-state is-aligned" role="status">
+          <strong>No material discrepancy</strong>
+          <span>Observed state is within the canonical comparison tolerance.</span>
         </div>
+      ) : (
+        <AttentionSurface
+          title="Reported and observed states differ"
+          description={currentProgress !== gcProgress
+            ? `${progressGapPp(currentProgress, gcProgress)} percentage-point gap · ${discrepancy.discStatus}`
+            : `Status mismatch · ${discrepancy.discStatus}`}
+          className="site-visit-discrepancy-state"
+          data-testid="pm-task-discrepancy"
+        />
       )}
-      {discStyle && (
-        <div data-testid="pm-task-discrepancy" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 5,
-          marginTop: 6, marginLeft: 4, padding: '3px 9px', borderRadius: 6,
-          fontSize: 11, fontWeight: 700,
-          background: discStyle.bg, color: discStyle.color, border: `1px solid ${discStyle.border}`,
-        }}>
-          {discStyle.icon} GC claimed {gcProgress}% ({gcStatus.replace('_', ' ')}) — {curProgress !== gcProgress ? `${progressGapPp(curProgress, gcProgress)}pp gap` : 'status mismatch'}
-        </div>
-      )}
-    </div>
+    </article>
   );
 }
 

@@ -27,6 +27,11 @@ export default function ReportingWorkPackagesSection({
           style={{ height: 42, padding: "0 14px", border: "1px solid var(--field-border-strong)", borderRadius: 10, fontSize: 14, color: "var(--field-text-heading)", background: "var(--field-bg-card)", outline: "none", width: 200 }}
         />
       </div>
+      {ganttTasks.length > 0 && !ganttLoading && (
+        <p className="contractor-report-inheritance-note">
+          {ganttTasks.length} scoped work package{ganttTasks.length === 1 ? "" : "s"} loaded from the current schedule. Existing progress is prefilled; expand only the groups that need an update.
+        </p>
+      )}
       {ganttTasks.length === 0 && !ganttLoading && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--field-text-label)", marginBottom: 6 }}>Active Work Packages This Week</div>

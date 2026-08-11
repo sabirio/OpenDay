@@ -59,19 +59,12 @@ export default function DashboardMasterList({
 
   return (
     <>
-      <div className="master-pane-header">
-        <h2 className="master-pane-title">Projects</h2>
-        <label className="master-search">
-          <span className="sr-only">Search projects</span>
-          <Icon name="search" size={15} />
-          <input
-            className="ds-input"
-            value={searchQuery}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search projects..."
-          />
-        </label>
-        <div className="master-filter-row" aria-label="Project filters">
+      <div className="master-pane-header dashboard-master-header">
+        <div className="dashboard-master-title-row">
+          <div className="dashboard-master-heading">
+            <h2 className="master-pane-title">Projects</h2>
+            <span>{rows.length}</span>
+          </div>
           <label className="master-filter-select-wrap">
             <span className="sr-only">Additional project filters</span>
             <select
@@ -85,6 +78,18 @@ export default function DashboardMasterList({
               ))}
             </select>
           </label>
+        </div>
+        <label className="master-search">
+          <span className="sr-only">Search projects</span>
+          <Icon name="search" size={15} />
+          <input
+            className="ds-input"
+            value={searchQuery}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search projects..."
+          />
+        </label>
+        <div className="master-filter-row" aria-label="Project filters">
           <div className="master-quick-filters" role="group" aria-label="Quick project filters">
             {QUICK_FILTERS.map(({ id, label }) => (
               <button
@@ -146,9 +151,10 @@ export default function DashboardMasterList({
               <span className="master-row-name" title={project.shoppingMallName || undefined}>
                 {project.shoppingMallName || 'Project name not set'}
               </span>
+              <span className="master-row-location" title={location}>{location}</span>
               <span className="master-row-bottom">
-                <span title={location}>{location}</span>
-                <span className={`master-health ${healthTone(row)}`.trim()}>{progress}% · {projectHealth(row)}</span>
+                <span className={`master-health ${healthTone(row)}`.trim()}>{projectHealth(row)}</span>
+                <span className="master-row-progress">{progress}%</span>
               </span>
             </button>
           );

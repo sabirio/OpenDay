@@ -1,40 +1,48 @@
-import { TONE, severityTone, getPortfolioState } from './homePresentation.js';
+import { Link } from 'react-router-dom';
+import AttentionSurface from '../shared/detail/AttentionSurface.jsx';
+import { getAttentionInsights, getInsightDisplayTitle, getPortfolioState } from './homePresentation.js';
 
-function MorningBrief({ summary, projectCount }) {
-  const { critical, warning, total } = summary;
+function MorningBrief({ summary, insights, projects, projectCount }) {
+  const { critical, warning, info, total } = summary;
   const portfolioState = getPortfolioState(projectCount, total);
+  const primary = getAttentionInsights(insights)[0];
+  const attentionCount = critical + warning;
 
-  let message;
-  let color;
   if (portfolioState === 'empty') {
-    message = 'No projects yet — add a project to start tracking priorities.';
-    color = TONE.muted;
-  } else if (portfolioState === 'healthy') {
-    message = 'All clear — no issues detected across the portfolio.';
-    color = TONE.done;
-  } else {
-    const parts = [];
-    if (critical > 0) parts.push(`${critical} critical`);
-    if (warning  > 0) parts.push(`${warning} need attention`);
-    message = parts.join(', ') + '.';
-    color = severityTone({ critical, warning });
+    return (
+      <AttentionSurface
+        title="No projects yet"
+        description="Add a project to begin an operational briefing."
+        tone="calm"
+        headingLevel="h2"
+      />
+    );
   }
 
+  if (!primary) {
+    return (
+      <AttentionSurface
+        title="No attention required"
+        description={portfolioState === 'healthy'
+          ? 'All clear — no issues detected across the portfolio.'
+          : `${info} informational ${info === 1 ? 'update is' : 'updates are'} available in the specialist workspaces.`}
+        accessory="All clear"
+        tone="calm"
+        headingLevel="h2"
+      />
+    );
+  }
+
+  const title = getInsightDisplayTitle(primary, projects);
   return (
-    <div style={{
-      padding: '14px 18px',
-      background: 'var(--bg-elevated)',
-      border: `1.5px solid ${color}`,
-      borderRadius: 10,
-      marginBottom: 20,
-    }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-        Morning Brief
-      </div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
-        {message}
-      </div>
-    </div>
+    <AttentionSurface
+      title={primary.projectId ? (
+        <Link className="home-attention-title-link" to={`/?project=${primary.projectId}`}>{title}</Link>
+      ) : title}
+      description={primary.detail}
+      accessory={`${attentionCount} ${attentionCount === 1 ? 'item' : 'items'}`}
+      headingLevel="h2"
+    />
   );
 }
 

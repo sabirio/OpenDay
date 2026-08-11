@@ -7,6 +7,9 @@ import { SnagPriority, SnagStatus } from '../../components/snags/SnagStatus.jsx'
 import EvidenceSection from '../../components/snags/EvidenceSection.jsx';
 import SnagHistory from '../../components/snags/SnagHistory.jsx';
 import { useIsMobile } from '../../hooks/shared/useViewport.js';
+import AttentionSurface from '../../components/shared/detail/AttentionSurface.jsx';
+import AnalyticalSection from '../../components/shared/detail/AnalyticalSection.jsx';
+import MetadataRows from '../../components/shared/detail/MetadataRows.jsx';
 
 function planReturnUrl(projectId, snag) {
   if (!snag.location?.planVersionId) return null;
@@ -76,6 +79,15 @@ export default function SnagDetailPage() {
   const canManage = ['ADMIN', 'PM'].includes(roleName);
   const canAddEvidence = actions.has('addSnagEvidence') || canManage;
   const isCaptured = snag.publicationState === 'CAPTURED';
+  const responsibleStakeholder = catalog.stakeholders.find((item) => String(item.id) === String(snag.stakeholderId));
+  const responsibleTrade = catalog.trades.find((item) => String(item.id) === String(snag.tradeId));
+  const responsibleName = responsibleStakeholder?.company_name || responsibleStakeholder?.name || 'Not assigned';
+  const nextStep = actions.has('startSnagWork') ? 'Assigned contractor starts work'
+    : actions.has('markSnagReadyForReview') ? 'Add correction evidence and submit for PM review'
+      : actions.has('approveAndCloseSnag') ? 'PM verifies evidence and closes or rejects'
+        : isCaptured ? 'Complete responsibility and evidence, then publish deliberately'
+          : ['CLOSED', 'CANCELLED'].includes(snag.status) ? 'No further resolution action'
+            : 'Continue the current resolution workflow';
   const drawingReturn = planReturnUrl(projectId, snag);
   // Mobile Field Mode has no desktop plan-viewer route to return to — send
   // the PM back into the same field shell (defaults to Plan Mode) instead.
@@ -176,6 +188,31 @@ export default function SnagDetailPage() {
           {snagErrorMessage(command.error || product.error || publish.error)}
         </div>
       ) : null}
+
+      <section className="snag-operational-summary" aria-label="Observation operational summary">
+        <AttentionSurface
+          title={isCaptured ? 'Captured · private field draft' : 'Published · visible resolution workflow'}
+          description={isCaptured
+            ? 'Only PM/Admin can see this observation until it is deliberately published.'
+            : `Visible to the responsible organization. Next: ${nextStep}.`}
+          tone={!isCaptured && ['CLOSED', 'CANCELLED'].includes(snag.status) ? 'calm' : 'attention'}
+          headingLevel="h2"
+        />
+        <AnalyticalSection title="Issue, location and ownership" headingLevel="h2">
+          <MetadataRows
+            columns={2}
+            density="compact"
+            items={[
+              { label: 'Observation', value: snag.title, secondary: snag.description || 'No additional description.' },
+              { label: 'Location', value: model.locationLabel, secondary: snag.location?.planVersionId ? `Pinned on plan revision · page ${snag.location.pageNumber || 1}` : 'No plan pin recorded' },
+              { label: 'Responsible organization', value: responsibleName, secondary: responsibleTrade?.name || 'Trade not set' },
+              { label: 'Lifecycle', value: 'Resolution workflow', secondary: `${model.dueStateLabel} · ${model.dueDateLabel}` },
+              { label: 'Next required action', value: nextStep },
+              { label: 'Evidence', value: `${evidence.length} item${evidence.length === 1 ? '' : 's'}`, secondary: isCaptured ? 'Evidence remains private until publication' : 'Evidence remains attributable to this observation' },
+            ]}
+          />
+        </AnalyticalSection>
+      </section>
 
       {actions.has('startSnagWork') || actions.has('markSnagReadyForReview') || actions.has('approveAndCloseSnag') || actions.has('rejectSnag') ? (
         <section className="snag-detail-section snag-lifecycle-actions" aria-labelledby="lifecycle-heading">

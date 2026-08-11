@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ROLES } from "../auth/rolePermissions";
@@ -6,7 +6,7 @@ import { isContractorManaged } from "../hooks/useScheduleOwnershipMode";
 import { useDashboardModel } from "../hooks/useDashboardModel";
 import { getProgressSnapshot } from "../hooks/useDashboardOrchestration";
 import { ActivityHeatmap } from "../components/dashboard/DashboardWidgets";
-import { PortfolioHealthSummary, PortfolioScopeSummary, ReportingSummary } from "../components/dashboard/SummaryPanel";
+import { PortfolioSummaryPanel } from "../components/dashboard/SummaryPanel";
 import DashboardAttentionStrip from "../components/dashboard/DashboardAttentionStrip";
 import StatusMatrix from "../components/dashboard/StatusMatrix";
 import ProjectHeatmap from "../components/dashboard/ProjectHeatmap";
@@ -19,7 +19,7 @@ import StatusBadge from "../components/shared/StatusBadge.jsx";
 import { useGanttMetrics } from "../hooks/useGanttMetrics";
 import { useAllRows } from "../hooks/useAllRows";
 import { SPI_STATUS } from "../config/statusColors";
-import { SCHEDULE_STATUS } from "../utils/reportUtils";
+import { formatDate, SCHEDULE_STATUS } from "../utils/reportUtils";
 import { isoWeekToMonday, currentISOWeek } from "../utils/scheduleUtils";
 import Icon from "../components/shared/Icon";
 
@@ -102,23 +102,36 @@ function PortfolioOverview({
       <DashboardAttentionStrip kpis={kpis} />
       <PortfolioAlerts alerts={spiAlerts} onDismiss={onDismissAlert} />
 
-      {/* LEVEL 2 — portfolio/project health: overall health, reporting cadence */}
-      <section className="dashboard-detail-section">
-        <PortfolioHealthSummary rows={spiRows} allRows={allRows} />
-      </section>
-
-      <section className="dashboard-detail-section dashboard-portfolio-tools">
-        <div>
-          <h3>Reporting</h3>
-          <ReportingSummary kpis={kpis} reportsTotal={reportsTotal} svKpis={svKpis} lastVisitDate={lastVisitDate} />
+      {snapshotWeek && (
+        <div className="dashboard-snapshot-banner" role="status">
+          <strong>{snapshotLoading ? 'Loading snapshot...' : `Viewing ${isoWeekLabel(snapshotWeek)}`}</strong>
+          <span>Read-only · progress values from history</span>
+          <button type="button" className="btn-icon" aria-label="Return to live dashboard" onClick={() => onSnapshotWeekChange(null)}>
+            <Icon name="close" size={15} />
+          </button>
         </div>
-        <PortfolioScopeSummary kpis={kpis} />
-      </section>
+      )}
 
-      {/* LEVEL 3 — static/context: scope is already above (grouped with
-          Reporting rather than its own bordered box); Snapshot is a
-          read-only historical tool, not a signal, so it's a closed-by-
-          default disclosure unless a snapshot is actively being viewed. */}
+      <PortfolioSummaryPanel
+        rows={spiRows}
+        allRows={allRows}
+        kpis={kpis}
+        reportsTotal={reportsTotal}
+        svKpis={svKpis}
+        lastVisitDate={lastVisitDate}
+      />
+
+      <StatusMatrix
+        rows={rows}
+        alerts={alerts}
+        drawerProjectId={selectedProjectId}
+        onSelect={onSelectProject}
+        snapshotData={snapshotData}
+        snapshotMode={Boolean(snapshotWeek)}
+      />
+
+      {/* Snapshot remains available as read-only context after the operational
+          panel and Matrix instead of interrupting their decision flow. */}
       <details className="dashboard-snapshot-disclosure" open={Boolean(snapshotWeek)}>
         <summary>Snapshot — view a past week&apos;s progress</summary>
         <div className="dashboard-snapshot-control">
@@ -142,24 +155,6 @@ function PortfolioOverview({
         </div>
       </details>
 
-      {snapshotWeek && (
-        <div className="dashboard-snapshot-banner" role="status">
-          <strong>{snapshotLoading ? 'Loading snapshot...' : `Viewing ${isoWeekLabel(snapshotWeek)}`}</strong>
-          <span>Read-only · progress values from history</span>
-          <button type="button" className="btn-icon" aria-label="Return to live dashboard" onClick={() => onSnapshotWeekChange(null)}>
-            <Icon name="close" size={15} />
-          </button>
-        </div>
-      )}
-
-      <StatusMatrix
-        rows={rows}
-        alerts={alerts}
-        drawerProjectId={selectedProjectId}
-        onSelect={onSelectProject}
-        snapshotData={snapshotData}
-        snapshotMode={Boolean(snapshotWeek)}
-      />
     </div>
   );
 }
@@ -193,6 +188,46 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
   const [snapshotWeek, setSnapshotWeek] = useState(null);
   const [snapshotData, setSnapshotData] = useState({});
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [tabOverflowState, setTabOverflowState] = useState({ hasOverflow: false, atEnd: true });
+  const detailTabsRef = useRef(null);
+
+  const updateTabOverflow = useCallback(() => {
+    const tabs = detailTabsRef.current;
+    if (!tabs) return;
+    const hasOverflow = tabs.scrollWidth > tabs.clientWidth + 1;
+    const atEnd = !hasOverflow || tabs.scrollLeft + tabs.clientWidth >= tabs.scrollWidth - 1;
+    setTabOverflowState((current) => (
+      current.hasOverflow === hasOverflow && current.atEnd === atEnd
+        ? current
+        : { hasOverflow, atEnd }
+    ));
+  }, []);
+
+  useEffect(() => {
+    const tabs = detailTabsRef.current;
+    if (!tabs) return undefined;
+    updateTabOverflow();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateTabOverflow);
+    observer?.observe(tabs);
+    window.addEventListener('resize', updateTabOverflow);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateTabOverflow);
+    };
+  }, [updateTabOverflow]);
+
+  useEffect(() => {
+    const tabs = detailTabsRef.current;
+    const activeTab = tabs?.querySelector(`#dashboard-tab-${activeView}`);
+    if (!tabs || !activeTab) return;
+    const left = activeTab.offsetLeft;
+    const right = left + activeTab.offsetWidth;
+    if (left < tabs.scrollLeft) tabs.scrollTo({ left, behavior: 'smooth' });
+    if (right > tabs.scrollLeft + tabs.clientWidth) {
+      tabs.scrollTo({ left: right - tabs.clientWidth, behavior: 'smooth' });
+    }
+    window.requestAnimationFrame(updateTabOverflow);
+  }, [activeView, updateTabOverflow]);
 
   const handleSnapshotWeekChange = useCallback(async (weekStr) => {
     if (!weekStr) {
@@ -328,43 +363,45 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
   }
 
   const detailHeader = (
-    <header className="detail-pane-header">
+    <header className="detail-pane-header dashboard-detail-header">
       <button type="button" className="btn btn-ghost-sm dashboard-back-to-master" onClick={() => setMobileView("master")}>
-        <Icon name="arrowRight" size={14} style={{ transform: 'rotate(180deg)' }} /> Projects
+        <Icon name="arrowRight" size={14} style={{ transform: 'rotate(180deg)' }} /> Back to Projects
       </button>
       <div className="dashboard-detail-identity">
-        <div>
-          <div className="dashboard-detail-title">
+        <div className="dashboard-detail-copy">
+          {selectedRow && <div className="dashboard-detail-code">{selectedRow.project.storeCode || 'Project code not set'}</div>}
+          <h1 className="dashboard-detail-title">
             {selectedRow
-              ? `${selectedRow.project.storeCode || 'Project'} — ${selectedRow.project.shoppingMallName || 'Name not set'}`
+              ? selectedRow.project.shoppingMallName || 'Name not set'
               : 'Portfolio Overview'}
-          </div>
+          </h1>
           <div className="dashboard-detail-meta">
             {selectedRow
               ? [
                   [selectedRow.project.city, selectedRow.project.country].filter(Boolean).join(', '),
                   selectedRow.project.storeConcept || selectedRow.project.projectType,
-                  selectedRow.project.storeSizeSqm ? `${selectedRow.project.storeSizeSqm} m²` : null,
                 ].filter(Boolean).join(' · ') || 'Project metadata not set'
               : `${projects.length} projects · portfolio health, reporting and operational attention`}
           </div>
+          {selectedRow && (
+            <div className="dashboard-detail-context">
+              {[
+                selectedRow.project.storeSizeSqm ? `${selectedRow.project.storeSizeSqm} m²` : null,
+                selectedRow.project.targetOpeningDate ? `Target opening ${formatDate(selectedRow.project.targetOpeningDate)}` : null,
+              ].filter(Boolean).join(' · ') || 'Area and opening context not set'}
+            </div>
+          )}
         </div>
-        {selectedRow && <StatusBadge tone="neutral">{selectedRow.project.projectStatus || 'Status not set'}</StatusBadge>}
       </div>
       {selectedRow && (
-        <div className="dashboard-detail-actions">
-          <a className="btn btn-primary" href={`/site-visit/${selectedRow.project.id}`} target="_blank" rel="noreferrer">Site Visit</a>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/contractor-report/${selectedRow.project.id}`).catch(() => {})}
-          >
-            Copy report link
-          </button>
+        <div className="dashboard-detail-status-actions">
+          <StatusBadge tone="info">{selectedRow.project.projectStatus || 'Status not set'}</StatusBadge>
           {canReviewSchedules && isContractorManaged(selectedRow.project.scheduleOwnershipMode) && (
-            <Link className="btn btn-secondary" to={`/projects/${selectedRow.project.id}/schedule-review`}>
-              Schedule Review
-            </Link>
+            <div className="dashboard-detail-actions">
+              <Link className="btn btn-secondary" to={`/projects/${selectedRow.project.id}/schedule-review`}>
+                Schedule Review
+              </Link>
+            </div>
           )}
         </div>
       )}
@@ -392,30 +429,44 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
   }
 
   const detailTabs = (
-    <div className="detail-pane-tabs" role="tablist" aria-label="Dashboard detail views">
-      {VIEWS.map(({ id, label }, index) => (
-        <button
-          key={id}
-          id={`dashboard-tab-${id}`}
-          type="button"
-          role="tab"
-          aria-selected={activeView === id}
-          aria-controls="dashboard-detail-tabpanel"
-          tabIndex={activeView === id ? 0 : -1}
-          onClick={() => setActiveView(id)}
-          onKeyDown={(event) => handleViewTabKeyDown(event, index)}
-          className={activeView === id ? 'detail-tab is-active' : 'detail-tab'}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="dashboard-detail-tabs-shell">
+      <div
+        ref={detailTabsRef}
+        className="detail-pane-tabs dashboard-detail-tabs"
+        role="tablist"
+        aria-label="Dashboard detail views"
+        onScroll={updateTabOverflow}
+      >
+        {VIEWS.map(({ id, label }, index) => (
+          <button
+            key={id}
+            id={`dashboard-tab-${id}`}
+            type="button"
+            role="tab"
+            aria-selected={activeView === id}
+            aria-controls="dashboard-detail-tabpanel"
+            tabIndex={activeView === id ? 0 : -1}
+            onClick={() => setActiveView(id)}
+            onKeyDown={(event) => handleViewTabKeyDown(event, index)}
+            className={activeView === id ? 'detail-tab is-active' : 'detail-tab'}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tabOverflowState.hasOverflow && !tabOverflowState.atEnd && (
+        <>
+          <span className="dashboard-tabs-overflow-cue" aria-hidden="true">›</span>
+          <span className="sr-only">More dashboard views are available to the right.</span>
+        </>
+      )}
     </div>
   );
 
   let detailContent;
   if (activeView === "overview") {
     detailContent = selectedRow ? (
-      <DashboardProjectOverview row={selectedRow} siteVisits={selectedSiteVisits} />
+      <DashboardProjectOverview row={selectedRow} siteVisits={selectedSiteVisits} role={role} />
     ) : (
       <PortfolioOverview
         kpis={kpis}
@@ -453,17 +504,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
   }
 
   return (
-    <div className="dashboard-page">
-      <div className="page-header dashboard-page-header">
-        <div>
-          <h1>Project Dashboard</h1>
-          <p>Select a project, understand its operational state, and act in context.</p>
-        </div>
-        <div className="dashboard-current-date">
-          {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-        </div>
-      </div>
-
+    <div className={`dashboard-page is-mobile-${mobileView}`}>
       <MasterDetailLayout
         className="dashboard-master-detail"
         mobileView={mobileView}
@@ -487,7 +528,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
             id="dashboard-detail-tabpanel"
             role="tabpanel"
             aria-labelledby={`dashboard-tab-${activeView}`}
-            className="dashboard-detail-tabpanel"
+            className="dashboard-detail-tabpanel canonical-detail-content"
           >
             {detailContent}
           </div>

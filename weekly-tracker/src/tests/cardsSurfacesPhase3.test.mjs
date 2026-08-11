@@ -91,13 +91,12 @@ check('.dashboard-kpi-cluster no longer duplicates its parent .dashboard-detail-
   const body = m[1];
   return !/border(?!-radius)/.test(body) && !/background:/.test(body) && !/padding:/.test(body);
 })());
-check('Dashboard.jsx Level 1/2/3 hierarchy order from Phase 2 is unchanged (attention strip before health before scope before snapshot before matrix)', (() => {
+check('Dashboard.jsx keeps Level-1 attention before the compact panel, then Matrix, then Snapshot context', (() => {
   const a = dashboardPage.indexOf('<DashboardAttentionStrip');
-  const h = dashboardPage.indexOf('<PortfolioHealthSummary');
-  const s = dashboardPage.indexOf('<PortfolioScopeSummary');
+  const panel = dashboardPage.indexOf('<PortfolioSummaryPanel');
   const snap = dashboardPage.indexOf('dashboard-snapshot-disclosure');
   const matrix = dashboardPage.indexOf('<StatusMatrix');
-  return a < h && h < s && s < snap && snap < matrix;
+  return a < panel && panel < matrix && matrix < snap;
 })());
 check('SummaryPanel.jsx still calls useDashboardSummaryPanelModel exactly once (no new calculation introduced by the chrome cleanup)', (summaryPanel.match(/useDashboardSummaryPanelModel\(/g) || []).length === 1);
 

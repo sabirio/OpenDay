@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useRiskRows } from '../hooks/useRiskRows';
 import { loadProjectTrend } from '../hooks/useProjectTrend';
 import { useGanttMetrics } from '../hooks/useGanttMetrics';
@@ -32,9 +33,11 @@ import ExportButton from '../components/print/ExportButton';
 
 function RiskDashboard({ projects, reports, siteVisits = [] }) {
   const { user } = useAuth();
-  const [selectedRiskProjectId, setSelectedRiskProjectId] = useState(null);
+  const [searchParams] = useSearchParams();
+  const linkedProjectId = searchParams.get('project');
+  const [selectedRiskProjectId, setSelectedRiskProjectId] = useState(() => linkedProjectId);
   const [activeTab, setActiveTab] = useState('overview');
-  const [mobileView, setMobileView] = useState('master');
+  const [mobileView, setMobileView] = useState(() => (linkedProjectId ? 'detail' : 'master'));
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState('all');
   const [expandedRow, setExpandedRow] = useState(null);
@@ -177,13 +180,6 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
 
   return (
     <div className="risk-dashboard-page">
-      <div className="page-header risk-page-header">
-        <div>
-          <h1>Risk Dashboard</h1>
-          <p>Operational risk priority, evidence, schedule context, and forecast analysis.</p>
-        </div>
-      </div>
-
       <PrintHeader
         title="Risk & Readiness Dashboard"
         projectLabel={selectedRow ? detailTitle : undefined}
@@ -254,7 +250,7 @@ function RiskDashboard({ projects, reports, siteVisits = [] }) {
         detail={(
           <div
             id="risk-detail-tabpanel"
-            className="risk-detail-tabpanel"
+            className="risk-detail-tabpanel canonical-detail-content"
             role="tabpanel"
             aria-labelledby={`risk-tab-${activeTab}`}
           >

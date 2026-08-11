@@ -7,10 +7,11 @@
 
 import { randomUUID } from 'node:crypto';
 import { countRows, makeReporter, psql, requireCertificationEnvironment, signInAs } from './lib.mjs';
+import { getLocalFixturePassword } from './fixturePassword.mjs';
 
 await requireCertificationEnvironment();
 
-const PASSWORD = 'Cert-Test-Pass-1!';
+const PASSWORD = getLocalFixturePassword();
 const LEGACY_PROJECT = 950002; // KZ-TEST-02, Contractor A (contractor-ws-a) assigned
 const OTHER_PROJECT = 950004;  // KZ-TEST-04, Contractor B (contractor-ws-b) assigned, NOT Contractor A
 
@@ -118,7 +119,7 @@ async function main() {
 
   // ── SLS-10: Viewer role denied entirely ──
   r.section('SLS-10: Viewer role cannot execute any lifecycle command');
-  const viewerA = await signInAs('viewer-a@cert.local', 'Cert-Test-Pass-1!');
+  const viewerA = await signInAs('viewer-a@cert.local', PASSWORD);
   const snagV = await createSnag(pmA, LEGACY_PROJECT, 'SLS fixture - viewer target', contractorAId, '2026-09-01');
   const { error: sls10Err } = await execCmd(viewerA, { type: 'startSnagWork', projectId: LEGACY_PROJECT, snagId: snagV.id, expectedVersion: snagV.version });
   r.check('denied', !!sls10Err, JSON.stringify(sls10Err));

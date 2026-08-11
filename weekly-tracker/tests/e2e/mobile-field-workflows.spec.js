@@ -117,13 +117,15 @@ test.describe('Mobile field workflows — 390x844 (primary release gate)', () =>
 
     const overflowOnSelect = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-    const rows = page.locator('div').filter({ hasText: 'Start Visit' });
+    const rows = page.getByRole('button', { name: /Start site visit for/i });
     const rowCount = await rows.count();
     test.skip(rowCount === 0, 'fixture PM has no visible projects on /site-visit-select — needs fixture check, not a UI defect');
 
     await rows.first().click();
     await expect(page).toHaveURL(/\/site-visit\//, { timeout: 15_000 });
     await page.waitForLoadState('networkidle');
+    await expect(page.locator('[data-testid="pm-site-visit-form"]')).toBeVisible({ timeout: 15_000 });
+    await page.locator('[data-testid="pm-task-row"], .site-visit-legacy-scope').first().waitFor({ timeout: 15_000 });
 
     const overflowOnForm = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
@@ -164,13 +166,15 @@ for (const vp of SECONDARY_VIEWPORTS) {
       await page.goto('/site-visit-select');
       await page.waitForLoadState('networkidle');
 
-      const rows = page.locator('div').filter({ hasText: 'Start Visit' });
+      const rows = page.getByRole('button', { name: /Start site visit for/i });
       const rowCount = await rows.count();
       test.skip(rowCount === 0, 'fixture PM has no visible projects on /site-visit-select — needs fixture check, not a UI defect');
 
       await rows.first().click();
       await expect(page).toHaveURL(/\/site-visit\//, { timeout: 15_000 });
       await page.waitForLoadState('networkidle');
+      await expect(page.locator('[data-testid="pm-site-visit-form"]')).toBeVisible({ timeout: 15_000 });
+      await page.locator('[data-testid="pm-task-row"], .site-visit-legacy-scope').first().waitFor({ timeout: 15_000 });
 
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       await page.screenshot({ path: `test-results/mobile-${vp.width}x${vp.height}-site-visit.png`, fullPage: true });

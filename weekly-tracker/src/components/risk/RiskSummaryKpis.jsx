@@ -17,17 +17,17 @@ export default function RiskSummaryKpis({ summaryStats, riskColors }) {
       : "var(--status-alert-bg)";
 
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
-      <div style={{ textAlign: "center", background: avgHealthBg, border: '1.5px solid var(--border)', borderRadius: 12, padding: "10px 14px", minWidth: 70 }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: avgHealthColor, lineHeight: 1 }}>{summaryStats.avgHealth}</div>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Health</div>
+    <div className="risk-kpi-strip">
+      <div className="risk-kpi-item" style={{ '--risk-kpi-color': avgHealthColor, '--risk-kpi-bg': avgHealthBg }}>
+        <div className="risk-kpi-value">{summaryStats.avgHealth}</div>
+        <div className="risk-kpi-label">Avg Health</div>
       </div>
       {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map(level => {
         const c = riskColors[level];
         return (
-          <div key={level} data-testid={`risk-kpi-${level.toLowerCase()}`} style={{ textAlign: "center", background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: c.text, lineHeight: 1 }}>{summaryStats[level]}</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: c.text, textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>{level}</div>
+          <div key={level} data-testid={`risk-kpi-${level.toLowerCase()}`} className="risk-kpi-item" style={{ '--risk-kpi-color': c.text, '--risk-kpi-bg': c.bg, '--risk-kpi-border': c.border }}>
+            <div className="risk-kpi-value">{summaryStats[level]}</div>
+            <div className="risk-kpi-label">{level}</div>
           </div>
         );
       })}
@@ -44,21 +44,21 @@ export function SupportingRiskKpis({ summaryStats }) {
   if (summaryStats.avgScore == null && !summaryStats.opening30 && !summaryStats.pmMismatch) return null;
 
   return (
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>{summaryStats.avgScore}</div>
-        <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Avg Risk</div>
+    <div className="risk-kpi-strip risk-kpi-strip-supporting">
+      <div className="risk-kpi-item">
+        <div className="risk-kpi-value">{summaryStats.avgScore}</div>
+        <div className="risk-kpi-label">Avg Risk</div>
       </div>
       {summaryStats.opening30 > 0 && (
-        <div style={{ textAlign: "center", background: "var(--status-warn-bg)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "var(--status-warn)", lineHeight: 1 }}>{summaryStats.opening30}</div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "var(--status-warn)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>Open &lt;30d</div>
+        <div className="risk-kpi-item" style={{ '--risk-kpi-color': 'var(--status-warn)', '--risk-kpi-bg': 'var(--status-warn-bg)' }}>
+          <div className="risk-kpi-value">{summaryStats.opening30}</div>
+          <div className="risk-kpi-label">Open &lt;30d</div>
         </div>
       )}
       {summaryStats.pmMismatch > 0 && (
-        <div style={{ textAlign: "center", background: "var(--accent-subtle)", border: "1.5px solid var(--border)", borderRadius: 12, padding: "10px 14px", minWidth: 64 }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "var(--accent)", lineHeight: 1 }}>{summaryStats.pmMismatch}</div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.07em", marginTop: 4 }}>PM Mismatch</div>
+        <div className="risk-kpi-item" style={{ '--risk-kpi-color': 'var(--accent)', '--risk-kpi-bg': 'var(--accent-subtle)' }}>
+          <div className="risk-kpi-value">{summaryStats.pmMismatch}</div>
+          <div className="risk-kpi-label">PM Mismatch</div>
         </div>
       )}
     </div>

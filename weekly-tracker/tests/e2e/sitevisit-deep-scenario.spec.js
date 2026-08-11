@@ -11,7 +11,7 @@ test.describe('PM Site Visit — deeper live scenario (Phase 7)', () => {
     await login(page, PM);
     await page.goto('/site-visit-select');
     await page.waitForLoadState('networkidle');
-    const rows = page.locator('div').filter({ hasText: 'Start Visit' });
+    const rows = page.getByRole('button', { name: /Start site visit for/i });
     const rowCount = await rows.count();
     test.skip(rowCount === 0, 'fixture PM has no visible projects');
     await rows.first().click();
@@ -55,10 +55,13 @@ test.describe('PM Site Visit — deeper live scenario (Phase 7)', () => {
     // All filtered tasks render simultaneously now — a second task row
     // (when the fixture scope has more than one) proves the list isn't
     // paged behind a single-item navigator anymore.
-    await expect(page.locator('button', { hasText: 'Next' })).toHaveCount(0);
-    await expect(page.locator('button', { hasText: 'Previous' })).toHaveCount(0);
-    const visibleRowCount = await taskRow.count();
-    console.log(`Task rows rendered simultaneously under 'all' filter: ${visibleRowCount}`);
+    await expect(page.locator('.site-visit-current-heading')).toBeVisible();
+    const previousBtn = page.getByRole('button', { name: 'Previous', exact: true });
+    const nextBtn = page.getByRole('button', { name: /Next item/i });
+    await expect(previousBtn).toBeVisible();
+    await expect(nextBtn).toBeVisible();
+    const focusedTaskCount = await taskRow.count();
+    console.log(`Focused task rows rendered under 'all' filter: ${focusedTaskCount}`);
 
     // ── Autosave -> refresh -> recovery restores current WP + filter ────
     await discrepantBtn.click();

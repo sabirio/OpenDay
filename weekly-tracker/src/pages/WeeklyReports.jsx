@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAllRows } from "../hooks/useAllRows";
 import { useWeeklyReportReviewModel } from "../hooks/useWeeklyReportReviewModel";
 import { useWeeklyGanttTasks } from "../hooks/useWeeklyGanttTasks";
@@ -39,6 +40,9 @@ import WeeklyReportTabs from "../components/weekly/WeeklyReportTabs";
 import ActionRequiredPanel from "../components/weekly/ActionRequiredPanel";
 import PhaseBoard from "../components/weekly/PhaseBoard";
 import CompactProgressTrend from "../components/weekly/CompactProgressTrend";
+import AnalyticalSection from "../components/shared/detail/AnalyticalSection.jsx";
+import EmptyState from "../components/shared/detail/EmptyState.jsx";
+import EvidenceLedger from "../components/shared/detail/EvidenceLedger.jsx";
 
 const GanttChart = React.lazy(() => import("../components/GanttChart"));
 
@@ -64,13 +68,15 @@ class ErrorBoundary extends React.Component {
 function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {}, activeTemplateFallback = null }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [searchParams] = useSearchParams();
+  const linkedProjectId = searchParams.get("project");
+  const [selectedProjectId, setSelectedProjectId] = useState(() => linkedProjectId || "");
   const [selectedReportId,  setSelectedReportId]  = useState("");
   const [showMissingModal,  setShowMissingModal]  = useState(false);
   const [showGantt,         setShowGantt]         = useState(false);
   const [expandedVisitId,   setExpandedVisitId]   = useState(null);
   const [activeReviewTab,   setActiveReviewTab]   = useState("overview");
-  const [mobileView,        setMobileView]        = useState("master");
+  const [mobileView,        setMobileView]        = useState(() => (linkedProjectId ? "detail" : "master"));
   const [masterSearch,      setMasterSearch]      = useState("");
   const [masterFilter,      setMasterFilter]      = useState("all");
 
@@ -229,13 +235,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
   return (
     <ErrorBoundary>
       <div className="weekly-reports-surface">
-        <div className="page-header weekly-page-title">
-          <div>
-            <h1>Weekly Reports</h1>
-            <p>Verified weekly progress, PM comparison, risks, evidence, and opening readiness by project.</p>
-          </div>
-        </div>
-
         {selectedProject && (
           <PrintHeader
             title="Weekly Progress Report"
@@ -258,6 +257,10 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               onSearchChange={setMasterSearch}
               filterStatus={masterFilter}
               onFilterChange={setMasterFilter}
+              onClearFilters={() => {
+                setMasterSearch("");
+                setMasterFilter("all");
+              }}
               onProjectChange={(event) => {
                 setSelectedProjectId(event.target.value);
                 setSelectedReportId("");
@@ -287,6 +290,7 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                 </div>
                 <div className="weekly-detail-meta">
                   <span>{selectedReportSummary?.reportingContext || "No contractor report"}</span>
+                  {selectedRow?.contractorName && <span>{selectedRow.contractorName}</span>}
                   {selectedProject.city && <span>{selectedProject.city}</span>}
                   {selectedProject.country && <span>{selectedProject.country}</span>}
                   {selectedProject.projectManager && <span>PM: {selectedProject.projectManager}</span>}
@@ -311,14 +315,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                         ))}
                   </select>
                 </label>
-                <button
-                  type="button"
-                  className={showGantt ? "btn btn-secondary is-active" : "btn btn-secondary"}
-                  aria-pressed={showGantt}
-                  onClick={() => setShowGantt((value) => !value)}
-                >
-                  {showGantt ? "Hide Gantt" : "View Gantt"}
-                </button>
                 <WeeklyReportExportButton
                   project={selectedProject}
                   report={selectedReport}
@@ -331,6 +327,14 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                   overallProgress={overallProgress}
                   onError={toast.error}
                 />
+                <button
+                  type="button"
+                  className={showGantt ? "btn btn-secondary is-active" : "btn btn-secondary"}
+                  aria-pressed={showGantt}
+                  onClick={() => setShowGantt((value) => !value)}
+                >
+                  {showGantt ? "Hide Gantt" : "View Gantt"}
+                </button>
               </div>
             </header>
           ) : null}
@@ -345,13 +349,13 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
           detail={(
             <div
               id="weekly-detail-tabpanel"
-              className="weekly-detail-tabpanel"
+              className="weekly-detail-tabpanel canonical-detail-content"
               role={selectedReport ? "tabpanel" : undefined}
               aria-labelledby={selectedReport ? `weekly-tab-${activeReviewTab}` : undefined}
             >
-            {selectedProject && (
-              <section className="weekly-truth-console">
-                {templateErrorIssues.length > 0 && (
+            {selectedProject && templateErrorIssues.length > 0 && (
+              <section className="weekly-template-alert-wrap">
+                {(
                   <div role="alert" className="weekly-template-alert">
                     <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
                       Active template is invalid — using built-in default weights. Fix in Template Editor:
@@ -363,15 +367,6 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
                     </ul>
                   </div>
                 )}
-                <ReportTruthBar
-                  overallProgress={overallProgress}
-                  progressComparison={engineOutputs?.progressComparison}
-                  selectedProgress={engineOutputs?.selectedProgress}
-                  svKpis={svKpis}
-                  report={selectedReport}
-                  portfolioKpis={portfolioKpis}
-                  additionalWorksList={additionalWorksList}
-                />
               </section>
             )}
 
@@ -403,37 +398,79 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
             {/* Empty state */}
             {projectReports.length === 0 && selectedProject && (
-              <div className="dashboard-summary-card weekly-report-empty">
-                <h2>No contractor reports yet</h2>
-                <p>This project has no weekly contractor submission to verify. Once a report is submitted, progress, risks, photos, and PM comparison will appear here.</p>
-              </div>
+              <EmptyState
+                size="pane"
+                title="No contractor reports yet"
+                description="This project has no weekly contractor submission to verify. Once a report is submitted, progress, risks, photos, and PM comparison will appear here."
+                className="weekly-report-empty"
+              />
             )}
 
             {selectedReport && activeReviewTab === "overview" && (
-              <section className="weekly-overview-main">
-                <div className="weekly-overview-context">
-                  <div className="weekly-detail-section">
-                    <ActionRequiredPanel
-                      report={selectedReport}
-                      svKpis={svKpis}
-                      portfolioKpis={portfolioKpis}
-                      additionalWorksList={additionalWorksList}
-                    />
-                  </div>
-                  <div className="weekly-detail-section">
+              <section className="weekly-overview-main canonical-detail-flow">
+                <ActionRequiredPanel
+                  report={selectedReport}
+                  svKpis={svKpis}
+                  portfolioKpis={portfolioKpis}
+                  additionalWorksList={additionalWorksList}
+                />
+
+                <AnalyticalSection
+                  title="Weekly progress and change"
+                  headingLevel="h2"
+                  id="weekly-progress-heading"
+                  className="weekly-overview-section"
+                  accessory={(
                     <CompactProgressTrend
                       series={progressSeries}
                       scheduleStatus={engineOutputs?.progressComparison?.scheduleStatus}
                       spi={engineOutputs?.progressComparison?.spi}
                     />
-                  </div>
-                </div>
+                  )}
+                >
+                  <ReportTruthBar
+                    overallProgress={overallProgress}
+                    progressComparison={engineOutputs?.progressComparison}
+                    selectedProgress={engineOutputs?.selectedProgress}
+                    svKpis={svKpis}
+                    report={selectedReport}
+                    portfolioKpis={portfolioKpis}
+                    additionalWorksList={additionalWorksList}
+                  />
+                </AnalyticalSection>
 
                 <ProgressNarrative
                   progressComparison={engineOutputs?.progressComparison}
                   selectedProgress={engineOutputs?.selectedProgress}
                   explainResult={explainResult}
                 />
+
+                <AnalyticalSection
+                  title="Key exceptions and lookahead"
+                  headingLevel="h2"
+                  id="weekly-lookahead-heading"
+                  className="weekly-overview-section"
+                >
+                  <ReportLinksBlock report={selectedReport} />
+                </AnalyticalSection>
+
+                <AnalyticalSection
+                  title="Recent evidence summary"
+                  headingLevel="h2"
+                  id="weekly-evidence-heading"
+                  className="weekly-evidence-summary"
+                  accessory={`${selectedReport.photos?.length ?? 0} photos`}
+                >
+                  <EvidenceLedger
+                    className="weekly-evidence-ledger"
+                    items={[
+                      { label: 'Contractor report', value: selectedReport.reportingDate || formatDate(selectedReport.submittedAt) },
+                      { label: 'PM verification', value: svKpis.totalVisits > 0 ? `${svKpis.overallMatchRate ?? '—'}% match · ${svKpis.totalDiscrepancies} discrepancies` : 'Not verified' },
+                      { label: 'Photo evidence', value: selectedReport.photos?.length ? `${selectedReport.photos.length} attached` : 'No photos attached' },
+                      { label: 'Additional works', value: `${additionalWorksList.entries.length} reported` },
+                    ]}
+                  />
+                </AnalyticalSection>
 
                 <PhaseBoard
                   phases={phaseClassifications}
@@ -501,10 +538,10 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
                 {/* Audit log — who changed progress and when */}
                 {selectedProject && (
-                  <div className="dashboard-summary-card" style={{ marginBottom: 20 }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "var(--text-primary)" }}>Change History</div>
+                  <section className="weekly-support-section weekly-change-history">
+                    <h2>Report metadata and change history</h2>
                     <AuditLogPanel projectId={selectedProject.id} />
-                  </div>
+                  </section>
                 )}
               </section>
             )}
