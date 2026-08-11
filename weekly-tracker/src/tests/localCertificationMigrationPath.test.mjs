@@ -24,6 +24,7 @@ const masterCatalogDurationCalibrationLocal = readFileSync(new URL('../../script
 const contractorScheduleDraftFoundationLocal = readFileSync(new URL('../../scripts/certification/applyContractorScheduleDraftFoundationLocal.mjs', import.meta.url), 'utf8');
 const createContractorManagedProjectLocal = readFileSync(new URL('../../scripts/certification/applyCreateContractorManagedProjectLocal.mjs', import.meta.url), 'utf8');
 const contractorManagedScopeSyncLocal = readFileSync(new URL('../../scripts/certification/applyContractorManagedScopeSyncLocal.mjs', import.meta.url), 'utf8');
+const r1ReportingPersistenceLocal = readFileSync(new URL('../../scripts/certification/applyR1ReportingPersistenceLocal.mjs', import.meta.url), 'utf8');
 const contractorScheduleAcl055 = readFileSync(new URL('../migrations/055_restrict_contractor_schedule_function_acl.sql', import.meta.url), 'utf8');
 const rlsHelperAcl056 = readFileSync(new URL('../migrations/056_restrict_rls_helper_function_acl.sql', import.meta.url), 'utf8');
 const part5Bridge057 = readFileSync(new URL('../migrations/057_part5_table_sequence_acl_bridge.sql', import.meta.url), 'utf8');
@@ -244,8 +245,9 @@ const masterCatalogDurationCalibrationBatchFiles = [...masterCatalogDurationCali
 const contractorScheduleDraftFoundationBatchFiles = [...contractorScheduleDraftFoundationLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const createContractorManagedProjectBatchFiles = [...createContractorManagedProjectLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
 const contractorManagedScopeSyncBatchFiles = [...contractorManagedScopeSyncLocal.matchAll(/\['(\d{3}_[a-z0-9_]+\.sql)',/g)].map(m => m[1]);
-const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles]);
-check('fresh-install migration set is exactly covered through approved atomic-write reconciliation migration 058, no gaps',
+const r1ReportingPersistenceBatchFiles = [...r1ReportingPersistenceLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles, ...r1ReportingPersistenceBatchFiles]);
+check('fresh-install migration set is exactly covered through R1 reporting persistence migration 059, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -259,6 +261,7 @@ check('migration 045 is covered by the Master Catalog duration batch (guards aga
 check('migrations 046-051 are covered by the Contractor Schedule Draft foundation batch (guards against this check being vacuously true)', contractorScheduleDraftFoundationBatchFiles.length >= 6);
 check('migration 052 is covered by the Create Contractor-Managed Project batch (guards against this check being vacuously true)', createContractorManagedProjectBatchFiles.length >= 1);
 check('migrations 053-058 are covered by the Contractor-Managed Scope Synchronization batch (guards against this check being vacuously true)', contractorManagedScopeSyncBatchFiles.length >= 6);
+check('migration 059 is covered by the R1 Reporting Persistence extension (guards against this check being vacuously true)', r1ReportingPersistenceBatchFiles.length === 1 && r1ReportingPersistenceBatchFiles[0] === '059_reporting_evidence_provenance.sql');
 
 // Fixture DATA must never apply/repair schema — that is the reset+extension
 // pipeline's job (resetAndDeploy.mjs + applySnagListLocal.mjs), chained by
