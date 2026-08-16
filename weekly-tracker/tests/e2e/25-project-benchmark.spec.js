@@ -37,7 +37,7 @@ async function createProject(page, fields) {
   if (fields.storeSizeSqm) await page.locator('input[name="storeSizeSqm"]').fill(String(fields.storeSizeSqm));
   if (fields.salesAreaSqm) await page.locator('input[name="salesAreaSqm"]').fill(String(fields.salesAreaSqm));
   if (fields.budget) await page.locator('input[name="budget"]').fill(String(fields.budget));
-  if (fields.currencyCode) await page.locator('input[name="currencyCode"]').fill(fields.currencyCode);
+  if (fields.currencyCode) await page.locator('select[name="currencyCode"]').selectOption(fields.currencyCode);
   if (fields.projectType) await page.getByRole('button', { name: fields.projectType, exact: true }).click();
   if (fields.storeConcept) await page.locator('input[name="storeConcept"]').fill(fields.storeConcept);
 

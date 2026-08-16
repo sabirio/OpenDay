@@ -7,6 +7,7 @@ import { describeProjectLocation, formatArea, formatMoney } from "../../hooks/us
 import BenchmarkView from "./BenchmarkView";
 import { useToast } from "../shared/Toast.jsx";
 import StatusBadge from "../shared/StatusBadge.jsx";
+import { Link } from "react-router-dom";
 
 const PHASE_LABELS = Object.fromEntries(PHASES.map((phase) => [phase.id, phase.label]));
 
@@ -136,11 +137,22 @@ export default function ProjectDetailPane({ project, projects, activeTab }) {
   if (activeTab === "commercial") {
     return (
       <div className="project-detail-sheet">
-        <ProjectDetailSection title="Commercial data" description="Configured project cost inputs; no derived calculations are added here.">
+        <ProjectDetailSection title="Bill of Quantities" description="Native commercial detail with immutable revisions and canonical Work Group mapping.">
+          <div className="project-detail-link-actions">
+            <Link className="btn btn-primary" to={`/projects/${project.id}/commercial-setup`}>Commercial setup</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/boq`}>Open BOQ editor</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/tender`}>Set up tender</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/budget`}>Open departmental budget</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/variations`}>Additional Works / Variations</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/payments`}>Payment Schedule</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/closeout`}>Project Closeout</Link>
+          </div>
+        </ProjectDetailSection>
+        <ProjectDetailSection title="Commercial source of truth" description="Excel is available for offline compatibility, while the OpenDay BOQ remains authoritative.">
           <ProjectDetailGrid>
-            <ProjectDetailValue label="Budget" value={project.budget ? formatMoney(project.budget, project.currencyCode) : null} />
-            <ProjectDetailValue label="Actual cost" value={project.actualCost ? formatMoney(project.actualCost, project.currencyCode) : null} />
             <ProjectDetailValue label="Currency" value={project.currencyCode} />
+            <ProjectDetailValue label="Budget" value={project.budget != null ? formatMoney(project.budget, project.currencyCode) : null} />
+            <ProjectDetailValue label="Actual cost" value={project.actualCost != null ? formatMoney(project.actualCost, project.currencyCode) : null} />
           </ProjectDetailGrid>
         </ProjectDetailSection>
       </div>
@@ -151,6 +163,9 @@ export default function ProjectDetailPane({ project, projects, activeTab }) {
     return (
       <div className="project-detail-sheet">
         <ProjectDetailSection title="Responsible parties" description="People and companies already assigned to the project.">
+          <div className="project-detail-link-actions">
+            <Link className="btn btn-primary" to={`/projects/${project.id}/commercial-setup`}>Manage Project Team</Link>
+          </div>
           <ProjectDetailGrid>
             <ProjectDetailValue label="Project Manager" value={project.projectManager} />
             <ProjectDetailValue label="General Contractor" value={project.generalContractor} />
@@ -161,6 +176,19 @@ export default function ProjectDetailPane({ project, projects, activeTab }) {
             <ProjectDetailValue label="HR Manager" value={project.hrManager} />
             <ProjectDetailValue label="Supply Manager" value={project.supplyManager} />
           </ProjectDetailGrid>
+        </ProjectDetailSection>
+      </div>
+    );
+  }
+
+  if (activeTab === "tender") {
+    return (
+      <div className="project-detail-sheet">
+        <ProjectDetailSection title="Tender" description="State-driven tender workspace for participants, BOQ, bid rounds, comparison, clarifications and award.">
+          <div className="project-detail-link-actions">
+            <Link className="btn btn-primary" to={`/projects/${project.id}/tender`}>Open Tender workspace</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/commercial-setup`}>Manage Tender Packages</Link>
+          </div>
         </ProjectDetailSection>
       </div>
     );

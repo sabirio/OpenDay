@@ -12,6 +12,8 @@ import { useScheduleVersionSnapshot } from "../hooks/useScheduleVersionSnapshot"
 import Modal from "../components/shared/Modal.jsx";
 import SubmissionSnapshotView from "../components/schedule/SubmissionSnapshotView.jsx";
 import SubmissionHistoryList from "../components/schedule/SubmissionHistoryList.jsx";
+import ContractorScheduleSetupEditor from "../components/schedule/ContractorScheduleSetupEditor.jsx";
+import { useContractorScheduleSetup } from "../hooks/useContractorScheduleSetup.js";
 import { LoadingReportState, ProjectNotFoundState } from "../components/contractor/ContractorReportStates.jsx";
 
 const GanttChart = React.lazy(() => import("../components/GanttChart"));
@@ -231,8 +233,29 @@ function ContractorSchedule({ projects = [] }) {
 
   const canEdit = isContractorSession && capabilityCanEditDraft;
 
+  const scheduleSetup = useContractorScheduleSetup({ projectId, enabled: canEdit });
+  const [showSetupEditor, setShowSetupEditor] = useState(false);
+  const editingScheduleSetup = Boolean(scheduleSetup.executionScope)
+    && (!scheduleSetup.configured || showSetupEditor);
+  const scheduleDraftAvailable = !scheduleSetup.loading && !scheduleSetup.error
+    && !editingScheduleSetup
+    && (!scheduleSetup.executionScope || scheduleSetup.configured);
+
   const { tasks, dirty, changedCount, stageTaskDates, discardAllChanges, saveDraft, saving, saveError, completeness } =
-    useContractorScheduleDraft({ projectId: canEdit ? projectId : null });
+    useContractorScheduleDraft({
+      projectId: canEdit && scheduleDraftAvailable ? projectId : null,
+      refreshKey: scheduleSetup.revision,
+    });
+
+  const handleSaveSetup = useCallback(async () => {
+    try {
+      const result = await scheduleSetup.save();
+      setShowSetupEditor(false);
+      toast.success(`${result.activityCount} schedule activities saved.`);
+    } catch {
+      toast.error("Couldn't save Schedule Setup — please review the Work Group coverage.");
+    }
+  }, [scheduleSetup, toast]);
 
   const handleSave = useCallback(async () => {
     try {
@@ -285,7 +308,7 @@ function ContractorSchedule({ projects = [] }) {
   // `dirty` can only ever be true when canEdit is true (useContractorScheduleDraft
   // is given a null projectId otherwise), so PENDING_REVIEW/APPROVED pages
   // never show a false "unsaved changes" warning (Section O).
-  const { guardLinkClick, guardedNavigate } = useUnsavedChangesGuard(dirty);
+  const { guardLinkClick, guardedNavigate } = useUnsavedChangesGuard(dirty || scheduleSetup.dirty);
 
   if (!project && contextLoading) return <LoadingReportState />;
   if (!project) return <ProjectNotFoundState message={contextError} />;
@@ -372,7 +395,31 @@ function ContractorSchedule({ projects = [] }) {
               {isChangesRequested && latestVersion && (
                 <PmCommentBanner version={latestVersion} onViewSubmission={() => setPeekVersionId(latestVersion.id)} />
               )}
-              {tasks.length === 0 ? (
+              {scheduleSetup.loading ? (
+                <div role="status" style={{ padding: 40, textAlign: "center", color: "var(--field-text-secondary)" }}>
+                  Loading Execution Scope…
+                </div>
+              ) : scheduleSetup.error ? (
+                <div role="alert" style={{ padding: 40, textAlign: "center", color: "var(--field-danger-fg)" }}>
+                  Couldn't load the current Execution Scope. Reload the page before editing the schedule.
+                </div>
+              ) : editingScheduleSetup ? (
+                <ContractorScheduleSetupEditor
+                  executionScope={scheduleSetup.executionScope}
+                  activities={scheduleSetup.activities}
+                  issues={scheduleSetup.issues}
+                  dirty={scheduleSetup.dirty}
+                  saving={scheduleSetup.saving}
+                  onUpdate={scheduleSetup.updateActivity}
+                  onAdd={scheduleSetup.addActivity}
+                  onRemove={scheduleSetup.removeActivity}
+                  onDiscard={() => {
+                    scheduleSetup.discard();
+                    if (scheduleSetup.configured) setShowSetupEditor(false);
+                  }}
+                  onSave={handleSaveSetup}
+                />
+              ) : tasks.length === 0 ? (
                 <div role="status" style={{
                   display: "flex", alignItems: "center", justifyContent: "center", height: 200,
                   background: "var(--field-bg-card)", borderRadius: 12, border: "1px solid var(--field-border)",
@@ -396,6 +443,15 @@ function ContractorSchedule({ projects = [] }) {
                   />
                 </React.Suspense>
               )}
+              {scheduleSetup.executionScope && scheduleSetup.configured && !editingScheduleSetup && (
+                <button
+                  type="button"
+                  onClick={() => setShowSetupEditor(true)}
+                  style={{ marginTop: 14, padding: "8px 12px", borderRadius: 8, border: "1px solid var(--field-border)", background: "transparent", color: "var(--field-text-secondary)", cursor: "pointer" }}
+                >
+                  Edit Schedule Setup
+                </button>
+              )}
             </>
           )}
         </main>
@@ -411,7 +467,7 @@ function ContractorSchedule({ projects = [] }) {
           scrolling a long task list, including at narrow/mobile widths.
           Only rendered while actually editing the Draft — PENDING_REVIEW/
           APPROVED/read-only-peek states have no Save/Submit action at all. */}
-      {canEdit && !showingReadOnlyView && (
+      {canEdit && scheduleDraftAvailable && !showingReadOnlyView && (
         <div style={{
           position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 100,
           background: "var(--field-bg-card)", borderTop: "1px solid var(--field-border-strong)",

@@ -1,0 +1,58 @@
+.boq-standard-schedule { display: grid; gap: 7px; }
+.boq-standard-schedule > header { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding: 2px 3px 6px; }
+.boq-standard-schedule h2 { margin: 0 0 2px; font-size: 1rem; }
+.boq-standard-schedule p, .boq-standard-schedule > header > span { margin: 0; color: var(--text-muted); font-size: .76rem; }
+.boq-discipline-section { overflow: hidden; margin-top: 5px; }
+.boq-discipline-section > summary { display: grid; grid-template-columns: 14px 76px 1fr auto; align-items: center; gap: 9px; padding: 10px 12px; color: var(--text-secondary); cursor: pointer; list-style: none; background: var(--bg-surface); }
+.boq-discipline-section > summary::-webkit-details-marker { display: none; }
+.boq-discipline-section > summary::before { content: '▸'; color: var(--text-muted); font-size: .72rem; transition: transform .15s ease; }
+.boq-discipline-section[open] > summary::before { transform: rotate(90deg); }
+.boq-discipline-section > summary:hover { background: var(--bg-elevated); }
+.boq-discipline-section > summary strong { color: var(--accent); font-size: .75rem; }
+.boq-discipline-section > summary span { font-weight: 750; font-size: .82rem; }
+.boq-discipline-section > summary small { color: var(--text-muted); white-space: nowrap; }
+.boq-discipline-groups { display: grid; gap: 6px; padding: 6px; border-top: 1px solid var(--border); }
+.boq-work-group { overflow: hidden; }
+.boq-work-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; padding: 9px 12px; background: var(--bg-surface); list-style-position: inside; }
+.boq-work-group > summary:hover { background: var(--bg-elevated); }
+.boq-work-group > summary span { display: inline-flex; align-items: center; gap: 9px; font-size: .8rem; }
+.boq-work-group > summary strong { color: var(--accent); min-width: 76px; }
+.boq-work-group > summary small { color: var(--text-muted); white-space: nowrap; }
+.boq-group-table-wrap { overflow-x: auto; border-top: 1px solid var(--border); }
+.boq-table-compact { min-width: 1280px; }
+.boq-table-compact th { padding: 6px 8px; font-size: .62rem; position: static; }
+.boq-table-compact td { padding: 5px 8px; vertical-align: middle; font-size: .76rem; }
+.boq-table-compact th:nth-child(1) { width: 25%; }
+.boq-table-compact th:nth-child(2) { width: 5%; }
+.boq-table-compact th:nth-child(3), .boq-table-compact th:nth-child(4) { width: 7%; }
+.boq-table-compact th:nth-child(5) { width: 7%; }
+.boq-table-compact th:nth-child(6), .boq-table-compact th:nth-child(7), .boq-table-compact th:nth-child(8) { width: 8%; }
+.boq-table-compact th:nth-child(9) { width: 17%; }
+.boq-table-compact .ds-input { min-height: 30px; padding: 5px 7px; font-size: .75rem; }
+.boq-table-compact tr.is-custom td { height: 41px; }
+.boq-table-compact .boq-custom-description { width: 100%; }
+.boq-table-compact .boq-number { width: 72px; min-width: 64px; max-width: 72px; }
+.boq-table-compact .boq-note { min-width: 130px; }
+.boq-table-compact tr.is-custom { background: var(--status-warn-bg); }
+.boq-description { line-height: 1.25; }
+.boq-variance { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.boq-variance.is-positive { color: var(--status-warn); }
+.boq-variance.is-negative { color: var(--status-done); }
+.boq-add-row-footer td { padding: 7px 8px; border-top: 1px solid var(--border); background: var(--bg-elevated); }
+.boq-add-row-footer:not(.is-editing) td { text-align: left; }
+.boq-add-row-footer:not(.is-editing) .btn { min-height: 30px; padding: 5px 9px; color: var(--accent); }
+.boq-add-row-footer.is-editing td { height: 43px; }
+.boq-add-row-footer .ds-input { width: 100%; min-height: 30px; padding: 5px 7px; font-size: .75rem; }
+.boq-add-row-buttons { white-space: nowrap; }
+.boq-add-row-buttons .btn { min-height: 30px; padding: 5px 8px; }
+@media (max-width: 900px) { .boq-standard-schedule > header { align-items: flex-start; flex-direction: column; } }
+
+.bidder-boq-table tr.is-excluded { opacity: .68; background: color-mix(in srgb, var(--surface-2) 80%, transparent); }
+.bidder-boq-table tr.is-contractor-added { background: color-mix(in srgb, var(--status-warn-bg) 55%, transparent); }
+.bid-line-status { display: inline-flex; padding: 3px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-muted); font-size: .68rem; white-space: nowrap; }
+.bid-line-status.is-added { background: var(--status-warn-bg); color: var(--status-warn); }
+.bid-line-status.is-excluded { background: var(--status-error-bg); color: var(--status-error); }
+.bid-unit-input { width: 72px; min-width: 64px; }
+.bid-line-action { min-height: 28px; padding: 4px 7px; font-size: .7rem; }
+.bid-work-group-actions { padding: 7px 12px; border-top: 1px solid var(--border); background: var(--bg-elevated); }
+.bid-work-group-actions .btn { min-height: 30px; padding: 5px 9px; }

@@ -107,6 +107,11 @@ check('budget with currencyCode passes', (() => {
   catch { return false; }
 })());
 
+check('unsupported project currency throws', (() => {
+  try { validateProject({ storeCode: 'X', country: 'KZ', currencyCode: 'GBP' }); return false; }
+  catch (e) { return /KZT, USD, or EUR/.test(e.message); }
+})());
+
 check('actualCost set without currencyCode throws (same currency requirement as budget)', (() => {
   try { validateProject({ storeCode: 'X', country: 'KZ', actualCost: 5000 }); return false; }
   catch (e) { return /Currency is required/.test(e.message); }
@@ -139,6 +144,8 @@ check('missing sales_area_sqm becomes null', fromDB({}).salesAreaSqm === null);
 check('location_type passes through', fromDB({ location_type: 'Mall' }).locationType === 'Mall');
 check('store_concept passes through', fromDB({ store_concept: 'Flagship' }).storeConcept === 'Flagship');
 check('actual dates pass through', fromDB({ actual_opening_date: '2026-08-01' }).actualOpeningDate === '2026-08-01');
+check('work ontology version pin passes through',
+  fromDB({ work_ontology_version_id: 'de782297-1166-41da-8f21-e3deef6609a7' }).workOntologyVersionId === 'de782297-1166-41da-8f21-e3deef6609a7');
 
 console.log('\ntoDB — Mall/Street defensive nulling at the write boundary');
 
@@ -162,6 +169,8 @@ check('budget of 0 is written as 0, not null', toDB({ storeCode: 'X', budget: 0 
 check('unset budget is written as null', toDB({ storeCode: 'X' }).budget === null);
 check('actualCost of 0 is written as 0, not null', toDB({ storeCode: 'X', actualCost: 0 }).actual_cost === 0);
 check('unset actualCost is written as null', toDB({ storeCode: 'X' }).actual_cost === null);
+check('work ontology version is derived from canonical Scope metadata',
+  toDB({ storeCode: 'X', scope: { workOntologyVersionId: 'de782297-1166-41da-8f21-e3deef6609a7', disciplineIds: [] } }).work_ontology_version_id === 'de782297-1166-41da-8f21-e3deef6609a7');
 check('clearing actualCost to "" is written as null (intentional clear, not a stale value)',
   toDB({ storeCode: 'X', actualCost: '' }).actual_cost === null);
 check('a real actualCost value round-trips unchanged', toDB({ storeCode: 'X', actualCost: 525000 }).actual_cost === 525000);

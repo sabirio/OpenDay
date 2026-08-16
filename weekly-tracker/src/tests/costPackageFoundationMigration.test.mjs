@@ -1,0 +1,10 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/118_cost_package_procurement_tender_package_foundation.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('Cost Package is a project and ontology scoped entity',/CREATE TABLE IF NOT EXISTS public\.project_cost_packages/.test(sql)&&/UNIQUE \(id, project_id, ontology_version_id\)/.test(sql));
+check('all approved Procurement Methods are explicit', ['COMPETITIVE_TENDER','FRAMEWORK_AGREEMENT','DIRECT_AWARD','NOMINATED_SUPPLIER','EXISTING_CONTRACT','LANDLORD_PROVIDED','INTERNAL_NON_PROCURED'].every(x=>sql.includes(x)));
+check('Cost Package owns canonical Work Group scope',/project_cost_package_work_groups/.test(sql)&&/work_ontology_work_groups/.test(sql)&&/UNIQUE \(project_id, work_group_id\)/.test(sql));
+check('existing Tender evolves into package identity',/ALTER TABLE public\.project_tenders/.test(sql)&&/boq_mode/.test(sql)&&/project_tender_cost_packages/.test(sql));
+const costPackageTable=sql.match(/CREATE TABLE IF NOT EXISTS public\.project_cost_packages \([\s\S]*?\n\);/)?.[0]??'';
+check('Tender is not mandatory for every Cost Package',costPackageTable.length>0&&!/tender_id/.test(costPackageTable));
+check('writes are command-only and event history is immutable',/save_project_cost_package/.test(sql)&&/COMMERCIAL_EVENT_IMMUTABLE/.test(sql)&&/REVOKE ALL ON TABLE public\.project_cost_packages/.test(sql));
+check('internal financial data excludes contractor access',/v_role NOT IN\('pm','admin'\)/.test(sql)&&/project_cost_packages_internal_select/.test(sql));
+console.log(`\nCost Package foundation migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

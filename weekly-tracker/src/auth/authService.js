@@ -22,7 +22,7 @@ async function fetchProfile(userId) {
 
 // Builds a safe session object from a Supabase user + profile row
 function buildUser(supabaseUser, profile) {
-  const role = profile?.role ?? 'Viewer';
+  const role = profile?.role ?? 'Executive';
   return {
     id: supabaseUser.id,
     email: supabaseUser.email,

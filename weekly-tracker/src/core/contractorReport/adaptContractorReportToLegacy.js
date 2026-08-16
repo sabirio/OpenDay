@@ -81,6 +81,7 @@ function buildWorkPackageStatuses(wps, projectOrTemplate = null) {
         status: toLegacyStatus(wp.status),
         progress: toFiniteProgress(wp.progress_pct, `contractor_report_wps.progress_pct (wp_id=${wp.wp_id})`),
         comment: wp.comment || "",
+        workGroupId: wp.work_group_id || null,
       };
       continue;
     }
@@ -98,6 +99,7 @@ function buildWorkPackageStatuses(wps, projectOrTemplate = null) {
       status: toLegacyStatus(wp.status),
       progress: toFiniteProgress(wp.progress_pct, `contractor_report_wps.progress_pct (wp_id=${wp.wp_id})`),
       comment: wp.comment || "",
+      workGroupId: wp.work_group_id || null,
     };
   }
   return acc;
@@ -154,7 +156,7 @@ function normalizePhotos(photoUrls) {
   return photoUrls.filter((photo) => typeof photo === 'string' && photo.trim().length > 0);
 }
 
-export function adaptContractorReportToLegacy(contractorReport, wps = [], projectOrTemplate = null) {
+export function adaptContractorReportToLegacy(contractorReport, wps = [], projectOrTemplate = null, riskWorkGroupIds = []) {
   if (!contractorReport) return null;
 
   const reportingDate = contractorReport.report_date || contractorReport.submitted_at;
@@ -168,6 +170,9 @@ export function adaptContractorReportToLegacy(contractorReport, wps = [], projec
     overallProgress: toFiniteProgress(contractorReport.overall_progress, `contractor_reports.overall_progress (id=${contractorReport.id})`),
     submittedBy: contractorReport.submitted_by || null,
     projectScheduleStatus: contractorReport.project_schedule_status || "On Track",
+    workOntologyVersionId: contractorReport.work_ontology_version_id || null,
+    reportedWorkGroupIds: [...new Set(wps.map(wp => wp.work_group_id).filter(Boolean))],
+    riskWorkGroupIds: [...new Set(riskWorkGroupIds.filter(Boolean))],
     workPackageStatuses: buildWorkPackageStatuses(wps, projectOrTemplate),
     photos: normalizePhotos(contractorReport.photo_urls),
     risks: [],
@@ -188,12 +193,13 @@ export function adaptContractorReportToLegacy(contractorReport, wps = [], projec
   };
 }
 
-export function adaptContractorReportsToLegacy(reports, wpsByReportId = {}, projectById = {}) {
+export function adaptContractorReportsToLegacy(reports, wpsByReportId = {}, projectById = {}, riskWorkGroupIdsByReportId = {}) {
   return (reports || [])
     .map((report) => adaptContractorReportToLegacy(
       report,
       wpsByReportId[report.id] || [],
       projectById[report.project_id] ?? null,
+      riskWorkGroupIdsByReportId[report.id] || [],
     ))
     .filter(Boolean);
 }

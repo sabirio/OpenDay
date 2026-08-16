@@ -93,6 +93,18 @@ console.log('\nProjection Completeness Hardening: CONTRACTOR_MANAGED APPROVED, n
   check('earliestCommittedPlannedStart is null', facts.earliestCommittedPlannedStart === null);
 }
 
+console.log('\nOfficial Baseline reference is required when the baseline registry is supplied');
+{
+  const projects = [{ id: 8, scheduleOwnershipMode: 'CONTRACTOR_MANAGED' }];
+  const versions = [version({ id: 'v8', projectId: 8, submissionNumber: 1, status: 'APPROVED', reviewedAt: '2027-04-01T00:00:00Z', baselineRevisionNumber: 1 })];
+  const tasks = [{ versionId: 'v8', plannedStart: '2027-04-05' }];
+  const missing = buildScheduleCommitmentProjection(projects, versions, tasks, []);
+  check('approved status without official baseline row is unavailable', missing.get('8').projectionAvailability === 'UNAVAILABLE');
+  const official = buildScheduleCommitmentProjection(projects, versions, tasks, [{ projectId: 8, scheduleVersionId: 'v8', baselineRevisionNumber: 1, approvedAt: '2027-04-01T00:00:00Z', executionScopeVersionId: 71 }]);
+  check('matching official baseline row restores committed projection', official.get('8').commitmentState === 'COMMITTED');
+  check('official projection exposes pinned Scope', official.get('8').executionScopeVersionId === 71);
+}
+
 console.log('\nMulti-project batch: no cross-project version/task mixing');
 {
   const projects = [

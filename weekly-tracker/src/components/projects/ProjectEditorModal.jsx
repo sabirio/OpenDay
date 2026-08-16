@@ -29,6 +29,26 @@ export default function ProjectEditorModal({
   });
   const scopeEntry = buildProjectScopeEntryModel(project);
   const scopeConfigured = project.scope?.workPackages != null;
+  const selectableDisciplines = project.workOntology?.disciplines?.filter(item => item.scopeSelectable !== false) || [];
+  const selectedDisciplineIds = new Set(project.scope?.disciplineIds || []);
+
+  function toggleDiscipline(disciplineId) {
+    onProjectPatch(current => {
+      const selected = new Set(current.scope?.disciplineIds || []);
+      if (selected.has(disciplineId)) selected.delete(disciplineId);
+      else selected.add(disciplineId);
+      return {
+        ...current,
+        scope: {
+          ...(current.scope || {}),
+          workOntologyVersionId: current.workOntology.id,
+          disciplineIds: current.workOntology.disciplines
+            .filter(item => selected.has(item.id))
+            .map(item => item.id),
+        },
+      };
+    });
+  }
 
   // Cancel/x are explicit close actions, same as Escape/backdrop — should
   // carry the same dirty-state protection rather than bypassing it.
@@ -215,7 +235,11 @@ export default function ProjectEditorModal({
                 </Field>
               )}
               <Field label="Currency">
-                <input name="currencyCode" value={project.currencyCode || ""} onChange={onChange} className="ds-input" placeholder="e.g. USD" maxLength={3} />
+                <select name="currencyCode" value={project.currencyCode || "KZT"} onChange={onChange} className="ds-select" disabled={Boolean(editingProjectId)}>
+                  <option value="KZT">KZT</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
               </Field>
             </FieldRow>
           </FormSection>
@@ -245,6 +269,36 @@ export default function ProjectEditorModal({
               </Field>
             </FieldRow>
           </FormSection>
+
+          {!editingProjectId && selectableDisciplines.length > 0 && (
+            <FormSection title="Disciplines" accentColor="var(--status-done)">
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
+                Select the technical disciplines included in this project. The selection is pinned to {project.workOntology.label}.
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 8 }}>
+                {selectableDisciplines.map(item => (
+                  <label key={item.id} style={{
+                    display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 8,
+                    border: `1px solid ${selectedDisciplineIds.has(item.id) ? "var(--status-done)" : "var(--border)"}`,
+                    background: selectedDisciplineIds.has(item.id) ? "var(--status-done-bg)" : "var(--accent-subtle)",
+                    cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={selectedDisciplineIds.has(item.id)}
+                      onChange={() => toggleDiscipline(item.id)}
+                    />
+                    {item.label}
+                  </label>
+                ))}
+              </div>
+              {selectedDisciplineIds.size === 0 && (
+                <div style={{ marginTop: 8, fontSize: 12, color: "var(--status-danger, #b42318)" }}>
+                  Select at least one discipline.
+                </div>
+              )}
+            </FormSection>
+          )}
 
           {unifiedScopeEntry ? (
             <FormSection title="Project Scope" accentColor="var(--accent)">

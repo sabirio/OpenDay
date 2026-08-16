@@ -1,0 +1,11 @@
+import { readFileSync } from 'node:fs';
+const sql=readFileSync(new URL('../migrations/130_award_boq_commercial_baseline.sql',import.meta.url),'utf8');let passed=0,failed=0;const check=(name,condition)=>{if(condition){passed++;console.log(`  PASS ${name}`)}else{failed++;console.error(`  FAIL ${name}`)}};
+check('Award BOQ preserves labour material and line origin',/project_tender_awarded_boq_items/.test(sql)&&/labour_rate/.test(sql)&&/material_rate/.test(sql)&&/line_origin/.test(sql));
+check('excluded lines never enter agreed Award scope',/item\.line_action='INCLUDED'/.test(sql));
+check('contractor-added lines enter Award as custom lines',/item\.line_origin='CONTRACTOR_ADDED'THEN'CUSTOM'/.test(sql));
+check('Commercial Baseline is a dedicated frozen entity',/CREATE TABLE IF NOT EXISTS public\.project_commercial_baselines/.test(sql)&&/COMMERCIAL_BASELINE_IMMUTABLE/.test(sql));
+check('baseline is linked and reconciled to Cost Packages',/project_commercial_baseline_cost_packages/.test(sql)&&/COMMERCIAL_BASELINE_RECONCILIATION_FAILED/.test(sql));
+check('award requires Commercial Approve capability across Tender Packages',/private\.can_approve_tender/.test(sql)&&/COMMERCIAL_APPROVE/.test(sql));
+check('award remains a manual evidence-based choice',/p_bid_submission_id/.test(sql)&&/TENDER_AWARD_REQUIRES_REVIEWED_BID/.test(sql)&&!/ORDER BY[^;]*total[^;]*LIMIT 1/i.test(sql));
+check('frozen event captures award and baseline identity',/project_commercial_baseline_events/.test(sql)&&/'FROZEN'/.test(sql));
+console.log(`\nTender Award Commercial Baseline migration: ${passed} passed, ${failed} failed`);if(failed)process.exit(1);

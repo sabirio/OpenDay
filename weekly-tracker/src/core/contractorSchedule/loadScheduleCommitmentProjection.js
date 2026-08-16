@@ -9,7 +9,7 @@
 // queries regardless of how many projects are passed in: all versions for
 // the given project ids, then version_tasks only for the APPROVED versions
 // found among them.
-import { loadScheduleVersionsForProjects, loadScheduleVersionTasksForVersions } from '../../services/scheduleCommitmentBatchService.js';
+import { loadScheduleVersionsForProjects, loadScheduleVersionTasksForVersions, loadScheduleBaselinesForProjects } from '../../services/scheduleCommitmentBatchService.js';
 import { buildScheduleCommitmentProjection, buildUnavailableProjection } from '../schedule/scheduleCommitmentBatchProjection.js';
 import { isContractorManaged } from '../schedule/scheduleOwnershipMode.js';
 
@@ -33,7 +33,11 @@ import { isContractorManaged } from '../schedule/scheduleOwnershipMode.js';
  */
 export async function loadScheduleCommitmentProjection(
   projects,
-  { loadVersions = loadScheduleVersionsForProjects, loadVersionTasks = loadScheduleVersionTasksForVersions } = {},
+  {
+    loadVersions = loadScheduleVersionsForProjects,
+    loadVersionTasks = loadScheduleVersionTasksForVersions,
+    loadBaselines = loadScheduleBaselinesForProjects,
+  } = {},
 ) {
   const allProjects = projects || [];
   const contractorManagedProjects = allProjects.filter((p) => isContractorManaged(p?.scheduleOwnershipMode));
@@ -53,11 +57,16 @@ export async function loadScheduleCommitmentProjection(
 
   const approvedVersionIds = versions.filter((v) => v.status === 'APPROVED').map((v) => v.id);
   let versionTasks;
+  let baselines;
   try {
-    versionTasks = await loadVersionTasks(approvedVersionIds);
+    [versionTasks, baselines] = await Promise.all([
+      loadVersionTasks(approvedVersionIds),
+      loadBaselines(contractorManagedProjects.map((p) => p.id)),
+    ]);
   } catch {
     versionTasks = [];
+    baselines = [];
   }
 
-  return buildScheduleCommitmentProjection(allProjects, versions, versionTasks);
+  return buildScheduleCommitmentProjection(allProjects, versions, versionTasks, baselines);
 }

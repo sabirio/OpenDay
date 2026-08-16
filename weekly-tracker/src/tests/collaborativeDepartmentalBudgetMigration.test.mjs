@@ -1,0 +1,13 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/080_collaborative_departmental_budget.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('one Draft Budget Cycle is project and ontology pinned',/CREATE TABLE IF NOT EXISTS public.project_budget_cycles/.test(sql)&&/UNIQUE\(project_id\)/.test(sql)&&/status='DRAFT'/.test(sql));
+check('contributions are stored at canonical Work Group level',/CREATE TABLE IF NOT EXISTS public.project_budget_contributions/.test(sql)&&/PRIMARY KEY\(budget_cycle_id,work_group_id\)/.test(sql));
+check('E25 statuses stop at Submitted',/NOT_STARTED','IN_PROGRESS','SUBMITTED/.test(sql)&&!/REVIEWED|APPROVED|REVISION_REQUIRED/.test(sql));
+check('cycle initializes PM-selected Discipline Work Groups',/jsonb_array_elements_text\(v_project.scope->'disciplineIds'\)/.test(sql));
+check('consolidation uses stored exact amounts',/sum\(amount\)/.test(sql));
+check('cycle and contribution writes are atomic and idempotent',/budget.create_cycle/.test(sql)&&/budget.save_contribution/.test(sql));
+check('Budget Cycle currency is enforced from the Project',/BUDGET_CURRENCY_MUST_MATCH_PROJECT/.test(sql)&&/v_project\.currency_code,v_uid/.test(sql));
+check('concurrent edits use contribution revision',/BUDGET_CONTRIBUTION_REVISION_CONFLICT/.test(sql)&&/FOR UPDATE/.test(sql));
+check('PM or Admin role and project authorization are required',/v_role NOT IN\('pm','admin'\)/.test(sql)&&/can_write_project/.test(sql));
+check('direct table writes stay unavailable',/REVOKE ALL ON TABLE public.project_budget_cycles,public.project_budget_contributions/.test(sql));
+check('schema introduces no E26-E28 workflow columns',!/\b(owner_id|notification_id|round_number|approved_at|reviewed_at)\s+(uuid|bigint|integer|timestamptz)/.test(sql));
+console.log(`\nCollaborative departmental budget migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

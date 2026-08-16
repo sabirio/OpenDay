@@ -88,7 +88,15 @@ function mapRow(row) {
     // Drop and warn on individual malformed WP observations (P1.3) rather than
     // letting a corrupted gc_progress/observed_progress/discrepancy_delta
     // reach siteVisitEngine's discrepancy math unchecked.
-    wps: row.wps ? validateArray(SiteVisitWPSchema, row.wps, `site_visit_wps[visit ${row.id}]`) : row.wps,
+    wps: row.wps ? validateArray(
+      SiteVisitWPSchema,
+      row.wps.map(wp => ({
+        ...wp,
+        workOntologyVersionId: wp.work_ontology_version_id || null,
+        workGroupId: wp.work_group_id || null,
+      })),
+      `site_visit_wps[visit ${row.id}]`,
+    ) : row.wps,
   };
 }
 

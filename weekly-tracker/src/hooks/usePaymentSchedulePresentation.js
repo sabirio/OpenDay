@@ -1,0 +1,1 @@
+import{useMemo}from'react';import{buildPaymentSchedulePresentation}from'../core/presentation/paymentSchedulePresentationModel.js';export function usePaymentSchedulePresentation(rows,award){return useMemo(()=>buildPaymentSchedulePresentation(rows,award),[rows,award])}

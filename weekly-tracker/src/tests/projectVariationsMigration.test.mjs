@@ -1,0 +1,14 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/086_project_variations.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('dedicated variation and append-only event records exist',/project_variations\(/.test(sql)&&/project_variation_events\(/.test(sql));
+check('canonical Discipline and Work Group identity is enforced',/FOREIGN KEY\(ontology_version_id,discipline_id,work_group_id\)/.test(sql)&&/VARIATION_WORK_GROUP_OUTSIDE_PROJECT_SCOPE/.test(sql));
+check('complete roadmap reason taxonomy exists',['DESIGN_CHANGE','CLIENT_REQUEST','LANDLORD_REQUIREMENT','UNFORESEEN_SITE_CONDITION','SCOPE_OMISSION','REGULATORY_REQUIREMENT','QUANTITY_INCREASE','SPECIFICATION_CHANGE','CONTRACTOR_PROPOSAL','OTHER'].every(x=>sql.includes(x)));
+check('complete lifecycle exists',['DRAFT','SUBMITTED','UNDER_REVIEW','APPROVED','REJECTED','REVISION_REQUIRED'].every(x=>sql.includes(x)));
+check('rejection taxonomy exists',['INCLUDED_IN_AWARDED_BOQ','CONTRACTOR_RESPONSIBILITY','DUPLICATE_REQUEST','NO_EVIDENCE','PRICE_NOT_ACCEPTED','NO_VALID_INSTRUCTION'].every(x=>sql.includes(x)));
+check('proposed and approved cost are distinct',/proposed_amount/.test(sql)&&/approved_amount/.test(sql)&&/status='APPROVED'AND approved_amount IS NOT NULL/.test(sql));
+check('only approved amount contributes to approved variations',/sum\(approved_amount\).*status='APPROVED'/.test(sql));
+check('schedule impact and related activity are recorded',/schedule_impact_days/.test(sql)&&/related_activity_id/.test(sql)&&/VARIATION_ACTIVITY_PROJECT_MISMATCH/.test(sql));
+check('private evidence bucket and controlled upload lifecycle exist',/variation-evidence/.test(sql)&&/authorize_variation_evidence_upload/.test(sql)&&/register_variation_evidence/.test(sql)&&/VALUES\('variation-evidence','variation-evidence',false,20971520/.test(sql));
+check('contractor owns submission and management owns review',/v_role<>'contractor'/.test(sql)&&/v_role NOT IN\('pm','admin'\)/.test(sql));
+check('commands are idempotent and revision guarded',/write_command_requests/.test(sql)&&/VARIATION_REVISION_CONFLICT/.test(sql));
+check('direct writes and function defaults are closed',/REVOKE ALL ON TABLE public\.project_variations/.test(sql)&&/REVOKE ALL ON FUNCTION public\.get_project_variation_workspace/.test(sql));
+console.log(`\nProject Variations migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

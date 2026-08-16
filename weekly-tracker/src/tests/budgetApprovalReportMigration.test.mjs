@@ -1,0 +1,16 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/085_budget_approval_report.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('structured roadmap reason taxonomy is persisted',/MARKET_PRICE_INCREASE/.test(sql)&&/LABOR_COST_INCREASE/.test(sql)&&/BUDGET_METHODOLOGY_CHANGE/.test(sql));
+check('human explanation and evidence are mandatory',/explanation text NOT NULL/.test(sql)&&/evidence_reference text NOT NULL/.test(sql)&&/btrim\(evidence_reference\)<>''/.test(sql));
+check('open questions are explicit',/open_question text NOT NULL/.test(sql)&&/'openQuestionCount'/.test(sql));
+check('context changes retain append-only event history',/project_budget_round_variance_context_events/.test(sql)&&/context_revision/.test(sql));
+check('context command is idempotent and revision guarded',/budget\.save_variance_context/.test(sql)&&/BUDGET_VARIANCE_CONTEXT_REVISION_CONFLICT/.test(sql));
+check('only changed current-round Work Groups accept context',/BUDGET_VARIANCE_CONTEXT_REQUIRES_CHANGED_WORK_GROUP/.test(sql)&&/amount IS DISTINCT FROM previous_item\.amount/.test(sql));
+check('report exposes total, net movement, increases and decreases',/'totalProposedBudget'/.test(sql)&&/'netChange'/.test(sql)&&/'totalIncrease'/.test(sql)&&/'totalDecrease'/.test(sql));
+check('report exposes immutable round Work Group count for the table total',/'workGroupCount',v_round\.work_group_count/.test(sql));
+check('report groups totals by section and calculates amount per square metre',/'sectionTotals'/.test(sql)&&/'projectAreaSqm'/.test(sql)&&/'totalAmountPerSqm'/.test(sql)&&/store_size_sqm/.test(sql));
+check('report exposes unexplained variance and evidence context',/'unexplainedVarianceCount'/.test(sql)&&/'evidenceReference'/.test(sql)&&/'reasonCode'/.test(sql));
+check('benchmark unavailability is honest',/'benchmarkStatus','NOT_AVAILABLE'/.test(sql)&&/Historical comparable-project engine is not implemented/.test(sql));
+check('approval gate blocks unexplained variance and open questions',/BUDGET_APPROVAL_HAS_UNEXPLAINED_VARIANCE/.test(sql)&&/BUDGET_APPROVAL_HAS_OPEN_QUESTIONS/.test(sql));
+check('approval rule is embedded',/No number without context\. No variance without reason\. No approval without evidence\./.test(sql));
+check('direct writes are unavailable and function ACLs close',/REVOKE ALL ON TABLE public\.project_budget_round_variance_contexts/.test(sql)&&/REVOKE ALL ON FUNCTION public\.save_budget_round_variance_context/.test(sql));
+console.log(`\nBudget Approval Report migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

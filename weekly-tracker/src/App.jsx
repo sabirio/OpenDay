@@ -15,6 +15,14 @@ import "./styles/snags.css";
 import "./styles/plans.css";
 import "./styles/snagFieldMode.css";
 import "./styles/import.css";
+import "./styles/boq.css";
+import "./styles/tender.css";
+import "./styles/budget.css";
+import "./styles/variations.css";
+import "./styles/cost-package-financials.css";
+import "./styles/commercialReview.css";
+import "./styles/commercialFoundation.css";
+import "./styles/consultantBoq.css";
 
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Home             = lazy(() => import("./pages/Home"));
@@ -43,6 +51,17 @@ const PlanManagementPage = lazy(() => import("./pages/plans/PlanManagementPage")
 const PlanViewerPage = lazy(() => import("./pages/plans/PlanViewerPage"));
 const ImportProjectsPage = lazy(() => import("./pages/import/ImportProjectsPage"));
 const LegacyImportProjectsRedirect = lazy(() => import("./pages/import/LegacyImportProjectsRedirect"));
+const ProjectBoq = lazy(() => import("./pages/ProjectBoq"));
+const ProjectTenderSetup = lazy(() => import("./pages/ProjectTenderSetup"));
+const ProjectBudget = lazy(() => import("./pages/ProjectBudget"));
+const BudgetInbox = lazy(() => import("./pages/BudgetInbox"));
+const BidderTenderInbox = lazy(() => import("./pages/BidderTenderInbox"));
+const ProjectVariations = lazy(() => import("./pages/ProjectVariations"));
+const ProjectPayments = lazy(() => import("./pages/ProjectPayments"));
+const ProjectCloseout = lazy(() => import("./pages/ProjectCloseout"));
+const ProjectCommercialSetup = lazy(() => import("./pages/ProjectCommercialSetup"));
+const ConsultantBoqInbox = lazy(() => import("./pages/ConsultantBoqInbox"));
+const ConsultantBoq = lazy(() => import("./pages/ConsultantBoq"));
 
 const CONSTRUCTION_TEMPLATE = {
   phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
@@ -343,6 +362,13 @@ function App() {
           }
         />
 
+        <Route path="/tenders" element={<ProtectedRoute resource="bidder_tenders"><BidderTenderInbox/></ProtectedRoute>} />
+        <Route path="/budgets" element={<ProtectedRoute resource="budget_workspace"><BudgetInbox/></ProtectedRoute>} />
+        <Route path="/consultant-boqs" element={<ProtectedRoute resource="consultant_boq"><ConsultantBoqInbox/></ProtectedRoute>} />
+        <Route path="/projects/:projectId/variations" element={<ProtectedRoute resource="variations"><ProjectVariations/></ProtectedRoute>} />
+        <Route path="/projects/:projectId/payments" element={<ProtectedRoute resource="payments"><ProjectPayments/></ProtectedRoute>} />
+        <Route path="/projects/:projectId/closeout" element={<ProtectedRoute resource="closeout"><ProjectCloseout/></ProtectedRoute>} />
+
         <Route
           path="/contractor-report/:projectId"
           element={
@@ -476,6 +502,11 @@ function App() {
                       (request_schedule_changes/approve_schedule_submission)
                       remain the final authority regardless. */}
                   <Route path="/projects/:projectId/schedule-review" element={<ProtectedRoute resource="schedule_review"><PMScheduleReview projects={projects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/boq" element={<ProtectedRoute resource="boq_editor"><ProjectBoq projects={projects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/commercial-setup" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects}/></ProtectedRoute>} />
+                  <Route path="/tenders/:tenderId/consultant-boq" element={<ProtectedRoute resource="consultant_boq"><ConsultantBoq/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/tender" element={<ProtectedRoute resource="tender_setup"><ProjectTenderSetup projects={projects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/budget" element={<ProtectedRoute resource="budget_workspace"><ProjectBudget projects={projects}/></ProtectedRoute>} />
                   <Route
                     path="/weekly-reports"
                     element={

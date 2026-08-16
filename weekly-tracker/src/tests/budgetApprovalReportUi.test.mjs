@@ -1,0 +1,13 @@
+import{readFileSync}from'node:fs';const component=readFileSync(new URL('../components/budget/DepartmentalBudgetWorkspace.jsx',import.meta.url),'utf8'),hook=readFileSync(new URL('../hooks/useProjectBudget.js',import.meta.url),'utf8'),service=readFileSync(new URL('../services/budgetService.js',import.meta.url),'utf8'),model=readFileSync(new URL('../domains/budget/departmentalBudgetModel.js',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('management report shows proposed total and movement in tables',/Budget Approval Report/.test(component)&&/<table aria-label="Budget by section">/.test(component)&&/<tfoot>/.test(component)&&/Net change/.test(component));
+check('management report shows project area and section totals per square metre',/Project area/.test(component)&&/>Per m²</.test(component)&&/Budget by section/.test(component)&&/sectionTotals/.test(component));
+check('management report uses a compact total row and round metrics table',/>TOTAL</.test(component)&&/budget-round-metrics/.test(component)&&/Included works/.test(component)&&/workGroupCount/.test(component));
+check('report shows unexplained variance and open questions',/Unexplained/.test(component)&&/Open questions/.test(component)&&/CONTEXT REQUIRED/.test(component));
+check('historical benchmark absence is explicit',/Comparable historical projects: unavailable/.test(component)&&/benchmarkMessage/.test(component));
+check('variance editor captures taxonomy explanation and evidence',/Structured reason/.test(component)&&/Human explanation/.test(component)&&/Evidence reference/.test(component));
+check('open question is visibly approval blocking',/Open question \(blocks approval\)/.test(component));
+check('approval button respects report readiness',/reportBlocksApproval/.test(component)&&/approvalReport\?\.approvalReady/.test(component));
+check('domain requires reason explanation evidence',/BUDGET_VARIANCE_REASON_REQUIRED/.test(model)&&/BUDGET_VARIANCE_EXPLANATION_REQUIRED/.test(model)&&/BUDGET_VARIANCE_EVIDENCE_REQUIRED/.test(model));
+check('hook loads report only for manager issued state',/loadApprovalReport/.test(hook)&&/canManageOwnership&&workspace\.roundControl\?\.state==='ISSUED'/.test(hook));
+check('service uses report and context RPCs',/get_budget_approval_report/.test(service)&&/save_budget_round_variance_context/.test(service));
+console.log(`\nBudget Approval Report UI: ${p} passed, ${f} failed`);if(f)process.exit(1);

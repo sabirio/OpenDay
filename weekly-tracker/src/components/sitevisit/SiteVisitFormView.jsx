@@ -10,7 +10,7 @@ import PhotoUpload from '../shared/PhotoUpload';
 import FormSection from './FormSection';
 import LegacyPMTaskRow from './LegacyPMTaskRow';
 import SiteVisitDraftRecovery from './SiteVisitDraftRecovery';
-import SiteVisitTaskNavigator from './SiteVisitTaskNavigator';
+import SimpleSiteVisitWorkList from './SimpleSiteVisitWorkList';
 import { getGCTaskEntry } from './gcReferenceHelpers';
 
 function SiteVisitFormView({
@@ -27,6 +27,7 @@ function SiteVisitFormView({
   updateWPTask,
   ganttLoading,
   ganttTasks,
+  lastContractorReport,
   pmWpObservations,
   updatePMObservation,
   onSubmit,
@@ -39,20 +40,13 @@ function SiteVisitFormView({
   draftCandidate,
   onContinueDraft,
   onDiscardDraft,
-  filteredTasks,
-  activeFilter,
   reviewCounts,
-  navigation,
-  onFilter,
-  onNavigate,
   onPhotoItemsChange,
   submitDisabled,
 }) {
   const referenceDate = referenceReport
     ? referenceReport.reportingDate || new Date(referenceReport.submittedAt).toLocaleDateString('en-GB')
     : 'No contractor report selected';
-  const nextLabel = activeFilter === 'all' ? 'Next item' : `Next ${activeFilter.replace('discrepant', 'discrepancy')}`;
-
   return (
     <div data-testid="pm-site-visit-form" className="field-form-page site-visit-page">
       <div className="site-visit-document">
@@ -111,38 +105,35 @@ function SiteVisitFormView({
               <span>Visit date</span>
               <input id="site-visit-date" type="date" value={form.visitDate} onChange={(event) => set('visitDate', event.target.value)} />
             </label>
-            <label className="site-visit-field">
-              <span>Compare against contractor report</span>
-              {projectReports.length === 0 ? (
-                <strong className="site-visit-no-report">No contractor reports submitted yet</strong>
-              ) : (
-                <select value={form.referenceReportId} onChange={(event) => handleReferenceChange(event.target.value)}>
-                  <option value="">— No comparison —</option>
-                  {projectReports.map((report) => (
-                    <option key={report.id} value={String(report.id)}>
-                      {report.reportingDate || new Date(report.submittedAt).toLocaleDateString('en-GB')} — {report.contractor || 'Contractor'}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </label>
+            {ganttTasks.length > 0 ? (
+              <div className="site-visit-field">
+                <span>Latest contractor report</span>
+                <strong className="site-visit-no-report">{lastContractorReport?.report_date || 'No contractor report submitted yet'}</strong>
+              </div>
+            ) : (
+              <label className="site-visit-field">
+                <span>Compare against contractor report</span>
+                {projectReports.length === 0 ? (
+                  <strong className="site-visit-no-report">No contractor reports submitted yet</strong>
+                ) : (
+                  <select value={form.referenceReportId} onChange={(event) => handleReferenceChange(event.target.value)}>
+                    <option value="">— No comparison —</option>
+                    {projectReports.map((report) => (
+                      <option key={report.id} value={String(report.id)}>
+                        {report.reportingDate || new Date(report.submittedAt).toLocaleDateString('en-GB')} — {report.contractor || 'Contractor'}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </label>
+            )}
           </div>
         </AnalyticalSection>
 
         {ganttLoading ? (
           <div className="site-visit-loading" role="status">Loading scoped work packages…</div>
         ) : ganttTasks.length > 0 ? (
-          <SiteVisitTaskNavigator
-            tasks={filteredTasks}
-            allTasks={ganttTasks}
-            filter={activeFilter}
-            counts={reviewCounts}
-            onFilter={onFilter}
-            navigation={navigation}
-            onNavigate={onNavigate}
-            pmWpObservations={pmWpObservations}
-            updatePMObservation={updatePMObservation}
-          />
+          <SimpleSiteVisitWorkList tasks={ganttTasks} contractorReport={lastContractorReport} observations={pmWpObservations} onChange={updatePMObservation} />
         ) : (
           <section className="site-visit-legacy-scope" aria-labelledby="site-visit-legacy-title">
             <div className="site-visit-legacy-heading">
@@ -238,26 +229,9 @@ function SiteVisitFormView({
           </label>
         </AnalyticalSection>
 
-        {ganttTasks.length > 0 && (
-          <section className="site-visit-review" aria-labelledby="site-visit-review-title">
-            <div>
-              <h2 id="site-visit-review-title">Review visit</h2>
-              <p>{reviewCounts.completedCount} verified · {reviewCounts.incompleteCount} untouched · {reviewCounts.discrepancyCount} discrepant</p>
-            </div>
-            <div>
-              <button type="button" className="btn btn-secondary" onClick={() => onFilter('incomplete')}>Review untouched</button>
-              <button type="button" className="btn btn-secondary" onClick={() => onFilter('discrepant')}>Review discrepancies</button>
-            </div>
-          </section>
-        )}
-
         <div className="field-form-sticky-submit-spacer" />
         <div className="field-form-sticky-submit site-visit-sticky-actions">
-          <span className="site-visit-autosave-note">Edits autosave locally · untouched work packages remain unsubmitted</span>
-          <div className="site-visit-progression" aria-label="Work package progression">
-            <button type="button" className="btn btn-secondary" disabled={!navigation.previousId} onClick={() => onNavigate(navigation.previousId)}>Previous</button>
-            <button type="button" className="btn btn-secondary" disabled={!navigation.nextId} onClick={() => onNavigate(navigation.nextId)}>{nextLabel}</button>
-          </div>
+          <span className="site-visit-autosave-note">Draft saves automatically · {reviewCounts.completedCount} verified</span>
           <button
             type="button"
             data-testid="save-site-visit-report"

@@ -1,0 +1,13 @@
+import { useState } from 'react';
+import { useBidderClarifications } from '../../hooks/useBidderTenderInbox.js';
+
+export default function BidderClarifications({ tenderId }) {
+  const workspace = useBidderClarifications(tenderId);
+  const [responses, setResponses] = useState({});
+  const [message, setMessage] = useState(null);
+  if (workspace.status === 'loading') return <div role="status">Loading clarifications…</div>;
+  if (workspace.status === 'error') return <div className="boq-alert boq-alert-danger">Clarifications could not be loaded.</div>;
+  if (!workspace.presentation.items.length) return null;
+  const respond = async item => { const text = responses[item.clarificationId]?.trim();if (!text) return;const outcome = await workspace.respond(item, text);if (outcome.ok) { setResponses(value => ({ ...value, [item.clarificationId]: '' }));setMessage({ ok: true, text: 'Response submitted to the project team.' }); } else setMessage({ ok: false, text: outcome.error?.message || 'Response could not be submitted.' }); };
+  return <section className="card bidder-clarifications"><div className="tender-section-heading"><div><h2>Clarification Register</h2><p>Respond to issued questions. Your response becomes part of the tender audit trail.</p></div><span>{workspace.presentation.awaitingResponseCount} awaiting response</span></div>{message && <div className={`boq-alert ${message.ok ? 'boq-alert-info' : 'boq-alert-danger'}`}>{message.text}</div>}<div className="tender-clarification-list">{workspace.presentation.items.map(item => <article key={item.clarificationId} className={item.tone}><div className="tender-clarification-meta"><strong>Round {item.roundNumber} · Set {item.setNumber} · {item.workGroupCode}</strong><span>{item.typeLabel} · {item.statusLabel}</span></div><h3>{item.description}</h3><p><strong>PM:</strong> {item.comment}</p>{item.contractorResponse && <p><strong>Your response:</strong> {item.contractorResponse}</p>}{item.resolutionNote && <p><strong>PM decision:</strong> {item.resolutionNote}</p>}{item.canRespond && <div className="bidder-clarification-response"><textarea className="ds-input" maxLength="4000" value={responses[item.clarificationId] || ''} placeholder={item.responsePlaceholder} onChange={event => setResponses(value => ({ ...value, [item.clarificationId]: event.target.value }))}/><button className="btn btn-primary" disabled={!responses[item.clarificationId]?.trim() || workspace.responding === item.clarificationId} onClick={() => respond(item)}>{workspace.responding === item.clarificationId ? 'Submitting…' : 'Submit response'}</button></div>}</article>)}</div></section>;
+}

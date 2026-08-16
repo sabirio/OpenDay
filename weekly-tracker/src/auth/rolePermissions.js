@@ -4,8 +4,10 @@
 export const ROLES = {
   ADMIN: 'Admin',
   PM: 'PM',
+  CONSULTANT: 'Consultant',
   CONTRACTOR: 'Contractor',
-  VIEWER: 'Viewer',
+  APPROVER: 'Approver',
+  EXECUTIVE: 'Executive',
 };
 
 // Resource keys must match the `resource` prop passed to <ProtectedRoute>.
@@ -22,12 +24,14 @@ export const PERMISSIONS = {
   // schedule submissions — PM may Approve/Request Changes; Admin reaches it
   // too (via 'all' below) for read-only oversight only (see
   // PMScheduleReview.jsx's own page-level role check); Contractor and
-  // Viewer are deliberately excluded (Contractor never reviews their own
-  // submission, Viewer has no schedule-submission access at all — Phase
+  // Non-PM roles are deliberately excluded (Contractor never reviews their own
+  // submission, Executive has no schedule-submission access at all — Phase
   // 4B.2 Section Q).
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'schedule_review'],
-  Contractor: ['contractor_report', 'snags', 'contractor_schedule'],
-  Viewer: ['dashboard', 'snags'],
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'schedule_review', 'commercial_setup', 'boq_editor', 'consultant_boq', 'tender_setup', 'budget_workspace', 'variations', 'payments', 'closeout'],
+  Consultant: ['dashboard', 'projects', 'consultant_boq'],
+  Contractor: ['contractor_report', 'snags', 'contractor_schedule', 'bidder_tenders', 'variations', 'payments'],
+  Approver: ['dashboard', 'projects', 'commercial_approvals'],
+  Executive: ['dashboard', 'projects'],
 };
 
 // Resources only Admin can access (via 'all' wildcard, but useful as documentation)
@@ -37,8 +41,10 @@ export const ADMIN_ONLY_RESOURCES = ['admin_users', 'admin_contractor_workspace'
 export const ROLE_REDIRECTS = {
   Admin:      '/home',
   PM:         '/home',
+  Consultant: '/home',
   Contractor: '/contractor-select',
-  Viewer:     '/home',
+  Approver:   '/home',
+  Executive:  '/home',
 };
 
 // Sidebar nav items with their required resource permission
@@ -51,6 +57,8 @@ export const NAV_ITEMS = [
   // module. Its canonical route (/projects/import) and permission
   // ('projects_import') are unchanged; only its sidebar presence moved.
   { to: '/projects',           label: 'Portfolio',        resource: 'projects'       },
+  { to: '/budgets',            label: 'Budget Inbox',     resource: 'budget_workspace' },
+  { to: '/consultant-boqs',    label: 'Consultant BOQs',  resource: 'consultant_boq' },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
   { to: '/snags',              label: 'Site Snag',        resource: 'snags'          },
   {
@@ -79,6 +87,8 @@ export const NAV_ITEMS = [
 export const ROLE_BADGE_STYLES = {
   Admin:      { background: 'var(--status-done-bg)',  color: 'var(--status-done)'  },
   PM:         { background: 'var(--accent-subtle)',   color: 'var(--accent)'       },
+  Consultant: { background: 'var(--accent-subtle)',   color: 'var(--accent)'       },
   Contractor: { background: 'var(--status-warn-bg)',  color: 'var(--status-warn)'  },
-  Viewer:     { background: 'var(--bg-elevated)',     color: 'var(--text-muted)'   },
+  Approver:   { background: 'var(--status-warn-bg)',  color: 'var(--status-warn)'  },
+  Executive:  { background: 'var(--bg-elevated)',     color: 'var(--text-muted)'   },
 };

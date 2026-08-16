@@ -41,6 +41,8 @@ const SAFE_MESSAGES = {
   WORK_PACKAGE_OUT_OF_TEMPLATE: 'The project scope no longer matches the active template. Please reload and try again.',
   PROJECT_CODE_CONFLICT: 'A project with this store code already exists.',
   TEMPLATE_NOT_CONFIGURED: 'No active scope template is configured for this company.',
+  WORK_ONTOLOGY_NOT_CONFIGURED: 'No active work ontology is configured for this company.',
+  INVALID_DISCIPLINE_SCOPE: 'The selected disciplines are invalid. Reload the project form and try again.',
   NOT_AUTHORIZED: 'You do not have permission to create a project for this company.',
 };
 

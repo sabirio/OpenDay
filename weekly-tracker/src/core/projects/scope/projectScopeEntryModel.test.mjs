@@ -15,6 +15,7 @@ import {
   initializeNewProjectScope,
   PROJECT_SCOPE_NOT_CONFIGURED,
 } from './newProjectScopeOrchestration.js';
+import { RETAIL_FITOUT_WORK_ONTOLOGY_V1 } from '../../../domains/workOntology/retailFitoutOntologyV1.js';
 
 let pass = 0;
 let fail = 0;
@@ -87,13 +88,17 @@ check('initialized draft does not require opening configurator',
 
 const companyTemplate = { ...template, id: 'company-template-v2', companyId: 'company-a', version: 2 };
 const companyDraft = await initializeNewProjectScope({}, async family =>
-  family === RETAIL_FITOUT_V2_FAMILY ? companyTemplate : null);
+  family === RETAIL_FITOUT_V2_FAMILY ? companyTemplate : null,
+  async () => RETAIL_FITOUT_WORK_ONTOLOGY_V1);
 check('creation integration uses the injected canonical company default',
-  companyDraft.templateId === companyTemplate.id && companyDraft.scopeTemplate.version === 2);
+  companyDraft.templateId === companyTemplate.id
+  && companyDraft.scopeTemplate.version === 2
+  && companyDraft.scope.workOntologyVersionId === RETAIL_FITOUT_WORK_ONTOLOGY_V1.id
+  && companyDraft.scope.disciplineIds.length === 11);
 
 check('missing default fails closed with safe configuration error', await (async () => {
   try {
-    await initializeNewProjectScope({}, async () => null);
+    await initializeNewProjectScope({}, async () => null, async () => RETAIL_FITOUT_WORK_ONTOLOGY_V1);
     return false;
   } catch (error) {
     return error.message === PROJECT_SCOPE_NOT_CONFIGURED;
@@ -128,6 +133,10 @@ check('new create action initializes scope before opening editor',
 check('technical template choices are gated behind legacy edit compatibility',
   modalSource.includes('unifiedScopeEntry ? (')
   && modalSource.includes('title="Construction Template"'));
+check('new-project editor exposes UUID-backed Discipline selection',
+  modalSource.includes('title="Disciplines"')
+  && modalSource.includes('workOntologyVersionId')
+  && modalSource.includes('disciplineIds'));
 check('PM-facing action is Configure Project Scope',
   modalSource.includes('Configure Project Scope')
   && configuratorSource.includes('Configure Project Scope')

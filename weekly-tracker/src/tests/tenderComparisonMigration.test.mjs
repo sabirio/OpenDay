@@ -1,0 +1,10 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/077_tender_comparison_read_model.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('comparison input is an authenticated PM-only RPC',/get_tender_comparison_workspace/.test(sql)&&/v_role NOT IN\('pm','admin'\)/.test(sql)&&/TENDER_COMPARISON_FORBIDDEN/.test(sql));
+check('input pins immutable submission totals and completeness',/'total',submission\.total/.test(sql)&&/'pricedLineCount'/.test(sql)&&/'missingLineCount'/.test(sql));
+check('input includes canonical discipline work group and line identity',/'disciplineId'/.test(sql)&&/'workGroupId'/.test(sql)&&/'lineId'/.test(sql));
+check('input preserves exact database decimals',/'quantity',submission_item\.quantity/.test(sql)&&/'unitRate',submission_item\.unit_rate/.test(sql)&&/'lineTotal',submission_item\.line_total/.test(sql));
+check('prior-round changes are explicit',/'previousUnitRate'/.test(sql)&&/'RATE_CHANGED'/.test(sql)&&/'PRICE_REMOVED'/.test(sql));
+check('read model declares exact decimal contract',/'calculationContract','EXACT_DECIMAL_V1'/.test(sql));
+check('no award schema command or mutation is implemented in SQL',!/CREATE TABLE[^;]*award|CREATE (OR REPLACE )?FUNCTION[^;]*award|INSERT INTO|UPDATE public|DELETE FROM/i.test(sql));
+check('function ACL is closed before authenticated execute',/REVOKE ALL ON FUNCTION public\.get_tender_comparison_workspace/.test(sql)&&/GRANT EXECUTE ON FUNCTION public\.get_tender_comparison_workspace/.test(sql));
+console.log(`\nTender comparison migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

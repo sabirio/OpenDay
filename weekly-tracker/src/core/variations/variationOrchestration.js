@@ -1,0 +1,15 @@
+import{createClientRequestId}from'../write/writeCommand.js';import*as service from'../../services/variationService.js';
+import{presentCostPackageFinancialOverview,validateCommercialCommitment,validateCostPackageForecast}from'../../engines/costPackageFinancialEngine.js';
+import{presentVariationPageContext}from'../../engines/variationPresentationEngine.js';
+export const loadProjectVariations=service.loadVariationWorkspace;
+export function commitVariation(projectId,draft){return service.saveVariation(projectId,draft,createClientRequestId())}
+export function commitVariationTransition(variationId,input){return service.transitionVariation(variationId,input,createClientRequestId())}
+export async function commitVariationEvidence(variationId,file,note=''){if(!['image/jpeg','image/png','image/webp','application/pdf'].includes(file.type)||file.size<=0||file.size>20971520)throw new Error('Use JPG, PNG, WEBP or PDF up to 20 MB.');const requestId=createClientRequestId(),evidenceId=createClientRequestId();const intent=await service.authorizeVariationEvidence({variationId,requestId,evidenceId,file,note});if(!intent.registered)await service.uploadVariationEvidence(intent.path,file);return service.registerVariationEvidence(requestId)}
+export async function openVariationEvidence(path){const blob=await service.downloadVariationEvidence(path);const url=URL.createObjectURL(blob);window.open(url,'_blank','noopener,noreferrer');setTimeout(()=>URL.revokeObjectURL(url),60000)}
+export async function loadVariationsWithCommercialReview(projectId){const workspace=presentVariationPageContext(await service.loadVariationWorkspace(projectId));if(!workspace.canReview)return{...workspace,commercialReview:null,costPackageFinancials:null};const[commercialReview,costPackageFinancials]=await Promise.all([service.loadCommercialReview(projectId),service.loadCostPackageFinancialOverview(projectId)]);return{...workspace,commercialReview,costPackageFinancials:presentCostPackageFinancialOverview(costPackageFinancials)}}
+export function commitCostForecast(projectId,input){return service.createCostForecast(projectId,input,crypto.randomUUID(),createClientRequestId())}
+export function commitCommercialCommitment(projectId,input,overview){const issues=validateCommercialCommitment(input,overview);if(issues.length)throw new Error(issues.join(', '));return service.createCommercialCommitment(projectId,input,crypto.randomUUID(),createClientRequestId())}
+export function commitCostPackageForecast(projectId,input,overview){const issues=validateCostPackageForecast(input,overview);if(issues.length)throw new Error(issues.join(', '));return service.createCostPackageForecast(projectId,input,crypto.randomUUID(),createClientRequestId())}
+export function commitCommercialHealthSettings(input){return service.saveCommercialHealthSettings(input,createClientRequestId())}
+export function openBiweeklyCommercialReview(projectId){return service.openCommercialReview(projectId,crypto.randomUUID(),createClientRequestId())}
+export function closeBiweeklyCommercialReview(cycleId,note){return service.closeCommercialReview(cycleId,note,createClientRequestId())}

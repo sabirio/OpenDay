@@ -102,5 +102,28 @@ check('v2 currentPhases resolves to the real category label',
 check('v1 wp_id still groups under its phaseId when templateType is omitted/null',
   v1Adapted.workPackageStatuses['demolition'] != null);
 
+console.log('\ncontractorReportAdapter - Work Group compatibility');
+const ontologyVersionId = 'de782297-1166-41da-8f21-e3deef6609a7';
+const workGroupId = 'cdd14a6b-d934-4be0-ac32-1654246776d9';
+const workGroupAdapted = adaptContractorReportToLegacy(
+  { id: 511, project_id: 91, report_date: '2026-07-14', work_ontology_version_id: ontologyVersionId },
+  [{
+    wp_id: 'project_wide.electrical.incoming_supply_interface',
+    status: 'in_progress',
+    progress_pct: 25,
+    work_group_id: workGroupId,
+  }],
+  'retail-fitout-v2',
+  [workGroupId, workGroupId],
+);
+check('report exposes its pinned ontology version', workGroupAdapted.workOntologyVersionId === ontologyVersionId);
+check('report exposes unique progress Work Groups',
+  workGroupAdapted.reportedWorkGroupIds.length === 1 && workGroupAdapted.reportedWorkGroupIds[0] === workGroupId);
+check('report exposes unique risk Work Groups',
+  workGroupAdapted.riskWorkGroupIds.length === 1 && workGroupAdapted.riskWorkGroupIds[0] === workGroupId);
+check('individual progress entries retain canonical Work Group UUID',
+  Object.values(workGroupAdapted.workPackageStatuses)
+    .some(tasks => Object.values(tasks).some(task => task.workGroupId === workGroupId)));
+
 console.log(`\n-- RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

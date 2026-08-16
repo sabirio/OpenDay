@@ -33,6 +33,29 @@ function fromDBVersionTask(row) {
   };
 }
 
+function fromDBBaseline(row) {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    scheduleVersionId: row.schedule_version_id,
+    baselineRevisionNumber: row.baseline_revision_number,
+    executionScopeVersionId: row.execution_scope_version_id,
+    approvedAt: row.approved_at,
+  };
+}
+
+/** Official append-only baseline references for a bounded project set. */
+export async function loadScheduleBaselinesForProjects(projectIds) {
+  const ids = [...new Set((projectIds || []).filter((id) => id != null).map(String))];
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('project_schedule_baselines')
+    .select('id, project_id, schedule_version_id, baseline_revision_number, execution_scope_version_id, approved_at')
+    .in('project_id', ids);
+  if (error) throw error;
+  return (data || []).map(fromDBBaseline);
+}
+
 /**
  * Every project_schedule_versions row for a bounded set of projects, in ONE
  * query. Callers reduce this to "latest per project" / "approved per

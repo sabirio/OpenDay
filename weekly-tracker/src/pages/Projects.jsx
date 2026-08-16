@@ -59,7 +59,7 @@ const emptyProject = {
   actualConstructionCompletionDate: "",
   actualOpeningDate: "",
   budget: "",
-  currencyCode: "",
+  currencyCode: "KZT",
   projectManager: "",
   securityManager: "",
   itManager: "",

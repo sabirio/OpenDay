@@ -1,0 +1,7 @@
+import{strict as assert}from'node:assert';import{buildCommercialFoundationView,createNewMembershipDraft,getMembershipIssues,toggleCostPackageWorkGroup}from'./commercialFoundationEngine.js';let p=0;const t=(n,f)=>{f();p++;console.log(`  PASS ${n}`)};
+const id='11111111-1111-4111-8111-111111111111',view=buildCommercialFoundationView({project:{id:1,storeCode:'A',currencyCode:'EUR'},commercial:{costPackages:[{costPackageId:id}],currencyCode:'EUR'},team:{capabilityCatalog:[{code:'BOQ_PREPARE',allowedProjectRoles:['CONSULTANT','FUNCTION_OWNER']}]},ontology:{disciplines:[],workGroups:[]}});
+t('view preserves project currency and package identities',()=>{assert.equal(view.project.currencyCode,'EUR');assert.equal(view.costPackages[0].costPackageId,id)});
+t('scope toggle is canonical and reversible',()=>{const first=toggleCostPackageWorkGroup({workGroupIds:[]},id);assert.deepEqual(first.workGroupIds,[id]);assert.deepEqual(toggleCostPackageWorkGroup(first,id).workGroupIds,[])});
+t('membership defaults come from capability catalog',()=>{const draft=createNewMembershipDraft(view,id,'2026-08-16');assert.deepEqual(draft.capabilityCodes,['BOQ_PREPARE'])});
+t('membership validation rejects missing identity',()=>{assert(getMembershipIssues(view,createNewMembershipDraft(view,id,'2026-08-16')).some(x=>x.code==='TEAM_USER_REQUIRED'))});
+console.log(`\nCommercial foundation engine: ${p} passed, 0 failed`);

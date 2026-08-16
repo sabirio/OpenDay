@@ -53,8 +53,9 @@ console.log('\nBatch completeness: every requested project receives exactly one 
   ];
   const loadVersions = async () => [version({ id: 'v3', projectId: 3, status: 'APPROVED', reviewedAt: '2027-01-01T00:00:00Z' })];
   const loadVersionTasks = async () => [{ versionId: 'v3', plannedStart: '2027-01-05' }];
+  const loadBaselines = async () => [{ projectId: 3, scheduleVersionId: 'v3', baselineRevisionNumber: 1, approvedAt: '2027-01-01T00:00:00Z' }];
 
-  const projection = await loadScheduleCommitmentProjection(projects, { loadVersions, loadVersionTasks });
+  const projection = await loadScheduleCommitmentProjection(projects, { loadVersions, loadVersionTasks, loadBaselines });
   check('projection has exactly one entry per requested project, no more, no fewer', projection.size === 3);
   check('project 1 (AUTO_GENERATED) is AVAILABLE/COMMITTED', projection.get('1').projectionAvailability === 'AVAILABLE' && projection.get('1').commitmentState === 'COMMITTED');
   check('project 2 (no version) is explicit AVAILABLE/DRAFT/NOT_YET_COMMITTED, not just absent', projection.get('2').projectionAvailability === 'AVAILABLE' && projection.get('2').lifecycleStatus === 'DRAFT' && projection.get('2').commitmentState === 'NOT_YET_COMMITTED');

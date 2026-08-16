@@ -1,0 +1,15 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/084_budget_vs_tender.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('read model requires an existing Tender and PM Admin project access',/TENDER_NOT_FOUND/.test(sql)&&/TENDER_BUDGET_COMPARISON_FORBIDDEN/.test(sql)&&/NOT IN\('pm','admin'\)/.test(sql));
+check('comparison sources only immutable Approved Budget Baseline',/FROM public\.approved_budget_baselines/.test(sql)&&/approved_budget_baseline_items/.test(sql));
+check('each Tender Round is pinned to its own setup scope',/round\.tender_setup_version_id/.test(sql)&&/scope\.tender_setup_version_id=round\.tender_setup_version_id/.test(sql));
+check('scope Budget total excludes baseline Work Groups outside Tender',/'scopeBudgetTotal'/.test(sql)&&/'baselineOutsideTenderCount'/.test(sql)&&/NOT EXISTS\(SELECT 1 FROM public\.project_tender_scope_work_groups/.test(sql));
+check('canonical Work Group alignment carries discipline metadata',/'disciplineId'/.test(sql)&&/'workGroupId'/.test(sql)&&/'budgetAmount'/.test(sql));
+check('coverage reports Tender scope, budgeted and missing counts',/'tenderScopeWorkGroupCount'/.test(sql)&&/'budgetedWorkGroupCount'/.test(sql)&&/'missingBudgetWorkGroupCount'/.test(sql));
+check('comparison requires matching ontology',/BUDGET_TENDER_ONTOLOGY_MISMATCH/.test(sql)&&/v_baseline\.ontology_version_id=round\.ontology_version_id/.test(sql));
+check('comparison requires matching currency with no FX',/BUDGET_TENDER_CURRENCY_MISMATCH/.test(sql)&&/v_baseline\.currency_code=setup\.currency_code/.test(sql));
+check('missing Approved Budget has explicit reason',/APPROVED_BUDGET_BASELINE_REQUIRED/.test(sql)&&/'baselineStatus'/.test(sql));
+check('scope gap disables availability',/BUDGET_TENDER_SCOPE_GAP/.test(sql)&&/'available'/.test(sql));
+check('read model declares exact-decimal contract',/EXACT_DECIMAL_BUDGET_VARIANCE_V1/.test(sql));
+check('function ACL is explicitly closed',/REVOKE ALL ON FUNCTION public\.get_tender_budget_comparison/.test(sql)&&/GRANT EXECUTE ON FUNCTION public\.get_tender_budget_comparison/.test(sql));
+check('migration adds no mutable comparison state or approval report',!/CREATE TABLE|approval_report/i.test(sql));
+console.log(`\nBudget vs Tender migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

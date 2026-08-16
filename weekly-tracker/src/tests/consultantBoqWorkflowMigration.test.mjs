@@ -1,0 +1,10 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/122_consultant_boq_workflow.sql',import.meta.url),'utf8');let p=0,f=0;const c=(n,x)=>{if(x){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+c('Consultant BOQ is a separate data layer',/project_consultant_boqs/.test(sql)&&/project_consultant_boq_versions/.test(sql)&&/project_consultant_boq_items/.test(sql));
+c('consultant rows have no rates',!/project_consultant_boq_items[\s\S]{0,900}(labour|material)_rate/.test(sql));
+c('revisions and events are immutable',/CONSULTANT_BOQ_SNAPSHOT_IMMUTABLE/.test(sql)&&/BEFORE UPDATE OR DELETE/.test(sql));
+c('submit requires consultant quantities',/CONSULTANT_BOQ_NOT_READY/.test(sql)&&/consultant_quantity IS NULL/.test(sql));
+c('PM can return or accept',/p_decision NOT IN\('RETURN','ACCEPT'\)/.test(sql)&&/status='RETURNED'/.test(sql));
+c('accept creates frozen Project BOQ snapshot',/save_project_boq_revision/.test(sql)&&/issued_project_boq_version_id/.test(sql)&&/status='FROZEN'/.test(sql));
+c('Tender issue requires frozen Consultant BOQ',/TENDER_REQUIRES_FROZEN_CONSULTANT_BOQ/.test(sql));
+c('contractor has no consultant layer access',!/role[^\n]*contractor/i.test(sql));
+console.log(`\nConsultant BOQ workflow migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

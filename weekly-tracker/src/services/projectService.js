@@ -13,6 +13,8 @@ const LEGACY_PHASE_MAP = {
   'Handover':                'handover',
 };
 
+export const PROJECT_CURRENCY_CODES = Object.freeze(['KZT', 'USD', 'EUR']);
+
 function normalizePhasesFromDB(phases) {
   if (!Array.isArray(phases)) return [];
   return phases.map(p => LEGACY_PHASE_MAP[p] ?? p);
@@ -22,6 +24,9 @@ export function validateProject(project, requireId = false) {
   if (requireId && !project?.id) throw new Error('Project ID is required');
   if (!project?.storeCode?.trim()) throw new Error('Store code is required');
   if (!project?.country?.trim()) throw new Error('Country is required');
+  if (project?.scope?.workOntologyVersionId && (!Array.isArray(project.scope.disciplineIds) || project.scope.disciplineIds.length === 0)) {
+    throw new Error('Select at least one discipline');
+  }
 
   // Location Type is optional at the DB level (frozen design: TEXT NULL, no
   // enum), but when a project declares one, the Mall/Street invariant is
@@ -59,6 +64,9 @@ export function validateProject(project, requireId = false) {
     }
   }
   const hasMoney = (project?.budget !== '' && project?.budget != null) || (project?.actualCost !== '' && project?.actualCost != null);
+  if (project?.currencyCode && !PROJECT_CURRENCY_CODES.includes(project.currencyCode)) {
+    throw new Error('Currency must be KZT, USD, or EUR');
+  }
   if (hasMoney && !project?.currencyCode?.trim()) {
     throw new Error('Currency is required when Budget or Actual Cost is set');
   }
@@ -97,6 +105,7 @@ export function fromDB(row) {
     phases:      normalizePhasesFromDB(row.phases || []),
     scope:       row.scope       || null,
     templateId:  row.template_id || null,
+    workOntologyVersionId: row.work_ontology_version_id || null,
     // Conflict-detection baseline (see conflictGuard.js) — null on DBs that
     // haven't applied 016_updated_at.sql yet.
     updatedAt:   row.updated_at  || null,
@@ -184,6 +193,7 @@ export function toDB(project, { preserveLegacyZoneAreas = false } = {}) {
       return Object.keys(scope).length > 0 ? scope : null;
     })(),
     template_id: project.templateId  || null,
+    work_ontology_version_id: project.workOntologyVersionId || project.scope?.workOntologyVersionId || null,
     // ── Gantt setup fields (PM-editable) ───────────────────────────────────
     template_type:  project.templateType  || null,
     store_size_sqm: project.storeSizeSqm === '' || project.storeSizeSqm == null ? null : project.storeSizeSqm,
@@ -233,7 +243,7 @@ export async function getAll() {
     const ids = hydratedProjects.map(p => p.id);
     const { data: histRows, error: histErr } = await supabase
       .from('progress_history')
-      .select('project_id, overall_progress, spi, recorded_at, week_number')
+      .select('project_id, overall_progress, spi, recorded_at, week_number, work_ontology_version_id')
       .in('project_id', ids)
       .order('recorded_at', { ascending: false });
     if (histErr) console.warn('[progressHistory] fetch failed:', histErr);
@@ -279,7 +289,7 @@ export async function getProgressSnapshot(isoWeekStr) {
 
   const { data, error } = await supabase
     .from('progress_history')
-    .select('project_id, overall_progress, spi, recorded_at')
+    .select('project_id, overall_progress, spi, recorded_at, work_ontology_version_id')
     .gte('recorded_at', monday.toISOString())
     .lt('recorded_at', nextMonday.toISOString());
 
@@ -404,6 +414,7 @@ export async function createContractorManagedProject(project, scopeWpIds, client
       budget: project.budget === '' || project.budget == null ? null : project.budget,
       currencyCode: project.currencyCode || null,
       scope: project.scope || null,
+      workOntologyVersionId: project.workOntologyVersionId || project.scope?.workOntologyVersionId || null,
     },
     p_scope_wp_ids: scopeWpIds,
     p_client_request_id: clientRequestId,
@@ -463,6 +474,7 @@ export async function update(id, project) {
   const payload = toDB(project, { preserveLegacyZoneAreas: true });
   // template_id is immutable after creation — never overwrite on update.
   delete payload.template_id;
+  delete payload.work_ontology_version_id;
   const { data, error } = await supabase
     .from('projects')
     .update(payload)

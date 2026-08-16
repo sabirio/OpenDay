@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { userSafeError } from '../utils/userError';
 
-const ROLES = ['Admin', 'PM', 'Contractor', 'Viewer'];
+const ROLES = ['Admin', 'PM', 'Consultant', 'Contractor', 'Approver', 'Executive'];
 
 const ROLE_COLORS = {
   Admin:      { background: 'var(--status-done-bg)', color: 'var(--status-done)'  },
   PM:         { background: 'var(--accent-subtle)',  color: 'var(--accent)'       },
+  Consultant: { background: 'var(--accent-subtle)',  color: 'var(--accent)'       },
   Contractor: { background: 'var(--status-warn-bg)', color: 'var(--status-warn)'  },
-  Viewer:     { background: 'var(--bg-elevated)',    color: 'var(--text-muted)'   },
+  Approver:   { background: 'var(--status-warn-bg)', color: 'var(--status-warn)'  },
+  Executive:  { background: 'var(--bg-elevated)',    color: 'var(--text-muted)'   },
 };
 
 async function getSupabaseClient() {

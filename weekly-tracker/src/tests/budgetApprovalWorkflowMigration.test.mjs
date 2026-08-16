@@ -1,0 +1,17 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/083_budget_approval_workflow.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('cycle records pending or approved state with optimistic revision',/approval_state text NOT NULL DEFAULT 'PENDING'/.test(sql)&&/approval_revision integer/.test(sql));
+check('each issued round accepts one immutable decision',/project_budget_round_reviews/.test(sql)&&/UNIQUE\(round_id\)/.test(sql)&&/REVISION_REQUIRED','APPROVED/.test(sql));
+check('revision required decision mandates a comment',/decision <> 'REVISION_REQUIRED' OR btrim\(comment\) <> ''/.test(sql)&&/BUDGET_REVISION_COMMENT_REQUIRED|INVALID_BUDGET_REVIEW_COMMAND/.test(sql));
+check('approved baseline is unique per project and Budget Cycle',/approved_budget_baselines/.test(sql)&&/budget_cycle_id uuid NOT NULL UNIQUE/.test(sql)&&/project_id bigint NOT NULL UNIQUE/.test(sql));
+check('baseline items copy exact immutable round snapshot',/approved_budget_baseline_items/.test(sql)&&/SELECT p_baseline_id,i\.budget_cycle_id/.test(sql));
+check('existing baseline tables gain canonical Department columns',/ADD COLUMN IF NOT EXISTS department_id uuid/.test(sql)&&/ALTER COLUMN department_id SET NOT NULL/.test(sql)&&/work_ontology_departments/.test(sql));
+check('only Admin with project access may review',/BUDGET_REVIEW_FORBIDDEN/.test(sql)&&/lower\(\(SELECT role FROM public\.profiles WHERE id=v_uid\)\)<>'admin'/.test(sql));
+check('project Admin may review a round they issued',/'canReview',v_role='admin'/.test(sql)&&! /BUDGET_REVIEW_REQUIRES_SEPARATE_APPROVER/.test(sql)&&! /v_round\.issued_by<>v_uid/.test(sql));
+check('review command is idempotent and revision guarded',/budget\.review_round/.test(sql)&&/BUDGET_APPROVAL_REVISION_CONFLICT/.test(sql));
+check('revision decision is required before next round',/NEXT_BUDGET_ROUND_REQUIRES_REVISION_DECISION/.test(sql)&&/decision='REVISION_REQUIRED'/.test(sql));
+check('next round reopens only previously included work',/WHERE budget_cycle_id=p_budget_cycle_id AND status='SUBMITTED'/.test(sql));
+check('approved baseline prevents further rounds',/APPROVED_BUDGET_IS_IMMUTABLE/.test(sql)&&/approval_state='APPROVED'/.test(sql));
+check('decision notifies Budget owners',/BUDGET_REVISION_REQUIRED/.test(sql)&&/BUDGET_APPROVED/.test(sql)&&/project_budget_notifications/.test(sql));
+check('direct writes to decisions and baseline remain unavailable',/REVOKE ALL ON TABLE public\.project_budget_round_reviews/.test(sql)&&/REVOKE ALL ON TABLE public\.approved_budget_baselines/.test(sql)&&/REVOKE ALL ON TABLE public\.approved_budget_baseline_items/.test(sql));
+check('Budget vs Tender and approval report remain outside E28',!/tender_variance|approval_report|benchmark/.test(sql));
+console.log(`\nBudget approval workflow migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

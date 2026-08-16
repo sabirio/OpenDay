@@ -1,0 +1,13 @@
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { DB_URL } from './env.mjs';
+const dir = path.dirname(fileURLToPath(import.meta.url));
+const file = path.resolve(dir, '..', '..', 'src', 'migrations', '083_budget_approval_workflow.sql');
+const bytes = Buffer.from(readFileSync(file, 'utf8').replace(/\r\n/g, '\n'));
+const expected = 'a3bc83a4262cf3404c56863853904dcdaa72a719fd9f4a41a7b4f19753c534d5';
+if (createHash('sha256').update(bytes).digest('hex') !== expected) throw new Error('REFUSING LOCAL DEPLOY: 083 hash mismatch');
+execFileSync('psql', [DB_URL, '-v', 'ON_ERROR_STOP=1', '-f', file], { stdio: 'inherit', env: { ...process.env, PATH: `C:\\Program Files\\PostgreSQL\\17\\bin;${process.env.PATH}` } });
+console.log('Local Budget approval workflow applied through 083.');

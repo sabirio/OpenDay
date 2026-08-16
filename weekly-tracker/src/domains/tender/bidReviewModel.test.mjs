@@ -1,0 +1,6 @@
+import{strict as assert}from'node:assert';import{groupBidReviewItems,summarizeBidReviewRound}from'./bidReviewModel.js';let p=0;const test=(n,fn)=>{fn();p++;console.log(`  PASS ${n}`)};
+test('round summary keeps submission and review counts separate',()=>{assert.deepEqual(summarizeBidReviewRound({participants:[{submission:{reviewStatus:'REVIEWED',missingLineCount:0}},{submission:{reviewStatus:'IN_REVIEW',missingLineCount:2}},{submission:null}]}),{participantCount:3,submittedCount:2,reviewedCount:1,completeBidCount:1,missingPriceCount:2,readyToClose:false})});
+test('round is closeable only when every participant is submitted and reviewed',()=>{assert.equal(summarizeBidReviewRound({participants:[{submission:{reviewStatus:'REVIEWED',missingLineCount:1}}]}).readyToClose,true)});
+test('empty round is not closeable',()=>{assert.equal(summarizeBidReviewRound({participants:[]}).readyToClose,false)});
+test('items retain server order while grouped by canonical work group',()=>{const groups=groupBidReviewItems([{lineId:'1',workGroupId:'a',workGroupLabel:'A'},{lineId:'2',workGroupId:'a',workGroupLabel:'A'},{lineId:'3',workGroupId:'b',workGroupLabel:'B'}]);assert.deepEqual(groups.map(x=>[x.workGroupId,x.items.length]),[['a',2],['b',1]])});
+console.log(`\nTender bid review model: ${p} passed, 0 failed`);

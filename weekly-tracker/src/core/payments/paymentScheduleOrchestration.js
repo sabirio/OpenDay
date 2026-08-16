@@ -1,0 +1,10 @@
+import { createClientRequestId } from '../write/writeCommand.js';
+import * as service from '../../services/paymentService.js';
+export async function loadProjectPaymentSchedule(projectId) { const [schedule, notifications, certifications, tracking, retention] = await Promise.all([service.loadPaymentSchedule(projectId), service.loadPaymentMilestoneNotifications(projectId), service.loadPaymentCertifications(projectId), service.loadPaymentTracking(projectId), service.loadPaymentRetention(projectId)]); return { ...schedule, paymentNotifications: notifications, paymentCertifications: certifications, paymentTracking: tracking, paymentRetention: retention }; }
+export function commitPaymentSchedule(projectId, id, mode, milestones) { return service.savePaymentSchedule(projectId, id, mode, milestones, createClientRequestId()); }
+export function commitPaymentScheduleActivation(id) { return service.activatePaymentSchedule(id, createClientRequestId()); }
+export function commitPaymentCertificationEvidence(milestoneId, documents, evidenceNote) { return service.openPaymentCertificationEvidence(milestoneId, crypto.randomUUID(), documents, evidenceNote, createClientRequestId()); }
+export function commitPaymentCertificationDecision(caseId, decisionType, certifiedAmount, decisionReason) { return service.decidePaymentCertification(caseId, crypto.randomUUID(), decisionType, certifiedAmount, decisionReason, createClientRequestId()); }
+export function commitPaymentTrackingEvent(caseId, eventType, amount, externalReference, eventDate, eventNote) { return service.recordPaymentTrackingEvent(caseId, crypto.randomUUID(), eventType, amount, externalReference, eventDate, eventNote, createClientRequestId()); }
+export function commitPaymentRetentionTerms(scheduleId, percentage, releaseCondition) { return service.savePaymentRetentionTerms(scheduleId, crypto.randomUUID(), percentage, releaseCondition, createClientRequestId()); }
+export function commitPaymentRetentionRelease(scheduleId, reference, date, note) { return service.releasePaymentRetention(scheduleId, crypto.randomUUID(), reference, date, note, createClientRequestId()); }

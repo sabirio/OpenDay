@@ -1,0 +1,1 @@
+export function calculatePaymentSchedule(rows=[],contractValue=0){const scheduledPercentage=rows.reduce((sum,row)=>sum+Number(row.percentage||0),0);return{scheduledPercentage,scheduledAmount:Number(contractValue||0)*scheduledPercentage/100,amountForPercentage:percentage=>Number(contractValue||0)*Number(percentage||0)/100}}
