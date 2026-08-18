@@ -53,10 +53,10 @@
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/supabase-js": "^2.106.2",
-    "pdfjs-dist": "^6.1.200",
+    "pdfjs-dist": "^6.2.108",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-router-dom": "^6.30.3",
+    "react-router-dom": "^7.18.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz",
     "zod": "^4.4.3"
   },
