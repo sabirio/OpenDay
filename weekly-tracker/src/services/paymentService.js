@@ -1,11 +1,11 @@
 import { supabase } from '../lib/supabase';
 async function rpc(name, args) { const { data, error } = await supabase.rpc(name, args); if (error) throw error; return data; }
-export const loadPaymentSchedule = projectId => rpc('get_project_payment_schedule', { p_project_id: Number(projectId) });
+export const loadPaymentSchedule = (projectId, commitmentId = null) => rpc('get_project_payment_schedule', { p_project_id: Number(projectId), p_commitment_id: commitmentId });
 export const loadPaymentMilestoneNotifications = projectId => rpc('get_project_payment_milestone_notifications', { p_project_id: Number(projectId) });
 export const loadPaymentCertifications = projectId => rpc('get_project_payment_certifications', { p_project_id: Number(projectId) });
 export const loadPaymentTracking = projectId => rpc('get_project_payment_tracking', { p_project_id: Number(projectId) });
-export const loadPaymentRetention = projectId => rpc('get_project_payment_retention', { p_project_id: Number(projectId) });
-export const savePaymentSchedule = (projectId, id, mode, milestones, requestId) => rpc('save_project_payment_schedule', { p_project_id: Number(projectId), p_schedule_id: id, p_mode: mode, p_milestones: milestones, p_client_request_id: requestId });
+export const loadPaymentRetention = (projectId, scheduleId = null) => rpc('get_project_payment_retention', { p_project_id: Number(projectId), p_payment_schedule_id: scheduleId });
+export const savePaymentSchedule = (projectId, commitmentId, id, mode, milestones, requestId) => rpc('save_project_payment_schedule', { p_project_id: Number(projectId), p_commitment_id: commitmentId, p_schedule_id: id, p_mode: mode, p_milestones: milestones, p_client_request_id: requestId });
 export const activatePaymentSchedule = (id, requestId) => rpc('activate_project_payment_schedule', { p_schedule_id: id, p_client_request_id: requestId });
 export const openPaymentCertificationEvidence = (milestoneId, caseId, documents, evidenceNote, requestId) => rpc('open_payment_certification_evidence', { p_milestone_id: milestoneId, p_case_id: caseId, p_documents: documents, p_evidence_note: evidenceNote, p_client_request_id: requestId });
 export const decidePaymentCertification = (caseId, decisionId, decisionType, certifiedAmount, decisionReason, requestId) => rpc('decide_payment_certification', { p_certification_case_id: caseId, p_decision_id: decisionId, p_decision_type: decisionType, p_certified_amount: certifiedAmount, p_decision_reason: decisionReason, p_client_request_id: requestId });

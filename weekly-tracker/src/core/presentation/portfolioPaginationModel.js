@@ -4,6 +4,6 @@
  * the bounded page-number window shown in the list pane's footer. One
  * canonical derivation for UI to consume, not reimplemented per component.
  */
-import { computePageCount, clampPage, pageRange, paginate, pageWindow } from '../../engines/paginationEngine.js';
+import { computePageCount, clampPage, pageRange, paginate, pageWindow, parseRequestedPage } from '../../engines/paginationEngine.js';
 
-export { computePageCount, clampPage, pageRange, paginate, pageWindow };
+export { computePageCount, clampPage, pageRange, paginate, pageWindow, parseRequestedPage };

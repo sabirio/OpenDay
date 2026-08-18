@@ -1,4 +1,4 @@
-import { assignBudgetDisciplineOwner, createProjectBudgetCycle, issueProjectBudgetRound, loadBudgetApprovalReport, loadBudgetOwnerCandidates, loadMyBudgetInbox, loadProjectBudgetApproval, loadProjectBudgetWorkspace, markBudgetNotificationsRead, reviewProjectBudgetRound, saveBudgetVarianceContext, saveProjectBudgetContribution, startNextProjectBudgetRound } from '../../services/budgetService.js';
+import { assignBudgetDisciplineOwner, createProjectBudgetCycle, issueProjectBudgetRound, loadBudgetApprovalReport, loadBudgetOwnerCandidates, loadMyBudgetInbox, loadProjectBudgetApproval, loadProjectBudgetWorkspace, markBudgetNotificationsRead, reviewProjectBudgetRound, saveBudgetVarianceContext, saveProjectBudgetContribution, startNextProjectBudgetRound, submitProjectBudgetDiscipline } from '../../services/budgetService.js';
 import { createClientRequestId } from '../write/writeCommand.js';
 
 export function loadDepartmentalBudget(projectId) { return loadProjectBudgetWorkspace(projectId); }
@@ -7,6 +7,9 @@ export function commitBudgetCycle(projectId, input) {
 }
 export function commitBudgetContribution(cycleId, input) {
   return saveProjectBudgetContribution(cycleId, input, createClientRequestId());
+}
+export function commitBudgetDisciplineSubmission(cycleId, disciplineId, contributions) {
+  return submitProjectBudgetDiscipline(cycleId, disciplineId, contributions, createClientRequestId());
 }
 export function loadBudgetOwnershipCandidates(projectId){return loadBudgetOwnerCandidates(projectId)}
 export function commitBudgetOwnership(cycleId,input){return assignBudgetDisciplineOwner(cycleId,input,createClientRequestId())}

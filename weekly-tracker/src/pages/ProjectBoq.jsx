@@ -4,11 +4,13 @@ import { useProjectBoqEditor } from '../hooks/useProjectBoqEditor.js';
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard.js';
 import { useToast } from '../components/shared/Toast.jsx';
 import ProjectBoqEditor from '../components/boq/ProjectBoqEditor.jsx';
+import { useProjectReturnHref } from '../hooks/useProjectReturnHref.js';
 
 function ProjectBoqWorkspace({ project }) {
   const toast = useToast();
   const editor = useProjectBoqEditor(project);
   const { guardLinkClick } = useUnsavedChangesGuard(editor.dirty, 'This BOQ revision has unsaved changes. Leave without saving?');
+  const backHref = useProjectReturnHref(project.id, 'tender');
 
   async function exportExcel() {
     try {
@@ -31,7 +33,7 @@ function ProjectBoqWorkspace({ project }) {
 
   return <div className="boq-page">
     <div className="boq-sticky-overview">
-      <header className="boq-page-header"><div><Link to="/projects" onClick={event => guardLinkClick(event, '/projects')}>← Portfolio</Link><span>{project.storeCode}</span><h1>{view.title}</h1><p>Native, versioned commercial detail mapped to canonical Work Groups.</p></div><div className="boq-header-meta"><span>{view.currencyCode}</span><span>{view.summary.lineCount} lines</span></div></header>
+      <header className="boq-page-header"><div><Link to={backHref} onClick={event => guardLinkClick(event, backHref)}>← Project Tender</Link><span>{project.storeCode}</span><h1>{view.title}</h1><p>Native, versioned tender BOQ mapped to canonical Work Groups.</p></div><div className="boq-header-meta"><span>{view.currencyCode}</span><span>{view.summary.lineCount} lines</span></div></header>
       <section className="boq-total-strip card" aria-label="Total BOQ">
         <div className="boq-total-strip-overall"><div><span>Total BOQ</span><strong>{view.summary.totalDisplay} {view.currencyCode}</strong></div><div className="boq-total-strip-meta"><span>{view.summary.pricedLineCount} priced</span><span>{view.summary.unpricedLineCount} unpriced</span></div></div>
         <div className="boq-discipline-totals" role="table" aria-label="BOQ totals by discipline">{view.disciplineTotals.map(discipline => <div className="boq-discipline-total-row" role="row" key={discipline.id}><span role="cell"><b>{discipline.code}</b>{discipline.label}</span><strong role="cell">{discipline.totalDisplay} {view.currencyCode}</strong></div>)}</div>

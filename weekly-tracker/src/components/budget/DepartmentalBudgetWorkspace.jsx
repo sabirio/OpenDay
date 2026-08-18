@@ -22,18 +22,25 @@ export default function DepartmentalBudgetWorkspace({ editor, project, onExport,
   const departments = groupBudgetDepartments(workspace.contributions, workspace.ownerships);
   const includedCount = countIncludedBudgetContributions(workspace.contributions);
   const locked = workspace.roundControl.state === 'ISSUED';
+  const approved = Boolean(workspace.approval?.baseline);
   return <div className="budget-workspace">
+    {approved ? <>
+      <ApprovalControl editor={editor} workspace={workspace} onSuccess={onSuccess} onError={onError} />
+      <ApprovedBudgetTable workspace={workspace} />
+      <BudgetExcelExchange editor={editor} locked={locked} approved onExport={onExport} onSuccess={onSuccess} onError={onError} />
+    </> : <>
+      <RoundControl editor={editor} workspace={workspace} onSuccess={onSuccess} onError={onError} />
+      {workspace.approvalReport && <BudgetApprovalReport editor={editor} workspace={workspace} onSuccess={onSuccess} onError={onError} />}
+      <ApprovalControl editor={editor} workspace={workspace} onSuccess={onSuccess} onError={onError} />
+    </>}
     {workspace.unreadNotificationCount > 0 && <div className="boq-alert boq-alert-info"><strong>{workspace.unreadNotificationCount} unread Budget assignment notification(s).</strong><span>Open Budget Inbox to acknowledge them.</span></div>}
-    <RoundControl editor={editor} workspace={workspace} onSuccess={onSuccess} onError={onError} />
-    {workspace.approvalReport && <BudgetApprovalReport editor={editor} workspace={workspace} onSuccess={onSuccess} onError={onError} />}
-    <ApprovalControl editor={editor} workspace={workspace} onSuccess={onSuccess} onError={onError} />
     <section className="budget-summary card">
       <div><span>{workspace.canManageOwnership ? 'Consolidated budget' : 'My assigned budget'} ({workspace.projectCurrencyCode})</span><strong>{money(workspace.summary.total, workspace.projectCurrencyCode)}</strong></div>
       <div><span>Work Groups</span><strong>{workspace.summary.workGroupCount}</strong></div>
       <div><span>Not Applicable</span><strong>{workspace.summary.workGroupCount - includedCount}</strong></div>
       <div><span>Included</span><strong>{includedCount}</strong></div>
     </section>
-    <BudgetExcelExchange editor={editor} locked={locked} onExport={onExport} onSuccess={onSuccess} onError={onError} />
+    {!approved && <BudgetExcelExchange editor={editor} locked={locked} onExport={onExport} onSuccess={onSuccess} onError={onError} />}
     {departments.map(department => <details className="card budget-department" key={department.departmentId}>
       <summary><div><h2>{department.departmentLabel}</h2><span>{department.disciplines.length} disciplines · {department.includedCount} included</span></div><BudgetSubmissionBadges submitted={department.submittedCount} notSubmitted={department.includedCount - department.submittedCount} /></summary>
       <div className="budget-department-body">{department.disciplines.map(group => <DisciplineBudgetSection
@@ -42,6 +49,7 @@ export default function DepartmentalBudgetWorkspace({ editor, project, onExport,
         locked={locked}
         busy={editor.busy === `discipline-${group.disciplineId}`}
         save={editor.saveContributions}
+        submit={editor.submitContributions}
         onSuccess={onSuccess}
         onError={onError}
       />)}</div>
@@ -53,12 +61,12 @@ function BudgetSubmissionBadges({ submitted, notSubmitted }) {
   return <div className="budget-submission-badges"><span className="not-submitted">Not Submitted <strong>{notSubmitted}</strong></span><span className="submitted">Submitted <strong>{submitted}</strong></span></div>;
 }
 
-function BudgetExcelExchange({ editor, locked, onExport, onSuccess, onError }) {
+function BudgetExcelExchange({ editor, locked, approved = false, onExport, onSuccess, onError }) {
   const inputRef = useRef(null);
   const state = editor.importState;
   return <section className="card budget-excel-exchange">
-    <div><strong>Excel</strong><span>Export the current budget, edit Amount and Note, then import it back.</span></div>
-    <div className="budget-excel-actions"><button className="btn btn-secondary" type="button" disabled={Boolean(editor.busy)} onClick={onExport}>Export Excel</button><input ref={inputRef} className="sr-only" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={async event => { const file = event.target.files?.[0]; if (file) await editor.previewImport(file); event.target.value = ''; }} /><button className="btn btn-secondary" type="button" disabled={locked || Boolean(editor.busy)} onClick={() => inputRef.current?.click()}>Import Excel</button></div>
+    <div><strong>Excel</strong><span>{approved ? 'Export the approved budget baseline. Approved values are read-only.' : 'Export the current budget, edit Amount and Note, then import it back.'}</span></div>
+    <div className="budget-excel-actions"><button className="btn btn-secondary" type="button" disabled={Boolean(editor.busy)} onClick={onExport}>Export Excel</button>{!approved && <><input ref={inputRef} className="sr-only" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={async event => { const file = event.target.files?.[0]; if (file) await editor.previewImport(file); event.target.value = ''; }} /><button className="btn btn-secondary" type="button" disabled={locked || Boolean(editor.busy)} onClick={() => inputRef.current?.click()}>Import Excel</button></>}</div>
     {state.status !== 'idle' && <div className={`budget-excel-result ${state.plan?.ok ? 'is-valid' : 'is-invalid'}`} role="status">{state.plan?.ok ? <><div><strong>Excel import is valid</strong><span>{state.plan.summary.changedCount} changes · {state.plan.summary.includedCount} included · {state.plan.summary.notApplicableCount} not applicable</span></div><div className="budget-excel-actions"><button className="btn btn-secondary" type="button" disabled={state.status === 'committing'} onClick={editor.dismissImport}>Cancel</button><button className="btn btn-primary" type="button" disabled={state.status === 'committing' || state.plan.summary.changedCount === 0} onClick={async () => { const out = await editor.commitImport(); out.ok ? onSuccess?.(`${out.summary.changedCount} budget change(s) imported from Excel.`) : onError?.(out.error); }}>{state.status === 'committing' ? 'Importing...' : 'Apply Excel changes'}</button></div></> : <><div><strong>Excel import blocked</strong><ul>{(state.plan?.issues || []).slice(0, 8).map((item, index) => <li key={`${item.code}-${index}`}>{budgetImportIssueMessage(item)}</li>)}</ul></div><button className="btn btn-secondary" type="button" onClick={editor.dismissImport}>Close</button></>}</div>}
   </section>;
 }
@@ -97,7 +105,7 @@ function contributionChanged(row, draft) {
     || draft.status !== row.status;
 }
 
-function DisciplineBudgetSection({ group, locked, busy, save, onSuccess, onError }) {
+function DisciplineBudgetSection({ group, locked, busy, save, submit, onSuccess, onError }) {
   const [drafts, setDrafts] = useState(() => Object.fromEntries(group.contributions.map(row => [row.workGroupId, buildContributionDraft(row)])));
   const updateDraft = (workGroupId, patch) => setDrafts(current => ({ ...current, [workGroupId]: { ...current[workGroupId], ...patch } }));
   const changed = group.contributions.filter(row => contributionChanged(row, drafts[row.workGroupId]));
@@ -122,7 +130,7 @@ function DisciplineBudgetSection({ group, locked, busy, save, onSuccess, onError
           <input aria-label={`${row.workGroupCode} note`} className="ds-input" disabled={locked} value={draft.note} onChange={event => updateDraft(row.workGroupId, { note: event.target.value })} />
         </div>;
       })}
-      <footer className="budget-discipline-footer"><span>{changed.length > 0 ? `${changed.length} unsaved change(s)` : 'No unsaved changes'}</span><button className="btn btn-secondary" disabled={locked || busy || changed.length === 0 || invalid} onClick={async () => { const out = await save(group.disciplineId, changed.map(row => drafts[row.workGroupId])); out.ok ? onSuccess?.(`${group.disciplineLabel} saved.`) : onError?.(out.error); }}>{locked ? 'Locked' : busy ? 'Saving...' : 'Save section'}</button><button className="btn btn-primary" disabled={locked || busy || submitInputs.length === 0 || submitInvalid} onClick={async () => { const out = await save(group.disciplineId, submitInputs); out.ok ? onSuccess?.(`${group.disciplineLabel}: ${submitInputs.length} work(s) submitted.`) : onError?.(out.error); }}>{locked ? 'Locked' : busy ? 'Submitting...' : 'Submit section'}</button></footer>
+      <footer className="budget-discipline-footer"><span>{changed.length > 0 ? `${changed.length} unsaved change(s)` : 'No unsaved changes'}</span><button className="btn btn-secondary" disabled={locked || busy || changed.length === 0 || invalid} onClick={async () => { const out = await save(group.disciplineId, changed.map(row => drafts[row.workGroupId])); out.ok ? onSuccess?.(`${group.disciplineLabel} saved.`) : onError?.(out.error); }}>{locked ? 'Locked' : busy ? 'Saving...' : 'Save section'}</button><button className="btn btn-primary" disabled={locked || busy || submitInputs.length === 0 || submitInvalid} onClick={async () => { const out = await submit(group.disciplineId, submitInputs); out.ok ? onSuccess?.(`${group.disciplineLabel}: ${submitInputs.length} work(s) submitted.`) : onError?.(out.error); }}>{locked ? 'Locked' : busy ? 'Submitting...' : 'Submit section'}</button></footer>
     </div>
   </details>;
 }
@@ -147,12 +155,30 @@ function ApprovalControl({ editor, workspace, onSuccess, onError }) {
   const approvalIssues = validateBudgetReview({ decision: 'APPROVED', comment });
   const returnIssues = validateBudgetReview({ decision: 'REVISION_REQUIRED', comment });
   if (workspace.roundControl.state !== 'ISSUED') return null;
-  if (approval.baseline) return <section className="card budget-approval approved"><header><div><span>Approved Budget Baseline</span><h2>Budget Round {approval.baseline.sourceRoundNumber}</h2></div><strong>APPROVED</strong></header><div className="budget-baseline-total">{money(approval.baseline.total, approval.baseline.currencyCode)}</div><p>Immutable baseline approved {new Date(approval.baseline.approvedAt).toLocaleString()} across {approval.baseline.workGroupCount} Work Groups.</p></section>;
+  if (approval.baseline) return <section className="card budget-approval approved budget-approved-status"><header><div><span>Current budget status</span><h2>Budget approved</h2></div><strong>APPROVED</strong></header><div className="budget-baseline-total">{money(approval.baseline.total, approval.baseline.currencyCode)}</div><p>Budget Round {approval.baseline.sourceRoundNumber} was approved {new Date(approval.baseline.approvedAt).toLocaleString()}. This immutable baseline contains {approval.baseline.workGroupCount} Work Groups.</p></section>;
   if (approval.currentReview) return <section className={`card budget-approval ${approval.currentReview.decision.toLowerCase()}`}><header><div><span>Management Review</span><h2>{approval.currentReview.decision === 'APPROVED' ? 'Approved' : 'Revision Required'}</h2></div><strong>{approval.currentReview.decision.replace('_', ' ')}</strong></header>{approval.currentReview.comment && <p>{approval.currentReview.comment}</p>}<small>Decision recorded {new Date(approval.currentReview.reviewedAt).toLocaleString()}.</small></section>;
   if (!approval.canReview) return <section className="card budget-approval pending"><header><div><span>Management Review</span><h2>Awaiting authorised reviewer</h2></div><strong>PENDING</strong></header><p>An Admin with access to this project must review the issued round.</p></section>;
   const reportBlocksApproval = !workspace.approvalReport?.approvalReady;
   const nextRound = workspace.roundControl.currentRoundNumber + 1;
   return <section className="card budget-approval pending"><header><div><span>Management Review</span><h2>Review issued Budget Round</h2></div><strong>DECISION REQUIRED</strong></header><div className="budget-review-form"><label>Management comment<textarea className="ds-input" maxLength="2000" value={comment} onChange={event => setComment(event.target.value)} placeholder="Required when returning the budget; optional when approving" /></label><div className="budget-review-actions"><button className="btn btn-primary" disabled={approvalIssues.length > 0 || reportBlocksApproval || Boolean(editor.busy)} title={reportBlocksApproval ? 'Resolve unexplained variance and open questions first' : ''} onClick={async () => { const out = await editor.reviewRound({ decision: 'APPROVED', comment }); out.ok ? onSuccess?.('Approved Budget Baseline created.') : onError?.(out.error); }}>{editor.busy === 'review-round' ? 'Recording...' : 'Budget approved'}</button><button className="btn btn-secondary" disabled={returnIssues.length > 0 || Boolean(editor.busy)} onClick={async () => { const out = await editor.returnForNextRound(comment); out.ok ? onSuccess?.(`Budget returned and Round ${nextRound} opened.`) : onError?.(out.error); }}>{editor.busy === 'return-next-round' ? 'Returning...' : `Return budget for Round ${nextRound}`}</button></div></div></section>;
+}
+
+function ApprovedBudgetTable({ workspace }) {
+  const baseline = workspace.approval.baseline;
+  const report = workspace.approvalReport;
+  const sections = report?.sectionTotals || [];
+  const projectArea = report?.projectAreaSqm == null ? 'Not set' : `${report.projectAreaSqm} m²`;
+  return <section className="card budget-approved-table">
+    <header><div><span>Approved Budget Baseline</span><h2>Approved budget by section</h2></div><strong>Round {baseline.sourceRoundNumber}</strong></header>
+    {sections.length > 0 ? <div className="budget-management-table">
+      <table aria-label="Approved budget by section">
+        <caption>Project area: <strong>{projectArea}</strong></caption>
+        <thead><tr><th>Section</th><th>Included works</th><th>Approved amount</th><th>Per m²</th></tr></thead>
+        <tbody>{sections.map(section => <tr key={section.sectionCode}><td><strong>{section.sectionCode}</strong> {section.sectionLabel}</td><td>{section.workGroupCount}</td><td>{money(section.amount, baseline.currencyCode)}</td><td>{section.amountPerSqm == null ? '—' : money(section.amountPerSqm, baseline.currencyCode)}</td></tr>)}</tbody>
+        <tfoot><tr><th>TOTAL APPROVED</th><th>{baseline.workGroupCount}</th><th>{money(baseline.total, baseline.currencyCode)}</th><th>{report.totalAmountPerSqm == null ? '—' : money(report.totalAmountPerSqm, baseline.currencyCode)}</th></tr></tfoot>
+      </table>
+    </div> : <p>The approved total is available above. Section-level details are unavailable for this historical baseline.</p>}
+  </section>;
 }
 
 const varianceReasons=[['MARKET_PRICE_INCREASE','Market price increase'],['LABOR_COST_INCREASE','Labor cost increase'],['QUANTITY_INCREASE','Quantity increase'],['SCOPE_INCREASE','Scope increase'],['SPECIFICATION_UPGRADE','Specification upgrade'],['CURRENCY_IMPACT','Currency impact'],['LOGISTICS','Logistics'],['REGULATORY_REQUIREMENT','Regulatory requirement'],['DESIGN_CHANGE','Design change'],['PREVIOUS_BENCHMARK_NOT_COMPARABLE','Previous benchmark not comparable'],['BUDGET_METHODOLOGY_CHANGE','Budget methodology change'],['OTHER','Other']];

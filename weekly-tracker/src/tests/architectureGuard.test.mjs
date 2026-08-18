@@ -387,6 +387,12 @@ function formatViolation(v) {
 
 const archViolations = scanArchitectureDebt();
 
+const dynamicSupabaseImports = sourceFiles
+  .filter(({ rel, text }) => /^(?:pages|components|hooks)\//.test(rel)
+    && /import\s*\(\s*['"][^'"]*lib\/supabase(?:\.js)?['"]\s*\)/.test(text))
+  .map(({ rel }) => rel);
+check(`UI cannot evade the persistence boundary with dynamic Supabase imports (violations: ${dynamicSupabaseImports.join(', ') || 'none'})`, dynamicSupabaseImports.length === 0);
+
 if (process.argv.includes('--write-allowlist')) {
   console.error('architectureGuard is HARD: there is no allowlist to (re)write anymore. Fix the violation(s) instead — see DESIGN.md.');
   process.exit(1);
@@ -439,8 +445,11 @@ const commercialRoleBranches = commercialUiFiles.filter(({ text }) => /\brole\s*
 check(`commercial React contains no role-based authorization decisions (violations: ${commercialRoleBranches.join(', ') || 'none'})`, commercialRoleBranches.length === 0);
 
 const projectVariationsUi = readFileSync(path.join(srcRoot, 'pages/ProjectVariations.jsx'), 'utf8');
+const projectCostForecastUi = readFileSync(path.join(srcRoot, 'pages/ProjectCostForecast.jsx'), 'utf8');
 check('Cost Package Financial Overview is the only project commercial truth panel',
-  /CostPackageFinancialOverview/.test(projectVariationsUi) && !/ForecastPanel|CommercialHealthPanel|VariationExposure/.test(projectVariationsUi));
+  /CostPackageFinancialOverview/.test(projectCostForecastUi)
+  && !/CostPackageFinancialOverview/.test(projectVariationsUi)
+  && !/ForecastPanel|CommercialHealthPanel|VariationExposure/.test(projectCostForecastUi + projectVariationsUi));
 
 console.log(`\n-- FINAL RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

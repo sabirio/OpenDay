@@ -57,18 +57,8 @@ export function validateProject(project, requireId = false) {
     throw new Error('Sales Area cannot exceed Total Area');
   }
 
-  const moneyFields = ['budget', 'actualCost'];
-  for (const f of moneyFields) {
-    if (project[f] !== '' && project[f] != null && Number(project[f]) < 0) {
-      throw new Error(`${f} cannot be negative`);
-    }
-  }
-  const hasMoney = (project?.budget !== '' && project?.budget != null) || (project?.actualCost !== '' && project?.actualCost != null);
   if (project?.currencyCode && !PROJECT_CURRENCY_CODES.includes(project.currencyCode)) {
     throw new Error('Currency must be KZT, USD, or EUR');
-  }
-  if (hasMoney && !project?.currencyCode?.trim()) {
-    throw new Error('Currency is required when Budget or Actual Cost is set');
   }
 }
 
@@ -139,8 +129,11 @@ export function fromDB(row) {
     actualConstructionStartDate:      row.actual_construction_start_date      || null,
     actualConstructionCompletionDate: row.actual_construction_completion_date || null,
     actualOpeningDate:                row.actual_opening_date                 || null,
-    budget:                           row.budget                            ?? null,
-    actualCost:                       row.actual_cost                       ?? null,
+    // Compatibility-only historical fields. Live project writes never
+    // serialize these columns: Approved Budget Baseline, Cost Packages and
+    // Project Cost Closeout are the commercial sources of truth.
+    legacyBudget:                     row.budget                            ?? null,
+    legacyActualCost:                 row.actual_cost                       ?? null,
     currencyCode:                     row.currency_code                     || null,
   };
 }
@@ -177,7 +170,6 @@ export function toDB(project, { preserveLegacyZoneAreas = false } = {}) {
     general_contractor: project.generalContractor || null,
     contractor_email: project.contractorEmail || null,
     project_type: project.projectType || 'New Opening',
-    project_status: project.projectStatus || 'Active',
     company_id: project.companyId || null,
     phases:      project.phases      || [],
     // Scope is persisted as selection/configuration only for new projects.
@@ -212,8 +204,6 @@ export function toDB(project, { preserveLegacyZoneAreas = false } = {}) {
     actual_construction_start_date: project.actualConstructionStartDate || null,
     actual_construction_completion_date: project.actualConstructionCompletionDate || null,
     actual_opening_date: project.actualOpeningDate || null,
-    budget: project.budget === '' || project.budget == null ? null : project.budget,
-    actual_cost: project.actualCost === '' || project.actualCost == null ? null : project.actualCost,
     currency_code: project.currencyCode || null,
   };
 }
@@ -404,14 +394,12 @@ export async function createContractorManagedProject(project, scopeWpIds, client
       hrManager: project.hrManager || null,
       supplyManager: project.supplyManager || null,
       projectType: project.projectType || null,
-      projectStatus: project.projectStatus || null,
       companyId: project.companyId || null,
       locationType: project.locationType || null,
       storeConcept: project.storeConcept || null,
       storeSizeSqm: project.storeSizeSqm === '' || project.storeSizeSqm == null ? null : project.storeSizeSqm,
       salesAreaSqm: project.salesAreaSqm === '' || project.salesAreaSqm == null ? null : project.salesAreaSqm,
       backOfHouseAreaSqm: project.backOfHouseAreaSqm === '' || project.backOfHouseAreaSqm == null ? null : project.backOfHouseAreaSqm,
-      budget: project.budget === '' || project.budget == null ? null : project.budget,
       currencyCode: project.currencyCode || null,
       scope: project.scope || null,
       workOntologyVersionId: project.workOntologyVersionId || project.scope?.workOntologyVersionId || null,

@@ -2,9 +2,11 @@ import { Link, useParams } from 'react-router-dom';
 import { useProjectBudget } from '../hooks/useProjectBudget.js';
 import { useToast } from '../components/shared/Toast.jsx';
 import DepartmentalBudgetWorkspace from '../components/budget/DepartmentalBudgetWorkspace.jsx';
+import { useProjectReturnHref } from '../hooks/useProjectReturnHref.js';
 
 export default function ProjectBudget() {
   const { projectId } = useParams();
+  const backHref = useProjectReturnHref(projectId, 'commercial');
   const editor = useProjectBudget({ id: projectId });
   const toast = useToast();
   if (editor.status === 'loading') return <div className="boq-state">Loading budget…</div>;
@@ -27,7 +29,7 @@ export default function ProjectBudget() {
   };
 
   return <main className="budget-page">
-    <header className="boq-page-header"><div><Link to="/budgets">← Budget Inbox</Link><span>{workspace.projectCode}</span><h1>Departmental Budget</h1><p>Collaborative management-level budgeting by canonical Work Group.</p></div></header>
+    <header className="boq-page-header"><div><Link to={backHref}>← Project Commercial</Link><span>{workspace.projectCode}</span><h1>Departmental Budget</h1><p>Collaborative management-level budgeting by canonical Work Group.</p></div></header>
     <DepartmentalBudgetWorkspace editor={editor} project={project} onExport={exportExcel} onSuccess={toast.success} onError={error => toast.error(error?.message || 'Budget action failed.')} />
   </main>;
 }

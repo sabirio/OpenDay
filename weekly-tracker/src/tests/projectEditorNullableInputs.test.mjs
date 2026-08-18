@@ -19,8 +19,6 @@ const nullableFields = [
   'constructionStartDate',
   'constructionEndDate',
   'targetOpeningDate',
-  'projectManager',
-  'generalContractor',
 ];
 
 let passed = 0;

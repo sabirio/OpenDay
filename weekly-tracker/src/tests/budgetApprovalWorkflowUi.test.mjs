@@ -3,7 +3,7 @@ check('issued round shows Management Review state',/Management Review/.test(comp
 check('reviewer has explicit approve and return-for-next-round actions',/Budget approved/.test(component)&&/Return budget for Round/.test(component)&&/REVISION_REQUIRED/.test(component));
 check('revision comment validation exists',/validateBudgetReview/.test(model)&&/BUDGET_REVISION_COMMENT_REQUIRED/.test(model));
 check('review access is explained for non-admin viewers',/Admin with access to this project must review/.test(component)&&!/person who issued this round cannot approve it/.test(component));
-check('approved immutable baseline is visible',/Approved Budget Baseline/.test(component)&&/Immutable baseline approved/.test(component)&&/baseline\.sourceRoundNumber/.test(component));
+check('approved immutable baseline is the primary current status',/Current budget status/.test(component)&&/Budget approved/.test(component)&&/Approved Budget Baseline/.test(component)&&/baseline\.sourceRoundNumber/.test(component));
 check('next round action requires revision decision',/currentReview\?\.decision === 'REVISION_REQUIRED'/.test(component));
 check('hook loads approval and refreshes after decision',/loadBudgetApproval/.test(hook)&&/commitBudgetReview/.test(hook)&&/reviewRound/.test(hook));
 check('return action records revision and immediately opens the next round',/returnForNextRound/.test(hook)&&/commitNextBudgetRound/.test(hook)&&/return-next-round/.test(hook));

@@ -1,16 +1,25 @@
-import { assessCostPackageDraft, assessMembershipDraft, assessTenderPackageDraft, buildCommercialFoundationView, createNewCostPackageDraft, createNewMembershipDraft, createNewTenderPackageDraft, getCostPackageCommand, getMembershipCommand, getTenderPackageCommand, patchCostPackageDraft, patchMembershipDraft, patchTenderPackageDraft, selectCostPackageDraft, selectMembershipDraft, selectTenderPackageDraft, toggleCostPackageWorkGroup, toggleMembershipCapability, toggleMembershipCostPackage, toggleTenderCostPackage } from '../../engines/commercialFoundationEngine.js';
+import { assessCostPackageDraft, assessMembershipDraft, assessTenderPackageDraft, buildCommercialFoundationView, changeStrategyDraft, createNewCostPackageDraft, createNewMembershipDraft, createNewTenderPackageDraft, createStrategyDraft, filterAvailableProjectUsers, getCostPackageCommand, getMembershipCommand, getStrategyCommand, getTenderPackageCommand, inspectStrategyDraft, patchCostPackageDraft, patchMembershipDraft, patchTenderPackageDraft, presentStrategyDraft, selectCostPackageDraft, selectMembershipDraftRecord, selectTenderPackageDraft, toggleCostPackageWorkGroup, toggleTenderCostPackage } from '../../engines/commercialFoundationEngine.js';
 import { createClientRequestId } from '../write/writeCommand.js';
-import { createTenderPackage, loadCommercialFoundation, loadProjectTeamFoundation, saveCostPackage, saveProjectTeamMembership, saveTenderPackageIdentity } from '../../services/commercialFoundationService.js';
+import { addProjectTeamMember, createTenderPackage, loadCommercialFoundation, loadProcurementStrategy, loadProjectTeamFoundation, removeProjectTeamMember, saveCostPackage, saveProcurementStrategy, saveTenderPackageIdentity, updateProjectTeamMemberDepartment } from '../../services/commercialFoundationService.js';
 import { fetchWorkOntologyVersionById } from '../../services/workOntologyService.js';
 
 export async function loadCommercialSetup(project) {
   if (!project?.workOntologyVersionId) throw Object.assign(new Error('PROJECT_REQUIRES_WORK_ONTOLOGY'), { code: 'PROJECT_REQUIRES_WORK_ONTOLOGY' });
-  const [commercial, team, ontology] = await Promise.all([
+  const [commercial, team, ontology, procurementStrategy] = await Promise.all([
     loadCommercialFoundation(project.id),
     loadProjectTeamFoundation(project.id),
     fetchWorkOntologyVersionById(project.workOntologyVersionId),
+    loadProcurementStrategy(project.id),
   ]);
-  return buildCommercialFoundationView({ project, commercial, team, ontology });
+  return buildCommercialFoundationView({ project, commercial, team, ontology, procurementStrategy });
+}
+
+export function startProcurementStrategyDraft(view) { return createStrategyDraft(view); }
+export function changeProcurementStrategyDraft(draft, sectionCode, procurementMethod) { return changeStrategyDraft(draft, sectionCode, procurementMethod); }
+export function inspectProcurementStrategyDraft(draft) { return inspectStrategyDraft(draft); }
+export function presentProcurementStrategyDraft(view, draft) { return presentStrategyDraft(view, draft); }
+export async function commitProcurementStrategy(projectId, draft) {
+  return saveProcurementStrategy(projectId, getStrategyCommand(draft), createClientRequestId());
 }
 
 export function startCostPackageDraft(view) {
@@ -24,16 +33,19 @@ export async function commitCostPackage(projectId, draft) {
   return saveCostPackage(projectId, getCostPackageCommand(draft), createClientRequestId());
 }
 
-export function startMembershipDraft(view) {
-  return createNewMembershipDraft(view, createClientRequestId(), new Date().toISOString().slice(0, 10));
-}
-export function editMembershipDraft(view, id) { return selectMembershipDraft(view, id); }
-export function changeMembershipDraft(view, draft, patch) { return patchMembershipDraft(view, draft, patch); }
-export function changeMembershipCapability(draft, code) { return toggleMembershipCapability(draft, code); }
-export function changeMembershipPackage(draft, id) { return toggleMembershipCostPackage(draft, id); }
+export function startMembershipDraft(view, membershipId = null) { return createNewMembershipDraft(view, membershipId); }
+export function presentMembershipDraft(view, draft) { return selectMembershipDraftRecord(view, draft); }
+export function findMembershipCandidates(view, query) { return filterAvailableProjectUsers(view, query); }
+export function changeMembershipDraft(draft, patch) { return patchMembershipDraft(draft, patch); }
 export function inspectMembershipDraft(view, draft) { return assessMembershipDraft(view, draft); }
 export async function commitMembership(projectId, view, draft) {
-  return saveProjectTeamMembership(projectId, getMembershipCommand(view, draft), createClientRequestId());
+  const payload = getMembershipCommand(view, draft);
+  return payload.membershipId
+    ? updateProjectTeamMemberDepartment(projectId, payload, createClientRequestId())
+    : addProjectTeamMember(projectId, payload, createClientRequestId());
+}
+export async function removeMembership(projectId, membership) {
+  return removeProjectTeamMember(projectId, membership.membershipId, membership.revision, createClientRequestId());
 }
 
 export function startTenderPackageDraft(view) { return createNewTenderPackageDraft(view, createClientRequestId()); }

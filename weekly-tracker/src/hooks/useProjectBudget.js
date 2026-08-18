@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { commitBudgetContribution, commitBudgetCycle, commitBudgetReview, commitBudgetRound, commitBudgetVarianceContext, commitNextBudgetRound, loadApprovalReport, loadBudgetApproval, loadDepartmentalBudget } from '../core/budget/budgetOrchestration.js';
+import { commitBudgetContribution, commitBudgetCycle, commitBudgetDisciplineSubmission, commitBudgetReview, commitBudgetRound, commitBudgetVarianceContext, commitNextBudgetRound, loadApprovalReport, loadBudgetApproval, loadDepartmentalBudget } from '../core/budget/budgetOrchestration.js';
 import { planProjectBudgetWorkbookImport } from '../core/budget/budgetSpreadsheetOrchestration.js';
 
 export function useProjectBudget(project) {
@@ -34,6 +34,12 @@ export function useProjectBudget(project) {
     catch (error) { return { ok: false, error }; }
     finally { setBusy(null); }
   };
+  const submitContributions = async (disciplineId, inputs) => {
+    setBusy(`discipline-${disciplineId}`);
+    try { const result = await commitBudgetDisciplineSubmission(state.workspace.cycle.budgetCycleId, disciplineId, inputs); await load(); return { ok: true, result }; }
+    catch (error) { return { ok: false, error }; }
+    finally { setBusy(null); }
+  };
   const issueRound=async()=>{setBusy('issue-round');try{const result=await commitBudgetRound(state.workspace.cycle.budgetCycleId,{revision:state.workspace.roundControl.revision});await load();return{ok:true,result}}catch(error){await load();return{ok:false,error}}finally{setBusy(null)}};
   const startNextRound=async note=>{setBusy('next-round');try{const result=await commitNextBudgetRound(state.workspace.cycle.budgetCycleId,{note,revision:state.workspace.roundControl.revision});await load();return{ok:true,result}}catch(error){return{ok:false,error}}finally{setBusy(null)}};
   const reviewRound=async input=>{setBusy('review-round');try{const result=await commitBudgetReview(state.workspace.rounds[0].roundId,{...input,revision:state.workspace.approval.approvalRevision});await load();return{ok:true,result}}catch(error){return{ok:false,error}}finally{setBusy(null)}};
@@ -41,5 +47,5 @@ export function useProjectBudget(project) {
   const saveVarianceContext=async input=>{setBusy(`variance-${input.workGroupId}`);try{const result=await commitBudgetVarianceContext(state.workspace.approvalReport.roundId,input);await load();return{ok:true,result}}catch(error){return{ok:false,error}}finally{setBusy(null)}};
   const previewImport=async file=>{const data=await file.arrayBuffer();const exchangeFile={filename:file.name,data};const plan=planProjectBudgetWorkbookImport(exchangeFile,{projectId,workspace:state.workspace});setImportState({status:plan.ok?'ready':'invalid',file:exchangeFile,plan});return plan};
   const commitImport=async()=>{setBusy('budget-import');setImportState(current=>({...current,status:'committing'}));try{const plan=planProjectBudgetWorkbookImport(importState.file,{projectId,workspace:state.workspace});if(!plan.ok){const error=new Error('INVALID_PROJECT_BUDGET_WORKBOOK');error.code='INVALID_PROJECT_BUDGET_WORKBOOK';error.issues=plan.issues;throw error}for(let index=0;index<plan.changes.length;index+=20)await Promise.all(plan.changes.slice(index,index+20).map(input=>commitBudgetContribution(state.workspace.cycle.budgetCycleId,input)));await load();return{ok:true,summary:plan.summary}}catch(error){setImportState(current=>({...current,status:'invalid',plan:{ok:false,issues:error.issues||[{code:error.code||'BUDGET_IMPORT_FAILED'}]}}));return{ok:false,error}}finally{setBusy(null)}};
-  return { ...state, busy, importState, createCycle, saveContributions, issueRound, startNextRound, reviewRound, returnForNextRound, saveVarianceContext, previewImport, commitImport, dismissImport:()=>setImportState({status:'idle',file:null,plan:null}), retry: load };
+  return { ...state, busy, importState, createCycle, saveContributions, submitContributions, issueRound, startNextRound, reviewRound, returnForNextRound, saveVarianceContext, previewImport, commitImport, dismissImport:()=>setImportState({status:'idle',file:null,plan:null}), retry: load };
 }

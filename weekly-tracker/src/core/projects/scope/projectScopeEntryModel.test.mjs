@@ -130,16 +130,13 @@ const configuratorSource = readFileSync(
 );
 check('new create action initializes scope before opening editor',
   projectsSource.includes('initializeNewProjectScope(emptyProject)'));
-check('technical template choices are gated behind legacy edit compatibility',
-  modalSource.includes('unifiedScopeEntry ? (')
-  && modalSource.includes('title="Construction Template"'));
-check('new-project editor exposes UUID-backed Discipline selection',
-  modalSource.includes('title="Disciplines"')
-  && modalSource.includes('workOntologyVersionId')
-  && modalSource.includes('disciplineIds'));
-check('PM-facing action is Configure Project Scope',
-  modalSource.includes('Configure Project Scope')
-  && configuratorSource.includes('Configure Project Scope')
+check('project editor no longer exposes legacy template, Discipline, or Project Scope controls',
+  !modalSource.includes('title="Construction Template"')
+  && !modalSource.includes('title="Disciplines"')
+  && !modalSource.includes('title="Project Scope"')
+  && !modalSource.includes('Configure Project Scope'));
+check('standalone configurator retains its own clear heading for legacy compatibility',
+  configuratorSource.includes('Configure Project Scope')
   && !configuratorSource.includes('Configure Zoned Scope'));
 check('configurator no longer imports static V2 definition directly',
   !configuratorSource.includes("domains/construction/templates/retailFitoutV2"));

@@ -1,7 +1,6 @@
 import { COST_PACKAGE_STATUSES, PROCUREMENT_METHODS, buildCostPackagePayload, createCostPackageDraft, groupCostPackageScope, validateCostPackageDraft } from '../domains/commercial/costPackageModel.js';
+import { PROCUREMENT_ROUTES, assessProcurementStrategyDraft, buildProcurementStrategyCommand, buildProcurementStrategyDraftPresentation, buildProcurementStrategySections, createProcurementStrategyDraft, patchProcurementStrategyDraft } from '../domains/commercial/procurementStrategyModel.js';
 
-export const PROJECT_ROLES = Object.freeze(['PM', 'CONSULTANT', 'FUNCTION_OWNER', 'APPROVER', 'EXECUTIVE']);
-export const RESPONSIBILITY_TYPES = Object.freeze(['OWNER', 'CONSULTANT', 'APPROVER', 'CONTRIBUTOR']);
 export const BOQ_MODES = Object.freeze([
   { value: 'CONTRACTOR_MEASURED', label: 'Contractor Measured', description: 'Contractor builds quantities; Consultant Qty is hidden.' },
   { value: 'CONSULTANT_MEASURED', label: 'Consultant Measured', description: 'Consultant BOQ is reviewed and frozen before invitation.' },
@@ -21,28 +20,16 @@ function packageDraftFromRecord(record) {
   };
 }
 
-function membershipDraftFromRecord(record) {
-  return {
-    membershipId: record.membershipId,
-    userId: record.userId,
-    projectRole: record.projectRole,
-    responsibilityLabel: record.responsibilityLabel,
-    startsOn: record.startsOn,
-    endsOn: record.endsOn || '',
-    notificationsEnabled: record.notificationsEnabled !== false,
-    capabilityCodes: record.capabilityCodes || [],
-    costPackageIds: record.costPackageIds || [],
-    responsibilityType: record.responsibilityType || 'CONTRIBUTOR',
-    expectedRevision: record.revision,
-  };
+function getPersonInitials(name) {
+  return String(name || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 }
 
-export function buildCommercialFoundationView({ project, commercial, team, ontology }) {
+export function buildCommercialFoundationView({ project, commercial, team, ontology, procurementStrategy }) {
   const costPackages = commercial?.costPackages || [];
   const methodLabels = Object.fromEntries(PROCUREMENT_METHODS.map(item => [item.value, item.label]));
-  const capabilitiesByRole = Object.fromEntries(PROJECT_ROLES.map(role => [role, (team?.capabilityCatalog || []).filter(item => item.allowedProjectRoles.includes(role))]));
   const memberships = (team?.memberships || []).map(item => ({
     ...item,
+    initials: getPersonInitials(item.name),
     periodLabel: `${item.startsOn} → ${item.endsOn || 'Closeout'}`,
     packageCount: (item.costPackageIds || []).length,
   }));
@@ -53,9 +40,14 @@ export function buildCommercialFoundationView({ project, commercial, team, ontol
     packageCount: (item.costPackageIds || []).length,
     canEdit: item.status === 'DRAFT',
   }));
+  const strategySections = buildProcurementStrategySections(ontology, procurementStrategy?.sections);
   return {
     project: { id: project.id, code: project.storeCode, currencyCode: commercial?.currencyCode || project.currencyCode },
     procurementMethods: PROCUREMENT_METHODS,
+    procurementRoutes: PROCUREMENT_ROUTES,
+    procurementStrategySections: strategySections,
+    procurementStrategyConfiguredCount: strategySections.filter(section => section.configured).length,
+    procurementStrategyTenderCount: strategySections.filter(section => section.tenderEligible).length,
     costPackageStatuses: COST_PACKAGE_STATUSES,
     scopeSections: groupCostPackageScope(ontology),
     costPackages: costPackages.map(item => ({ ...item, procurementMethodLabel: methodLabels[item.procurementMethod] || item.procurementMethod, scopeCount: (item.workGroupIds || []).length, canEdit: !['COMMITTED', 'CLOSED', 'ARCHIVED'].includes(item.status) })),
@@ -65,15 +57,18 @@ export function buildCommercialFoundationView({ project, commercial, team, ontol
     tenderPackageCount: tenderPackages.length,
     hasTenderPackages: tenderPackages.length > 0,
     boqModes: BOQ_MODES,
-    capabilityCatalog: team?.capabilityCatalog || [],
-    capabilitiesByRole,
-    availableUsers: team?.availableUsers || [],
+    availableUsers: (team?.availableUsers || []).map(item => ({ ...item, initials: getPersonInitials(item.name) })),
+    departments: team?.departments || [],
     memberships,
     hasMemberships: memberships.length > 0,
-    projectRoles: PROJECT_ROLES,
-    responsibilityTypes: RESPONSIBILITY_TYPES,
   };
 }
+
+export function createStrategyDraft(view) { return createProcurementStrategyDraft(view.procurementStrategySections); }
+export function changeStrategyDraft(draft, sectionCode, procurementMethod) { return patchProcurementStrategyDraft(draft, sectionCode, procurementMethod); }
+export function inspectStrategyDraft(draft) { return assessProcurementStrategyDraft(draft); }
+export function getStrategyCommand(draft) { return buildProcurementStrategyCommand(draft); }
+export function presentStrategyDraft(view, draft) { return buildProcurementStrategyDraftPresentation(view?.procurementStrategySections, draft); }
 
 function tenderDraftFromRecord(record) {
   return { tenderId: record.tenderId, tenderNumber: record.tenderNumber, costPackageIds: record.costPackageIds || [], procurementMethod: record.procurementMethod, boqMode: record.boqMode, expectedRevision: record.commercialRevision };
@@ -144,62 +139,40 @@ export function getCostPackageCommand(draft) {
   return buildCostPackagePayload(draft);
 }
 
-function defaultCapabilities(catalog, projectRole) {
-  return catalog.filter(item => item.allowedProjectRoles.includes(projectRole)).map(item => item.code);
-}
-
-export function createNewMembershipDraft(view, id, startsOn) {
-  const initialRole = 'FUNCTION_OWNER';
+export function createNewMembershipDraft(view, membershipId = null) {
+  const membership = membershipId ? view?.memberships?.find(item => item.membershipId === membershipId) : null;
   return {
-    membershipId: id,
-    userId: '',
-    projectRole: initialRole,
-    responsibilityLabel: '',
-    startsOn,
-    endsOn: '',
-    notificationsEnabled: true,
-    capabilityCodes: defaultCapabilities(view.capabilityCatalog, initialRole),
-    costPackageIds: [],
-    responsibilityType: 'OWNER',
-    expectedRevision: 0,
+    membershipId: membership?.membershipId || null,
+    userId: membership?.userId || '',
+    departmentCode: membership?.departmentCode || view?.departments?.[0]?.code || '',
+    expectedRevision: membership?.revision || 0,
   };
 }
 
-export function selectMembershipDraft(view, id) {
-  const record = view.memberships.find(item => item.membershipId === id);
-  return record ? membershipDraftFromRecord(record) : null;
+export function selectMembershipDraftRecord(view, draft) {
+  if (!draft?.membershipId) return null;
+  return view?.memberships?.find(item => item.membershipId === draft.membershipId) || null;
 }
 
-export function patchMembershipDraft(view, draft, patch) {
-  if (patch.projectRole && patch.projectRole !== draft.projectRole) {
-    return { ...draft, ...patch, capabilityCodes: defaultCapabilities(view.capabilityCatalog, patch.projectRole) };
-  }
-  return { ...draft, ...patch };
+export function filterAvailableProjectUsers(view, query) {
+  const normalized = String(query || '').trim().toLowerCase();
+  if (!normalized) return view.availableUsers;
+  return view.availableUsers.filter(user => [user.name, user.email, user.role]
+    .some(value => String(value || '').toLowerCase().includes(normalized)));
 }
 
-export function toggleMembershipCapability(draft, capabilityCode) {
-  const exists = draft.capabilityCodes.includes(capabilityCode);
-  return { ...draft, capabilityCodes: exists ? draft.capabilityCodes.filter(code => code !== capabilityCode) : [...draft.capabilityCodes, capabilityCode] };
-}
-
-export function toggleMembershipCostPackage(draft, costPackageId) {
-  const exists = draft.costPackageIds.includes(costPackageId);
-  return { ...draft, costPackageIds: exists ? draft.costPackageIds.filter(id => id !== costPackageId) : [...draft.costPackageIds, costPackageId] };
-}
+export function patchMembershipDraft(draft, patch) { return { ...draft, ...patch }; }
 
 export function getMembershipIssues(view, draft) {
   if (!draft) return [];
   const issues = [];
   if (!draft.userId) issues.push({ code: 'TEAM_USER_REQUIRED' });
-  if (!PROJECT_ROLES.includes(draft.projectRole)) issues.push({ code: 'TEAM_ROLE_REQUIRED' });
-  if (!draft.responsibilityLabel.trim()) issues.push({ code: 'TEAM_RESPONSIBILITY_REQUIRED' });
-  if (!draft.startsOn) issues.push({ code: 'TEAM_START_DATE_REQUIRED' });
-  if (draft.endsOn && draft.endsOn < draft.startsOn) issues.push({ code: 'TEAM_END_DATE_INVALID' });
-  const allowed = new Set(view.capabilityCatalog.filter(item => item.allowedProjectRoles.includes(draft.projectRole)).map(item => item.code));
-  if (draft.capabilityCodes.some(code => !allowed.has(code))) issues.push({ code: 'TEAM_CAPABILITY_NOT_ALLOWED' });
-  const required = { PM: ['PROJECT_MANAGE', 'TEAM_MANAGE'], CONSULTANT: ['BOQ_PREPARE'], APPROVER: ['COMMERCIAL_APPROVE'], EXECUTIVE: ['EXECUTIVE_SUMMARY'] }[draft.projectRole] || [];
-  if (required.some(code => !draft.capabilityCodes.includes(code))) issues.push({ code: 'TEAM_REQUIRED_CAPABILITY_MISSING' });
-  if (draft.costPackageIds.some(id => !view.costPackages.some(item => item.costPackageId === id))) issues.push({ code: 'TEAM_PACKAGE_SCOPE_INVALID' });
+  const editingMembership = draft.membershipId
+    ? view.memberships.find(item => item.membershipId === draft.membershipId && item.userId === draft.userId)
+    : null;
+  if (draft.membershipId && !editingMembership) issues.push({ code: 'TEAM_MEMBERSHIP_NOT_AVAILABLE' });
+  if (!draft.membershipId && draft.userId && !view.availableUsers.some(user => user.userId === draft.userId)) issues.push({ code: 'TEAM_USER_NOT_AVAILABLE' });
+  if (!view.departments.some(item => item.code === draft.departmentCode)) issues.push({ code: 'TEAM_DEPARTMENT_REQUIRED' });
   return issues;
 }
 
@@ -211,5 +184,10 @@ export function assessMembershipDraft(view, draft) {
 export function getMembershipCommand(view, draft) {
   const issues = getMembershipIssues(view, draft);
   if (issues.length) throw Object.assign(new Error('INVALID_PROJECT_TEAM_MEMBERSHIP'), { code: 'INVALID_PROJECT_TEAM_MEMBERSHIP', issues });
-  return { ...draft, endsOn: draft.endsOn || null };
+  return {
+    membershipId: draft.membershipId,
+    userId: draft.userId,
+    departmentCode: draft.departmentCode,
+    expectedRevision: draft.expectedRevision,
+  };
 }

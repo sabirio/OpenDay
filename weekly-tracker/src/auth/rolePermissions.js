@@ -57,7 +57,6 @@ export const NAV_ITEMS = [
   // module. Its canonical route (/projects/import) and permission
   // ('projects_import') are unchanged; only its sidebar presence moved.
   { to: '/projects',           label: 'Portfolio',        resource: 'projects'       },
-  { to: '/budgets',            label: 'Budget Inbox',     resource: 'budget_workspace' },
   { to: '/consultant-boqs',    label: 'Consultant BOQs',  resource: 'consultant_boq' },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
   { to: '/snags',              label: 'Site Snag',        resource: 'snags'          },

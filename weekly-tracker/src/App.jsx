@@ -57,6 +57,7 @@ const ProjectBudget = lazy(() => import("./pages/ProjectBudget"));
 const BudgetInbox = lazy(() => import("./pages/BudgetInbox"));
 const BidderTenderInbox = lazy(() => import("./pages/BidderTenderInbox"));
 const ProjectVariations = lazy(() => import("./pages/ProjectVariations"));
+const ProjectCostForecast = lazy(() => import("./pages/ProjectCostForecast"));
 const ProjectPayments = lazy(() => import("./pages/ProjectPayments"));
 const ProjectCloseout = lazy(() => import("./pages/ProjectCloseout"));
 const ProjectCommercialSetup = lazy(() => import("./pages/ProjectCommercialSetup"));
@@ -366,6 +367,7 @@ function App() {
         <Route path="/budgets" element={<ProtectedRoute resource="budget_workspace"><BudgetInbox/></ProtectedRoute>} />
         <Route path="/consultant-boqs" element={<ProtectedRoute resource="consultant_boq"><ConsultantBoqInbox/></ProtectedRoute>} />
         <Route path="/projects/:projectId/variations" element={<ProtectedRoute resource="variations"><ProjectVariations/></ProtectedRoute>} />
+        <Route path="/projects/:projectId/cost-forecast" element={<ProtectedRoute resource="variations"><ProjectCostForecast/></ProtectedRoute>} />
         <Route path="/projects/:projectId/payments" element={<ProtectedRoute resource="payments"><ProjectPayments/></ProtectedRoute>} />
         <Route path="/projects/:projectId/closeout" element={<ProtectedRoute resource="closeout"><ProjectCloseout/></ProtectedRoute>} />
 
@@ -503,7 +505,10 @@ function App() {
                       remain the final authority regardless. */}
                   <Route path="/projects/:projectId/schedule-review" element={<ProtectedRoute resource="schedule_review"><PMScheduleReview projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/boq" element={<ProtectedRoute resource="boq_editor"><ProjectBoq projects={projects}/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/commercial-setup" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/commercial-setup" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects} section="cost-packages"/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/cost-packages" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects} section="cost-packages"/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/project-team" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects} section="project-team"/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/tender-packages" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects} section="tender-packages"/></ProtectedRoute>} />
                   <Route path="/tenders/:tenderId/consultant-boq" element={<ProtectedRoute resource="consultant_boq"><ConsultantBoq/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/tender" element={<ProtectedRoute resource="tender_setup"><ProjectTenderSetup projects={projects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/budget" element={<ProtectedRoute resource="budget_workspace"><ProjectBudget projects={projects}/></ProtectedRoute>} />

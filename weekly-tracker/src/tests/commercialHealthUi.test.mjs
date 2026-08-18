@@ -1,1 +1,12 @@
-import{readFileSync}from'node:fs';const read=p=>readFileSync(new URL(p,import.meta.url),'utf8'),ui=read('../components/variations/CostPackageFinancialOverview.jsx'),legacy=read('../components/variations/CommercialHealthPanel.jsx'),engine=read('../engines/costPackageFinancialEngine.js'),page=read('../pages/ProjectVariations.jsx');let p=0,f=0;const c=(n,x)=>x?(p++,console.log(`  PASS ${n}`)):(f++,console.error(`  FAIL ${n}`));c('canonical commercial health is Cost Package based',/Financial Overview/.test(ui)&&/Budget/.test(ui)&&/Forecast/.test(ui)&&/Variance/.test(ui));c('financial presentation is engine-owned',/presentCostPackageFinancialOverview/.test(engine)&&!/Intl\.NumberFormat|\.reduce\(/.test(ui));c('legacy project health panel is compatibility-only',/Compatibility-only shell/.test(legacy)&&/return null/.test(legacy));c('project page renders only canonical overview',/CostPackageFinancialOverview/.test(page)&&!/CommercialHealthPanel/.test(page));console.log(`\nCommercial Health UI: ${p} passed, ${f} failed`);if(f)process.exit(1);
+import { existsSync, readFileSync } from 'node:fs';
+const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+const ui = read('../components/variations/CostPackageFinancialOverview.jsx');
+const engine = read('../engines/costPackageFinancialEngine.js');
+const page = read('../pages/ProjectCostForecast.jsx');
+let passed = 0; let failed = 0;
+const check = (name, condition) => condition ? (passed++, console.log(`  PASS ${name}`)) : (failed++, console.error(`  FAIL ${name}`));
+check('canonical commercial health is Cost Package based', /Financial Overview/.test(ui) && /Budget/.test(ui) && /Forecast/.test(ui) && /Variance/.test(ui));
+check('financial presentation is engine-owned', /presentCostPackageFinancialOverview/.test(engine) && !/Intl\.NumberFormat|\.reduce\(/.test(ui));
+check('legacy project health panel is removed', !existsSync(new URL('../components/variations/CommercialHealthPanel.jsx', import.meta.url)));
+check('dedicated Cost Package forecast page renders only canonical overview', /CostPackageFinancialOverview/.test(page) && !/CommercialHealthPanel/.test(page));
+console.log(`\nCommercial Health UI: ${passed} passed, ${failed} failed`); if (failed) process.exit(1);

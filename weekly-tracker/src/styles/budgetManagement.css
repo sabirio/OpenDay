@@ -2,6 +2,43 @@
   grid-template-columns: minmax(300px, 1fr) auto;
 }
 
+.budget-approved-status {
+  border-color: color-mix(in srgb, var(--status-done) 45%, var(--border-color));
+  background: linear-gradient(135deg, var(--status-done-bg), var(--bg-card) 62%);
+}
+
+.budget-approved-status h2 {
+  font-size: 1.5rem;
+}
+
+.budget-approved-table {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.budget-approved-table > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.budget-approved-table > header span {
+  color: var(--text-secondary);
+}
+
+.budget-approved-table > header h2 {
+  margin: 3px 0 0;
+}
+
+.budget-approved-table > header > strong {
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--status-done);
+  background: var(--status-done-bg);
+}
+
 .budget-usage-status {
   display: inline-flex;
   justify-content: center;

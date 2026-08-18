@@ -1,45 +1,95 @@
+import { useState } from 'react';
+import Modal from '../shared/Modal.jsx';
+
 function Empty({ children }) { return <p className="commercial-foundation-empty">{children}</p>; }
 
-function CostPackageEditor({ editor, onSuccess, onError }) {
-  const draft = editor.costPackageDraft;
-  if (!draft) return null;
-  const save = async () => { const result = await editor.saveCostPackageDraft(); if (result.ok) onSuccess('Cost Package saved.'); else onError(result.error); };
-  return <section className="card commercial-foundation-editor">
-    <header><div><span>Cost Package</span><h2>{draft.expectedRevision ? `Edit ${draft.code}` : 'New Cost Package'}</h2></div></header>
-    <div className="commercial-foundation-form-grid">
-      <label>Code<input className="ds-input" value={draft.code} onChange={event => editor.patchCostPackage({ code: event.target.value })}/></label>
-      <label>Name<input className="ds-input" value={draft.name} onChange={event => editor.patchCostPackage({ name: event.target.value })}/></label>
-      <label>Procurement Method<select className="ds-input" value={draft.procurementMethod} onChange={event => editor.patchCostPackage({ procurementMethod: event.target.value })}>{editor.view.procurementMethods.map(method => <option key={method.value} value={method.value}>{method.label}</option>)}</select></label>
-      <label>Status<select className="ds-input" value={draft.status} onChange={event => editor.patchCostPackage({ status: event.target.value })}>{editor.view.costPackageStatuses.map(status => <option key={status}>{status}</option>)}</select></label>
-      <label className="commercial-foundation-wide">Note<textarea className="ds-input" value={draft.note} onChange={event => editor.patchCostPackage({ note: event.target.value })}/></label>
+function ProcurementStrategyRow({ section, routes, onChange }) {
+  const [expanded, setExpanded] = useState(false);
+  return <article className={`procurement-strategy-row${expanded ? ' is-expanded' : ''}`}>
+    <div className="procurement-strategy-main">
+      <button type="button" className="procurement-strategy-toggle" aria-expanded={expanded} onClick={() => setExpanded(current => !current)}>
+        <span className="procurement-strategy-chevron" aria-hidden="true">›</span>
+        <span><strong>{section.label}</strong><small>{section.disciplineCountDisplay} · {section.workGroupCountDisplay}</small></span>
+      </button>
+      <label className="procurement-strategy-route"><span>Procurement route</span><select className="ds-input" value={section.selectedMethod} onChange={event => onChange(section.code, event.target.value)}>{routes.map(route => <option key={route.value} value={route.value}>{route.label}</option>)}</select></label>
+      <span className={`procurement-strategy-status${section.pendingSelection ? ' is-pending' : ''}`}>{section.selectedMethodLabel}</span>
     </div>
-    <div className="commercial-foundation-scope"><h3>Canonical Work Group scope</h3>{editor.view.scopeSections.map(section => <details key={section.id}><summary>{section.code} · {section.label}</summary><div className="commercial-foundation-check-grid">{section.workGroups.map(group => <label key={group.id}><input type="checkbox" checked={draft.workGroupIds.includes(group.id)} onChange={() => editor.toggleWorkGroup(group.id)}/><span><strong>{group.code}</strong> {group.label}</span></label>)}</div></details>)}</div>
-    {editor.costPackageAssessment.hasIssues && <p className="commercial-foundation-validation">Complete the package identity and select at least one Work Group.</p>}
-    <footer><button className="btn btn-secondary" onClick={editor.cancelCostPackage}>Cancel</button><button className="btn btn-primary" disabled={!editor.costPackageAssessment.canSave || editor.busy === 'cost-package'} onClick={save}>Save Cost Package</button></footer>
+    {expanded && <div className="procurement-strategy-scope"><p>Canonical scope is fixed by the project Work Ontology.</p><div>{section.disciplines.map(discipline => <section key={discipline.id}><header><strong>{discipline.code}</strong><span>{discipline.label}</span><small>{discipline.workGroups.length} Work Groups</small></header><ul>{discipline.workGroups.map(group => <li key={group.id}><strong>{group.code}</strong><span>{group.label}</span></li>)}</ul></section>)}</div></div>}
+  </article>;
+}
+
+function ProcurementStrategy({ editor, onSuccess, onError }) {
+  const save = async () => { const result = await editor.saveProcurementStrategyDraft(); if (result.ok) onSuccess('Procurement Strategy saved.'); else onError(result.error); };
+  return <section className="card procurement-strategy">
+    <header><div><span>Project sourcing plan</span><h2>Procurement Strategy</h2><p>Select how the contractor or supplier will be appointed for each main section. Expand a section to review its fixed canonical scope.</p></div><div className="procurement-strategy-summary"><strong>{editor.procurementStrategyPresentation.configuredCount} / 6</strong><span>configured</span></div></header>
+    <div className="procurement-strategy-columns" aria-hidden="true"><span>Section and canonical scope</span><span>Procurement route</span><span>Status</span></div>
+    <div className="procurement-strategy-list">{editor.procurementStrategyPresentation.rows.map(section => <ProcurementStrategyRow key={section.code} section={section} routes={editor.view.procurementRoutes} onChange={editor.patchProcurementStrategy}/>)}</div>
+    <footer><div><strong>One strategy for the whole project</strong><span>Selections do not change or duplicate canonical Work Groups.</span></div><button className="btn btn-primary" disabled={!editor.procurementStrategyAssessment.canSave || editor.busy === 'procurement-strategy'} onClick={save}>{editor.busy === 'procurement-strategy' ? 'Saving…' : 'Save Procurement Strategy'}</button></footer>
   </section>;
 }
 
 function TeamEditor({ editor, onSuccess, onError }) {
   const draft = editor.membershipDraft;
+  const [query, setQuery] = useState('');
   if (!draft) return null;
-  const allowedCapabilities = editor.view.capabilitiesByRole[draft.projectRole] || [];
-  const save = async () => { const result = await editor.saveMembershipDraft(); if (result.ok) onSuccess('Project Team membership saved.'); else onError(result.error); };
-  return <section className="card commercial-foundation-editor">
-    <header><div><span>Project Team</span><h2>{draft.expectedRevision ? 'Edit membership' : 'Assign team member'}</h2></div></header>
-    <div className="commercial-foundation-form-grid">
-      <label>Person<select className="ds-input" value={draft.userId} onChange={event => editor.patchMembership({ userId: event.target.value })}><option value="">Select person</option>{editor.view.availableUsers.map(user => <option key={user.userId} value={user.userId}>{user.name} · {user.organizationRole}</option>)}</select></label>
-      <label>Project role<select className="ds-input" value={draft.projectRole} onChange={event => editor.patchMembership({ projectRole: event.target.value })}>{editor.view.projectRoles.map(role => <option key={role}>{role}</option>)}</select></label>
-      <label>Responsibility<input className="ds-input" value={draft.responsibilityLabel} placeholder="Security, IT, Finance…" onChange={event => editor.patchMembership({ responsibilityLabel: event.target.value })}/></label>
-      <label>Package relationship<select className="ds-input" value={draft.responsibilityType} onChange={event => editor.patchMembership({ responsibilityType: event.target.value })}>{editor.view.responsibilityTypes.map(type => <option key={type}>{type}</option>)}</select></label>
-      <label>Starts<input className="ds-input" type="date" value={draft.startsOn} onChange={event => editor.patchMembership({ startsOn: event.target.value })}/></label>
-      <label>Ends<input className="ds-input" type="date" value={draft.endsOn} onChange={event => editor.patchMembership({ endsOn: event.target.value })}/></label>
+  const existing = editor.editingMembership;
+  const candidates = existing ? [] : editor.findAvailableUsers(query);
+  const save = async () => {
+    const result = await editor.saveMembershipDraft();
+    if (result.ok) onSuccess(existing ? 'Project department updated.' : 'Person added to the Project Team.');
+    else onError(result.error);
+  };
+  return <Modal onClose={editor.cancelMembership} titleId="project-team-add-title" className="modal project-team-modal">
+    <div className="modal-header">
+      <div><h2 id="project-team-add-title">{existing ? 'Edit project assignment' : 'Add colleague'}</h2><p>Choose the colleague&apos;s department for this project. Their access role remains managed in Users.</p></div>
+      <button type="button" className="close-button" onClick={editor.cancelMembership} aria-label="Close">×</button>
     </div>
-    <div className="commercial-foundation-scope"><h3>Capabilities</h3><div className="commercial-foundation-check-grid">{allowedCapabilities.map(capability => <label key={capability.code}><input type="checkbox" checked={draft.capabilityCodes.includes(capability.code)} onChange={() => editor.toggleCapability(capability.code)}/><span>{capability.label}</span></label>)}</div></div>
-    <div className="commercial-foundation-scope"><h3>Cost Package scope</h3>{!editor.view.hasCostPackages ? <Empty>Create Cost Packages before assigning package responsibility.</Empty> : <div className="commercial-foundation-check-grid">{editor.view.costPackages.map(item => <label key={item.costPackageId}><input type="checkbox" checked={draft.costPackageIds.includes(item.costPackageId)} onChange={() => editor.toggleMembershipPackage(item.costPackageId)}/><span><strong>{item.code}</strong> {item.name}</span></label>)}</div>}</div>
-    <label className="commercial-foundation-notify"><input type="checkbox" checked={draft.notificationsEnabled} onChange={event => editor.patchMembership({ notificationsEnabled: event.target.checked })}/> Enable relevant project notifications</label>
-    {editor.membershipAssessment.hasIssues && <p className="commercial-foundation-validation">Complete the required identity, role and capability fields.</p>}
-    <footer><button className="btn btn-secondary" onClick={editor.cancelMembership}>Cancel</button><button className="btn btn-primary" disabled={!editor.membershipAssessment.canSave || editor.busy === 'membership'} onClick={save}>Save Membership</button></footer>
-  </section>;
+    <div className="project-team-modal-body">
+      {existing ? <div className="project-team-selected-colleague">
+        <span className="project-team-avatar" aria-hidden="true">{existing.initials}</span>
+        <span><strong>{existing.name}</strong><small>{existing.email}</small></span>
+        <span className="project-team-role">{existing.role}</span>
+      </div> : <>
+        <label className="project-team-search">
+          <span>Find colleague</span>
+          <input className="ds-input" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search by name, email, or role" autoFocus/>
+        </label>
+        <div className="project-team-candidates" role="radiogroup" aria-label="Available colleagues">
+          {candidates.map(user => <label className={`project-team-candidate${draft.userId === user.userId ? ' is-selected' : ''}`} key={user.userId}>
+            <input type="radio" name="project-team-user" value={user.userId} checked={draft.userId === user.userId} onChange={() => editor.patchMembership({ userId: user.userId })}/>
+            <span className="project-team-avatar" aria-hidden="true">{user.initials}</span>
+            <span className="project-team-candidate-person"><strong>{user.name}</strong><small>{user.email}</small></span>
+            <span className="project-team-role">{user.role}</span>
+          </label>)}
+          {candidates.length === 0 && <Empty>No colleagues match this search.</Empty>}
+        </div>
+      </>}
+      <label className="project-team-department">
+        <span>Project department</span>
+        <select className="ds-input" value={draft.departmentCode} onChange={event => editor.patchMembership({ departmentCode: event.target.value })}>
+          {editor.view.departments.map(department => <option key={department.code} value={department.code}>{department.label}</option>)}
+        </select>
+        <small>This assignment describes responsibility only. The colleague keeps full project access.</small>
+      </label>
+      {editor.membershipAssessment.hasIssues && draft.userId && <p className="commercial-foundation-validation">Select a valid colleague and project department.</p>}
+    </div>
+    <div className="project-team-modal-footer"><button className="btn btn-secondary" onClick={editor.cancelMembership}>Cancel</button><button className="btn btn-primary" disabled={!editor.membershipAssessment.canSave || editor.busy === 'membership'} onClick={save}>{editor.busy === 'membership' ? 'Saving…' : existing ? 'Save department' : 'Add to project'}</button></div>
+  </Modal>;
+}
+
+function ProjectTeam({ editor, onSuccess, onError }) {
+  const view = editor.view;
+  return <>
+    <section className="card commercial-foundation-list project-team-list">
+      <header>
+        <div><span>Internal colleagues</span><h2>Project Team</h2><p>Everyone listed here has full project access. Assign their project department here; system access remains in Users.</p></div>
+        <button className="btn btn-primary" disabled={view.availableUsers.length === 0 || Boolean(editor.membershipDraft)} onClick={editor.newMembership}>Add colleague</button>
+      </header>
+      {!view.hasMemberships ? <Empty>No colleagues have been added to this project.</Empty> : <div className="commercial-foundation-table-wrap project-team-table-wrap"><table className="project-team-table"><thead><tr><th>Colleague</th><th>Email</th><th>Project department</th><th>Role in Users</th><th>Project access</th><th aria-label="Actions"></th></tr></thead><tbody>{view.memberships.map(item => <tr key={item.membershipId}><td><span className="project-team-person"><span className="project-team-avatar" aria-hidden="true">{item.initials}</span><strong>{item.name}</strong></span></td><td>{item.email}</td><td><span className="project-team-department-badge">{item.departmentLabel || 'Not assigned'}</span></td><td><span className="project-team-role">{item.role}</span></td><td><span className="project-team-access">Full access</span></td><td className="project-team-actions"><button className="btn-ghost-sm" disabled={Boolean(editor.membershipDraft)} onClick={() => editor.editMembership(item.membershipId)}>Edit</button><button className="btn-ghost-sm" disabled={editor.busy === `remove-membership-${item.membershipId}`} onClick={async () => { const result = await editor.removeTeamMember(item.membershipId); if (result.ok) onSuccess('Person removed from the Project Team.'); else onError(result.error); }}>{editor.busy === `remove-membership-${item.membershipId}` ? 'Removing…' : 'Remove'}</button></td></tr>)}</tbody></table></div>}
+      {view.availableUsers.length === 0 && <p className="commercial-foundation-team-note">All eligible internal users are already in this Project Team.</p>}
+    </section>
+    <TeamEditor editor={editor} onSuccess={onSuccess} onError={onError}/>
+  </>;
 }
 
 function TenderPackageEditor({ editor, onSuccess, onError }) {
@@ -58,20 +108,14 @@ function TenderPackageEditor({ editor, onSuccess, onError }) {
   </section>;
 }
 
-export default function CommercialFoundationWorkspace({ editor, onSuccess, onError }) {
+export default function CommercialFoundationWorkspace({ editor, onSuccess, onError, section = 'cost-packages' }) {
   const view = editor.view;
   return <div className="commercial-foundation-workspace">
-    <section className="card commercial-foundation-list"><header><div><span>Commercial structure</span><h2>Cost Packages</h2><p>One project may use different procurement methods without forcing every package through a tender.</p></div><button className="btn btn-primary" onClick={editor.newCostPackage}>Add Cost Package</button></header>
-      {!view.hasCostPackages ? <Empty>No Cost Packages yet.</Empty> : <div className="commercial-foundation-table-wrap"><table><thead><tr><th>Package</th><th>Procurement Method</th><th>Scope</th><th>Status</th><th></th></tr></thead><tbody>{view.costPackages.map(item => <tr key={item.costPackageId}><td><strong>{item.code}</strong><span>{item.name}</span></td><td>{item.procurementMethodLabel}</td><td>{item.scopeCount} Work Groups</td><td><span className="status-badge">{item.status}</span></td><td><button className="btn-ghost-sm" disabled={!item.canEdit} onClick={() => editor.editCostPackage(item.costPackageId)}>Edit</button></td></tr>)}</tbody></table></div>}
-    </section>
-    <CostPackageEditor editor={editor} onSuccess={onSuccess} onError={onError}/>
-    <section className="card commercial-foundation-list"><header><div><span>Procurement</span><h2>Tender Packages</h2><p>Create the commercial identity before Tender Setup. Consultant Measured tenders can now prepare and freeze a BOQ first.</p></div><button className="btn btn-primary" disabled={!view.hasCostPackages} onClick={editor.newTenderPackage}>Add Tender Package</button></header>
+    {section === 'cost-packages' && <ProcurementStrategy editor={editor} onSuccess={onSuccess} onError={onError}/>}
+    {section === 'tender-packages' && <><section className="card commercial-foundation-list"><header><div><span>Procurement</span><h2>Tender Packages</h2><p>Create the commercial identity before Tender Setup. Consultant Measured tenders can now prepare and freeze a BOQ first.</p></div><button className="btn btn-primary" disabled={!view.hasCostPackages} onClick={editor.newTenderPackage}>Add Tender Package</button></header>
       {!view.hasTenderPackages ? <Empty>No Tender Packages yet.</Empty> : <div className="commercial-foundation-table-wrap"><table><thead><tr><th>Tender</th><th>Cost Packages</th><th>Procurement Method</th><th>BOQ Mode</th><th>Status</th><th></th></tr></thead><tbody>{view.tenderPackages.map(item => <tr key={item.tenderId}><td><strong>{item.tenderNumber}</strong></td><td>{item.packageCount}</td><td>{item.procurementMethodLabel}</td><td>{item.boqModeLabel}</td><td>{item.status}</td><td><button className="btn-ghost-sm" disabled={!item.canEdit} onClick={() => editor.editTenderPackage(item.tenderId)}>Edit</button></td></tr>)}</tbody></table></div>}
     </section>
-    <TenderPackageEditor editor={editor} onSuccess={onSuccess} onError={onError}/>
-    <section className="card commercial-foundation-list"><header><div><span>Access and ownership</span><h2>Project Team</h2><p>Membership, responsibility scope, capabilities and notification participation are recorded together.</p></div><button className="btn btn-primary" onClick={editor.newMembership}>Assign Member</button></header>
-      {!view.hasMemberships ? <Empty>No Project Team memberships yet.</Empty> : <div className="commercial-foundation-table-wrap"><table><thead><tr><th>Person</th><th>Role</th><th>Responsibility</th><th>Period</th><th>Packages</th><th></th></tr></thead><tbody>{view.memberships.map(item => <tr key={item.membershipId}><td><strong>{item.name}</strong><span>{item.email}</span></td><td>{item.projectRole}</td><td>{item.responsibilityLabel}</td><td>{item.periodLabel}</td><td>{item.packageCount}</td><td><button className="btn-ghost-sm" onClick={() => editor.editMembership(item.membershipId)}>Edit</button></td></tr>)}</tbody></table></div>}
-    </section>
-    <TeamEditor editor={editor} onSuccess={onSuccess} onError={onError}/>
+    <TenderPackageEditor editor={editor} onSuccess={onSuccess} onError={onError}/></>}
+    {section === 'project-team' && <ProjectTeam editor={editor} onSuccess={onSuccess} onError={onError}/>}
   </div>;
 }

@@ -1,20 +1,13 @@
 import { Field, FieldRow, FormSection } from "./ProjectFormParts";
 import ConflictWarning from "../ConflictWarning";
-import { TEMPLATES } from "../../config/projectTemplates";
 import { PROJECT_TYPE_OPTIONS, LOCATION_TYPE_OPTIONS, STORE_CONCEPT_SUGGESTIONS } from "../../config/projectVocabulary";
 import Modal from "../shared/Modal";
-import { clearProjectScopeSelection } from "../../hooks/useProjectAreaPresentation";
-import {
-  buildProjectScopeEntryModel,
-  usesUnifiedProjectScopeEntry,
-} from "../../hooks/useProjectScopeEntryPresentation";
 
 export default function ProjectEditorModal({
   project,
   editingProjectId,
   onChange,
   onProjectPatch,
-  onOpenScopeConfigurator,
   onDelete,
   onSave,
   onClose,
@@ -24,31 +17,6 @@ export default function ProjectEditorModal({
   isDirty = false,
 }) {
   if (!project) return null;
-  const unifiedScopeEntry = usesUnifiedProjectScopeEntry(project, {
-    isEditing: Boolean(editingProjectId),
-  });
-  const scopeEntry = buildProjectScopeEntryModel(project);
-  const scopeConfigured = project.scope?.workPackages != null;
-  const selectableDisciplines = project.workOntology?.disciplines?.filter(item => item.scopeSelectable !== false) || [];
-  const selectedDisciplineIds = new Set(project.scope?.disciplineIds || []);
-
-  function toggleDiscipline(disciplineId) {
-    onProjectPatch(current => {
-      const selected = new Set(current.scope?.disciplineIds || []);
-      if (selected.has(disciplineId)) selected.delete(disciplineId);
-      else selected.add(disciplineId);
-      return {
-        ...current,
-        scope: {
-          ...(current.scope || {}),
-          workOntologyVersionId: current.workOntology.id,
-          disciplineIds: current.workOntology.disciplines
-            .filter(item => selected.has(item.id))
-            .map(item => item.id),
-        },
-      };
-    });
-  }
 
   // Cancel/x are explicit close actions, same as Escape/backdrop — should
   // carry the same dirty-state protection rather than bypassing it.
@@ -221,19 +189,8 @@ export default function ProjectEditorModal({
             </FieldRow>
           </FormSection>
 
-          <FormSection title="Financial" accentColor="var(--status-warn)">
+          <FormSection title="Commercial settings" accentColor="var(--status-warn)">
             <FieldRow>
-              <Field label="Budget">
-                <input type="number" min="0" name="budget" value={project.budget ?? ""} onChange={onChange} className="ds-input" placeholder="e.g. 2500000" />
-              </Field>
-              {/* Actual Cost is real known cost — it generally doesn't exist
-                  yet at creation time, so it's edit-only (never shown when
-                  creating a new project, never defaulted to 0). */}
-              {editingProjectId && (
-                <Field label="Actual Cost">
-                  <input type="number" min="0" name="actualCost" value={project.actualCost ?? ""} onChange={onChange} className="ds-input" placeholder="e.g. 2430000" />
-                </Field>
-              )}
               <Field label="Currency">
                 <select name="currencyCode" value={project.currencyCode || "KZT"} onChange={onChange} className="ds-select" disabled={Boolean(editingProjectId)}>
                   <option value="KZT">KZT</option>
@@ -243,150 +200,6 @@ export default function ProjectEditorModal({
               </Field>
             </FieldRow>
           </FormSection>
-
-          <FormSection title="Stakeholders" accentColor="var(--status-done)">
-            <FieldRow>
-              <Field label="Project Manager">
-                <input name="projectManager" value={project.projectManager ?? ""} onChange={onChange} className="ds-input" placeholder="Full name" />
-              </Field>
-              <Field label="General Contractor">
-                <input name="generalContractor" value={project.generalContractor ?? ""} onChange={onChange} className="ds-input" placeholder="Company name" />
-              </Field>
-              <Field label="Security Manager">
-                <input name="securityManager" value={project.securityManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
-              </Field>
-              <Field label="IT Manager">
-                <input name="itManager" value={project.itManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
-              </Field>
-              <Field label="Facility Manager">
-                <input name="facilityManager" value={project.facilityManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
-              </Field>
-              <Field label="HR Manager">
-                <input name="hrManager" value={project.hrManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
-              </Field>
-              <Field label="Supply Manager">
-                <input name="supplyManager" value={project.supplyManager || ""} onChange={onChange} className="ds-input" placeholder="Full name" />
-              </Field>
-            </FieldRow>
-          </FormSection>
-
-          {!editingProjectId && selectableDisciplines.length > 0 && (
-            <FormSection title="Disciplines" accentColor="var(--status-done)">
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
-                Select the technical disciplines included in this project. The selection is pinned to {project.workOntology.label}.
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 8 }}>
-                {selectableDisciplines.map(item => (
-                  <label key={item.id} style={{
-                    display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 8,
-                    border: `1px solid ${selectedDisciplineIds.has(item.id) ? "var(--status-done)" : "var(--border)"}`,
-                    background: selectedDisciplineIds.has(item.id) ? "var(--status-done-bg)" : "var(--accent-subtle)",
-                    cursor: "pointer", fontSize: 13, fontWeight: 600,
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedDisciplineIds.has(item.id)}
-                      onChange={() => toggleDiscipline(item.id)}
-                    />
-                    {item.label}
-                  </label>
-                ))}
-              </div>
-              {selectedDisciplineIds.size === 0 && (
-                <div style={{ marginTop: 8, fontSize: 12, color: "var(--status-danger, #b42318)" }}>
-                  Select at least one discipline.
-                </div>
-              )}
-            </FormSection>
-          )}
-
-          {unifiedScopeEntry ? (
-            <FormSection title="Project Scope" accentColor="var(--accent)">
-              <div className="project-scope-entry">
-                <div className="project-scope-entry-summary">
-                  <strong>{scopeEntry.selectedWorkPackageCount} work packages selected</strong>
-                  <span>
-                    Sales {scopeEntry.salesAreaLabel}
-                    <span aria-hidden="true"> · </span>
-                    Back of House {scopeEntry.backOfHouseAreaLabel}
-                  </span>
-                </div>
-                <div className="project-scope-entry-actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={onOpenScopeConfigurator}
-                  >
-                    Configure Project Scope
-                  </button>
-                  {scopeConfigured && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost-sm"
-                      onClick={() => onProjectPatch((p) => ({ ...p, scope: clearProjectScopeSelection(p) }))}
-                    >
-                      Reset to full scope
-                    </button>
-                  )}
-                </div>
-              </div>
-            </FormSection>
-          ) : (
-            <>
-              <FormSection title="Construction Template" accentColor="var(--accent)">
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {TEMPLATES.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => {
-                        if (t.id === project.templateType) return;
-                        // Legacy edit compatibility: an explicit template
-                        // switch invalidates the previous template's scope.
-                        onProjectPatch((p) => ({ ...p, templateType: t.id, scope: null }));
-                      }}
-                      style={{
-                        flex: "1 1 200px", textAlign: "left", padding: "10px 14px", borderRadius: 10, cursor: "pointer",
-                        border: `1.5px solid ${project.templateType === t.id ? "var(--status-done)" : "var(--border)"}`,
-                        background: project.templateType === t.id ? "var(--status-done-bg)" : "var(--accent-subtle)",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 700, color: project.templateType === t.id ? "var(--status-done)" : "var(--text-primary)" }}>
-                        {t.icon} {t.label}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{t.description}</div>
-                    </button>
-                  ))}
-                </div>
-              </FormSection>
-
-              <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
-                <button
-                  type="button"
-                  onClick={onOpenScopeConfigurator}
-                  style={{
-                    padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600,
-                    border: scopeConfigured ? "1.5px solid var(--status-done)" : "1.5px solid var(--border)",
-                    background: scopeConfigured ? "var(--status-done-bg)" : "var(--accent-subtle)",
-                    color: scopeConfigured ? "var(--status-done)" : "var(--text-secondary)",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {scopeConfigured ? `Scope configured (${project.scope.workPackages.length} WPs)` : "Configure Scope ->"}
-                </button>
-                {scopeConfigured && (
-                  <button
-                    type="button"
-                    onClick={() => onProjectPatch((p) => ({ ...p, scope: clearProjectScopeSelection(p) }))}
-                    style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}
-                  >
-                    Reset to full scope
-                  </button>
-                )}
-              </div>
-            </>
-          )}
 
           <FormSection title="Project" accentColor="var(--status-done)">
             <FieldRow>
@@ -404,22 +217,6 @@ export default function ProjectEditorModal({
                   ))}
                 </div>
               </Field>
-              {editingProjectId && (
-                <Field label="Project Status">
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {["Active", "Completed"].map((label) => (
-                      <button key={label} type="button"
-                        onClick={() => onProjectPatch((p) => ({ ...p, projectStatus: label }))}
-                        style={{
-                          flex: 1, padding: "8px 12px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s ease",
-                          border: `1.5px solid ${project.projectStatus === label ? "var(--accent)" : "var(--border)"}`,
-                          background: project.projectStatus === label ? "var(--accent-subtle)" : "var(--accent-subtle)",
-                          color: project.projectStatus === label ? "var(--accent)" : "var(--text-muted)",
-                        }}>{label}</button>
-                    ))}
-                  </div>
-                </Field>
-              )}
             </FieldRow>
           </FormSection>
 

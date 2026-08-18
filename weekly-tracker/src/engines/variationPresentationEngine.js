@@ -34,11 +34,31 @@ export function presentVariationWorkspace(workspace, draft) {
     reviewMode: workspace.canReview && item.status === 'SUBMITTED' ? 'SUBMITTED' : workspace.canReview && item.status === 'UNDER_REVIEW' ? 'UNDER_REVIEW' : null,
     reviewActions: workspace.canReview && item.status === 'SUBMITTED' ? [{ id: 'START_REVIEW', label: 'Start review', className: 'btn' }, { id: 'APPROVE', label: 'Approve proposed amount', className: 'btn btn-success' }] : workspace.canReview && item.status === 'UNDER_REVIEW' ? [{ id: 'APPROVE', label: 'Approve variation', className: 'btn btn-success' }, { id: 'REQUEST_REVISION', label: 'Request revision', className: 'btn', requiresComment: true }, { id: 'REJECT', label: 'Reject', className: 'btn btn-danger', requiresReason: true }] : [],
   }));
+  const variationGroups = [...variations.reduce((groups, item) => {
+    const key = item.workGroupId || 'unmapped';
+    const group = groups.get(key) || {
+      id: key,
+      code: item.workGroupCode || '',
+      label: item.workGroupLabel || 'Work Group not assigned',
+      proposedAmount: 0,
+      approvedAmount: 0,
+      items: [],
+    };
+    group.proposedAmount += Number(item.proposedAmount || 0);
+    group.approvedAmount += Number(item.approvedAmount || 0);
+    group.items.push(item);
+    groups.set(key, group);
+    return groups;
+  }, new Map()).values()].map(group => ({
+    ...group,
+    proposedDisplay: money(group.proposedAmount, workspace.currencyCode),
+    approvedDisplay: money(group.approvedAmount, workspace.currencyCode),
+  }));
   return {
     summary: [['New', workspace.summary.newCount], ['Pending', workspace.summary.pendingCount], ['Pending exposure', money(workspace.summary.pendingExposure, workspace.currencyCode)], ['Approved variations', money(workspace.summary.approvedVariations, workspace.currencyCode)]],
     canCreate: workspace.canCreate && !draft,
     hasVariations: variations.length > 0,
-    variations,disciplines,workGroups,
+    variations,variationGroups,disciplines,workGroups,
     reasonOptions: VARIATION_REASONS.map(([value, label]) => ({ value, label })),
     rejectionReasonOptions: VARIATION_REJECTION_REASONS.map(([value, label]) => ({ value, label })),
     formTitle: draft?.revision ? 'Edit Additional Work' : 'New Additional Work',
