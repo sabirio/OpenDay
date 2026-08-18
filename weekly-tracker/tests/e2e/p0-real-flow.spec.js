@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { execFileSync } from 'node:child_process';
+import { assertLocalTarget } from '../../scripts/certification/localTargetGuard.mjs';
 import { CREDENTIALS, login, logout } from './helpers.js';
 
 test.describe.configure({ mode: 'serial' });
@@ -9,8 +11,18 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.E2E_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error('Missing VITE_SUPABASE_URL and E2E_SUPABASE_ANON_KEY/VITE_SUPABASE_ANON_KEY. Configure .env.local or CI secrets before running real E2E.');
+  throw new Error('Missing VITE_SUPABASE_URL and E2E_SUPABASE_ANON_KEY/VITE_SUPABASE_ANON_KEY. Configure the guarded local E2E environment.');
 }
+
+const LOCAL_TARGET = assertLocalTarget({
+  apiUrl: SUPABASE_URL,
+  dbUrl: process.env.CERT_DB_URL,
+  enabled: process.env.LOCAL_FIXTURE_MODE,
+  projectId: process.env.LOCAL_SUPABASE_PROJECT_ID,
+});
+const PSQL_BIN = process.env.PSQL_BIN || (process.platform === 'win32'
+  ? 'C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe'
+  : 'psql');
 
 const TINY_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
@@ -23,9 +35,11 @@ const MALL_NAME = `P0 E2E Mall ${RUN_ID}`;
 
 let adminDb;
 let contractorUserId;
+let pmUserId;
 let projectId;
 let contractorReportId;
 let photoPaths = [];
+let contractorProfileBefore;
 
 function makeClient() {
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -50,6 +64,51 @@ async function signInAs(creds) {
   return { client, userId: data.user?.id };
 }
 
+function cleanupLocalTestProjects(projectIds) {
+  const ids = [...new Set(projectIds)].map(Number).filter(Number.isSafeInteger);
+  if (ids.length === 0) return;
+  const idList = ids.map(id => `${id}::bigint`).join(',');
+  const sql = `
+BEGIN;
+DO $guard$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.projects
+    WHERE id = ANY (ARRAY[${idList}])
+      AND NOT (
+        store_code LIKE 'P0E2E-%'
+        AND shopping_mall_name LIKE 'P0 E2E Mall %'
+        AND city = 'E2E City'
+        AND country = 'E2E Country'
+      )
+  ) THEN
+    RAISE EXCEPTION 'Refusing cleanup: project id does not belong to the P0 E2E fixture';
+  END IF;
+END
+$guard$;
+DELETE FROM public.site_visit_discrepancies WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.site_visit_wps WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.site_visits WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.contractor_report_wps WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.progress_history WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.contractor_reports WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.reports WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.project_gantt_tasks WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.project_team_membership_capabilities WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.project_team_memberships WHERE project_id = ANY (ARRAY[${idList}]);
+DELETE FROM public.projects
+WHERE id = ANY (ARRAY[${idList}])
+  AND store_code LIKE 'P0E2E-%'
+  AND shopping_mall_name LIKE 'P0 E2E Mall %'
+  AND city = 'E2E City'
+  AND country = 'E2E Country';
+COMMIT;`;
+  execFileSync(PSQL_BIN, [LOCAL_TARGET.dbUrl, '-v', 'ON_ERROR_STOP=1', '-c', sql], {
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `C:\\Program Files\\PostgreSQL\\17\\bin;${process.env.PATH}` },
+  });
+}
+
 async function cleanup() {
   if (!adminDb) {
     adminDb = (await signInAs(CREDENTIALS.admin).catch(() => null))?.client ?? null;
@@ -59,31 +118,44 @@ async function cleanup() {
   const ids = new Set();
   if (projectId) ids.add(projectId);
 
-  const { data: staleProjects } = await adminDb
+  const { data: staleProjects, error: staleProjectsError } = await adminDb
     .from('projects')
     .select('id')
     .or(`store_code.eq.${STORE_CODE},shopping_mall_name.eq.${MALL_NAME}`);
+  if (staleProjectsError) throw staleProjectsError;
   for (const row of staleProjects || []) ids.add(row.id);
 
   for (const id of ids) {
-    const { data: reports } = await adminDb
+    const { data: reports, error: reportsError } = await adminDb
       .from('contractor_reports')
       .select('id, photo_urls')
       .eq('project_id', id);
+    if (reportsError) throw reportsError;
     for (const report of reports || []) {
       photoPaths.push(...(report.photo_urls || []));
     }
-
-    await adminDb.from('site_visit_discrepancies').delete().eq('project_id', id);
-    await adminDb.from('site_visit_wps').delete().eq('project_id', id);
-    await adminDb.from('site_visits').delete().eq('project_id', id);
-    await adminDb.from('contractor_report_wps').delete().eq('project_id', id);
-    await adminDb.from('progress_history').delete().eq('project_id', id);
-    await adminDb.from('contractor_reports').delete().eq('project_id', id);
-    await adminDb.from('reports').delete().eq('project_id', id);
-    await adminDb.from('project_gantt_tasks').delete().eq('project_id', id);
-    await adminDb.from('projects').delete().eq('id', id);
+    const { data: visits, error: visitsError } = await adminDb
+      .from('site_visits')
+      .select('photo_urls')
+      .eq('project_id', id);
+    if (visitsError) throw visitsError;
+    for (const visit of visits || []) photoPaths.push(...(visit.photo_urls || []));
   }
+
+  if (contractorProfileBefore) {
+    const { error } = await adminDb.rpc('update_admin_user_profile', {
+      p_user_id: contractorProfileBefore.id,
+      p_name: contractorProfileBefore.name,
+      p_job_role: contractorProfileBefore.job_role,
+      p_access_role: contractorProfileBefore.role,
+      p_assigned_project_ids: contractorProfileBefore.assigned_projects,
+      p_client_request_id: crypto.randomUUID(),
+    });
+    if (error) throw error;
+    contractorProfileBefore = null;
+  }
+
+  cleanupLocalTestProjects([...ids]);
 
   const uniquePhotoPaths = [...new Set(photoPaths.filter(Boolean))];
   if (uniquePhotoPaths.length > 0) {
@@ -108,8 +180,6 @@ async function createProjectViaUi(page) {
   await modal.locator('input[name="constructionStartDate"]').fill('2026-07-01');
   await modal.locator('input[name="constructionEndDate"]').fill('2026-09-30');
   await modal.locator('input[name="targetOpeningDate"]').fill('2026-10-15');
-  await modal.locator('input[name="projectManager"]').fill('E2E PM');
-  await modal.locator('input[name="generalContractor"]').fill('E2E Contractor Ltd');
 
   await modal.locator('button', { hasText: /create project|save/i }).last().click();
   await expect(modal).toBeHidden({ timeout: 20_000 });
@@ -136,18 +206,33 @@ async function linkContractor() {
 
   const { data: contractorProfile, error: profileError } = await adminDb
     .from('profiles')
-    .select('id, assigned_projects')
+    .select('id, name, role, job_role, assigned_projects')
     .eq('email', CREDENTIALS.contractor.email)
     .single();
   if (profileError) throw profileError;
+  contractorProfileBefore = structuredClone(contractorProfile);
 
   const assigned = new Set(contractorProfile.assigned_projects || []);
   assigned.add(projectId);
-  const { error: assignError } = await adminDb
-    .from('profiles')
-    .update({ assigned_projects: [...assigned] })
-    .eq('id', contractorProfile.id);
+  const { error: assignError } = await adminDb.rpc('update_admin_user_profile', {
+    p_user_id: contractorProfile.id,
+    p_name: contractorProfile.name,
+    p_job_role: null,
+    p_access_role: 'Contractor',
+    p_assigned_project_ids: [...assigned],
+    p_client_request_id: crypto.randomUUID(),
+  });
   if (assignError) throw assignError;
+}
+
+async function assignProjectManager() {
+  const { error } = await adminDb.rpc('add_project_team_member', {
+    p_project_id: projectId,
+    p_user_id: pmUserId,
+    p_department_code: 'PROJECT_MANAGEMENT',
+    p_client_request_id: crypto.randomUUID(),
+  });
+  if (error) throw error;
 }
 
 async function submitContractorReport(page) {
@@ -362,19 +447,20 @@ async function assertViewerAndContractorSecurity(page) {
   await login(page, CREDENTIALS.viewer);
   await page.goto('/');
   await page.waitForLoadState('networkidle');
-  // PrintHeader.jsx renders "Project: {code} — {name}" in a `.print-only`
-  // element (display:none on screen, only shown via @media print) — a plain
-  // getByText(STORE_CODE) can match that hidden node first in DOM order.
-  // Intersect with :visible so this only matches the real on-screen content.
-  await expect(page.getByText(STORE_CODE).and(page.locator(':visible')).first()).toBeVisible({ timeout: 20_000 });
-  // Viewer's PERMISSIONS entry (rolePermissions.js) only grants 'dashboard' —
-  // it has never included 'projects'. ProtectedRoute redirects any role
-  // lacking the route's resource permission to /unauthorized, so Viewer is
-  // correctly blocked from the Portfolio page. Verified live: this file
-  // previously asserted STORE_CODE visibility on /projects for Viewer, which
-  // can never pass because the page redirects away before rendering.
+  // The historical `viewer` fixture is now an Executive. Executives may open
+  // Portfolio, but must not regain portfolio-wide row access merely because
+  // a project belongs to the same company.
+  await expect(page.getByText(STORE_CODE)).toHaveCount(0);
+  const { client: viewerDb } = await signInAs(CREDENTIALS.viewer);
+  const { data: viewerRows, error: viewerError } = await viewerDb
+    .from('projects')
+    .select('id')
+    .eq('id', projectId);
+  expect(viewerError).toBeNull();
+  expect(viewerRows).toEqual([]);
   await page.goto('/projects');
-  await expect(page).toHaveURL(/\/unauthorized/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/projects/, { timeout: 20_000 });
+  await expect(page.getByText(STORE_CODE)).toHaveCount(0);
   await logout(page);
 
   await login(page, CREDENTIALS.contractor);
@@ -391,11 +477,13 @@ test.afterAll(async () => {
 test('P0 real flow: admin project -> contractor report -> PM verification -> dashboard/read security', async ({ page }) => {
   ({ client: adminDb } = await signInAs(CREDENTIALS.admin));
   ({ userId: contractorUserId } = await signInAs(CREDENTIALS.contractor));
+  ({ userId: pmUserId } = await signInAs(CREDENTIALS.pm));
   await signInAs(CREDENTIALS.viewer);
 
   await cleanup();
   await createProjectViaUi(page);
   await linkContractor();
+  await assignProjectManager();
   await submitContractorReport(page);
   await assertContractorData();
   await submitPmSiteVisit(page);
