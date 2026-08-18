@@ -79,6 +79,7 @@
     "db:apply:tender-commercial-roadmap": "node scripts/certification/applyTenderCommercialRoadmapLocal.mjs",
     "db:apply:procurement-strategy": "node scripts/certification/applyProcurementStrategyLocal.mjs",
     "db:apply:project-team-departments": "node scripts/certification/applyProjectTeamDepartmentsLocal.mjs",
+    "db:apply:security-definer-acl": "node scripts/certification/applySecurityDefinerExecuteHardeningLocal.mjs",
     "cert:reset:budget-vs-tender": "npm run cert:reset:budget-approval && node scripts/certification/applyBudgetVsTenderLocal.mjs",
     "cert:reset:budget-approval-report": "npm run cert:reset:budget-vs-tender && node scripts/certification/applyBudgetApprovalReportLocal.mjs",
     "cert:reset:project-variations": "npm run cert:reset:budget-approval-report && node scripts/certification/applyProjectVariationsLocal.mjs",
@@ -112,6 +113,7 @@
     "test:payment-commitment-scope": "node scripts/certification/certifyPaymentCommitmentScope.mjs",
     "test:architecture-integrity-db": "node scripts/certification/certifyArchitectureIntegrityCorrections.mjs",
     "test:project-team-departments-db": "node scripts/certification/certifyProjectTeamDepartments.mjs",
+    "test:security-definer-acl-db": "node scripts/certification/certifySecurityDefinerExecuteHardening.mjs",
     "test:storage": "node scripts/certification/certifyStorage.mjs",
     "test:import-phase2": "npm run cert:reset:import-phase2 && node scripts/certification/certifyImportPhase2.mjs",
     "test:certification": "npm run cert:reset && npm run test:db && npm run test:rls && npm run test:scope-templates && npm run test:storage"

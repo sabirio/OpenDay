@@ -630,11 +630,6 @@ async function createProject(page, proj) {
   if (proj.state) await modal.locator('input[name="state"]').fill(proj.state);
   await modal.locator('input[name="country"]').fill(proj.country);
   if (proj.salesMarket) await modal.locator('input[name="salesMarket"]').fill(proj.salesMarket);
-  await modal.locator('input[name="projectManager"]').fill(proj.projectManager);
-  await modal.locator('input[name="generalContractor"]').fill(proj.generalContractor);
-  if (proj.securityManager) await modal.locator('input[name="securityManager"]').fill(proj.securityManager);
-  if (proj.itManager) await modal.locator('input[name="itManager"]').fill(proj.itManager);
-  if (proj.facilityManager) await modal.locator('input[name="facilityManager"]').fill(proj.facilityManager);
   await modal.locator('input[type="date"][name="constructionStartDate"]').fill(proj.constructionStartDate);
   await modal.locator('input[type="date"][name="constructionEndDate"]').fill(proj.constructionEndDate);
   await modal.locator('input[type="date"][name="targetOpeningDate"]').fill(proj.targetOpeningDate);

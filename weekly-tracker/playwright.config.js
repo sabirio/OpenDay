@@ -22,8 +22,8 @@ export default defineConfig({
     ['html', { open: 'never', outputFolder: 'playwright-report' }],
     ['list'],
     ['json', { outputFile: 'test-results/results.json' }],
+    ['./tests/e2e/qa-reporter.js'],
   ],
-  globalTeardown: './tests/e2e/global-teardown.js',
 
   use: {
     baseURL,
@@ -42,7 +42,10 @@ export default defineConfig({
   webServer: skipWebServer ? undefined : {
     command: webServerCommand,
     url: baseURL,
-    reuseExistingServer: true,
+    // Reusing an arbitrary process on the expected port can make an E2E run
+    // certify a different worktree. Opt in only when the caller has already
+    // verified the server identity.
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === '1',
     timeout: 60_000,
   },
 });
