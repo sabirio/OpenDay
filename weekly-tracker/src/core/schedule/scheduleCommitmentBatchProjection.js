@@ -45,6 +45,7 @@ function unavailableFacts(approvedVersionId = null) {
     approvedAt: null,
     earliestCommittedPlannedStart: null,
     baselineRevisionNumber: null,
+    executionScopeVersionId: null,
   };
 }
 
@@ -75,6 +76,7 @@ const NEUTRAL_AUTO_GENERATED_FACTS = Object.freeze({
   approvedAt: null,
   earliestCommittedPlannedStart: null,
   baselineRevisionNumber: null,
+  executionScopeVersionId: null,
 });
 
 /**
@@ -94,13 +96,17 @@ const NEUTRAL_AUTO_GENERATED_FACTS = Object.freeze({
  *   baselineRevisionNumber: number|null,
  * }>} keyed by String(project.id)
  */
-export function buildScheduleCommitmentProjection(projects, versions = [], versionTasks = []) {
+export function buildScheduleCommitmentProjection(projects, versions = [], versionTasks = [], baselines = null) {
   const versionsByProject = groupVersionsByProjectId(versions);
   const tasksByVersionId = new Map();
   for (const task of versionTasks) {
     const key = String(task.versionId);
     if (!tasksByVersionId.has(key)) tasksByVersionId.set(key, []);
     tasksByVersionId.get(key).push(task);
+  }
+  const baselineByProjectId = new Map();
+  for (const baseline of baselines || []) {
+    baselineByProjectId.set(String(baseline.projectId), baseline);
   }
 
   const projection = new Map();
@@ -126,6 +132,13 @@ export function buildScheduleCommitmentProjection(projects, versions = [], versi
 
     const approvedVersion = findApprovedVersion(projectVersions);
     const approvedTasks = approvedVersion ? (tasksByVersionId.get(String(approvedVersion.id)) || []) : [];
+    const officialBaseline = baselines === null ? null : baselineByProjectId.get(projectId);
+
+    if (approvedVersion && baselines !== null
+      && (!officialBaseline || String(officialBaseline.scheduleVersionId) !== String(approvedVersion.id))) {
+      projection.set(projectId, unavailableFacts(approvedVersion.id));
+      continue;
+    }
 
     // An APPROVED version's immutable task snapshot is guaranteed to be
     // non-empty by the submission RPC's own invariants (049) — zero rows
@@ -144,9 +157,10 @@ export function buildScheduleCommitmentProjection(projects, versions = [], versi
       lifecycleStatus,
       commitmentState,
       approvedVersionId: approvedVersion?.id ?? null,
-      approvedAt: approvedVersion?.reviewedAt ?? null,
+      approvedAt: officialBaseline?.approvedAt ?? approvedVersion?.reviewedAt ?? null,
       earliestCommittedPlannedStart: approvedVersion ? computeEarliestPlannedStart(approvedTasks) : null,
-      baselineRevisionNumber: approvedVersion?.baselineRevisionNumber ?? null,
+      baselineRevisionNumber: officialBaseline?.baselineRevisionNumber ?? approvedVersion?.baselineRevisionNumber ?? null,
+      executionScopeVersionId: officialBaseline?.executionScopeVersionId ?? null,
     });
   }
   return projection;

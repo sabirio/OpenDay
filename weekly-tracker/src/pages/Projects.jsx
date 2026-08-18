@@ -1,5 +1,6 @@
 ﻿import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { canAccessResource } from "../hooks/usePermission";
 import { generateAndSaveGantt, regenerateGantt } from "../hooks/useGanttOrchestration";
@@ -13,8 +14,6 @@ import {
   createClientRequestId,
 } from "../hooks/useProjectEditorOrchestration";
 import { isContractorManaged } from "../hooks/useScheduleOwnershipMode";
-import ProjectScopeConfigurator from "../components/ProjectScopeConfigurator";
-import ZonedScopeConfigurator from "../components/projects/ZonedScopeConfigurator";
 import ProjectDetailPane, { ProjectDetailHeader } from "../components/projects/ProjectDetailPane";
 import ProjectDetailTabs from "../components/projects/ProjectDetailTabs";
 import { PROJECT_DETAIL_TABS } from "../components/projects/projectDetailConfig";
@@ -25,10 +24,9 @@ import ExportProjectsButton from "../components/projects/ExportProjectsButton";
 import { useToast } from "../components/shared/Toast.jsx";
 import { V2_TEMPLATE_TYPE } from "../domains/construction/templates/retailFitoutV2";
 import { LOCATION_TYPE_OPTIONS } from "../config/projectVocabulary";
-import { computePageCount, clampPage, paginate } from "../hooks/usePortfolioPaginationPresentation";
+import { computePageCount, clampPage, paginate, parseRequestedPage } from "../hooks/usePortfolioPaginationPresentation";
 import MasterDetailLayout from "../components/shared/MasterDetailLayout";
 import {
-  mergeProjectScopeSelection,
   PROJECT_AREA_BASIS,
   resolveEffectiveV2ZoneAreas,
   resolveProjectArea,
@@ -58,8 +56,7 @@ const emptyProject = {
   actualConstructionStartDate: "",
   actualConstructionCompletionDate: "",
   actualOpeningDate: "",
-  budget: "",
-  currencyCode: "",
+  currencyCode: "KZT",
   projectManager: "",
   securityManager: "",
   itManager: "",
@@ -69,7 +66,6 @@ const emptyProject = {
   generalContractor: "",
   contractorEmail: "",
   projectType: "New Opening",
-  projectStatus: "Active",
   templateType: V2_TEMPLATE_TYPE,
   templateId: null,
   scopeTemplate: null,
@@ -89,25 +85,29 @@ const inputStyle = {
 function Projects({ projects, onSaveProject, onDeleteProject, onProjectCreated }) {
   const toast = useToast();
   const { role } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedProjectId = Number(searchParams.get("project"));
+  const initialProjectId = Number.isFinite(requestedProjectId) && requestedProjectId > 0 ? requestedProjectId : null;
+  const requestedTab = searchParams.get("tab");
+  const initialDetailTab = PROJECT_DETAIL_TABS.some((tab) => tab.id === requestedTab) ? requestedTab : "overview";
   const canImportProjects = canAccessResource(role, 'projects_import');
   const [showForm, setShowForm] = useState(false);
   const [newProject, setNewProject] = useState(emptyProject);
   const [editingProjectId, setEditingProjectId] = useState(null);
-  const [typeFilter, setTypeFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [countryFilter, setCountryFilter] = useState("All");
-  const [salesMarketFilter, setSalesMarketFilter] = useState("All");
-  const [locationTypeFilter, setLocationTypeFilter] = useState("All");
-  const [searchQuery, setSearchQuery]     = useState("");
+  const [typeFilter, setTypeFilter] = useState(() => searchParams.get("type") || "All");
+  const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") || "All");
+  const [countryFilter, setCountryFilter] = useState(() => searchParams.get("country") || "All");
+  const [salesMarketFilter, setSalesMarketFilter] = useState(() => searchParams.get("market") || "All");
+  const [locationTypeFilter, setLocationTypeFilter] = useState(() => searchParams.get("location") || "All");
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("q") || "");
   // Master-detail workspace state — selection/pagination are Portfolio's own
   // presentation state, not a new data model (Portfolio's authorized
   // `projects` collection is unchanged).
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [mobileView, setMobileView] = useState("master");
-  const [activeDetailTab, setActiveDetailTab] = useState("overview");
+  const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
+  const [currentPage, setCurrentPage] = useState(() => parseRequestedPage(searchParams.get("page")));
+  const [mobileView, setMobileView] = useState(initialProjectId ? "detail" : "master");
+  const [activeDetailTab, setActiveDetailTab] = useState(initialDetailTab);
   const [gcModal, setGcModal]                 = useState(null); // project being invited
-  const [showScopeConfigurator, setShowScopeConfigurator] = useState(false);
   const [isInitializingProject, setIsInitializingProject] = useState(false);
   const [gcEmail, setGcEmail]             = useState('');
   const [initialGcEmail, setInitialGcEmail] = useState(''); // snapshot at open time, for GcInvitationModal's dirty-state check
@@ -126,6 +126,21 @@ function Projects({ projects, onSaveProject, onDeleteProject, onProjectCreated }
   // change before Save), retained across a failed-save retry for the same
   // replay-safety reason createRequestIdRef exists.
   const scopeSyncRequestIdRef = useRef(null);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    ['project', 'tab', 'q', 'page', 'type', 'status', 'country', 'market', 'location'].forEach((key) => next.delete(key));
+    if (selectedProjectId !== null) next.set('project', String(selectedProjectId));
+    next.set('tab', activeDetailTab);
+    if (searchQuery) next.set('q', searchQuery);
+    if (currentPage > 1) next.set('page', String(currentPage));
+    if (typeFilter !== 'All') next.set('type', typeFilter);
+    if (statusFilter !== 'All') next.set('status', statusFilter);
+    if (countryFilter !== 'All') next.set('country', countryFilter);
+    if (salesMarketFilter !== 'All') next.set('market', salesMarketFilter);
+    if (locationTypeFilter !== 'All') next.set('location', locationTypeFilter);
+    if (next.toString() !== searchParams.toString()) setSearchParams(next, { replace: true });
+  }, [activeDetailTab, countryFilter, currentPage, locationTypeFilter, salesMarketFilter, searchParams, searchQuery, selectedProjectId, setSearchParams, statusFilter, typeFilter]);
 
   function openGcModal(project) {
     setGcEmail(project.contractorEmail || '');
@@ -571,7 +586,6 @@ function Projects({ projects, onSaveProject, onDeleteProject, onProjectCreated }
           editingProjectId={editingProjectId}
           onChange={handleChange}
           onProjectPatch={setNewProject}
-          onOpenScopeConfigurator={() => setShowScopeConfigurator(true)}
           onDelete={deleteProject}
           onSave={saveProject}
           onClose={() => { setConflict(null); setShowForm(false); }}
@@ -582,32 +596,6 @@ function Projects({ projects, onSaveProject, onDeleteProject, onProjectCreated }
         />
       )}
 
-      {/* Scope Configurator modal — v2's zoned template gets its own fully
-          isolated configurator; every other templateType keeps the existing
-          flat phase/WP one, untouched. */}
-      {showScopeConfigurator && (
-        newProject.templateType === V2_TEMPLATE_TYPE ? (
-          <ZonedScopeConfigurator
-            project={newProject}
-            scopeTemplate={newProject.scopeTemplate}
-            initialScope={newProject.scope}
-            onSave={(scope) => {
-              setNewProject(p => ({ ...p, scope: mergeProjectScopeSelection(p, scope) }));
-              setShowScopeConfigurator(false);
-            }}
-            onClose={() => setShowScopeConfigurator(false)}
-          />
-        ) : (
-          <ProjectScopeConfigurator
-            initialScope={newProject.scope}
-            onSave={(scope) => {
-              setNewProject(p => ({ ...p, scope }));
-              setShowScopeConfigurator(false);
-            }}
-            onClose={() => setShowScopeConfigurator(false)}
-          />
-        )
-      )}
     </div>
   );
 }

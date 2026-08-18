@@ -8,6 +8,7 @@ import {
   loadScheduleVersions,
   loadScheduleLifecycleStatus,
   loadScheduleVersionTasks,
+  loadScheduleVersionActivityWorkGroups,
   submitSchedule,
   requestScheduleChanges,
   approveScheduleSubmission,
@@ -35,28 +36,37 @@ export async function loadScheduleSubmissionContext(projectId) {
  * readOnly mode. Dates/duration ALWAYS come from
  * project_schedule_version_tasks (the frozen snapshot) — never from
  * project_gantt_tasks (Phase 4B.2 Section G: "Do not accidentally display a
- * moving Draft as the submitted schedule"). project_gantt_tasks is
- * consulted ONLY to enrich the row with its current wp_label/phaseId/
- * phaseLabel for display — cosmetic identity, not schedule data — using
- * getProjectGanttFull() (includes archived) so a WP archived after
- * submission still resolves a label instead of falling back to its raw id.
+ * moving Draft as the submitted schedule"). Canonical submissions freeze
+ * their own Activity title and phase labels; project_gantt_tasks is consulted
+ * only as the compatibility fallback for legacy wp_id-only snapshots.
  * @param {string|number} projectId
  * @param {string|number} versionId
  * @returns {Promise<Array<{id: string, label: string, phaseId: string, phaseLabel: string, duration_days: number, earlyStart: Date, earlyFinish: Date, lateStart: null, lateFinish: null}>>}
  */
 export async function loadSubmissionSnapshot(projectId, versionId) {
-  const [snapshotTasks, liveTasks] = await Promise.all([
+  const [snapshotTasks, snapshotWorkGroups, liveTasks] = await Promise.all([
     loadScheduleVersionTasks(versionId),
+    loadScheduleVersionActivityWorkGroups(versionId),
     getProjectGanttFull(projectId),
   ]);
   const labelByWpId = new Map(liveTasks.map((t) => [t.id, t]));
+  const workGroupsByActivityId = new Map();
+  snapshotWorkGroups.forEach((mapping) => {
+    const current = workGroupsByActivityId.get(mapping.scheduleActivityId) || [];
+    current.push(mapping.workGroupId);
+    workGroupsByActivityId.set(mapping.scheduleActivityId, current);
+  });
   return snapshotTasks.map((task) => {
     const live = labelByWpId.get(task.id);
     return {
       id: task.id,
-      label: live?.label || task.id,
-      phaseId: live?.phaseId || null,
-      phaseLabel: live?.phaseLabel || null,
+      scheduleActivityId: task.scheduleActivityId || null,
+      workGroupIds: task.scheduleActivityId
+        ? (workGroupsByActivityId.get(task.scheduleActivityId) || [])
+        : [],
+      label: task.activityTitle || live?.label || task.id,
+      phaseId: task.activityPhaseId || live?.phaseId || null,
+      phaseLabel: task.activityPhaseLabel || live?.phaseLabel || null,
       duration_days: task.durationDays,
       earlyStart: new Date(task.plannedStart),
       earlyFinish: new Date(task.plannedEnd),

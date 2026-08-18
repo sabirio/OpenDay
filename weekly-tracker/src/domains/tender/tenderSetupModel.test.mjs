@@ -1,0 +1,13 @@
+import { createTenderSetupDraft, validateTenderSetupDraft, buildTenderSetupPayload } from './tenderSetupModel.js';
+let passed=0, failed=0; const check=(n,c)=>{if(c){passed++;console.log(`  PASS ${n}`)}else{failed++;console.error(`  FAIL ${n}`)}};
+const context={ tender:{id:'00000000-0000-4000-8000-000000000010',tenderNumber:'AA01-T01'}, boq:{currencyCode:'USD'}, boqVersions:[{id:4,revisionNumber:1}], availableWorkGroups:[{id:'g1'},{id:'g2'}], participants:[], scopeWorkGroupIds:['g1'] };
+const draft=createTenderSetupDraft({storeCode:'AA01'},context,()=> '00000000-0000-4000-8000-000000000001');
+check('draft pins latest BOQ and replaces an old partial scope with the complete BOQ', draft.issuedBoqVersionId===4 && draft.workGroupIds.join(',')==='g1,g2');
+check('draft provides a contractor-facing invitation message',/invite your company/i.test(draft.invitationMessage));
+draft.deadlineAt='2026-09-01T12:00'; draft.participants[0]={participantId:'00000000-0000-4000-8000-000000000002',contractorName:'Build Co',contactEmail:'BID@BUILD.TEST'};
+check('valid setup has no issues', validateTenderSetupDraft(draft).length===0);
+const payload=buildTenderSetupPayload(draft);
+check('payload normalizes email and date', payload.participants[0].contactEmail==='bid@build.test' && payload.deadlineAt.endsWith('Z'));
+check('payload keeps a trimmed invitation message',payload.invitationMessage===draft.invitationMessage.trim());
+check('duplicate participants are rejected', validateTenderSetupDraft({...draft,participants:[draft.participants[0],{...draft.participants[0],participantId:'x'}]}).some(i=>i.code==='DUPLICATE_TENDER_PARTICIPANT'));
+console.log(`\nTender setup model: ${passed} passed, ${failed} failed`); if(failed)process.exit(1);

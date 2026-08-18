@@ -99,6 +99,8 @@ export function resolveEffectiveV2ZoneAreas(project, options) {
 export function mergeProjectScopeSelection(project, selection) {
   const next = selection && typeof selection === 'object' ? { ...selection } : {};
   delete next.zoneAreas;
+  if (project?.scope?.workOntologyVersionId) next.workOntologyVersionId = project.scope.workOntologyVersionId;
+  if (Array.isArray(project?.scope?.disciplineIds)) next.disciplineIds = [...project.scope.disciplineIds];
   const legacyZoneAreas = getLegacyV2ZoneAreas(project);
   if (legacyZoneAreas) next.zoneAreas = { ...legacyZoneAreas };
   return Object.keys(next).length > 0 ? next : null;
@@ -106,7 +108,12 @@ export function mergeProjectScopeSelection(project, selection) {
 
 export function clearProjectScopeSelection(project) {
   const legacyZoneAreas = getLegacyV2ZoneAreas(project);
-  return legacyZoneAreas ? { zoneAreas: { ...legacyZoneAreas } } : null;
+  const retained = {
+    ...(legacyZoneAreas ? { zoneAreas: { ...legacyZoneAreas } } : {}),
+    ...(project?.scope?.workOntologyVersionId ? { workOntologyVersionId: project.scope.workOntologyVersionId } : {}),
+    ...(Array.isArray(project?.scope?.disciplineIds) ? { disciplineIds: [...project.scope.disciplineIds] } : {}),
+  };
+  return Object.keys(retained).length > 0 ? retained : null;
 }
 
 /**

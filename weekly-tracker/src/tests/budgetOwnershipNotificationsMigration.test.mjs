@@ -1,0 +1,14 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/081_budget_ownership_notifications.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('ownership is pinned to Budget Cycle and Discipline',/project_budget_ownerships/.test(sql)&&/PRIMARY KEY\(budget_cycle_id,discipline_id\)/.test(sql));
+check('department and accountable person are mandatory',/department_name text NOT NULL/.test(sql)&&/owner_user_id uuid NOT NULL/.test(sql));
+check('assignment history is append-only',/project_budget_ownership_events/.test(sql)&&/ASSIGNED','REASSIGNED/.test(sql)&&/ownership_revision/.test(sql));
+check('assignment uses optimistic revision and idempotency',/BUDGET_OWNERSHIP_REVISION_CONFLICT/.test(sql)&&/budget.assign_owner/.test(sql));
+check('only PM or Admin coordinator may assign',/BUDGET_OWNERSHIP_FORBIDDEN/.test(sql)&&/NOT IN\('pm','admin'\)/.test(sql));
+check('owner candidates stay in company and exclude Contractor',/profile.company_id=v_project.company_id/.test(sql)&&/lower\(profile.role\)IN\('pm','viewer'\)/.test(sql));
+check('owner reads only assigned Discipline contributions',/ownership.discipline_id=project_budget_contributions.discipline_id/.test(sql)&&/ownership.owner_user_id=auth.uid\(\)/.test(sql));
+check('owner write command checks matching Discipline ownership',/BUDGET_CONTRIBUTION_FORBIDDEN/.test(sql)&&/discipline_id=v_row.discipline_id/.test(sql));
+check('assignment and reassignment create internal notifications',/BUDGET_OWNERSHIP_ASSIGNED/.test(sql)&&/BUDGET_OWNERSHIP_REASSIGNED/.test(sql)&&/BUDGET_OWNERSHIP_REMOVED/.test(sql));
+check('personal Inbox and acknowledgement RPCs exist',/list_my_budget_inbox/.test(sql)&&/mark_budget_notifications_read/.test(sql));
+check('direct notification and ownership writes remain unavailable',/REVOKE ALL ON TABLE public.project_budget_ownerships,public.project_budget_ownership_events,public.project_budget_notifications/.test(sql));
+check('round and approval workflow remains absent',!/budget_round|approved_at|REVISION_REQUIRED/.test(sql));
+console.log(`\nBudget ownership notifications migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

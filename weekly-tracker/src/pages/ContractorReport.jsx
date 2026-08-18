@@ -19,7 +19,7 @@ import ReportHeaderCard from "../components/contractor/ReportHeaderCard";
 import ReportingWorkPackagesSection from "../components/contractor/ReportingWorkPackagesSection";
 import ScheduleRiskSection from "../components/contractor/ScheduleRiskSection";
 import StickySubmitBar from "../components/contractor/StickySubmitBar";
-import { AdditionalWorksSection, ClientSupportSection } from "../components/contractor/SupportWorksSection";
+import { ClientSupportSection } from "../components/contractor/SupportWorksSection";
 import ValidationErrors from "../components/contractor/ValidationErrors";
 import WorkPackageProgressSection from "../components/contractor/WorkPackageProgressSection";
 import { EvidenceDeclarationSection, ForwardCommitmentsSection } from "../components/contractor/LookAheadDeclarationSection";
@@ -392,20 +392,9 @@ function ContractorReport({ projects, reports }) {
           <ForwardCommitmentsSection form={form} updateField={updateField} />
         </section>
 
-        <section className="contractor-report-group" aria-labelledby="contractor-report-commercial-heading">
-          <div className="contractor-report-group-heading">
-            <span>3</span>
-            <div>
-              <h2 id="contractor-report-commercial-heading">Commercial exceptions</h2>
-              <p>Report potential additional work without implying review or approval.</p>
-            </div>
-          </div>
-          <AdditionalWorksSection form={form} updateField={updateField} />
-        </section>
-
         <section className="contractor-report-group" aria-labelledby="contractor-report-evidence-heading">
           <div className="contractor-report-group-heading">
-            <span>4</span>
+            <span>3</span>
             <div>
               <h2 id="contractor-report-evidence-heading">Evidence and submission</h2>
               <p>Attach current-period evidence, review comments, and confirm the declaration.</p>

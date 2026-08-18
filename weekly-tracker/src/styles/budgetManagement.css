@@ -1,0 +1,228 @@
+.budget-review-form {
+  grid-template-columns: minmax(300px, 1fr) auto;
+}
+
+.budget-approved-status {
+  border-color: color-mix(in srgb, var(--status-done) 45%, var(--border-color));
+  background: linear-gradient(135deg, var(--status-done-bg), var(--bg-card) 62%);
+}
+
+.budget-approved-status h2 {
+  font-size: 1.5rem;
+}
+
+.budget-approved-table {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.budget-approved-table > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.budget-approved-table > header span {
+  color: var(--text-secondary);
+}
+
+.budget-approved-table > header h2 {
+  margin: 3px 0 0;
+}
+
+.budget-approved-table > header > strong {
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--status-done);
+  background: var(--status-done-bg);
+}
+
+.budget-usage-status {
+  display: inline-flex;
+  justify-content: center;
+  width: fit-content;
+  min-width: 108px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.budget-usage-status.not-applicable {
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+}
+
+.budget-usage-status.included {
+  color: var(--status-done);
+  background: var(--status-done-bg);
+}
+
+.budget-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.budget-report-kpis {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.budget-management-table {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.budget-management-table table,
+.budget-round-metrics table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.budget-management-table caption {
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  text-align: left;
+  background: var(--bg-subtle);
+}
+
+.budget-management-table th,
+.budget-management-table td,
+.budget-round-metrics th,
+.budget-round-metrics td {
+  padding: 9px 12px;
+  border-top: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.budget-management-table thead th {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.budget-management-table th:nth-child(n + 2),
+.budget-management-table td:nth-child(n + 2) {
+  text-align: right;
+}
+
+.budget-management-table tfoot {
+  background: var(--bg-subtle);
+}
+
+.budget-round-metrics {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.budget-round-metrics th {
+  width: 20%;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+}
+
+.budget-round-metrics td {
+  width: 30%;
+  text-align: right;
+}
+
+.budget-excel-exchange {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+}
+
+.budget-excel-exchange > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.budget-excel-exchange span {
+  color: var(--text-secondary);
+}
+
+.budget-excel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.budget-excel-result {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.budget-excel-result > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.budget-excel-result.is-valid {
+  color: var(--status-done);
+  background: var(--status-done-bg);
+}
+
+.budget-excel-result.is-invalid {
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
+}
+
+.budget-excel-result ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.budget-management-table-head,
+.budget-management-table-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 110px 160px 160px;
+  gap: 12px;
+  align-items: center;
+  min-width: 700px;
+  padding: 9px 12px;
+}
+
+.budget-management-table-head {
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.budget-management-table-row {
+  border-top: 1px solid var(--border-color);
+}
+
+.budget-management-table-row > span:nth-child(n + 2) {
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .budget-review-form {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-review-actions {
+    flex-direction: column;
+  }
+
+  .budget-report-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

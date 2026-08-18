@@ -28,6 +28,44 @@ function fail(code, message) {
   return { ok: false, error: { code, message } };
 }
 
+function readWorkbook({ filename, data }) {
+  const extension = extensionOf(filename);
+  if (!SUPPORTED_EXTENSIONS.includes(extension)) {
+    return fail('UNSUPPORTED_FILE_TYPE', `Unsupported file type "${extension || 'unknown'}". Supported types: ${SUPPORTED_EXTENSIONS.join(', ')}.`);
+  }
+  if (data == null || (typeof data !== 'string' && data.byteLength === 0) || (typeof data === 'string' && data.trim() === '')) {
+    return fail('UNREADABLE_FILE', 'The file is empty or contains no data.');
+  }
+  try {
+    const readType = typeof data === 'string' ? 'string' : (data instanceof ArrayBuffer ? 'array' : 'buffer');
+    const bytes = readType === 'array' ? new Uint8Array(data) : data;
+    return { ok: true, workbook: XLSX.read(bytes, { type: readType, cellDates: true, raw: true }) };
+  } catch {
+    return fail('UNREADABLE_FILE', 'The file could not be read as a valid workbook.');
+  }
+}
+
+export function parseWorkbookTables({ filename, data, maxRows = DEFAULT_MAX_ROWS } = {}) {
+  const parsed = readWorkbook({ filename, data });
+  if (!parsed.ok) return parsed;
+  const workbook = parsed.workbook;
+  const visibilityByName = new Map((workbook.Workbook?.Sheets || []).map(sheet => [sheet.name, sheet.Hidden || 0]));
+  const sheets = [];
+  let rowCount = 0;
+  try {
+    for (const name of workbook.SheetNames || []) {
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: null, blankrows: true });
+      rowCount += rows.length;
+      if (rowCount > maxRows) return fail('ROW_LIMIT_EXCEEDED', `The workbook exceeds the ${maxRows}-row limit for one import.`);
+      sheets.push({ name, hidden: visibilityByName.get(name) || 0, rows });
+    }
+  } catch {
+    return fail('UNREADABLE_FILE', 'The workbook sheets could not be parsed into rows.');
+  }
+  if (sheets.length === 0) return fail('UNREADABLE_FILE', 'The workbook contains no readable sheet.');
+  return { ok: true, sheets };
+}
+
 /**
  * @param {object} input
  * @param {string} input.filename - used only to check the extension
@@ -37,22 +75,9 @@ function fail(code, message) {
  *         | {ok:false, error:{code:string, message:string}}}
  */
 export function parseImportFile({ filename, data, maxRows = DEFAULT_MAX_ROWS } = {}) {
-  const extension = extensionOf(filename);
-  if (!SUPPORTED_EXTENSIONS.includes(extension)) {
-    return fail('UNSUPPORTED_FILE_TYPE', `Unsupported file type "${extension || 'unknown'}". Supported types: ${SUPPORTED_EXTENSIONS.join(', ')}.`);
-  }
-  if (data == null || (typeof data !== 'string' && data.byteLength === 0) || (typeof data === 'string' && data.trim() === '')) {
-    return fail('UNREADABLE_FILE', 'The file is empty or contains no data.');
-  }
-
-  let workbook;
-  try {
-    const readType = typeof data === 'string' ? 'string' : (data instanceof ArrayBuffer ? 'array' : 'buffer');
-    const bytes = readType === 'array' ? new Uint8Array(data) : data;
-    workbook = XLSX.read(bytes, { type: readType, cellDates: true, raw: true });
-  } catch {
-    return fail('UNREADABLE_FILE', 'The file could not be read as a valid workbook.');
-  }
+  const parsed = readWorkbook({ filename, data });
+  if (!parsed.ok) return parsed;
+  const workbook = parsed.workbook;
 
   const sheetName = workbook?.SheetNames?.[0];
   if (!sheetName || !workbook.Sheets[sheetName]) {

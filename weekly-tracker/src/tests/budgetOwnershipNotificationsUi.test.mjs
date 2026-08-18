@@ -1,0 +1,10 @@
+import{readFileSync}from'node:fs';const component=readFileSync(new URL('../components/budget/DepartmentalBudgetWorkspace.jsx',import.meta.url),'utf8'),inbox=readFileSync(new URL('../pages/BudgetInbox.jsx',import.meta.url),'utf8'),hook=readFileSync(new URL('../hooks/useProjectBudget.js',import.meta.url),'utf8'),service=readFileSync(new URL('../services/budgetService.js',import.meta.url),'utf8'),permissions=readFileSync(new URL('../auth/rolePermissions.js',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('compact Budget workspace omits Department and Budget owner assignment controls',!/OwnershipEditor/.test(component)&&!/Budget owner/.test(component)&&!/Assign & notify/.test(component));
+check('canonical department remains the read-only hierarchy heading',/departmentLabel/.test(component)&&/budget-department/.test(component));
+check('owner workspace labels its limited monetary summary',/My assigned budget/.test(component));
+check('Budget Inbox shows assignment and unread count',/Budget Inbox/.test(inbox)&&/unreadCount/.test(inbox)&&/new/.test(inbox));
+check('opening assignment acknowledges then navigates',/inbox.acknowledge/.test(inbox)&&/navigate\(`\/projects\//.test(inbox));
+check('workspace hook no longer loads assignment candidates',!/loadBudgetOwnershipCandidates/.test(hook)&&!/assignOwner/.test(hook));
+check('service calls assignment Inbox and acknowledgement RPCs',/assign_budget_discipline_owner/.test(service)&&/list_my_budget_inbox/.test(service)&&/mark_budget_notifications_read/.test(service));
+check('Viewer role is removed and database assignment remains authority',!/Viewer:/.test(permissions)&&/Approver:/.test(permissions)&&/Executive:/.test(permissions));
+console.log(`\nBudget ownership notifications UI: ${p} passed, ${f} failed`);if(f)process.exit(1);

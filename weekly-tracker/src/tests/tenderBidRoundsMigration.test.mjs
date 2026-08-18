@@ -1,0 +1,11 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/074_tender_bid_rounds.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('round pins one tender setup revision',/tender_setup_version_id bigint NOT NULL/.test(sql)&&/project_tender_one_open_round_idx/.test(sql));
+check('bidder draft is private and revision guarded',/project_tender_bid_drafts/.test(sql)&&/BID_DRAFT_REVISION_CONFLICT/.test(sql)&&!/GRANT SELECT ON TABLE public\.project_tender_bid_drafts/.test(sql));
+check('submission and items are immutable snapshots',/project_tender_bid_submissions_immutable/.test(sql)&&/project_tender_bid_submission_items_immutable/.test(sql));
+check('unpriced lines remain explicit',/unit_rate numeric\(20,6\) CHECK \(unit_rate IS NULL/.test(sql)&&/priced_line_count/.test(sql));
+check('next round waits for every invited bidder',/BID_ROUND_AWAITING_SUBMISSIONS/.test(sql)&&/status<>'REVOKED'/.test(sql));
+check('next round reads previous submission',/v_previous_round_id/.test(sql)&&/'previousUnitRate'/.test(sql));
+check('bidder authority is tender scoped',/bidder_user_id=v_uid AND status='ACTIVE' AND tender_setup_version_id=v_round\.tender_setup_version_id/.test(sql));
+check('PM review and award schemas are not implemented',!/CREATE TABLE[^;]*(clarification|award)|CREATE (OR REPLACE )?FUNCTION[^;]*(approve.*bid|award)/i.test(sql));
+check('four public commands close ACLs',((sql.match(/REVOKE ALL ON FUNCTION public\./g)||[]).length===4));
+console.log(`\nTender bid rounds migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

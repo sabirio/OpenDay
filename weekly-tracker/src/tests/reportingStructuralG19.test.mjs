@@ -28,8 +28,9 @@ console.log('\nG1.9 reporting structural contracts');
 
 check('Contractor Report uses the canonical AnalyticalSection primitive through its form-section facade',
   formParts.includes('shared/detail/AnalyticalSection.jsx') && formParts.includes('<AnalyticalSection'));
-check('Contractor workflow distinguishes reporting reality, forward commitments, commercial exceptions, and evidence',
-  ['Reporting reality', 'Forward commitments', 'Commercial exceptions', 'Evidence and submission'].every(label => contractor.includes(label)));
+check('Contractor workflow contains reporting reality, forward commitments, and evidence without commercial variations UI',
+  ['Reporting reality', 'Forward commitments', 'Evidence and submission'].every(label => contractor.includes(label))
+    && !['Additional Works / Variations', 'Open Additional Works', '<AdditionalWorksSection'].some(label => contractor.includes(label)));
 check('Contractor page delegates submission and calculations to the existing reporting model',
   contractor.includes('submitContractorReportModel')
     && submission.includes('buildContractorReportSubmission')
@@ -49,10 +50,10 @@ check('Weekly Reports provides an intentional clear action for presentation filt
   weeklyMaster.includes('onClearFilters') && weeklyMaster.includes('Clear filters'));
 check('Report status remains sourced from the existing report-context model',
   weekly.includes('describeReportContext(selectedReport') && weekly.includes('selectedReportSummary.statusLabel'));
-check('Role permissions remain centralized with Contractor submit and PM/Admin review boundaries',
+check('Role permissions remain centralized with Contractor submit and PM/Admin review boundaries and no Viewer role',
   permissions.includes("PM: ['dashboard', 'projects', 'weekly_reports'")
     && permissions.includes("Contractor: ['contractor_report'")
-    && permissions.includes("Viewer: ['dashboard', 'snags']"));
+    && !permissions.includes('Viewer:'));
 check('Routes keep Weekly review and Contractor editing as separate guarded resources',
   app.includes('path="/weekly-reports"')
     && app.includes('resource="weekly_reports"')

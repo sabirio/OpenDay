@@ -1,0 +1,11 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/075_tender_pm_bid_review.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('review state references one immutable submission',/CREATE TABLE IF NOT EXISTS public\.project_tender_bid_reviews/.test(sql)&&/REFERENCES public\.project_tender_bid_submissions/.test(sql));
+check('review workflow has explicit states and optimistic revision',/IN_REVIEW','REVIEWED/.test(sql)&&/TENDER_BID_REVIEW_REVISION_CONFLICT/.test(sql));
+check('workspace is PM or Admin only',/get_tender_bid_review_workspace/.test(sql)&&/v_role NOT IN\('pm','admin'\)/.test(sql)&&/TENDER_BID_REVIEW_FORBIDDEN/.test(sql));
+check('workspace exposes completeness without cross-bidder ranking',/'missingLineCount'/.test(sql)&&/'pricedLineCount'/.test(sql)&&!/(median|lowest|highest|rank)/i.test(sql));
+check('workspace exposes prior-round rate changes',/'previousUnitRate'/.test(sql)&&/'RATE_CHANGED'/.test(sql)&&/'PRICE_REMOVED'/.test(sql));
+check('next round requires every active submission to be reviewed',/require_tender_bid_reviews_before_round_close/.test(sql)&&/BID_ROUND_REVIEW_REQUIRED/.test(sql)&&/review\.status IS DISTINCT FROM 'REVIEWED'/.test(sql));
+check('review table has no direct mutation grant',/GRANT SELECT ON TABLE public\.project_tender_bid_reviews TO authenticated/.test(sql)&&!/GRANT (INSERT|UPDATE|DELETE)/.test(sql));
+check('public functions close ACLs before authenticated execute grants',((sql.match(/REVOKE ALL ON FUNCTION public\./g)||[]).length===2)&&((sql.match(/GRANT EXECUTE ON FUNCTION public\./g)||[]).length===2));
+check('clarification and award schemas remain deferred',!/CREATE TABLE[^;]*(clarification|award)/i.test(sql));
+console.log(`\nTender PM bid review migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

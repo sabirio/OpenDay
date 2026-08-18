@@ -1,0 +1,15 @@
+import assert from'node:assert/strict';import test from'node:test';import{countIncludedBudgetContributions,getBudgetRoundBlockers,groupBudgetContributions,groupBudgetDepartments,validateBudgetContribution,validateBudgetCycleDraft,validateBudgetOwnership,validateBudgetReview,validateNextBudgetRoundNote}from'./departmentalBudgetModel.js';
+test('cycle requires title and ISO currency',()=>assert.equal(validateBudgetCycleDraft({title:'',currencyCode:'KZ'}).length,2));
+test('in-progress contribution requires exact non-negative money',()=>assert.deepEqual(validateBudgetContribution({status:'IN_PROGRESS',amount:'1200.50',note:''}),[]));
+test('not-started contribution cannot retain amount',()=>assert.equal(validateBudgetContribution({status:'NOT_STARTED',amount:'1'}).at(0).code,'NOT_STARTED_AMOUNT_MUST_BE_EMPTY'));
+test('rows group deterministically by discipline',()=>assert.equal(groupBudgetContributions([{disciplineId:'a'},{disciplineId:'a'},{disciplineId:'b'}]).length,2));
+test('ownership requires department and person',()=>assert.equal(validateBudgetOwnership({departmentName:'',ownerUserId:''}).length,2));
+test('group includes its authoritative ownership',()=>assert.equal(groupBudgetContributions([{disciplineId:'a'}],[{disciplineId:'a',ownerUserId:'u'}])[0].ownership.ownerUserId,'u'));
+test('rows group through canonical Department then Discipline',()=>assert.equal(groupBudgetDepartments([{departmentId:'d',departmentLabel:'Construction',disciplineId:'a'},{departmentId:'d',departmentLabel:'Construction',disciplineId:'b'}]).at(0).disciplines.length,2));
+test('department grouping counts only priced work as included',()=>assert.equal(groupBudgetDepartments([{departmentId:'d',disciplineId:'a',amount:'100'},{departmentId:'d',disciplineId:'a',amount:null}]).at(0).includedCount,1));
+test('included count ignores work without an amount',()=>assert.equal(countIncludedBudgetContributions([{amount:'100'},{amount:null},{}]),1));
+test('round readiness ignores unowned and not-started scope',()=>assert.deepEqual(getBudgetRoundBlockers({submittedCount:2,incompleteCount:0,unownedDisciplineCount:1}),[]));
+test('round readiness requires a submitted row and no in-progress work',()=>assert.equal(getBudgetRoundBlockers({submittedCount:0,incompleteCount:2}).length,2));
+test('next-round note is bounded',()=>assert.equal(validateNextBudgetRoundNote('x'.repeat(1001))[0].code,'BUDGET_ROUND_NOTE_TOO_LONG'));
+test('revision-required review needs management comment',()=>assert.equal(validateBudgetReview({decision:'REVISION_REQUIRED',comment:''})[0].code,'BUDGET_REVISION_COMMENT_REQUIRED'));
+test('approval permits optional concise comment',()=>assert.deepEqual(validateBudgetReview({decision:'APPROVED',comment:'Within mandate'}),[]));

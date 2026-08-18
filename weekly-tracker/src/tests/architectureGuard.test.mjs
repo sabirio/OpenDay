@@ -387,6 +387,12 @@ function formatViolation(v) {
 
 const archViolations = scanArchitectureDebt();
 
+const dynamicSupabaseImports = sourceFiles
+  .filter(({ rel, text }) => /^(?:pages|components|hooks)\//.test(rel)
+    && /import\s*\(\s*['"][^'"]*lib\/supabase(?:\.js)?['"]\s*\)/.test(text))
+  .map(({ rel }) => rel);
+check(`UI cannot evade the persistence boundary with dynamic Supabase imports (violations: ${dynamicSupabaseImports.join(', ') || 'none'})`, dynamicSupabaseImports.length === 0);
+
 if (process.argv.includes('--write-allowlist')) {
   console.error('architectureGuard is HARD: there is no allowlist to (re)write anymore. Fix the violation(s) instead — see DESIGN.md.');
   process.exit(1);
@@ -414,6 +420,36 @@ check(
   `architecture guard is HARD: zero layer-import/calculation/service-purity/status-literal violations allowed (found: ${archViolations.length})`,
   archViolations.length === 0
 );
+
+// Tender / BOQ / Commercial spine certification. These are the UI surfaces
+// delivered by the commercial roadmap; their React files may render prepared
+// state and dispatch commands, but may not own commercial derivations,
+// persistence, authorization, or a second financial truth model.
+const commercialUiPrefixes = [
+  'components/tender/', 'components/boq/', 'components/commercial/', 'components/variations/',
+];
+const commercialUiExact = new Set([
+  'pages/ProjectTenderSetup.jsx', 'pages/BidderTenderInbox.jsx', 'pages/ConsultantBoq.jsx',
+  'pages/ProjectBoq.jsx', 'pages/ProjectCommercialSetup.jsx', 'pages/ProjectVariations.jsx',
+]);
+const commercialUiFiles = sourceFiles.filter(({ rel }) => commercialUiExact.has(rel) || commercialUiPrefixes.some(prefix => rel.startsWith(prefix)));
+const commercialDirectLayerImports = commercialUiFiles.flatMap(({ rel, text }) =>
+  [...text.matchAll(IMPORT_RE)].filter(([, spec]) => /\/(?:domains|engines|services)\/|lib\/supabase/.test(spec)).map(([, spec]) => `${rel} -> ${spec}`));
+check(`commercial React imports only presentation hooks and UI dependencies (violations: ${commercialDirectLayerImports.join(', ') || 'none'})`, commercialDirectLayerImports.length === 0);
+
+const commercialDerivationRe = /\.reduce\(|\.filter\(|\.some\(|\.every\(|\.find\(|Intl\.NumberFormat|Math\.|\bNumber\(|new Date\(/;
+const commercialDerivations = commercialUiFiles.filter(({ text }) => commercialDerivationRe.test(text)).map(({ rel }) => rel);
+check(`commercial React contains no business calculations or derived commercial read models (violations: ${commercialDerivations.join(', ') || 'none'})`, commercialDerivations.length === 0);
+
+const commercialRoleBranches = commercialUiFiles.filter(({ text }) => /\brole\s*(?:===|!==|==|!=)\s*['"](?:Admin|PM|Consultant|Contractor|Approver|Executive)['"]/i.test(text)).map(({ rel }) => rel);
+check(`commercial React contains no role-based authorization decisions (violations: ${commercialRoleBranches.join(', ') || 'none'})`, commercialRoleBranches.length === 0);
+
+const projectVariationsUi = readFileSync(path.join(srcRoot, 'pages/ProjectVariations.jsx'), 'utf8');
+const projectCostForecastUi = readFileSync(path.join(srcRoot, 'pages/ProjectCostForecast.jsx'), 'utf8');
+check('Cost Package Financial Overview is the only project commercial truth panel',
+  /CostPackageFinancialOverview/.test(projectCostForecastUi)
+  && !/CostPackageFinancialOverview/.test(projectVariationsUi)
+  && !/ForecastPanel|CommercialHealthPanel|VariationExposure/.test(projectCostForecastUi + projectVariationsUi));
 
 console.log(`\n-- FINAL RESULT: ${pass} passed, ${fail} failed --\n`);
 process.exit(fail === 0 ? 0 : 1);

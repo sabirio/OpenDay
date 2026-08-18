@@ -9,7 +9,7 @@ import { userSafeError } from '../utils/userError';
 async function fetchProfile(userId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('name, role, company_id, assigned_projects')
+    .select('name, role, job_role, company_id, assigned_projects')
     .eq('id', userId)
     .single();
 
@@ -22,12 +22,13 @@ async function fetchProfile(userId) {
 
 // Builds a safe session object from a Supabase user + profile row
 function buildUser(supabaseUser, profile) {
-  const role = profile?.role ?? 'Viewer';
+  const role = profile?.role ?? 'Executive';
   return {
     id: supabaseUser.id,
     email: supabaseUser.email,
     name: profile?.name ?? supabaseUser.email,
     role,
+    jobRole: profile?.job_role ?? null,
     companyId: profile?.company_id ?? null,
     assignedProjects: profile?.assigned_projects ?? [],
     permissions: PERMISSIONS[role] ?? [],

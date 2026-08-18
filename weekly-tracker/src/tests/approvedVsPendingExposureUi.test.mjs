@@ -1,0 +1,15 @@
+import { readFileSync } from 'node:fs';
+const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+const ui = read('../components/variations/CostPackageFinancialOverview.jsx');
+const engine = read('../engines/costPackageFinancialEngine.js');
+const core = read('../core/variations/variationOrchestration.js');
+const page = read('../pages/ProjectCostForecast.jsx');
+let passed = 0; let failed = 0;
+const check = (name, condition) => condition ? (passed++, console.log(`  PASS ${name}`)) : (failed++, console.error(`  FAIL ${name}`));
+check('canonical overview separates approved Additional Works and pending exposure', /Additional Works/.test(ui) && /Pending exposure/.test(ui));
+check('commercial equation exposes budget committed forecast and variance', /Budget/.test(ui) && /Committed/.test(ui) && /Forecast/.test(ui) && /Variance/.test(ui));
+check('legacy unmapped Additional Works are explicit', /hasUnmappedAdditionalWorks/.test(ui) && /excluded from package totals/.test(ui));
+check('totals are computed by the financial engine, not React', /rows\.reduce/.test(engine) && !/\.reduce\(/.test(ui));
+check('management data loads in parallel and stays hidden from contractor', /Promise\.all/.test(core) && /costPackageFinancials:null/.test(core));
+check('Cost Package forecast page renders one canonical financial overview', /CostPackageFinancialOverview/.test(page) && !/VariationExposure/.test(page));
+console.log(`\nCost Package Exposure UI: ${passed} passed, ${failed} failed`); if (failed) process.exit(1);

@@ -33,7 +33,7 @@ import { deriveScheduleCompleteness } from '../core/schedule/contractorScheduleL
  * for the read direction. Neither GanttChart.jsx nor the pure draft model
  * ever performs this conversion themselves.
  */
-export function useContractorScheduleDraft({ projectId }) {
+export function useContractorScheduleDraft({ projectId, refreshKey = 0 }) {
   const [persisted, setPersisted] = useState({ key: null, tasks: [] });
   const [draft, setDraft] = useState(createEmptyDraftState());
   const [saving, setSaving] = useState(false);
@@ -46,7 +46,7 @@ export function useContractorScheduleDraft({ projectId }) {
       .then(tasks => { if (alive) setPersisted({ key: projectId, tasks }); })
       .catch(() => { if (alive) setPersisted({ key: projectId, tasks: [] }); });
     return () => { alive = false; };
-  }, [projectId]);
+  }, [projectId, refreshKey]);
 
   const persistedTasks = persisted.key === projectId ? persisted.tasks : [];
 

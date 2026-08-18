@@ -1,0 +1,14 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/078_tender_award.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('tender receives one immutable award',/project_tender_awards/.test(sql)&&/tender_id uuid NOT NULL UNIQUE/.test(sql)&&/project_tender_awards_immutable/.test(sql));
+check('award pins final submission round setup project and ontology',/bid_submission_id bigint NOT NULL UNIQUE/.test(sql)&&/tender_setup_version_id bigint NOT NULL/.test(sql)&&/ontology_version_id uuid NOT NULL/.test(sql));
+check('awarded BOQ copies fully priced immutable commercial lines',/project_tender_awarded_boq_items/.test(sql)&&/unit_rate numeric\(20,6\) NOT NULL/.test(sql)&&/project_tender_awarded_boq_items_immutable/.test(sql));
+check('awarded Work Groups preserve totals for D24',/project_tender_awarded_work_groups/.test(sql)&&/awarded_total numeric\(24,2\)/.test(sql));
+check('award requires latest open fully priced reviewed bid',/TENDER_AWARD_REQUIRES_LATEST_OPEN_ROUND/.test(sql)&&/TENDER_AWARD_REQUIRES_FULLY_PRICED_BID/.test(sql)&&/TENDER_AWARD_REQUIRES_REVIEWED_BID/.test(sql));
+check('award requires closed clarifications and active bidder',/TENDER_AWARD_REQUIRES_CLOSED_CLARIFICATIONS/.test(sql)&&/TENDER_AWARD_REQUIRES_ACTIVE_BIDDER/.test(sql));
+check('snapshot count and total reconcile before commit',/TENDER_AWARD_SNAPSHOT_TOTAL_MISMATCH/.test(sql)&&/v_total<>v_submission\.total/.test(sql));
+check('award closes final round and changes tender status atomically',/UPDATE public\.project_tender_bid_rounds SET status='CLOSED'/.test(sql)&&/UPDATE public\.project_tenders SET status='AWARDED'/.test(sql));
+check('awarded tender blocks new setup and bid rounds',/project_tender_setup_versions_block_after_award/.test(sql)&&/project_tender_bid_rounds_block_after_award/.test(sql)&&/TENDER_ALREADY_AWARDED/.test(sql));
+check('award has no direct authenticated table access',!/GRANT (SELECT|INSERT|UPDATE|DELETE) ON TABLE public\.project_tender_award/.test(sql));
+check('two public functions close ACLs',((sql.match(/REVOKE ALL ON FUNCTION public\./g)||[]).length===2)&&((sql.match(/GRANT EXECUTE ON FUNCTION public\./g)||[]).length===2));
+check('execution scope materialization remains deferred',!/INSERT INTO public\.project_execution_scope/i.test(sql));
+console.log(`\nTender award migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

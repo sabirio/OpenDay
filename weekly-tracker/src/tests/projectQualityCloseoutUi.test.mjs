@@ -1,0 +1,15 @@
+import { readFileSync } from 'node:fs';
+const ui = readFileSync(new URL('../components/closeout/QualityCloseout.jsx', import.meta.url), 'utf8');
+const page = readFileSync(new URL('../pages/ProjectCloseout.jsx', import.meta.url), 'utf8');
+const service = readFileSync(new URL('../services/closeoutService.js', import.meta.url), 'utf8');
+const core = readFileSync(new URL('../core/closeout/costCloseoutOrchestration.js', import.meta.url), 'utf8');
+let passed = 0; let failed = 0;
+const check = (name, condition) => condition ? (passed++, console.log(`  PASS ${name}`)) : (failed++, console.error(`  FAIL ${name}`));
+check('UI shows total critical and handover-open snags', /Total snags/.test(ui) && /critical/.test(ui) && /open at handover/.test(ui));
+check('UI shows closure and reopen measures', /Average closure/.test(ui) && /reopen rate/.test(ui));
+check('UI renders Work Group breakdown and mapping state', /snagsByWorkGroup/.test(ui) && /mappingState/.test(ui));
+check('UI states legacy evidence is not silently assigned', /never silently assigned/.test(ui));
+check('service uses quality closeout RPCs', /get_project_quality_closeout/.test(service) && /save_project_quality_closeout/.test(service));
+check('core loads quality concurrently and exposes commit', /loadQualityCloseout/.test(core) && /commitQualityCloseout/.test(core));
+check('quality stage is rendered after scope', page.indexOf('ScopeCloseout') < page.lastIndexOf('QualityCloseout'));
+console.log(`\nProject Quality Closeout UI: ${passed} passed, ${failed} failed`); if (failed) process.exit(1);

@@ -1,0 +1,11 @@
+import{readFileSync}from'node:fs';const component=readFileSync(new URL('../components/budget/DepartmentalBudgetWorkspace.jsx',import.meta.url),'utf8'),hook=readFileSync(new URL('../hooks/useProjectBudget.js',import.meta.url),'utf8'),service=readFileSync(new URL('../services/budgetService.js',import.meta.url),'utf8'),model=readFileSync(new URL('../domains/budget/departmentalBudgetModel.js',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('issued round shows Management Review state',/Management Review/.test(component)&&/Awaiting authorised reviewer/.test(component));
+check('reviewer has explicit approve and return-for-next-round actions',/Budget approved/.test(component)&&/Return budget for Round/.test(component)&&/REVISION_REQUIRED/.test(component));
+check('revision comment validation exists',/validateBudgetReview/.test(model)&&/BUDGET_REVISION_COMMENT_REQUIRED/.test(model));
+check('review access is explained for non-admin viewers',/Admin with access to this project must review/.test(component)&&!/person who issued this round cannot approve it/.test(component));
+check('approved immutable baseline is the primary current status',/Current budget status/.test(component)&&/Budget approved/.test(component)&&/Approved Budget Baseline/.test(component)&&/baseline\.sourceRoundNumber/.test(component));
+check('next round action requires revision decision',/currentReview\?\.decision === 'REVISION_REQUIRED'/.test(component));
+check('hook loads approval and refreshes after decision',/loadBudgetApproval/.test(hook)&&/commitBudgetReview/.test(hook)&&/reviewRound/.test(hook));
+check('return action records revision and immediately opens the next round',/returnForNextRound/.test(hook)&&/commitNextBudgetRound/.test(hook)&&/return-next-round/.test(hook));
+check('service calls approval read and review commands',/get_project_budget_approval/.test(service)&&/review_project_budget_round/.test(service));
+console.log(`\nBudget approval workflow UI: ${p} passed, ${f} failed`);if(f)process.exit(1);

@@ -12,32 +12,43 @@ function groupWpsByReportId(wps) {
   return map;
 }
 
+function groupRiskWorkGroupIdsByReportId(links) {
+  const map = {};
+  for (const link of links || []) {
+    if (!map[link.report_id]) map[link.report_id] = [];
+    map[link.report_id].push(link.work_group_id);
+  }
+  return map;
+}
+
 /**
  * Fetch canonical contractor reports and adapt them for legacy-shaped screens.
  */
 export async function getAllReportsForScreens() {
-  const { reports, wps, projects } = await fetchAllContractorReportsRaw();
+  const { reports, wps, riskWorkGroups, projects } = await fetchAllContractorReportsRaw();
 
   const wpsByReportId = groupWpsByReportId(wps);
+  const riskWorkGroupIdsByReportId = groupRiskWorkGroupIdsByReportId(riskWorkGroups);
   const projectById = {};
   for (const p of projects) projectById[p.id] = p;
 
   return validateArray(
     ContractorReportSchema,
-    adaptContractorReportsToLegacy(reports, wpsByReportId, projectById),
+    adaptContractorReportsToLegacy(reports, wpsByReportId, projectById, riskWorkGroupIdsByReportId),
     'contractor_reports'
   );
 }
 
 export async function getReportsForProjectForScreens(projectId) {
-  const { reports, wps, project } = await fetchContractorReportsForProjectRaw(projectId);
+  const { reports, wps, riskWorkGroups, project } = await fetchContractorReportsForProjectRaw(projectId);
   if (reports.length === 0) return [];
 
   const wpsByReportId = groupWpsByReportId(wps);
+  const riskWorkGroupIdsByReportId = groupRiskWorkGroupIdsByReportId(riskWorkGroups);
 
   return validateArray(
     ContractorReportSchema,
-    adaptContractorReportsToLegacy(reports, wpsByReportId, { [projectId]: project }),
+    adaptContractorReportsToLegacy(reports, wpsByReportId, { [projectId]: project }, riskWorkGroupIdsByReportId),
     'contractor_reports'
   );
 }

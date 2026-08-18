@@ -15,6 +15,11 @@ export function clampPage(page, pageCount) {
   return Math.min(Math.max(1, page), pageCount);
 }
 
+/** Normalize an untrusted URL page value into a positive 1-based page. */
+export function parseRequestedPage(value) {
+  return Math.max(1, Number(value) || 1);
+}
+
 /** The `[start, end]` (1-based, inclusive) item range shown on `page`. */
 export function pageRange(page, pageSize, totalCount) {
   const start = (page - 1) * pageSize + 1;

@@ -20,6 +20,8 @@ export const SiteVisitWPSchema = z.object({
   observed_progress: z.number().nullable().optional(),
   discrepancy_delta: z.number().nullable().optional(),
   pm_note: z.string().nullable().optional(),
+  workOntologyVersionId: z.string().uuid().nullable().optional(),
+  workGroupId: z.string().uuid().nullable().optional(),
 }).passthrough();
 
 export const SiteVisitSchema = z.object({

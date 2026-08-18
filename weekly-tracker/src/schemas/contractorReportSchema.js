@@ -12,6 +12,7 @@ const WPTaskEntrySchema = z.object({
   status: z.string(),
   progress: z.number().nullable().optional(),
   comment: z.string().nullable().optional(),
+  workGroupId: z.string().uuid().nullable().optional(),
 }).passthrough();
 
 export const ContractorReportSchema = z.object({
@@ -24,4 +25,7 @@ export const ContractorReportSchema = z.object({
   projectScheduleStatus: z.string().nullable().optional(),
   workPackageStatuses: z.record(z.string(), z.record(z.string(), WPTaskEntrySchema)).optional(),
   photos: z.array(z.string()).optional(),
+  workOntologyVersionId: z.string().uuid().nullable().optional(),
+  reportedWorkGroupIds: z.array(z.string().uuid()).optional(),
+  riskWorkGroupIds: z.array(z.string().uuid()).optional(),
 }).passthrough();

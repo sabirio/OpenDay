@@ -77,8 +77,11 @@ function buildRawFacts(project) {
       actualOpening: project?.actualOpeningDate ?? null,
     },
     financial: {
-      budget: project?.budget ?? null,
-      actualCost: project?.actualCost ?? null,
+      // Live project objects expose these as explicitly legacy import facts.
+      // The fallback keeps this pure engine compatible with already-sealed
+      // historical fixtures and records created before that naming boundary.
+      budget: project?.legacyBudget ?? project?.budget ?? null,
+      actualCost: project?.legacyActualCost ?? project?.actualCost ?? null,
       currencyCode: project?.currencyCode ?? null,
     },
     contractor: {

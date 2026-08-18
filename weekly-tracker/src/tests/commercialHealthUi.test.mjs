@@ -1,0 +1,12 @@
+import { existsSync, readFileSync } from 'node:fs';
+const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+const ui = read('../components/variations/CostPackageFinancialOverview.jsx');
+const engine = read('../engines/costPackageFinancialEngine.js');
+const page = read('../pages/ProjectCostForecast.jsx');
+let passed = 0; let failed = 0;
+const check = (name, condition) => condition ? (passed++, console.log(`  PASS ${name}`)) : (failed++, console.error(`  FAIL ${name}`));
+check('canonical commercial health is Cost Package based', /Financial Overview/.test(ui) && /Budget/.test(ui) && /Forecast/.test(ui) && /Variance/.test(ui));
+check('financial presentation is engine-owned', /presentCostPackageFinancialOverview/.test(engine) && !/Intl\.NumberFormat|\.reduce\(/.test(ui));
+check('legacy project health panel is removed', !existsSync(new URL('../components/variations/CommercialHealthPanel.jsx', import.meta.url)));
+check('dedicated Cost Package forecast page renders only canonical overview', /CostPackageFinancialOverview/.test(page) && !/CommercialHealthPanel/.test(page));
+console.log(`\nCommercial Health UI: ${passed} passed, ${failed} failed`); if (failed) process.exit(1);

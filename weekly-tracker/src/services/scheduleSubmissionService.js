@@ -30,6 +30,7 @@ function fromDBVersion(row) {
     contractorComment: row.contractor_comment,
     pmComment: row.pm_comment,
     createdAt: row.created_at,
+    executionScopeVersionId: row.execution_scope_version_id,
   };
 }
 
@@ -39,6 +40,20 @@ function fromDBVersionTask(row) {
     plannedStart: row.planned_start,
     plannedEnd: row.planned_end,
     durationDays: row.duration_days,
+    scheduleActivityId: row.schedule_activity_id,
+    activityTitle: row.activity_title,
+    activityPhaseId: row.activity_phase_id,
+    activityPhaseLabel: row.activity_phase_label,
+  };
+}
+
+function fromDBVersionActivityWorkGroup(row) {
+  return {
+    versionId: row.version_id,
+    scheduleActivityId: row.schedule_activity_id,
+    executionScopeVersionId: row.execution_scope_version_id,
+    ontologyVersionId: row.ontology_version_id,
+    workGroupId: row.work_group_id,
   };
 }
 
@@ -66,6 +81,19 @@ export async function loadScheduleVersionTasks(versionId) {
   return (data || []).map(fromDBVersionTask);
 }
 
+/** Immutable Activity -> Work Group membership captured with a canonical submission. */
+export async function loadScheduleVersionActivityWorkGroups(versionId) {
+  if (!versionId) return [];
+  const { data, error } = await supabase
+    .from('project_schedule_version_activity_work_groups')
+    .select('*')
+    .eq('version_id', versionId)
+    .order('schedule_activity_id', { ascending: true })
+    .order('work_group_id', { ascending: true });
+  if (error) throw error;
+  return (data || []).map(fromDBVersionActivityWorkGroup);
+}
+
 /** The ONE canonical capability status (DRAFT/PENDING_REVIEW/APPROVED) — public.contractor_schedule_lifecycle_status(), granted EXECUTE to authenticated, safe to call directly. */
 export async function loadScheduleLifecycleStatus(projectId) {
   if (!projectId) return 'DRAFT';
@@ -82,11 +110,13 @@ export async function submitSchedule(projectId, clientRequestId, comment) {
   });
   if (error) throw error;
   return {
+    baselineId: data?.baselineId,
     submissionId: data?.submissionId,
     projectId: data?.projectId,
     submissionNumber: data?.submissionNumber,
     status: data?.status,
     scheduledCount: data?.scheduledCount,
+    executionScopeVersionId: data?.executionScopeVersionId,
     idempotentReplay: data?.idempotentReplay === true,
   };
 }
@@ -118,6 +148,9 @@ export async function approveScheduleSubmission(submissionId, comment, clientReq
     projectId: data?.projectId,
     status: data?.status,
     baselineRevisionNumber: data?.baselineRevisionNumber,
+    executionScopeVersionId: data?.executionScopeVersionId,
+    activityCount: data?.activityCount,
+    workGroupCount: data?.workGroupCount,
     idempotentReplay: data?.idempotentReplay === true,
   };
 }

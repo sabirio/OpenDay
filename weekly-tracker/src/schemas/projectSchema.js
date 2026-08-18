@@ -11,12 +11,15 @@ import { z } from 'zod';
 const ScopeSchema = z.object({
   workPackages: z.array(z.string()).optional(),
   weightOverrides: z.record(z.string(), z.number()).optional(),
+  workOntologyVersionId: z.string().uuid().optional(),
+  disciplineIds: z.array(z.string().uuid()).optional(),
 }).passthrough().nullable().optional();
 
 export const ProgressHistoryRowSchema = z.object({
   overall_progress: z.number().nullable().optional(),
   recorded_at: z.string().nullable().optional(),
   week_number: z.number().nullable().optional(),
+  work_ontology_version_id: z.string().uuid().nullable().optional(),
 }).passthrough();
 
 export const ProjectSchema = z.object({
@@ -27,6 +30,7 @@ export const ProjectSchema = z.object({
   constructionStartDate: z.string().nullable().optional(),
   constructionEndDate: z.string().nullable().optional(),
   targetOpeningDate: z.string().nullable().optional(),
+  currencyCode: z.enum(['KZT', 'USD', 'EUR']).nullable().optional(),
   templateId: z.union([z.string(), z.number()]).nullable().optional(),
   scope: ScopeSchema,
   progressHistory: z.array(ProgressHistoryRowSchema).optional(),

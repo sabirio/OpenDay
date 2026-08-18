@@ -1,0 +1,13 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/076_tender_clarification_register.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('clarifications pin immutable submission and line identity',/project_tender_clarifications/.test(sql)&&/REFERENCES public\.project_tender_bid_submission_items\(bid_submission_id,line_id\)/.test(sql));
+check('roadmap clarification types are constrained',/COMMERCIAL','TECHNICAL','SCOPE','QUANTITY','MISSING_INFORMATION','OTHER/.test(sql));
+check('issued sets are immutable audit records',/project_tender_clarification_sets_immutable/.test(sql)&&/status text NOT NULL CHECK \(status='ISSUED'\)/.test(sql));
+check('events preserve the full response and resolution trail',/project_tender_clarification_events/.test(sql)&&/CREATED','ISSUED','RESPONDED','REVISION_REQUIRED','RESOLVED','CLOSED/.test(sql));
+check('bidder projection excludes PM drafts and competitors',/clarification\.participant_id=v_access\.participant_id AND clarification\.status<>'DRAFT'/.test(sql));
+check('bidder response is tender-scoped and revision guarded',/respond_to_tender_clarification/.test(sql)&&/bidder_user_id=v_uid AND status='ACTIVE'/.test(sql)&&/TENDER_CLARIFICATION_REVISION_CONFLICT/.test(sql));
+check('only PM or Admin can create issue and resolve',((sql.match(/TENDER_CLARIFICATION_FORBIDDEN/g)||[]).length>=4)&&/v_role NOT IN\('pm','admin'\)/.test(sql));
+check('open clarification blocks the next round',/BID_ROUND_CLARIFICATIONS_OPEN/.test(sql)&&/status NOT IN\('RESOLVED','CLOSED'\)/.test(sql));
+check('tables expose no direct authenticated mutation',!/GRANT (SELECT|INSERT|UPDATE|DELETE) ON TABLE public\.project_tender_clarification/.test(sql));
+check('six public functions close ACLs',((sql.match(/REVOKE ALL ON FUNCTION public\./g)||[]).length===6)&&((sql.match(/GRANT EXECUTE ON FUNCTION public\./g)||[]).length===6));
+check('comparison and award schemas remain deferred',!/CREATE TABLE[^;]*(comparison|award)/i.test(sql));
+console.log(`\nTender Clarification Register migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

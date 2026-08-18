@@ -42,9 +42,9 @@ check('Project query handoff and mobile detail entry remain preserved',
     && page.includes("useState(() => (linkedProjectId ? 'detail' : 'master'))")
     && projectHub.includes('`/risk?project=${encodedProjectId}`'));
 check('Canonical permission facade still excludes Contractor and Viewer from internal Risk',
-  permissions.includes("PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine'")
-    && permissions.includes("Contractor: ['contractor_report', 'snags', 'contractor_schedule']")
-    && permissions.includes("Viewer: ['dashboard', 'snags']")
+  /PM: \[[^\]]*'risk_engine'/.test(permissions)
+    && !/Contractor: \[[^\]]*'risk_engine'/.test(permissions)
+    && !/Viewer: \[[^\]]*'risk_engine'/.test(permissions)
     && app.includes('resource="risk_engine"'));
 check('Canonical MasterDetail and detail-content primitives dominate the Risk composition',
   page.includes('<MasterDetailLayout')

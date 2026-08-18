@@ -1,0 +1,11 @@
+import { readFileSync } from 'node:fs';
+const sql=readFileSync(new URL('../migrations/129_clarification_subjects_and_lifecycle.sql',import.meta.url),'utf8');let passed=0,failed=0;const check=(name,condition)=>{if(condition){passed++;console.log(`  PASS ${name}`)}else{failed++;console.error(`  FAIL ${name}`)}};
+check('subjects cover Tender Category Line Contractor and Bid Round',/TENDER','CATEGORY','LINE','CONTRACTOR','BID_ROUND/.test(sql));
+check('subject shape is database constrained',/project_tender_clarifications_subject_shape_check/.test(sql)&&/subject_type='CATEGORY'/.test(sql));
+check('generic clarification command validates category scope',/create_tender_clarification/.test(sql)&&/TENDER_CLARIFICATION_CATEGORY_OUT_OF_SCOPE/.test(sql));
+check('line wrapper preserves compatibility',/create_tender_line_clarification/.test(sql)&&/SELECT public\.create_tender_clarification/.test(sql));
+check('response can be accepted or returned for revision',/p_decision NOT IN\('REVISION_REQUIRED','ACCEPTED'\)/.test(sql));
+check('accepted clarification has explicit close command',/close_tender_clarification/.test(sql)&&/TENDER_CLARIFICATION_NOT_CLOSEABLE/.test(sql));
+check('history includes Accepted and Closed events',/ACCEPTED','RESOLVED','CLOSED/.test(sql)&&/event_type,actor_id,message/.test(sql));
+check('contractor access requires accepted invitation',/bidder_user_id=v_uid AND status='ACCEPTED'/.test(sql));
+console.log(`\nTender clarification lifecycle v2 migration: ${passed} passed, ${failed} failed`);if(failed)process.exit(1);

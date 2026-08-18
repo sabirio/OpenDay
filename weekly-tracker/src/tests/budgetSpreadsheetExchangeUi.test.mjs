@@ -1,0 +1,14 @@
+import { readFileSync } from 'node:fs';
+const component = readFileSync(new URL('../components/budget/DepartmentalBudgetWorkspace.jsx', import.meta.url), 'utf8');
+const page = readFileSync(new URL('../pages/ProjectBudget.jsx', import.meta.url), 'utf8');
+const hook = readFileSync(new URL('../hooks/useProjectBudget.js', import.meta.url), 'utf8');
+let passed = 0, failed = 0;
+const check = (label, condition) => { if (condition) { passed += 1; console.log(`  PASS ${label}`); } else { failed += 1; console.error(`  FAIL ${label}`); } };
+check('budget page exports a round-specific Excel workbook', /buildProjectBudgetWorkbookBytes/.test(page) && /-Budget-R/.test(page));
+check('budget screen exposes Export and Import Excel actions', /Export Excel/.test(component) && /Import Excel/.test(component) && /accept="\.xlsx/.test(component));
+check('import has validation preview before applying changes', /Excel import is valid/.test(component) && /Excel import blocked/.test(component) && /Apply Excel changes/.test(component));
+check('import is unavailable after a round is issued', /disabled=\{locked \|\| Boolean\(editor\.busy\)\}/.test(component));
+check('hook reparses the workbook before committing and saves in bounded batches', (hook.match(/planProjectBudgetWorkbookImport/g) || []).length >= 3 && /index\+=20/.test(hook));
+check('technical import codes are translated into actionable messages', /This file belongs to project/.test(component) && /Export a fresh file/.test(component) && /budgetImportIssueMessage/.test(component));
+console.log(`\nBudget Excel UI: ${passed} passed, ${failed} failed`);
+if (failed) process.exit(1);

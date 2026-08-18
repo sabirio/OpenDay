@@ -1,18 +1,11 @@
-import { PHASES } from "../../config/masterTaskLibrary";
-import { TEMPLATES } from "../../config/projectTemplates";
 import { getOpeningUrgencyColor } from "../../config/statusColors";
 import { formatDate, daysUntil } from "../../utils/reportUtils";
 import { daysOverdueCount } from "../../hooks/useOpeningReadinessPresentation";
-import { describeProjectLocation, formatArea, formatMoney } from "../../hooks/useProjectInfoPresentation";
+import { describeProjectLocation } from "../../hooks/useProjectInfoPresentation";
 import BenchmarkView from "./BenchmarkView";
-import { useToast } from "../shared/Toast.jsx";
+import ProjectCurrentSituation from "./ProjectCurrentSituation.jsx";
 import StatusBadge from "../shared/StatusBadge.jsx";
-
-const PHASE_LABELS = Object.fromEntries(PHASES.map((phase) => [phase.id, phase.label]));
-
-function configured(value) {
-  return value === null || value === undefined || value === "" ? "Not set" : value;
-}
+import { Link, useLocation } from "react-router-dom";
 
 function ProjectDetailSection({ title, description, children }) {
   return (
@@ -77,14 +70,12 @@ export function ProjectDetailHeader({ project, onEdit, onBack, onInvite }) {
 }
 
 export default function ProjectDetailPane({ project, projects, activeTab }) {
-  const toast = useToast();
+  const routeLocation = useLocation();
+  const returnState = { returnTo: `${routeLocation.pathname}${routeLocation.search}` };
   const openingDate = project.targetOpeningDate ? new Date(project.targetOpeningDate) : null;
   const daysLeft = project.targetOpeningDate ? daysUntil(project.targetOpeningDate) : null;
   const openingColor = getOpeningUrgencyColor(daysLeft);
-  const location = describeProjectLocation(project);
   const hasForecast = project.constructionCompletionDate || project.forecastOpeningDate;
-  const template = TEMPLATES.find((item) => item.id === project.templateType)?.label || project.templateType;
-  const phases = (project.phases || []).map((phase) => PHASE_LABELS[phase] || phase).join(", ");
 
   if (activeTab === "benchmark") {
     return <BenchmarkView project={project} projects={projects || []} />;
@@ -136,12 +127,34 @@ export default function ProjectDetailPane({ project, projects, activeTab }) {
   if (activeTab === "commercial") {
     return (
       <div className="project-detail-sheet">
-        <ProjectDetailSection title="Commercial data" description="Configured project cost inputs; no derived calculations are added here.">
+        <ProjectDetailSection title="Commercial controls" description="Approved budget, payments, forecasts and final project closeout.">
+          <div className="project-detail-link-actions">
+            <Link className="btn btn-primary" to={`/projects/${project.id}/cost-packages`} state={returnState}>Procurement Strategy</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/budget`} state={returnState}>Open departmental budget</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/payments`} state={returnState}>Payment Schedule</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/closeout`} state={returnState}>Project Closeout</Link>
+          </div>
+        </ProjectDetailSection>
+        <ProjectDetailSection title="Commercial source of truth" description="Excel is available for offline compatibility, while the OpenDay BOQ remains authoritative.">
           <ProjectDetailGrid>
-            <ProjectDetailValue label="Budget" value={project.budget ? formatMoney(project.budget, project.currencyCode) : null} />
-            <ProjectDetailValue label="Actual cost" value={project.actualCost ? formatMoney(project.actualCost, project.currencyCode) : null} />
             <ProjectDetailValue label="Currency" value={project.currencyCode} />
           </ProjectDetailGrid>
+          <div className="project-detail-link-actions">
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/budget`} state={returnState}>Approved Budget Baseline</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/cost-forecast`} state={returnState}>Cost Packages and Forecast</Link>
+          </div>
+        </ProjectDetailSection>
+      </div>
+    );
+  }
+
+  if (activeTab === "additional-works") {
+    return (
+      <div className="project-detail-sheet">
+        <ProjectDetailSection title="Additional Works / Variations" description="Register, review and approve changes outside the original project scope.">
+          <div className="project-detail-link-actions">
+            <Link className="btn btn-primary" to={`/projects/${project.id}/variations`} state={returnState}>Open Additional Works / Variations</Link>
+          </div>
         </ProjectDetailSection>
       </div>
     );
@@ -151,6 +164,9 @@ export default function ProjectDetailPane({ project, projects, activeTab }) {
     return (
       <div className="project-detail-sheet">
         <ProjectDetailSection title="Responsible parties" description="People and companies already assigned to the project.">
+          <div className="project-detail-link-actions">
+            <Link className="btn btn-primary" to={`/projects/${project.id}/project-team`} state={returnState}>Manage Project Team</Link>
+          </div>
           <ProjectDetailGrid>
             <ProjectDetailValue label="Project Manager" value={project.projectManager} />
             <ProjectDetailValue label="General Contractor" value={project.generalContractor} />
@@ -166,43 +182,19 @@ export default function ProjectDetailPane({ project, projects, activeTab }) {
     );
   }
 
-  return (
-    <div className="project-detail-sheet">
-      <ProjectDetailSection title="Project profile" description="Core location and retail master data.">
-        <ProjectDetailGrid>
-          <ProjectDetailValue label="Sales market" value={project.salesMarket} />
-          <ProjectDetailValue label="Location type" value={location.locationType} />
-          <ProjectDetailValue label={location.fieldLabel || "Location"} value={location.value} />
-          <ProjectDetailValue label="State / Region" value={project.state} />
-          <ProjectDetailValue label="Store concept" value={project.storeConcept} />
-          <ProjectDetailValue label="Project type" value={project.projectType} />
-        </ProjectDetailGrid>
-      </ProjectDetailSection>
-      <ProjectDetailSection title="Areas and construction setup">
-        <ProjectDetailGrid>
-          <ProjectDetailValue label="Total area" value={project.storeSizeSqm ? formatArea(project.storeSizeSqm) : null} />
-          <ProjectDetailValue label="Sales area" value={project.salesAreaSqm ? formatArea(project.salesAreaSqm) : null} />
-          <ProjectDetailValue label="Back of house area" value={project.backOfHouseAreaSqm ? formatArea(project.backOfHouseAreaSqm) : null} />
-          <ProjectDetailValue label="Construction template" value={configured(template)} />
-          <ProjectDetailValue label="Configured phases" value={phases} />
-        </ProjectDetailGrid>
-      </ProjectDetailSection>
-      <ProjectDetailSection title="Contractor access" description="Use compact actions instead of exposing the full report URL.">
-        <div className="project-detail-link-actions">
-          <a className="btn btn-secondary" href={`/contractor-report/${project.id}`} target="_blank" rel="noreferrer">Open contractor report</a>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/contractor-report/${project.id}`)
-                .then(() => toast.success("Link copied.", { duration: 2500 }))
-                .catch(() => toast.error("Could not copy the link."));
-            }}
-          >
-            Copy link
-          </button>
-        </div>
-      </ProjectDetailSection>
-    </div>
-  );
+  if (activeTab === "tender") {
+    return (
+      <div className="project-detail-sheet">
+        <ProjectDetailSection title="Tender" description="State-driven tender workspace for participants, BOQ, bid rounds, comparison, clarifications and award.">
+          <div className="project-detail-link-actions">
+            <Link className="btn btn-primary" to={`/projects/${project.id}/tender`} state={returnState}>Open Tender workspace</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/boq`} state={returnState}>Open BOQ editor</Link>
+            <Link className="btn btn-secondary" to={`/projects/${project.id}/tender-packages`} state={returnState}>Manage Tender Packages</Link>
+          </div>
+        </ProjectDetailSection>
+      </div>
+    );
+  }
+
+  return <ProjectCurrentSituation project={project} daysLeft={daysLeft} returnState={returnState} />;
 }

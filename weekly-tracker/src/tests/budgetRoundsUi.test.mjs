@@ -1,0 +1,11 @@
+import { readFileSync } from 'node:fs';
+const component=readFileSync(new URL('../components/budget/DepartmentalBudgetWorkspace.jsx',import.meta.url),'utf8'),hook=readFileSync(new URL('../hooks/useProjectBudget.js',import.meta.url),'utf8'),service=readFileSync(new URL('../services/budgetService.js',import.meta.url),'utf8'),model=readFileSync(new URL('../domains/budget/departmentalBudgetModel.js',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('workspace identifies active Budget Round and state',/Budget Round \{control\.currentRoundNumber\}/.test(component)&&/Working draft/.test(component)&&/Issued for review/.test(component));
+check('coordinator can issue an immutable snapshot',/Issue Budget Round/.test(component)&&/immutable snapshot/.test(component)&&/editor\.issueRound/.test(component));
+check('readiness blockers require one submitted row and explain in-progress work',/getBudgetRoundBlockers/.test(component)&&/Submit at least one Work Group/.test(model)&&/still in progress/.test(model)&&!/discipline owner\(s\) missing/.test(model));
+check('issued values are visibly locked',/locked\s*=\s*workspace\.roundControl\.state\s*===\s*'ISSUED'/.test(component)&&/locked \? 'Locked'/.test(component));
+check('coordinator can start next round with bounded context',/Start Budget Round/.test(component)&&/management context/.test(component)&&/validateNextBudgetRoundNote/.test(component));
+check('immutable round history shows totals and prior change',/Immutable round history/.test(component)&&/changeFromPrevious/.test(component)&&/vs previous/.test(component));
+check('hook refreshes workspace after both round commands',/commitBudgetRound/.test(hook)&&/commitNextBudgetRound/.test(hook)&&/await load\(\)/.test(hook));
+check('service uses dedicated issue and next-round RPCs',/issue_project_budget_round/.test(service)&&/start_next_project_budget_round/.test(service));
+console.log(`\nBudget rounds UI: ${p} passed, ${f} failed`);if(f)process.exit(1);

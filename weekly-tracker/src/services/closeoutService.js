@@ -1,0 +1,22 @@
+import { supabase } from '../lib/supabase';
+async function rpc(name,args){const{data,error}=await supabase.rpc(name,args);if(error)throw error;return data;}
+export const loadCostCloseout=projectId=>rpc('get_project_cost_closeout',{p_project_id:Number(projectId)});
+export const saveCostCloseout=(projectId,id,finalCost,budgetExplanation,awardExplanation,forecastExplanation,confirm,requestId)=>rpc('save_project_cost_closeout',{p_project_id:Number(projectId),p_closeout_id:id,p_final_cost:finalCost,p_budget_explanation:budgetExplanation,p_award_explanation:awardExplanation,p_forecast_explanation:forecastExplanation,p_confirm:confirm,p_client_request_id:requestId});
+export const loadScheduleCloseout=projectId=>rpc('get_project_schedule_closeout',{p_project_id:Number(projectId)});
+export const saveScheduleCloseout=(projectId,id,delayDrivers,recoveryActions,delayingWorkGroups,explanation,confirm,requestId)=>rpc('save_project_schedule_closeout',{p_project_id:Number(projectId),p_closeout_id:id,p_delay_drivers:delayDrivers,p_recovery_actions:recoveryActions,p_delaying_work_groups:delayingWorkGroups,p_schedule_explanation:explanation,p_confirm:confirm,p_client_request_id:requestId});
+export const loadScopeCloseout=projectId=>rpc('get_project_scope_closeout',{p_project_id:Number(projectId)});
+export const saveScopeCloseout=(projectId,id,explanation,confirm,requestId)=>rpc('save_project_scope_closeout',{p_project_id:Number(projectId),p_closeout_id:id,p_scope_explanation:explanation,p_confirm:confirm,p_client_request_id:requestId});
+export const loadQualityCloseout=projectId=>rpc('get_project_quality_closeout',{p_project_id:Number(projectId)});
+export const saveQualityCloseout=(projectId,id,explanation,confirm,requestId)=>rpc('save_project_quality_closeout',{p_project_id:Number(projectId),p_closeout_id:id,p_quality_explanation:explanation,p_confirm:confirm,p_client_request_id:requestId});
+export const loadVariationCloseout=projectId=>rpc('get_project_variation_closeout',{p_project_id:Number(projectId)});
+export const saveVariationCloseout=(projectId,id,explanation,confirm,requestId)=>rpc('save_project_variation_closeout',{p_project_id:Number(projectId),p_closeout_id:id,p_variation_explanation:explanation,p_confirm:confirm,p_client_request_id:requestId});
+export const loadPaymentCloseout=projectId=>rpc('get_project_payment_closeout',{p_project_id:Number(projectId)});
+export const savePaymentCloseout=(projectId,id,obligations,explanation,confirm,requestId)=>rpc('save_project_payment_closeout',{p_project_id:Number(projectId),p_closeout_id:id,p_future_obligations:obligations,p_payment_explanation:explanation,p_confirm:confirm,p_client_request_id:requestId});
+export const loadLessonsLearned=projectId=>rpc('get_project_lessons_learned',{p_project_id:Number(projectId)});
+export const saveLessonsLearned=(projectId,id,well,wrong,next,confirm,requestId)=>rpc('save_project_lessons_learned',{p_project_id:Number(projectId),p_lesson_id:id,p_went_well:well,p_went_wrong:wrong,p_change_next_time:next,p_confirm:confirm,p_client_request_id:requestId});
+export const loadContractorScorecard=projectId=>rpc('get_project_contractor_scorecard',{p_project_id:Number(projectId)});
+export const saveContractorScorecard=(projectId,id,comment,confirm,requestId)=>rpc('save_project_contractor_scorecard',{p_project_id:Number(projectId),p_scorecard_id:id,p_management_comment:comment,p_confirm:confirm,p_client_request_id:requestId});
+export const loadHistoricalRecord=projectId=>rpc('get_historical_project_record',{p_project_id:Number(projectId)});
+export const sealHistoricalRecord=(projectId,id,requestId)=>rpc('seal_historical_project_record',{p_project_id:Number(projectId),p_record_id:id,p_client_request_id:requestId});
+export const loadHistoricalIntelligence=projectId=>rpc('get_historical_project_intelligence',{p_project_id:Number(projectId)});
+export const loadManagementOutputs=projectId=>rpc('get_verified_management_outputs',{p_project_id:Number(projectId)});

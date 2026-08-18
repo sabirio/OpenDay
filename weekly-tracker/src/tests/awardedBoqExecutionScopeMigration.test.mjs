@@ -1,0 +1,14 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/079_awarded_boq_execution_scope.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('Execution Scope has explicit Award source',/source_award_id uuid/.test(sql)&&/source_kind IN \('PM_DISCIPLINE_SCOPE','BOQ_REVISION','AWARDED_BOQ'\)/.test(sql));
+check('source shape is exclusive',/source_kind='AWARDED_BOQ' AND source_boq_version_id IS NULL AND source_award_id IS NOT NULL/.test(sql));
+check('one award maps at most once',/project_execution_scope_versions_award_source_uniq/.test(sql));
+check('command is PM or Admin and project authorized',/v_role NOT IN\('pm','admin'\)/.test(sql)&&/can_write_project\(v_award.project_id\)/.test(sql));
+check('command uses idempotency and optimistic revision',/tender.materialize_awarded_scope/.test(sql)&&/EXECUTION_SCOPE_REVISION_CONFLICT/.test(sql));
+check('award and project ontology reconcile',/AWARDED_SCOPE_ONTOLOGY_MISMATCH/.test(sql));
+check('awarded line and Work Group totals reconcile to contract',/v_item_total IS DISTINCT FROM v_award.contract_value/.test(sql)&&/v_group_total IS DISTINCT FROM v_award.contract_value/.test(sql));
+check('Work Groups remain inside PM disciplines',/AWARDED_WORK_GROUP_OUTSIDE_PROJECT_DISCIPLINE_SCOPE/.test(sql));
+check('snapshot inserts one row per awarded Work Group',/FROM public.project_tender_awarded_work_groups snapshot/.test(sql)&&/project_execution_scope_items/.test(sql));
+check('result exposes BOQ collapse',/collapsedLineCount/.test(sql)&&/boqLineCount/.test(sql)&&/workGroupCount/.test(sql));
+check('read status and write command ACLs are explicit',/REVOKE ALL ON FUNCTION public.get_awarded_execution_scope_status/.test(sql)&&/GRANT EXECUTE ON FUNCTION public.materialize_execution_scope_from_awarded_boq/.test(sql));
+check('no Gantt planning tables are touched',!/project_gantt_tasks|project_schedule_activities|project_schedule_versions/.test(sql));
+console.log(`\nAwarded BOQ Execution Scope migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

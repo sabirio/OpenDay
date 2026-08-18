@@ -10,7 +10,7 @@ import { useAuth } from "../auth/AuthContext";
 import GanttSuccessView from "../components/sitevisit/GanttSuccessView";
 import ComparisonResultsView from "../components/sitevisit/ComparisonResultsView";
 import SiteVisitFormView from "../components/sitevisit/SiteVisitFormView";
-import { buildSiteVisitDraft, filterSiteVisitTasks, findSiteVisitDraft, removeSiteVisitDraft, resolveCurrentSiteVisitItem, saveSiteVisitDraft, selectSiteVisitNavigation, siteVisitReviewCounts, useSiteVisitWorkflow } from "../hooks/useSiteVisitWorkflow";
+import { buildSiteVisitDraft, findSiteVisitDraft, removeSiteVisitDraft, saveSiteVisitDraft, siteVisitReviewCounts, useSiteVisitWorkflow } from "../hooks/useSiteVisitWorkflow";
 
 // ── Main component ─────────────────────────────────────────────────────────
 
@@ -48,7 +48,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
 
   const [ganttTasks, setGanttTasks]           = useState([]);
   const [ganttLoading, setGanttLoading]       = useState(true);
-  const [lastContractorReportId, setLastContractorReportId] = useState(null);
+  const [lastContractorReport, setLastContractorReport] = useState(null);
   const [pmWpObservations, setPmWpObservations] = useState({});
 
   function clearDraft() { try { removeSiteVisitDraft(localStorage, activeDraftKeyRef.current || draftCandidate.key); } catch { /* unavailable */ } activeDraftKeyRef.current = null; }
@@ -58,9 +58,9 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
   // Persist the draft on every edit — cheap, plain-JSON state, best-effort.
   useEffect(() => {
     if (!recoveryResolved || !workflow.state.dirty) return undefined;
-    const timer=window.setTimeout(()=>{try{const draft=buildSiteVisitDraft({userId:user.id,projectId,visitDate:form.visitDate,contractorReportId:lastContractorReportId||form.referenceReportId,clientRequestId:clientRequestIdRef.current,formData:form,observations:pmWpObservations,evidenceItems:photoUrls,currentItemId:workflow.state.currentItemId,currentGroupId:workflow.state.currentGroupId,activeFilter:workflow.state.activeFilter,createdAt:draftCandidate.draft?.createdAt});const key=saveSiteVisitDraft(localStorage,draft);if(activeDraftKeyRef.current&&activeDraftKeyRef.current!==key)removeSiteVisitDraft(localStorage,activeDraftKeyRef.current);activeDraftKeyRef.current=key;}catch{/* in-memory state remains */}},500);
+    const timer=window.setTimeout(()=>{try{const draft=buildSiteVisitDraft({userId:user.id,projectId,visitDate:form.visitDate,contractorReportId:lastContractorReport?.id||form.referenceReportId,clientRequestId:clientRequestIdRef.current,formData:form,observations:pmWpObservations,evidenceItems:photoUrls,currentItemId:workflow.state.currentItemId,currentGroupId:workflow.state.currentGroupId,activeFilter:workflow.state.activeFilter,createdAt:draftCandidate.draft?.createdAt});const key=saveSiteVisitDraft(localStorage,draft);if(activeDraftKeyRef.current&&activeDraftKeyRef.current!==key)removeSiteVisitDraft(localStorage,activeDraftKeyRef.current);activeDraftKeyRef.current=key;}catch{/* in-memory state remains */}},500);
     return()=>window.clearTimeout(timer);
-  }, [draftCandidate.draft?.createdAt, form, lastContractorReportId, photoUrls, pmWpObservations, projectId, recoveryResolved, user.id, workflow.state.activeFilter, workflow.state.currentGroupId, workflow.state.currentItemId, workflow.state.dirty]);
+  }, [draftCandidate.draft?.createdAt, form, lastContractorReport, photoUrls, pmWpObservations, projectId, recoveryResolved, user.id, workflow.state.activeFilter, workflow.state.currentGroupId, workflow.state.currentItemId, workflow.state.dirty]);
 
   useEffect(()=>{if(!workflow.state.dirty||workflow.isSubmitted)return undefined;const warn=e=>{e.preventDefault();e.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[workflow.isSubmitted,workflow.state.dirty]);
 
@@ -80,7 +80,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
       .finally(() => setGanttLoading(false));
 
     getLastContractorReport(project.id)
-      .then(r => setLastContractorReportId(r?.id || null))
+      .then(report => setLastContractorReport(report))
       .catch(() => {});
   }, [project?.id, project?.scope?.workPackages, recoveryResolved, draftCandidate.draft]);
 
@@ -91,10 +91,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
 
   const effectiveReferenceReportId = form.referenceReportId || (latestReport?.id ? String(latestReport.id) : '');
   const referenceReport = projectReports.find((r) => String(r.id) === String(effectiveReferenceReportId));
-  const filteredTasks = filterSiteVisitTasks(ganttTasks, pmWpObservations, workflow.state.activeFilter);
-  const currentItemId = resolveCurrentSiteVisitItem(filteredTasks, workflow.state.currentItemId);
   const reviewCounts = siteVisitReviewCounts(ganttTasks, pmWpObservations);
-  const navigation = selectSiteVisitNavigation(filteredTasks, currentItemId);
 
   function set(name, value) { workflow.dispatch({ type: 'EDIT' }); setForm((p) => ({ ...p, [name]: value })); }
 
@@ -147,18 +144,20 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
       if (ganttTasks.length > 0) {
         // Build from ganttTasks (ordered) rather than pmWpObservations keys so we can
         // include gc_progress for each task to compute discrepancies in the service.
+        const contractorEntries = new Map((lastContractorReport?.wps || []).map(item => [item.wpId, item]));
         const wpObservationsArray = ganttTasks.filter(task => pmWpObservations[task.id]).map(task => {
           const v = pmWpObservations[task.id] || {};
+          const contractorEntry = contractorEntries.get(task.id);
           return {
             wpId:              task.id,
             observed_progress: v.observed_progress ?? task.actual_progress ?? 0,
             observed_status:   v.observed_status   ?? task.status ?? 'not_started',
             pm_note:           v.pm_note           ?? '',
-            gc_progress:       task.actual_progress ?? 0,
-            gc_status:         task.status ?? 'not_started',
+            gc_progress:       contractorEntry?.progress_pct ?? task.actual_progress ?? 0,
+            gc_status:         contractorEntry?.status ?? task.status ?? 'not_started',
           };
         });
-        const result = await submitSiteVisitModel(projectId, lastContractorReportId, wpObservationsArray, {
+        const result = await submitSiteVisitModel(projectId, lastContractorReport?.id || null, wpObservationsArray, {
           visitDate:              form.visitDate,
           visitedBy:              user.id,
           overallNote:            form.observations || '',
@@ -245,15 +244,10 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
       updateWPTask={updateWPTask}
       ganttLoading={ganttLoading}
       ganttTasks={ganttTasks}
+      lastContractorReport={lastContractorReport}
       pmWpObservations={pmWpObservations}
       updatePMObservation={updatePMObservation}
-      filteredTasks={filteredTasks}
-      currentItemId={currentItemId}
-      activeFilter={workflow.state.activeFilter}
       reviewCounts={reviewCounts}
-      navigation={navigation}
-      onFilter={(filter)=>workflow.dispatch({type:'NAVIGATE',filter,itemId:resolveCurrentSiteVisitItem(filterSiteVisitTasks(ganttTasks,pmWpObservations,filter),currentItemId)})}
-      onNavigate={(itemId)=>workflow.dispatch({type:'NAVIGATE',itemId})}
       onSubmit={submit}
       photoUrls={photoUrls}
       projectId={project.id}

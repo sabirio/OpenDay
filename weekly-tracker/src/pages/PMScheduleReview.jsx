@@ -11,6 +11,7 @@ import Modal from '../components/shared/Modal.jsx';
 import SubmissionSnapshotView from '../components/schedule/SubmissionSnapshotView.jsx';
 import { fmtDate } from '../components/schedule/scheduleSubmissionDisplay.js';
 import SubmissionHistoryList from '../components/schedule/SubmissionHistoryList.jsx';
+import { usePmBaselineApprovalSummary } from '../hooks/usePmBaselineApprovalSummary.js';
 
 // Simplification Phase 4B.2 — PM Schedule Review workspace.
 //
@@ -146,9 +147,10 @@ function PMScheduleReview({ projects = [] }) {
     setSelectedVersionId(activeVersion.id);
   }
 
-  const { tasks: snapshotTasks, loading: snapshotLoading, completeness } = useScheduleVersionSnapshot({
+  const { tasks: snapshotTasks, loading: snapshotLoading, error: snapshotError, completeness } = useScheduleVersionSnapshot({
     projectId, versionId: activeVersion?.id,
   });
+  const approvalSummary = usePmBaselineApprovalSummary(activeVersion, snapshotTasks, completeness);
 
   const [modal, setModal] = useState(null); // null | 'approve' | 'request-changes'
 
@@ -206,12 +208,18 @@ function PMScheduleReview({ projects = [] }) {
               completeness={completeness}
             />
 
+            {snapshotError && (
+              <div role="alert" style={{ padding: 12, borderRadius: 8, color: 'var(--status-alert)', background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+                The immutable baseline snapshot could not be verified. Approval is disabled until it reloads successfully.
+              </div>
+            )}
+
             {isPmRole && isPendingSelected && (
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                 <button
                   type="button"
                   onClick={() => setModal('request-changes')}
-                  disabled={actionPending}
+                  disabled={actionPending || !approvalSummary.ready}
                   style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid var(--border-strong)', background: 'transparent', color: 'var(--text-primary)', fontWeight: 700, cursor: actionPending ? 'not-allowed' : 'pointer' }}
                 >
                   Request Changes
@@ -220,7 +228,7 @@ function PMScheduleReview({ projects = [] }) {
                   type="button"
                   onClick={() => setModal('approve')}
                   disabled={actionPending}
-                  style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: 'var(--text-inverse)', fontWeight: 700, cursor: actionPending ? 'not-allowed' : 'pointer' }}
+                  style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: approvalSummary.ready ? 'var(--accent)' : 'var(--bg-elevated)', color: approvalSummary.ready ? 'var(--text-inverse)' : 'var(--text-muted)', fontWeight: 700, cursor: (actionPending || !approvalSummary.ready) ? 'not-allowed' : 'pointer' }}
                 >
                   Approve
                 </button>
@@ -240,7 +248,9 @@ function PMScheduleReview({ projects = [] }) {
       {modal === 'approve' && (
         <CommentModal
           title="Approve this submission as the baseline?"
-          confirmNote={`This submission will become Approved Baseline v${nextBaselineRevisionNumber}. Contractor editing and Scope editing will remain locked until a future revision workflow is introduced.`}
+          confirmNote={approvalSummary.isCanonical
+            ? `Approve Baseline v${nextBaselineRevisionNumber}: Execution Scope #${approvalSummary.executionScopeVersionId}, ${approvalSummary.activityCount} Activities, ${approvalSummary.workGroupCount} Work Groups. This immutable snapshot becomes the official construction reference.`
+            : `This legacy submission will become Approved Baseline v${nextBaselineRevisionNumber}. Contractor editing and Scope editing will remain locked until a future revision workflow is introduced.`}
           requireComment={false}
           confirmLabel="Approve"
           onConfirm={handleApprove}

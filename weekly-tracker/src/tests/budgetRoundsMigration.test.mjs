@@ -1,0 +1,17 @@
+import { readFileSync } from 'node:fs';
+const sql=readFileSync(new URL('../migrations/082_budget_rounds.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('cycle tracks the active round and optimistic revision',/current_round_number/.test(sql)&&/round_state/.test(sql)&&/round_revision/.test(sql));
+check('round header is sequential and immutable by design',/project_budget_rounds/.test(sql)&&/UNIQUE\(budget_cycle_id,round_number\)/.test(sql)&&/ISSUED_FOR_REVIEW/.test(sql));
+check('round items denormalize the exact commercial snapshot',/project_budget_round_items/.test(sql)&&/discipline_label text NOT NULL/.test(sql)&&/work_group_label text NOT NULL/.test(sql)&&/amount numeric\(24,2\) NOT NULL/.test(sql));
+check('existing round item tables receive canonical Department snapshot columns',/ADD COLUMN IF NOT EXISTS department_id uuid/.test(sql)&&/ALTER COLUMN department_label SET NOT NULL/.test(sql));
+check('snapshot preserves accountable department and falls back to the issuer when no owner is assigned',/department_name text NOT NULL/.test(sql)&&/owner_user_id uuid NOT NULL/.test(sql)&&/COALESCE\(o\.owner_user_id,v_uid\)/.test(sql));
+check('issuing requires at least one submitted contribution and no in-progress rows',/BUDGET_ROUND_REQUIRES_SUBMITTED_CONTRIBUTION/.test(sql)&&/BUDGET_ROUND_HAS_IN_PROGRESS_CONTRIBUTIONS/.test(sql));
+check('not-started work and missing owners do not enter or block the snapshot',/LEFT JOIN public\.project_budget_ownerships/.test(sql)&&/c\.status='SUBMITTED'/.test(sql)&&!/BUDGET_ROUND_REQUIRES_ALL_OWNERS/.test(sql));
+check('issuing copies submitted rows atomically and uses their database total',/INSERT INTO public\.project_budget_round_items/.test(sql)&&/COALESCE\(sum\(amount\) FILTER\(WHERE status='SUBMITTED' AND amount IS NOT NULL\),0\)/.test(sql));
+check('round commands are PM Admin only, idempotent and revision guarded',/BUDGET_ROUND_FORBIDDEN/.test(sql)&&/budget\.issue_round/.test(sql)&&/budget\.start_next_round/.test(sql)&&/BUDGET_ROUND_REVISION_CONFLICT/.test(sql));
+check('issued working copy rejects edits',/BUDGET_ROUND_IS_IMMUTABLE/.test(sql)&&/v_cycle\.round_state<>'DRAFT'/.test(sql));
+check('next round retains amounts and reopens contribution statuses',/SET status='IN_PROGRESS',revision=revision\+1/.test(sql)&&/current_round_number=current_round_number\+1/.test(sql));
+check('workspace exposes readiness and immutable history',/'roundControl'/.test(sql)&&/'rounds'/.test(sql)&&/'changeFromPrevious'/.test(sql)&&/'canIssue'/.test(sql));
+check('direct writes remain unavailable',/REVOKE ALL ON TABLE public\.project_budget_rounds/.test(sql)&&/REVOKE ALL ON TABLE public\.project_budget_round_items/.test(sql)&&/REVOKE ALL ON TABLE public\.project_budget_round_events/.test(sql));
+check('approval decision and baseline remain outside E27',!/APPROVED_BUDGET|BUDGET_APPROVED|REVISION_REQUIRED/.test(sql));
+console.log(`\nBudget rounds migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

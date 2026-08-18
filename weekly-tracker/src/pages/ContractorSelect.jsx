@@ -109,6 +109,9 @@ function ProjectCard({ row, navigate, canEditContractorSchedule }) {
         >
           View Observations{actionableSnagCount > 0 ? ` (${actionableSnagCount})` : ''}
         </button>
+        <button type="button" className="btn-ghost contractor-project-btn" onClick={() => navigate(`/projects/${project.id}/variations`)}>
+          Additional Works
+        </button>
         {/* Simplification Phase 3C/3C.1: only for projects whose schedule is
             contractor-managed — AUTO_GENERATED projects never show this
             action — AND only for the real, logged-in Contractor session
@@ -220,6 +223,7 @@ function ContractorSelect({ projects = [], reports = [] }) {
         <div className="contractor-header-user">
           <span className="contractor-role-badge">{user?.role}</span>
           <span className="contractor-user-name">{user?.name}</span>
+          {canEditContractorSchedule && <button type="button" className="btn-ghost-sm" onClick={() => navigate('/tenders')}>Tender invitations</button>}
           <button type="button" className="btn-ghost-sm" onClick={logout}>
             Sign out
           </button>

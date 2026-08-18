@@ -1,0 +1,11 @@
+import{readFileSync}from'node:fs';const sql=readFileSync(new URL('../migrations/073_tender_bidder_access.sql',import.meta.url),'utf8');let p=0,f=0;const check=(n,c)=>{if(c){p++;console.log(`  PASS ${n}`)}else{f++;console.error(`  FAIL ${n}`)}};
+check('access is pinned to tender setup revision and participant',/PRIMARY KEY \(tender_id, participant_id\)/.test(sql)&&/tender_setup_version_id bigint NOT NULL/.test(sql));
+check('bidder is not assigned to project',!/assigned_projects/.test(sql));
+check('invitation requires PM Admin and project write authority',/v_role NOT IN \('pm','admin'\)/.test(sql)&&/can_write_project\(v_project_id\)/.test(sql));
+check('self activation is email-bound',/invited_email=v_email/.test(sql)&&/bidder_user_id=v_uid/.test(sql));
+check('bidder reads only active own access',/bidder_user_id = auth\.uid\(\) AND status = 'ACTIVE'/.test(sql));
+const workspace=sql.slice(sql.indexOf('CREATE OR REPLACE FUNCTION public.get_my_tender_workspace'));
+check('workspace does not expose rates or competitors',!/unitRate|unit_rate/.test(workspace)&&!/project_tender_participants/.test(workspace));
+check('bid submission is not implemented before D19',!/bid_submission|save.*bid.*round/i.test(sql));
+check('all functions close default ACLs',(sql.match(/REVOKE ALL ON FUNCTION/g)||[]).length===4);
+console.log(`\nTender bidder access migration: ${p} passed, ${f} failed`);if(f)process.exit(1);

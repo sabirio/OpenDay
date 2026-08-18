@@ -90,36 +90,11 @@ check('salesAreaSqm === storeSizeSqm passes (boundary, not "exceeds")', (() => {
   catch { return false; }
 })());
 
-console.log('\nvalidateProject — financial');
+console.log('\nvalidateProject — commercial settings');
 
-check('negative budget throws', (() => {
-  try { validateProject({ storeCode: 'X', country: 'KZ', budget: -1 }); return false; }
-  catch (e) { return /cannot be negative/.test(e.message); }
-})());
-
-check('budget set without currencyCode throws', (() => {
-  try { validateProject({ storeCode: 'X', country: 'KZ', budget: 1000 }); return false; }
-  catch (e) { return /Currency is required/.test(e.message); }
-})());
-
-check('budget with currencyCode passes', (() => {
-  try { validateProject({ storeCode: 'X', country: 'KZ', budget: 1000, currencyCode: 'KZT' }); return true; }
-  catch { return false; }
-})());
-
-check('actualCost set without currencyCode throws (same currency requirement as budget)', (() => {
-  try { validateProject({ storeCode: 'X', country: 'KZ', actualCost: 5000 }); return false; }
-  catch (e) { return /Currency is required/.test(e.message); }
-})());
-
-check('negative actualCost throws', (() => {
-  try { validateProject({ storeCode: 'X', country: 'KZ', actualCost: -1, currencyCode: 'KZT' }); return false; }
-  catch (e) { return /cannot be negative/.test(e.message); }
-})());
-
-check('actualCost with currencyCode passes', (() => {
-  try { validateProject({ storeCode: 'X', country: 'KZ', actualCost: 525000, currencyCode: 'KZT' }); return true; }
-  catch { return false; }
+check('unsupported project currency throws', (() => {
+  try { validateProject({ storeCode: 'X', country: 'KZ', currencyCode: 'GBP' }); return false; }
+  catch (e) { return /KZT, USD, or EUR/.test(e.message); }
 })());
 
 console.log('\nvalidateProject — dates');
@@ -133,12 +108,14 @@ console.log('\nfromDB — "unknown ≠ zero" for numeric fields');
 
 check('sales_area_sqm of 0 stays 0, not null', fromDB({ sales_area_sqm: 0 }).salesAreaSqm === 0);
 check('back_of_house_area_sqm of 0 stays 0, not null', fromDB({ back_of_house_area_sqm: 0 }).backOfHouseAreaSqm === 0);
-check('budget of 0 stays 0, not null', fromDB({ budget: 0 }).budget === 0);
-check('actual_cost of 0 stays 0, not null', fromDB({ actual_cost: 0 }).actualCost === 0);
+check('legacy budget of 0 stays 0, not null', fromDB({ budget: 0 }).legacyBudget === 0);
+check('legacy actual_cost of 0 stays 0, not null', fromDB({ actual_cost: 0 }).legacyActualCost === 0);
 check('missing sales_area_sqm becomes null', fromDB({}).salesAreaSqm === null);
 check('location_type passes through', fromDB({ location_type: 'Mall' }).locationType === 'Mall');
 check('store_concept passes through', fromDB({ store_concept: 'Flagship' }).storeConcept === 'Flagship');
 check('actual dates pass through', fromDB({ actual_opening_date: '2026-08-01' }).actualOpeningDate === '2026-08-01');
+check('work ontology version pin passes through',
+  fromDB({ work_ontology_version_id: 'de782297-1166-41da-8f21-e3deef6609a7' }).workOntologyVersionId === 'de782297-1166-41da-8f21-e3deef6609a7');
 
 console.log('\ntoDB — Mall/Street defensive nulling at the write boundary');
 
@@ -158,13 +135,10 @@ console.log('\ntoDB — "unknown ≠ zero" round-trip for numeric fields');
 
 check('salesAreaSqm of 0 is written as 0, not null', toDB({ storeCode: 'X', salesAreaSqm: 0 }).sales_area_sqm === 0);
 check('salesAreaSqm of "" is written as null', toDB({ storeCode: 'X', salesAreaSqm: '' }).sales_area_sqm === null);
-check('budget of 0 is written as 0, not null', toDB({ storeCode: 'X', budget: 0 }).budget === 0);
-check('unset budget is written as null', toDB({ storeCode: 'X' }).budget === null);
-check('actualCost of 0 is written as 0, not null', toDB({ storeCode: 'X', actualCost: 0 }).actual_cost === 0);
-check('unset actualCost is written as null', toDB({ storeCode: 'X' }).actual_cost === null);
-check('clearing actualCost to "" is written as null (intentional clear, not a stale value)',
-  toDB({ storeCode: 'X', actualCost: '' }).actual_cost === null);
-check('a real actualCost value round-trips unchanged', toDB({ storeCode: 'X', actualCost: 525000 }).actual_cost === 525000);
+check('legacy budget input is never serialized by live project writes', !Object.hasOwn(toDB({ storeCode: 'X', budget: 0 }), 'budget'));
+check('legacy actual cost input is never serialized by live project writes', !Object.hasOwn(toDB({ storeCode: 'X', actualCost: 0 }), 'actual_cost'));
+check('work ontology version is derived from canonical Scope metadata',
+  toDB({ storeCode: 'X', scope: { workOntologyVersionId: 'de782297-1166-41da-8f21-e3deef6609a7', disciplineIds: [] } }).work_ontology_version_id === 'de782297-1166-41da-8f21-e3deef6609a7');
 check('new-project serialization removes duplicate scope zone-area numbers', (() => {
   const out = toDB({
     storeCode: 'X',

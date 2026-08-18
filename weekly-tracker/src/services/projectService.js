@@ -13,6 +13,8 @@ const LEGACY_PHASE_MAP = {
   'Handover':                'handover',
 };
 
+export const PROJECT_CURRENCY_CODES = Object.freeze(['KZT', 'USD', 'EUR']);
+
 function normalizePhasesFromDB(phases) {
   if (!Array.isArray(phases)) return [];
   return phases.map(p => LEGACY_PHASE_MAP[p] ?? p);
@@ -22,6 +24,9 @@ export function validateProject(project, requireId = false) {
   if (requireId && !project?.id) throw new Error('Project ID is required');
   if (!project?.storeCode?.trim()) throw new Error('Store code is required');
   if (!project?.country?.trim()) throw new Error('Country is required');
+  if (project?.scope?.workOntologyVersionId && (!Array.isArray(project.scope.disciplineIds) || project.scope.disciplineIds.length === 0)) {
+    throw new Error('Select at least one discipline');
+  }
 
   // Location Type is optional at the DB level (frozen design: TEXT NULL, no
   // enum), but when a project declares one, the Mall/Street invariant is
@@ -52,15 +57,8 @@ export function validateProject(project, requireId = false) {
     throw new Error('Sales Area cannot exceed Total Area');
   }
 
-  const moneyFields = ['budget', 'actualCost'];
-  for (const f of moneyFields) {
-    if (project[f] !== '' && project[f] != null && Number(project[f]) < 0) {
-      throw new Error(`${f} cannot be negative`);
-    }
-  }
-  const hasMoney = (project?.budget !== '' && project?.budget != null) || (project?.actualCost !== '' && project?.actualCost != null);
-  if (hasMoney && !project?.currencyCode?.trim()) {
-    throw new Error('Currency is required when Budget or Actual Cost is set');
+  if (project?.currencyCode && !PROJECT_CURRENCY_CODES.includes(project.currencyCode)) {
+    throw new Error('Currency must be KZT, USD, or EUR');
   }
 }
 
@@ -97,6 +95,7 @@ export function fromDB(row) {
     phases:      normalizePhasesFromDB(row.phases || []),
     scope:       row.scope       || null,
     templateId:  row.template_id || null,
+    workOntologyVersionId: row.work_ontology_version_id || null,
     // Conflict-detection baseline (see conflictGuard.js) — null on DBs that
     // haven't applied 016_updated_at.sql yet.
     updatedAt:   row.updated_at  || null,
@@ -130,8 +129,11 @@ export function fromDB(row) {
     actualConstructionStartDate:      row.actual_construction_start_date      || null,
     actualConstructionCompletionDate: row.actual_construction_completion_date || null,
     actualOpeningDate:                row.actual_opening_date                 || null,
-    budget:                           row.budget                            ?? null,
-    actualCost:                       row.actual_cost                       ?? null,
+    // Compatibility-only historical fields. Live project writes never
+    // serialize these columns: Approved Budget Baseline, Cost Packages and
+    // Project Cost Closeout are the commercial sources of truth.
+    legacyBudget:                     row.budget                            ?? null,
+    legacyActualCost:                 row.actual_cost                       ?? null,
     currencyCode:                     row.currency_code                     || null,
   };
 }
@@ -168,7 +170,6 @@ export function toDB(project, { preserveLegacyZoneAreas = false } = {}) {
     general_contractor: project.generalContractor || null,
     contractor_email: project.contractorEmail || null,
     project_type: project.projectType || 'New Opening',
-    project_status: project.projectStatus || 'Active',
     company_id: project.companyId || null,
     phases:      project.phases      || [],
     // Scope is persisted as selection/configuration only for new projects.
@@ -184,6 +185,7 @@ export function toDB(project, { preserveLegacyZoneAreas = false } = {}) {
       return Object.keys(scope).length > 0 ? scope : null;
     })(),
     template_id: project.templateId  || null,
+    work_ontology_version_id: project.workOntologyVersionId || project.scope?.workOntologyVersionId || null,
     // ── Gantt setup fields (PM-editable) ───────────────────────────────────
     template_type:  project.templateType  || null,
     store_size_sqm: project.storeSizeSqm === '' || project.storeSizeSqm == null ? null : project.storeSizeSqm,
@@ -202,8 +204,6 @@ export function toDB(project, { preserveLegacyZoneAreas = false } = {}) {
     actual_construction_start_date: project.actualConstructionStartDate || null,
     actual_construction_completion_date: project.actualConstructionCompletionDate || null,
     actual_opening_date: project.actualOpeningDate || null,
-    budget: project.budget === '' || project.budget == null ? null : project.budget,
-    actual_cost: project.actualCost === '' || project.actualCost == null ? null : project.actualCost,
     currency_code: project.currencyCode || null,
   };
 }
@@ -233,7 +233,7 @@ export async function getAll() {
     const ids = hydratedProjects.map(p => p.id);
     const { data: histRows, error: histErr } = await supabase
       .from('progress_history')
-      .select('project_id, overall_progress, spi, recorded_at, week_number')
+      .select('project_id, overall_progress, spi, recorded_at, week_number, work_ontology_version_id')
       .in('project_id', ids)
       .order('recorded_at', { ascending: false });
     if (histErr) console.warn('[progressHistory] fetch failed:', histErr);
@@ -279,7 +279,7 @@ export async function getProgressSnapshot(isoWeekStr) {
 
   const { data, error } = await supabase
     .from('progress_history')
-    .select('project_id, overall_progress, spi, recorded_at')
+    .select('project_id, overall_progress, spi, recorded_at, work_ontology_version_id')
     .gte('recorded_at', monday.toISOString())
     .lt('recorded_at', nextMonday.toISOString());
 
@@ -394,16 +394,15 @@ export async function createContractorManagedProject(project, scopeWpIds, client
       hrManager: project.hrManager || null,
       supplyManager: project.supplyManager || null,
       projectType: project.projectType || null,
-      projectStatus: project.projectStatus || null,
       companyId: project.companyId || null,
       locationType: project.locationType || null,
       storeConcept: project.storeConcept || null,
       storeSizeSqm: project.storeSizeSqm === '' || project.storeSizeSqm == null ? null : project.storeSizeSqm,
       salesAreaSqm: project.salesAreaSqm === '' || project.salesAreaSqm == null ? null : project.salesAreaSqm,
       backOfHouseAreaSqm: project.backOfHouseAreaSqm === '' || project.backOfHouseAreaSqm == null ? null : project.backOfHouseAreaSqm,
-      budget: project.budget === '' || project.budget == null ? null : project.budget,
       currencyCode: project.currencyCode || null,
       scope: project.scope || null,
+      workOntologyVersionId: project.workOntologyVersionId || project.scope?.workOntologyVersionId || null,
     },
     p_scope_wp_ids: scopeWpIds,
     p_client_request_id: clientRequestId,
@@ -463,6 +462,7 @@ export async function update(id, project) {
   const payload = toDB(project, { preserveLegacyZoneAreas: true });
   // template_id is immutable after creation — never overwrite on update.
   delete payload.template_id;
+  delete payload.work_ontology_version_id;
   const { data, error } = await supabase
     .from('projects')
     .update(payload)

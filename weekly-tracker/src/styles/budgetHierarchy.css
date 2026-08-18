@@ -1,0 +1,76 @@
+.budget-department {
+  overflow: hidden;
+}
+
+.budget-department > summary,
+.budget-discipline > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.budget-department > summary::-webkit-details-marker,
+.budget-discipline > summary::-webkit-details-marker {
+  display: none;
+}
+
+.budget-department > summary {
+  padding: 14px 16px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.budget-department > summary::before,
+.budget-discipline > summary::before {
+  content: '›';
+  flex: 0 0 auto;
+  font-size: 1.3rem;
+  transition: transform .15s ease;
+}
+
+.budget-department[open] > summary::before,
+.budget-discipline[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.budget-department > summary > div,
+.budget-discipline > summary > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.budget-department > summary h2,
+.budget-discipline h3 {
+  margin: 0;
+}
+
+.budget-department > summary span,
+.budget-discipline > summary span {
+  color: var(--text-secondary);
+  font-size: .8rem;
+}
+
+.budget-department-body {
+  display: grid;
+}
+
+.budget-department .budget-discipline {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.budget-discipline > summary {
+  padding: 10px 14px;
+}
+
+.budget-discipline > summary h3 {
+  display: inline;
+  margin-left: 8px;
+  font-size: 1rem;
+}
+
+.budget-department .budget-discipline:last-child {
+  border-bottom: 0;
+}

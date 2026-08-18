@@ -48,8 +48,13 @@ export default function SubmissionSnapshotView({ project, version, tasks, loadin
           </div>
         )}
         <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-          Scheduled WPs: <strong style={{ color: 'var(--text-primary)' }}>{completeness?.scheduledCount ?? 0} / {completeness?.totalCount ?? tasks.length}</strong>
+          Scheduled {version.executionScopeVersionId ? 'Activities' : 'WPs'}: <strong style={{ color: 'var(--text-primary)' }}>{completeness?.scheduledCount ?? 0} / {completeness?.totalCount ?? tasks.length}</strong>
         </div>
+        {version.executionScopeVersionId && (
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Execution Scope snapshot: <strong style={{ color: 'var(--text-primary)' }}>#{version.executionScopeVersionId}</strong>
+          </div>
+        )}
       </div>
 
       {version.contractorComment && (

@@ -71,6 +71,8 @@ export async function getLastReport(projectId) {
       progress_pct: w.progress_pct,
       status:      w.status,
       comment:     w.comment,
+      workOntologyVersionId: w.work_ontology_version_id || null,
+      workGroupId: w.work_group_id || null,
     })),
   };
 }
@@ -80,7 +82,7 @@ export async function getLastReport(projectId) {
 
 export async function fetchAllContractorReportsRaw() {
   const { fetchOptionalTemplateRecordsByIds } = await import('./templateService.js');
-  const [reportsRes, wpsRes, projectsRes] = await Promise.all([
+  const [reportsRes, wpsRes, riskWorkGroupsRes, projectsRes] = await Promise.all([
     supabase
       .from('contractor_reports')
       .select('*')
@@ -89,11 +91,15 @@ export async function fetchAllContractorReportsRaw() {
       .from('contractor_report_wps')
       .select('*'),
     supabase
+      .from('contractor_report_risk_work_groups')
+      .select('*'),
+    supabase
       .from('projects')
       .select('id, template_type, template_id'),
   ]);
   if (reportsRes.error) throw reportsRes.error;
   if (wpsRes.error) throw wpsRes.error;
+  if (riskWorkGroupsRes.error) throw riskWorkGroupsRes.error;
   if (projectsRes.error) throw projectsRes.error;
 
   // Optional scope-template enrichment - see projectService.getAll()'s
@@ -104,6 +110,7 @@ export async function fetchAllContractorReportsRaw() {
   return {
     reports:  reportsRes.data || [],
     wps:      wpsRes.data || [],
+    riskWorkGroups: riskWorkGroupsRes.data || [],
     projects: (projectsRes.data ?? []).map(project => ({
       templateType: project.template_type,
       templateId: project.template_id,
@@ -141,13 +148,17 @@ export async function fetchContractorReportsForProjectRaw(projectId) {
     scopeTemplate: scopeTemplateForProject,
   };
   const reportIds = reports_.map((report) => report.id);
-  if (reportIds.length === 0) return { reports: [], wps: [], project };
+  if (reportIds.length === 0) return { reports: [], wps: [], riskWorkGroups: [], project };
 
-  const { data: wps, error: wpsError } = await supabase
-    .from('contractor_report_wps')
-    .select('*')
-    .in('report_id', reportIds);
+  const [
+    { data: wps, error: wpsError },
+    { data: riskWorkGroups, error: riskWorkGroupsError },
+  ] = await Promise.all([
+    supabase.from('contractor_report_wps').select('*').in('report_id', reportIds),
+    supabase.from('contractor_report_risk_work_groups').select('*').in('report_id', reportIds),
+  ]);
   if (wpsError) throw wpsError;
+  if (riskWorkGroupsError) throw riskWorkGroupsError;
 
-  return { reports: reports_, wps: wps || [], project };
+  return { reports: reports_, wps: wps || [], riskWorkGroups: riskWorkGroups || [], project };
 }
