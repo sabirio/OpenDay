@@ -5,7 +5,7 @@
   "applicationCommit": "c79d45b104a0fe10b30c7b850b35949b615acba1",
   "artifact": {
     "file": "staging-catchup.sql",
-    "sha256": "2037a0ac393c66b592094cec215588df0563a03134bffef84ccd2476263f2bb3"
+    "sha256": "28d4bad18a934014126aa0c7205f1d24c10266174534a1aff773aab8ed6da662"
   },
   "migrations": [
     {
@@ -37,6 +37,11 @@
       "number": 35,
       "filename": "035_snag_canonical_field_capture.sql",
       "sha256": "0d02ee77c6001a2369c159b50350e45e23d6f1942ed0a4672b19699fee3bd52a"
+    },
+    {
+      "number": 42,
+      "filename": "042_master_catalog_schema_v2.sql",
+      "sha256": "b8c883e12c63c90388a2833b11ab93c40437888be74dc05c6fd934bf15415776"
     },
     {
       "number": 43,

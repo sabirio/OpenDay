@@ -114,18 +114,43 @@ async function main() {
   }
   console.log('  profiles upserted for all 9 users');
 
+  // A reused full-schema local database can contain Project Team rows from
+  // earlier UI testing. Remove only the three deterministic certification
+  // projects so capability-based access cannot leak into cross-tenant tests.
+  // The guards keep this fixture compatible with the older canonical reset
+  // path where Project Team tables do not exist yet.
+  psql(`
+    DO $fixture_project_team_cleanup$
+    BEGIN
+      IF to_regclass('public.project_team_membership_capabilities') IS NOT NULL THEN
+        DELETE FROM public.project_team_membership_capabilities
+        WHERE project_id IN (${PROJECT_A}, ${PROJECT_A2}, ${PROJECT_B});
+      END IF;
+      IF to_regclass('public.project_team_memberships') IS NOT NULL THEN
+        DELETE FROM public.project_team_memberships
+        WHERE project_id IN (${PROJECT_A}, ${PROJECT_A2}, ${PROJECT_B});
+      END IF;
+    END
+    $fixture_project_team_cleanup$;
+  `);
+
   // Projects (service_role bypasses RLS — legitimate for fixture seeding;
   // every certification scenario below re-verifies access through real
   // authenticated, non-service-role clients).
   psql(`
-    INSERT INTO public.projects (id, store_code, shopping_mall_name, company_id, project_status, target_opening_date, contractor_email)
+    INSERT INTO public.projects (id, store_code, shopping_mall_name, company_id, project_status, target_opening_date, contractor_email, created_by)
     VALUES
-      (${PROJECT_A}, 'CERT-A1', 'Certification Mall A1', 'company-a', 'Active', CURRENT_DATE + INTERVAL '120 days', 'contractor-a-assigned@cert.local'),
-      (${PROJECT_A2}, 'CERT-A2', 'Certification Mall A2', 'company-a', 'Active', CURRENT_DATE + INTERVAL '150 days', NULL),
-      (${PROJECT_B}, 'CERT-B1', 'Certification Mall B1', 'company-b', 'Active', CURRENT_DATE + INTERVAL '120 days', 'contractor-b@cert.local')
+      (${PROJECT_A}, 'CERT-A1', 'Certification Mall A1', 'company-a', 'Active', CURRENT_DATE + INTERVAL '120 days', 'contractor-a-assigned@cert.local', '${ids.pmAAssigned}'),
+      (${PROJECT_A2}, 'CERT-A2', 'Certification Mall A2', 'company-a', 'Active', CURRENT_DATE + INTERVAL '150 days', NULL, '${ids.pmAAssigned}'),
+      (${PROJECT_B}, 'CERT-B1', 'Certification Mall B1', 'company-b', 'Active', CURRENT_DATE + INTERVAL '120 days', 'contractor-b@cert.local', '${ids.pmB}')
     ON CONFLICT (id) DO UPDATE SET
       store_code = EXCLUDED.store_code,
-      contractor_email = EXCLUDED.contractor_email;
+      shopping_mall_name = EXCLUDED.shopping_mall_name,
+      company_id = EXCLUDED.company_id,
+      project_status = EXCLUDED.project_status,
+      target_opening_date = EXCLUDED.target_opening_date,
+      contractor_email = EXCLUDED.contractor_email,
+      created_by = EXCLUDED.created_by;
     SELECT setval('public.projects_id_seq', 900100, false);
   `);
   console.log(`  projects: A=${PROJECT_A} A2=${PROJECT_A2} (company-a), B=${PROJECT_B} (company-b)`);
@@ -153,7 +178,11 @@ async function main() {
     INSERT INTO public.contractor_reports (id, project_id, submitted_by, report_date, week_number, overall_progress, status)
     VALUES (900202, ${PROJECT_B}, '${ids.contractorB}', CURRENT_DATE - 7, 1, 10, 'submitted')
     ON CONFLICT (id) DO NOTHING;
-    SELECT setval('public.contractor_reports_id_seq', 900300, false);
+    SELECT setval(
+      'public.contractor_reports_id_seq',
+      GREATEST(COALESCE((SELECT max(id) FROM public.contractor_reports), 0) + 1, 900300),
+      false
+    );
   `);
   console.log('  pre-existing contractor reports: 900201 (Project A), 900202 (Project B)');
 
@@ -163,12 +192,20 @@ async function main() {
     INSERT INTO public.site_visits (id, project_id, visit_date, visited_by, contractor_report_id, overall_note)
     VALUES (900401, ${PROJECT_A}, CURRENT_DATE - 3, '${ids.pmAAssigned}', 900201, 'Pre-existing fixture visit')
     ON CONFLICT (id) DO NOTHING;
-    SELECT setval('public.site_visits_id_seq', 900500, false);
+    SELECT setval(
+      'public.site_visits_id_seq',
+      GREATEST(COALESCE((SELECT max(id) FROM public.site_visits), 0) + 1, 900500),
+      false
+    );
 
     INSERT INTO public.progress_history (id, project_id, week_number, overall_progress, spi, snapshot)
     VALUES (900601, ${PROJECT_A}, 1, 10, 1.0, '{"source_type":"fixture","contractor_report_id":900201}'::jsonb)
     ON CONFLICT (id) DO NOTHING;
-    SELECT setval('public.progress_history_id_seq', 900700, false);
+    SELECT setval(
+      'public.progress_history_id_seq',
+      GREATEST(COALESCE((SELECT max(id) FROM public.progress_history), 0) + 1, 900700),
+      false
+    );
   `);
   console.log('  pre-existing site visit 900401, progress_history 900601');
 

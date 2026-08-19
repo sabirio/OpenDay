@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "openday-security-release/v1",
+  "target": "staging",
+  "approvedProjectRef": "sdndsekarwhumdbcqxni",
+  "artifact": {
+    "file": "staging-security-147.sql",
+    "sha256": "42c78dadd191e850254c121b06c0c1bdf2555c9474ea24d5c1c63ffebb7a26ef"
+  },
+  "migration": {
+    "number": 147,
+    "filename": "147_security_advisor_hardening.sql",
+    "sha256": "a3dcd7a577a2035b2863bc73a1a50711e2c93a705e3a201a0e6f8d31ca6a60c8"
+  }
+}
