@@ -94,10 +94,10 @@ export async function loadScheduleVersionActivityWorkGroups(versionId) {
   return (data || []).map(fromDBVersionActivityWorkGroup);
 }
 
-/** The ONE canonical capability status (DRAFT/PENDING_REVIEW/APPROVED) — public.contractor_schedule_lifecycle_status(), granted EXECUTE to authenticated, safe to call directly. */
+/** Authorization-checked view of the canonical schedule lifecycle status. */
 export async function loadScheduleLifecycleStatus(projectId) {
   if (!projectId) return 'DRAFT';
-  const { data, error } = await supabase.rpc('contractor_schedule_lifecycle_status', { p_project_id: projectId });
+  const { data, error } = await supabase.rpc('get_contractor_schedule_lifecycle_status', { p_project_id: projectId });
   if (error) throw error;
   return data;
 }

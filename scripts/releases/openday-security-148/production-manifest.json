@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "openday-security-release/v1",
+  "target": "production",
+  "approvedProjectRef": "szgbkeqornkdngoegyso",
+  "artifact": {
+    "file": "production-security-148.sql",
+    "sha256": "a5a196ddf9b036ae49a7c14d3bc1787219ada4a57a623f7c7f521319459a7a4d"
+  },
+  "migration": {
+    "number": 148,
+    "filename": "148_authenticated_security_definer_boundary.sql",
+    "sha256": "3b6b20382f02c39bd7664143d92313c61b4a1a13ef3045d8f6c54369d8a5dc29"
+  }
+}

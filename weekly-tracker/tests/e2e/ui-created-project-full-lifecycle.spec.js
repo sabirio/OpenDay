@@ -166,7 +166,7 @@ test.describe.serial('UI-Created Project Full Lifecycle (Simplification Phase 3D
       .eq('project_id', projectId);
     expect(versionCount).toBe(0);
 
-    const { data: lifecycle } = await client.rpc('contractor_schedule_lifecycle_status', { p_project_id: projectId });
+    const { data: lifecycle } = await client.rpc('get_contractor_schedule_lifecycle_status', { p_project_id: projectId });
     expect(lifecycle).toBe('DRAFT');
 
     await logout(page);
@@ -273,7 +273,7 @@ test.describe.serial('UI-Created Project Full Lifecycle (Simplification Phase 3D
       .eq('is_archived', false);
     expect(activeCount).toBe(3);
 
-    const { data: lifecycle } = await client.rpc('contractor_schedule_lifecycle_status', { p_project_id: projectId });
+    const { data: lifecycle } = await client.rpc('get_contractor_schedule_lifecycle_status', { p_project_id: projectId });
     expect(lifecycle).toBe('DRAFT');
     const { count: versionCount } = await client
       .from('project_schedule_versions')
@@ -492,7 +492,7 @@ test.describe.serial('UI-Created Project Full Lifecycle (Simplification Phase 3D
     expect(versions[1].reviewed_at).not.toBeNull();
     expect(versions[0].baseline_revision_number).toBeNull();
 
-    const { data: lifecycle } = await client.rpc('contractor_schedule_lifecycle_status', { p_project_id: projectId });
+    const { data: lifecycle } = await client.rpc('get_contractor_schedule_lifecycle_status', { p_project_id: projectId });
     expect(lifecycle).toBe('APPROVED');
 
     await logout(page);
