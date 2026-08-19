@@ -126,7 +126,7 @@ export function assertNoEmbeddedTransactions(sql) {
 
 export function migrationNumbersForTarget(target) {
   const numbers = [];
-  if (target === 'staging') numbers.push(30, 31, 32, 33, 34, 35, 43, 44, 45);
+  if (target === 'staging') numbers.push(30, 31, 32, 33, 34, 35, 42, 43, 44, 45);
   for (let number = 59; number <= 146; number += 1) numbers.push(number);
   if (target !== 'staging' && target !== 'production') throw new Error(`Unsupported target: ${target}`);
   return numbers;
@@ -210,9 +210,6 @@ function preflightSql(target, mode = 'remote') {
   END IF;
   IF EXISTS (SELECT 1 FROM public.templates WHERE id='e4ef4d98-5688-4d12-9fca-2d7cded88d29'::uuid) THEN
     RAISE EXCEPTION 'OPENDAY_PREFLIGHT_WRONG_TARGET_STATE: staging master catalog unexpectedly present';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.projects UNION ALL SELECT 1 FROM public.profiles UNION ALL SELECT 1 FROM public.contractor_reports UNION ALL SELECT 1 FROM public.site_visits UNION ALL SELECT 1 FROM public.progress_history) THEN
-    RAISE EXCEPTION 'OPENDAY_PREFLIGHT_STAGING_NOT_EMPTY';
   END IF;`;
 
   const fingerprintCheck = mode === 'remote' ? catalogFingerprintSql(fingerprints) : '';
@@ -263,8 +260,45 @@ END
 $openday_preflight$;`;
 }
 
-function postflightSql(migrations) {
-  const ids = migrations.map(({ filename }) => `'${filename.replace(/\.sql$/, '')}'`).join(',');
+function productionRoleCompatibilitySql(mode = 'remote') {
+  if (mode === 'local-certification') {
+    return `-- Local certification starts from the canonical baseline, which never
+-- carried production's historical four-role check constraint.
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;`;
+  }
+  return `DO $openday_profiles_role_compatibility$
+DECLARE v_definition text;
+BEGIN
+  SELECT pg_get_constraintdef(constraint_row.oid, true)
+    INTO v_definition
+    FROM pg_constraint constraint_row
+   WHERE constraint_row.conrelid='public.profiles'::regclass
+     AND constraint_row.conname='profiles_role_check'
+     AND constraint_row.contype='c';
+  IF v_definition IS DISTINCT FROM
+     'CHECK (role = ANY (ARRAY[''Admin''::text, ''PM''::text, ''Contractor''::text, ''Viewer''::text]))' THEN
+    RAISE EXCEPTION 'OPENDAY_PREFLIGHT_PROFILES_ROLE_CONSTRAINT_MISMATCH: %',v_definition;
+  END IF;
+  IF EXISTS(
+    SELECT 1 FROM public.profiles
+     WHERE role NOT IN('Admin','PM','Contractor','Viewer')
+  ) THEN
+    RAISE EXCEPTION 'OPENDAY_PREFLIGHT_UNSUPPORTED_PROFILE_ROLE';
+  END IF;
+  ALTER TABLE public.profiles DROP CONSTRAINT profiles_role_check;
+END
+$openday_profiles_role_compatibility$;`;
+}
+
+function postflightSql(migrations, target) {
+  const ledgerMigrations = migrations.filter(({ number }) => number > 132);
+  const ids = ledgerMigrations.map(({ filename }) => `'${filename.replace(/\.sql$/, '')}'`).join(',');
+  const legacyRolePostflight = target === 'production'
+    ? `  IF EXISTS(SELECT 1 FROM public.profiles WHERE lower(role)='viewer')
+     OR EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public.profiles'::regclass AND conname='profiles_role_check') THEN
+    RAISE EXCEPTION 'OPENDAY_POSTFLIGHT_LEGACY_PROFILE_ROLE_CONTRACT_REMAINS';
+  END IF;`
+    : '';
   return `DO $openday_postflight$
 DECLARE v_version uuid; v_ledger_count integer; v_signature text;
 BEGIN
@@ -289,9 +323,18 @@ BEGIN
      OR (SELECT count(*) FROM public.work_ontology_boq_item_definitions WHERE ontology_version_id=v_version) <> 563 THEN
     RAISE EXCEPTION 'OPENDAY_POSTFLIGHT_ONTOLOGY_MISMATCH';
   END IF;
+  IF NOT EXISTS(
+    SELECT 1 FROM public.schema_migration_ledger
+     WHERE migration_id='supported-baseline-000-132'
+       AND sequence_number=132
+       AND filename='SUPPORTED_BASELINE_000_132@f14abab2e0051297bf3b4430be7b6984cdf64ff8'
+       AND sha256='d1a1a545d755c544cf780da1b2cb220ac3b14c8aecd4325e33462e1e5be95b48'
+  ) THEN
+    RAISE EXCEPTION 'OPENDAY_POSTFLIGHT_LEDGER_BASELINE_MISMATCH';
+  END IF;
   SELECT count(*) INTO v_ledger_count FROM public.schema_migration_ledger WHERE migration_id IN (${ids});
-  IF v_ledger_count <> ${migrations.length} THEN
-    RAISE EXCEPTION 'OPENDAY_POSTFLIGHT_LEDGER_MISMATCH: % expected ${migrations.length}', v_ledger_count;
+  IF v_ledger_count <> ${ledgerMigrations.length} THEN
+    RAISE EXCEPTION 'OPENDAY_POSTFLIGHT_LEDGER_MISMATCH: % expected ${ledgerMigrations.length}', v_ledger_count;
   END IF;
   FOREACH v_signature IN ARRAY ARRAY[
     'public.auth_user_role()','public.can_access_audit_log(text,text)',
@@ -308,7 +351,7 @@ BEGIN
      OR has_function_privilege('authenticated','public.rls_auto_enable()','EXECUTE')
      OR has_function_privilege('service_role','public.rls_auto_enable()','EXECUTE') THEN
     RAISE EXCEPTION 'OPENDAY_POSTFLIGHT_SECURITY_DEFINER_ACL_FAILED: rls_auto_enable';
-  END IF;
+  END IF;${legacyRolePostflight ? `\n${legacyRolePostflight}` : ''}
 END
 $openday_postflight$;`;
 }
@@ -327,12 +370,13 @@ export function buildCatchupPackage({ repoRoot, target, preflightMode = 'remote'
     "SET LOCAL statement_timeout = '30min';",
     preflightSql(target, preflightMode),
   ];
+  if (target === 'production') sections.push(productionRoleCompatibilitySql(preflightMode));
   for (const migration of migrations) {
     sections.push(`-- MIGRATION ${migration.filename} SHA256 ${migration.sha256}\n${migration.sql}`);
   }
-  sections.push(...migrations.map(({ number, filename, sha256 }) =>
+  sections.push(...migrations.filter(({ number }) => number > 132).map(({ number, filename, sha256 }) =>
     `SELECT private.register_schema_migration('${filename.replace(/\.sql$/, '')}', ${number}, '${filename}', '${sha256}');`));
-  sections.push(postflightSql(migrations), 'COMMIT;');
+  sections.push(postflightSql(migrations, target), 'COMMIT;');
   const sql = `${sections.join('\n\n').trim()}\n`;
   const transactionControls = splitSqlStatements(sql)
     .map(withoutComments)

@@ -5,7 +5,7 @@
   "applicationCommit": "c79d45b104a0fe10b30c7b850b35949b615acba1",
   "artifact": {
     "file": "production-catchup.sql",
-    "sha256": "6d6f21302d8131185af3ceb556d55607de0e276ddfec3630456520f4884473c2"
+    "sha256": "79e4a665f97945299b6066a2481773de6bafc5d9824010e98ec0f77432f373d1"
   },
   "migrations": [
     {
