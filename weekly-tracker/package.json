@@ -83,6 +83,7 @@
     "db:apply:security-advisor-hardening": "node scripts/certification/applySecurityAdvisorHardeningLocal.mjs",
     "db:apply:authenticated-security-definer-boundary": "node scripts/certification/applyAuthenticatedSecurityDefinerBoundaryLocal.mjs",
     "db:apply:organization-tenant-foundation": "node scripts/certification/applyOrganizationTenantFoundationLocal.mjs",
+    "db:apply:organization-authorization-cutover": "node scripts/certification/applyOrganizationAuthorizationCutoverLocal.mjs",
     "release:build:security-148": "node ../scripts/release/build-security-148.mjs",
     "cert:reset:budget-vs-tender": "npm run cert:reset:budget-approval && node scripts/certification/applyBudgetVsTenderLocal.mjs",
     "cert:reset:budget-approval-report": "npm run cert:reset:budget-vs-tender && node scripts/certification/applyBudgetApprovalReportLocal.mjs",
@@ -121,6 +122,7 @@
     "test:security-advisor-hardening-db": "node scripts/certification/certifySecurityAdvisorHardening.mjs",
     "test:authenticated-security-definer-boundary-db": "node scripts/certification/certifyAuthenticatedSecurityDefinerBoundary.mjs",
     "test:organization-tenant-foundation-db": "node scripts/certification/certifyOrganizationTenantFoundation.mjs",
+    "test:organization-authorization-cutover-db": "node scripts/certification/certifyOrganizationAuthorizationCutover.mjs",
     "test:storage": "node scripts/certification/certifyStorage.mjs",
     "test:import-phase2": "npm run cert:reset:import-phase2 && node scripts/certification/certifyImportPhase2.mjs",
     "test:certification": "npm run cert:reset && npm run test:db && npm run test:rls && npm run test:scope-templates && npm run test:storage"

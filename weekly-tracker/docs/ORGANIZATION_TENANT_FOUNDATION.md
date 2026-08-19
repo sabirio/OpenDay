@@ -6,6 +6,11 @@ Migration 149 introduces the additive Phase 1A foundation for the
 Multi-Company / Workspaces / Entitlements roadmap. It does not enable plans,
 paid entitlements, workspace selection, billing, or a Platform Admin UI.
 
+Migration 150 completes the Phase 1B authorization cutover for the current
+tenant-owned roots. Organization membership and `projects.organization_id`
+are now the canonical access boundary; legacy `company_id` remains an input
+and compatibility key, not the authorization source of truth.
+
 ## Canonical concepts
 
 - `organizations` owns the SaaS tenant identity and lifecycle status.
@@ -45,20 +50,39 @@ superadmin. Membership records are readable by the member, an active
 Organization Admin in the same organization, or a platform superadmin.
 Browser roles cannot directly insert, update or delete tenant records.
 
+Project access now requires the intersection of an active Organization
+membership and the existing Project Team / contractor assignment rules.
+Organization Admin authority comes from `organization_memberships`, while
+OpenDay operator authority comes only from `platform_user_roles`. A forged
+Project Team membership or project identifier in another Organization does
+not create access. Suspended Organizations fail closed.
+
+`organization_memberships.is_primary` identifies the single membership that
+bridges the legacy `profiles.company_id` field. Profile company, role and
+active-state changes synchronize this primary membership automatically;
+moving a profile retires its prior primary access instead of leaving a hidden
+cross-company permission behind. Secondary memberships remain available for
+the future multi-organization selector and invitation flow.
+
 `get_my_organization_context()` is the only new public RPC. It requires an
 authenticated identity and returns only that caller's active memberships.
 Internal tenant helpers remain in the unexposed `private` schema. The
 authenticated role can execute only the helpers required by RLS policy
 evaluation; they are not available as public Data API RPCs.
 
-## Next Phase 1 package
+## Certification
 
-Phase 1B should cut the existing authorization helpers from implicit
-`profiles.company_id` checks to the canonical Organization membership and
-`projects.organization_id` boundary. It must include negative certification
-for cross-organization read, insert, update, delete and manipulated project
-identifiers before the compatibility bridge can be retired.
+Migration 150 certifies actual RLS behavior, not only helper return values. A
+user receives Project Team membership in both certification projects but an
+Organization membership in only one. Read, insert, update, delete and direct
+foreign project-ID access are then proven denied for the other Organization.
+The same suite proves own-Organization CRUD, primary membership synchronization
+and function ACL boundaries.
 
-Only after that cutover is stable should OpenDay add the capability catalog,
-plans, organization entitlements, entitlement resolver, Platform Admin UI,
-or dynamic workspace navigation.
+## Next roadmap package
+
+The next bounded package should define the canonical commercial Capability
+Catalog and dependency graph. It must remain separate from the existing
+`project_capability_catalog`, which continues to represent per-project user
+authorization. Plans and Organization entitlements should follow only after
+the catalog contract and dependency validation are certified.
