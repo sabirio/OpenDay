@@ -2377,6 +2377,52 @@ button.weekly-phase-row {
   font-weight: 700;
   flex-shrink: 0;
 }
+
+.sidebar-workspace-context {
+  display: grid;
+  gap: 9px;
+  margin: 0 2px 14px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+
+.sidebar-workspace-context label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sidebar-workspace-context label > span {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-workspace-context strong,
+.sidebar-workspace-context select {
+  width: 100%;
+  min-width: 0;
+  color: var(--text-primary);
+  font: 600 0.75rem/1.3 var(--font-sans);
+}
+
+.sidebar-workspace-context strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-workspace-context select {
+  height: 30px;
+  padding: 0 24px 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
 .admin-user-name-input {
   width: min(240px, 100%);
   background: transparent;

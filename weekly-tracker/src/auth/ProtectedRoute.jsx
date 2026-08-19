@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { useWorkspace } from './useWorkspace.js';
 import { canAccessUser } from '../engines/permissionEngine';
 
 // Wrap any <Route element={…}> with this to enforce auth + optional RBAC.
@@ -7,6 +8,7 @@ import { canAccessUser } from '../engines/permissionEngine';
 // If omitted, only authentication is checked (any logged-in user passes).
 function ProtectedRoute({ children, resource }) {
   const { isAuthenticated, user, loading } = useAuth();
+  const { scopedUser } = useWorkspace();
   const location = useLocation();
 
   if (loading) {
@@ -21,7 +23,7 @@ function ProtectedRoute({ children, resource }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (resource && !canAccessUser(user, resource)) {
+  if (resource && !canAccessUser(scopedUser ?? user, resource)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

@@ -24,6 +24,7 @@ export const ProgressHistoryRowSchema = z.object({
 
 export const ProjectSchema = z.object({
   id: z.union([z.number(), z.string()]),
+  organizationId: z.string().uuid().nullable().optional(),
   storeCode: z.string().min(1),
   shoppingMallName: z.string().nullable().optional(),
   country: z.string().nullable().optional(),

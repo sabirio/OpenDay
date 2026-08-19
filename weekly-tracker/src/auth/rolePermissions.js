@@ -49,27 +49,28 @@ export const ROLE_REDIRECTS = {
 
 // Sidebar nav items with their required resource permission
 export const NAV_ITEMS = [
-  { to: '/home',               label: 'Home',             resource: 'dashboard'      },
-  { to: '/',                   label: 'Project Dashboard', resource: 'dashboard'      },
+  { to: '/home',               label: 'Home',             resource: 'dashboard', workspaceIds: ['portfolio', 'delivery', 'procurement', 'commercial'] },
+  { to: '/',                   label: 'Project Dashboard', resource: 'dashboard', workspaceIds: ['portfolio'] },
   // Import Projects is deliberately NOT a top-level nav item — it's a
   // Portfolio-owned operation (Projects IA v1), reached via the "Import
   // Projects" action on the Portfolio page (/projects), not its own product
   // module. Its canonical route (/projects/import) and permission
   // ('projects_import') are unchanged; only its sidebar presence moved.
-  { to: '/projects',           label: 'Portfolio',        resource: 'projects'       },
-  { to: '/consultant-boqs',    label: 'Consultant BOQs',  resource: 'consultant_boq' },
-  { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports' },
-  { to: '/snags',              label: 'Site Snag',        resource: 'snags'          },
+  { to: '/projects',           label: 'Portfolio',        resource: 'projects', workspaceIds: ['portfolio', 'delivery', 'procurement', 'commercial'] },
+  { to: '/consultant-boqs',    label: 'Consultant BOQs',  resource: 'consultant_boq', workspaceIds: ['procurement'] },
+  { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports', workspaceIds: ['delivery'] },
+  { to: '/snags',              label: 'Site Snag',        resource: 'snags', workspaceIds: ['field'] },
   {
     id: 'site-works',
     label: 'Site Works',
+    workspaceId: 'field',
     children: [
       { to: '/site-visit-select', label: 'Site Visit', resource: 'site_visit' },
       { to: '/field-snag', label: 'Field Snag List', resource: 'snags' },
     ],
   },
-  { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine'    },
-  { to: '/weight-audit',       label: 'Weight Audit',     resource: 'weight_audit'   },
+  { to: '/risk',               label: 'Risk Dashboard',   resource: 'risk_engine', workspaceIds: ['delivery'] },
+  { to: '/weight-audit',       label: 'Weight Audit',     resource: 'weight_audit', workspaceIds: ['delivery'] },
   { to: '/admin/users',        label: 'Users',            resource: 'admin_users'    },
   // Nav-only visibility gate — deliberately a different resource than the
   // 'contractor_report' one that actually guards /contractor-select's
@@ -77,7 +78,7 @@ export const NAV_ITEMS = [
   // through their existing entry points unchanged; 'admin_contractor_workspace'
   // isn't in any non-Admin PERMISSIONS list, so only Admin's 'all' wildcard
   // lets this sidebar link render (same mechanism as the Users item above).
-  { to: '/contractor-select',  label: 'Contractor Workspace', resource: 'admin_contractor_workspace' },
+  { to: '/contractor-select',  label: 'Contractor Workspace', resource: 'admin_contractor_workspace', workspaceIds: ['delivery'] },
   // Template Editor (/admin/template-editor) route still exists but is hidden from
   // the nav until its save path (onSave -> templatesApi) is wired. See PROJECT_MEMORY.md.
 ];

@@ -91,6 +91,7 @@ export function fromDB(row) {
     contractorEmail: row.contractor_email,
     projectType: row.project_type,
     projectStatus: row.project_status,
+    organizationId: row.organization_id || null,
     companyId:    row.company_id || null,
     phases:      normalizePhasesFromDB(row.phases || []),
     scope:       row.scope       || null,

@@ -6,7 +6,8 @@ import { ToastProvider } from "./components/shared/Toast.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import PlatformAdminRoute from "./auth/PlatformAdminRoute";
 import { useAuth } from "./auth/AuthContext";
-import { getDefaultRoute } from "./engines/permissionEngine";
+import { useWorkspace } from "./auth/useWorkspace.js";
+import { filterProjectsForOrganization } from "./hooks/useDefaultRoute.js";
 import * as projectService from "./services/projectService";
 import { getAllReportsForScreens } from "./core/contractorReport/contractorReportScreensModel.js";
 import * as siteVisitService from "./services/siteVisitService";
@@ -177,14 +178,16 @@ function PortfolioDataGate({ isAuthenticated, portfolioState, onLoadPortfolioDat
 
 // Redirect authenticated users away from /login
 function PublicOnlyRoute({ children }) {
-  const { isAuthenticated, loading, role } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  const { defaultRoute } = useWorkspace();
   if (loading) return null;
-  if (isAuthenticated) return <Navigate to={getDefaultRoute(role)} replace />;
+  if (isAuthenticated) return <Navigate to={defaultRoute} replace />;
   return children;
 }
 
 function App() {
   const { isAuthenticated } = useAuth();
+  const { organizations, activeOrganization } = useWorkspace();
   const isContractorReportRoute = window.location.pathname.startsWith('/contractor-report/');
   const isPlatformAdminRoute = window.location.pathname.startsWith('/platform-admin');
 
@@ -212,6 +215,21 @@ function App() {
     () => templates.find(t => t.isActive) ?? null,
     [templates]
   );
+  const visibleProjects = useMemo(() => (
+    organizations.length > 1
+      ? filterProjectsForOrganization(projects, activeOrganization)
+      : projects
+  ), [projects, organizations.length, activeOrganization]);
+  const visibleProjectIds = useMemo(
+    () => new Set(visibleProjects.map(project => String(project.id))),
+    [visibleProjects],
+  );
+  const visibleReports = useMemo(() => organizations.length > 1
+    ? reports.filter(report => visibleProjectIds.has(String(report.projectId ?? report.project_id)))
+    : reports, [reports, organizations.length, visibleProjectIds]);
+  const visibleSiteVisits = useMemo(() => organizations.length > 1
+    ? siteVisits.filter(visit => visibleProjectIds.has(String(visit.projectId ?? visit.project_id)))
+    : siteVisits, [siteVisits, organizations.length, visibleProjectIds]);
 
   function loadProjects() {
     setProjectsState('loading');
@@ -362,7 +380,7 @@ function App() {
           path="/contractor-select"
           element={
             <ProtectedRoute resource="contractor_report">
-              <ContractorSelect projects={projects} reports={reports} />
+              <ContractorSelect projects={visibleProjects} reports={visibleReports} />
             </ProtectedRoute>
           }
         />
@@ -380,8 +398,8 @@ function App() {
           element={
             <ProtectedRoute resource="contractor_report">
               <ContractorReport
-                projects={projects}
-                reports={reports}
+                projects={visibleProjects}
+                reports={visibleReports}
               />
             </ProtectedRoute>
           }
@@ -405,7 +423,7 @@ function App() {
           path="/contractor-schedule/:projectId"
           element={
             <ProtectedRoute resource="contractor_schedule">
-              <ContractorSchedule projects={projects} />
+              <ContractorSchedule projects={visibleProjects} />
             </ProtectedRoute>
           }
         />
@@ -415,9 +433,9 @@ function App() {
           element={
             <ProtectedRoute resource="site_visit">
               <SiteVisitReport
-                projects={projects}
-                reports={reports}
-                siteVisits={siteVisits}
+                projects={visibleProjects}
+                reports={visibleReports}
+                siteVisits={visibleSiteVisits}
                 onSaveSiteVisit={handleSaveSiteVisit}
               />
             </ProtectedRoute>
@@ -432,7 +450,7 @@ function App() {
           path="/field-snag/:projectId"
           element={
             <ProtectedRoute resource="snags">
-              <SnagFieldPage projects={projects} />
+              <SnagFieldPage projects={visibleProjects} />
             </ProtectedRoute>
           }
         />
@@ -448,7 +466,7 @@ function App() {
                     path="/"
                     element={
                       <ProtectedRoute resource="dashboard">
-                        <Dashboard projects={projects} reports={reports} siteVisits={siteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
+                        <Dashboard projects={visibleProjects} reports={visibleReports} siteVisits={visibleSiteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
                       </ProtectedRoute>
                     }
                   />
@@ -456,7 +474,7 @@ function App() {
                     path="/home"
                     element={
                       <ProtectedRoute resource="dashboard">
-                        <Home projects={projects} reports={reports} siteVisits={siteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
+                        <Home projects={visibleProjects} reports={visibleReports} siteVisits={visibleSiteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
                       </ProtectedRoute>
                     }
                   />
@@ -465,7 +483,7 @@ function App() {
                     element={
                       <ProtectedRoute resource="projects">
                         <Projects
-                          projects={projects}
+                          projects={visibleProjects}
                           onSaveProject={handleSaveProject}
                           onDeleteProject={handleDeleteProject}
                           onProjectCreated={handleProjectCreated}
@@ -483,15 +501,15 @@ function App() {
                       redirect happens (no route-based permission bypass),
                       matching the /projects/:projectId/snags/field precedent below. */}
                   <Route path="/import/projects" element={<ProtectedRoute resource="projects_import"><LegacyImportProjectsRedirect/></ProtectedRoute>} />
-                  <Route path="/snags" element={<ProtectedRoute resource="snags"><SnagProjectSelectPage projects={projects}/></ProtectedRoute>} />
-                  <Route path="/field-snag" element={<ProtectedRoute resource="snags"><FieldSnagSelect projects={projects}/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/snags" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
+                  <Route path="/snags" element={<ProtectedRoute resource="snags"><SnagProjectSelectPage projects={visibleProjects}/></ProtectedRoute>} />
+                  <Route path="/field-snag" element={<ProtectedRoute resource="snags"><FieldSnagSelect projects={visibleProjects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/snags" element={<ProtectedRoute resource="snags"><SnagListPage projects={visibleProjects}/></ProtectedRoute>} />
                   {/* Legacy path — the canonical Field Snag workspace now lives at
                       /field-snag/:projectId (a top-level route outside <Layout>,
                       see above). This keeps old deep links working. */}
                   <Route path="/projects/:projectId/snags/field" element={<ProtectedRoute resource="snags"><LegacyFieldSnagRedirect/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/snags/new" element={<ProtectedRoute resource="snags"><SnagCreatePage/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagListPage projects={projects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/snags/:snagId" element={<ProtectedRoute resource="snags"><SnagListPage projects={visibleProjects}/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans" element={<ProtectedRoute resource="snags"><PlanManagementPage/></ProtectedRoute>} />
                   <Route path="/projects/:projectId/plans/:planId" element={<ProtectedRoute resource="snags"><PlanViewerPage/></ProtectedRoute>} />
                   {/* PM Schedule Review workspace (Simplification Phase 4B.2) —
@@ -507,20 +525,20 @@ function App() {
                       from anyone but PM. The RPCs
                       (request_schedule_changes/approve_schedule_submission)
                       remain the final authority regardless. */}
-                  <Route path="/projects/:projectId/schedule-review" element={<ProtectedRoute resource="schedule_review"><PMScheduleReview projects={projects}/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/boq" element={<ProtectedRoute resource="boq_editor"><ProjectBoq projects={projects}/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/commercial-setup" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects} section="cost-packages"/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/cost-packages" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects} section="cost-packages"/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/project-team" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects} section="project-team"/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/tender-packages" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={projects} section="tender-packages"/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/schedule-review" element={<ProtectedRoute resource="schedule_review"><PMScheduleReview projects={visibleProjects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/boq" element={<ProtectedRoute resource="boq_editor"><ProjectBoq projects={visibleProjects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/commercial-setup" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={visibleProjects} section="cost-packages"/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/cost-packages" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={visibleProjects} section="cost-packages"/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/project-team" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={visibleProjects} section="project-team"/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/tender-packages" element={<ProtectedRoute resource="commercial_setup"><ProjectCommercialSetup projects={visibleProjects} section="tender-packages"/></ProtectedRoute>} />
                   <Route path="/tenders/:tenderId/consultant-boq" element={<ProtectedRoute resource="consultant_boq"><ConsultantBoq/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/tender" element={<ProtectedRoute resource="tender_setup"><ProjectTenderSetup projects={projects}/></ProtectedRoute>} />
-                  <Route path="/projects/:projectId/budget" element={<ProtectedRoute resource="budget_workspace"><ProjectBudget projects={projects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/tender" element={<ProtectedRoute resource="tender_setup"><ProjectTenderSetup projects={visibleProjects}/></ProtectedRoute>} />
+                  <Route path="/projects/:projectId/budget" element={<ProtectedRoute resource="budget_workspace"><ProjectBudget projects={visibleProjects}/></ProtectedRoute>} />
                   <Route
                     path="/weekly-reports"
                     element={
                       <ProtectedRoute resource="weekly_reports">
-                        <WeeklyReports projects={projects} reports={reports} siteVisits={siteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
+                        <WeeklyReports projects={visibleProjects} reports={visibleReports} siteVisits={visibleSiteVisits} templatesById={templatesById} activeTemplateFallback={activeTemplateFallback} />
                       </ProtectedRoute>
                     }
                   />
@@ -528,7 +546,7 @@ function App() {
                     path="/site-visit-select"
                     element={
                       <ProtectedRoute resource="site_visit">
-                        <SiteVisitSelect projects={projects} />
+                        <SiteVisitSelect projects={visibleProjects} />
                       </ProtectedRoute>
                     }
                   />
@@ -536,7 +554,7 @@ function App() {
                     path="/risk"
                     element={
                       <ProtectedRoute resource="risk_engine">
-                        <RiskDashboard projects={projects} reports={reports} siteVisits={siteVisits} />
+                        <RiskDashboard projects={visibleProjects} reports={visibleReports} siteVisits={visibleSiteVisits} />
                       </ProtectedRoute>
                     }
                   />
@@ -544,7 +562,7 @@ function App() {
                     path="/weight-audit"
                     element={
                       <ProtectedRoute resource="weight_audit">
-                        <WeightAudit projects={projects} />
+                        <WeightAudit projects={visibleProjects} />
                       </ProtectedRoute>
                     }
                   />
@@ -552,7 +570,7 @@ function App() {
                     path="/admin/users"
                     element={
                       <ProtectedRoute resource="admin_users">
-                        <AdminUsers projects={projects} />
+                        <AdminUsers projects={visibleProjects} />
                       </ProtectedRoute>
                     }
                   />

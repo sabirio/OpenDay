@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { authService } from '../auth/authService';
-import { getDefaultRouteForRole } from '../hooks/useDefaultRoute';
+import { resolveRememberedDefaultRoute } from '../auth/workspaceSelection.js';
 
 function Login() {
   const { login } = useAuth();
@@ -32,7 +32,7 @@ function Login() {
       return;
     }
 
-    navigate(getDefaultRouteForRole(result.user.role), { replace: true });
+    navigate(resolveRememberedDefaultRoute(result.user), { replace: true });
   }
 
   async function handleForgot(e) {

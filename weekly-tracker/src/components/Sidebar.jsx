@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { getAllowedNavItemsForSession } from '../hooks/useDefaultRoute';
+import { useWorkspace } from '../auth/useWorkspace.js';
+import { getAllowedNavItemsForSession, getWorkspaceDefaultRoute } from '../hooks/useDefaultRoute';
 import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
 import Icon from './shared/Icon';
 
@@ -102,6 +103,10 @@ function ThemeToggle({ theme, onToggle }) {
 
 function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
   const { user, role, logout } = useAuth();
+  const {
+    organizations, activeOrganization, availableWorkspaces, activeWorkspace,
+    scopedUser, setActiveOrganizationId, setActiveWorkspaceId,
+  } = useWorkspace();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -126,7 +131,7 @@ function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
   }, [mobileOpen, onClose]);
 
   const visibleNav = [
-    ...getAllowedNavItemsForSession(user, NAV_ITEMS),
+    ...getAllowedNavItemsForSession(scopedUser, NAV_ITEMS, activeWorkspace?.id),
     ...(user?.platformSuperadmin ? [{ to: '/platform-admin',label: 'Platform Admin' }] : []),
   ];
   const badgeStyle = ROLE_BADGE_STYLES[role] ?? {};
@@ -135,6 +140,20 @@ function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
   async function handleLogout() {
     await logout();
     navigate('/login', { replace: true });
+  }
+
+  function handleWorkspaceChange(event) {
+    const workspace = availableWorkspaces.find(item => item.id === event.target.value);
+    if (!workspace) return;
+    setActiveWorkspaceId(workspace.id);
+    navigate(getWorkspaceDefaultRoute(workspace, scopedUser));
+    onClose();
+  }
+
+  function handleOrganizationChange(event) {
+    setActiveOrganizationId(event.target.value);
+    navigate('/home');
+    onClose();
   }
 
   return (
@@ -150,6 +169,25 @@ function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
           OpenDay
         </span>
       </div>
+
+      {activeOrganization && (
+        <div className="sidebar-workspace-context">
+          <label>
+            <span>Organization</span>
+            {organizations.length > 1 ? (
+              <select value={activeOrganization.organizationId} onChange={handleOrganizationChange}>
+                {organizations.map(organization => <option key={organization.organizationId} value={organization.organizationId}>{organization.name}</option>)}
+              </select>
+            ) : <strong>{activeOrganization.name}</strong>}
+          </label>
+          {availableWorkspaces.length > 0 && <label>
+            <span>Workspace</span>
+            <select value={activeWorkspace?.id ?? ''} onChange={handleWorkspaceChange}>
+              {availableWorkspaces.map(workspace => <option key={workspace.id} value={workspace.id}>{workspace.label}</option>)}
+            </select>
+          </label>}
+        </div>
+      )}
 
       <nav>
         {visibleNav.map((item) => {

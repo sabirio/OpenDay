@@ -5,11 +5,14 @@ import './styles/canonical-ui.css'
 import './styles/print.css'
 import App from './App.jsx'
 import { AuthProvider } from './auth/AuthContext.jsx'
+import { WorkspaceProvider } from './auth/WorkspaceContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <App />
+      <WorkspaceProvider>
+        <App />
+      </WorkspaceProvider>
     </AuthProvider>
   </StrictMode>,
 )

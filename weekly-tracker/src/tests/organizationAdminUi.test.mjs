@@ -19,7 +19,7 @@ assert.match(service, /update_organization_user/);
 assert.match(service, /deactivate_organization_user/);
 assert.match(auth, /activate_my_organization_invitations/);
 assert.match(auth, /organizationRole === 'ORG_ADMIN'/);
-assert.match(route, /canAccessUser\(user, resource\)/);
+assert.match(route, /canAccessUser\(scopedUser \?\? user, resource\)/);
 assert.match(navigation, /getAllowedNavItemsForUser/);
 assert.match(email, /prepare_organization_user_invitation/);
 assert.match(email, /generateLink/);

@@ -26,7 +26,25 @@ async function fetchOrganizationContext() {
     console.error('[authService] fetchOrganizationContext error:', error.code, error.message);
     return { platformSuperadmin: false, organizations: [] };
   }
-  return data ?? { platformSuperadmin: false, organizations: [] };
+  const context = data ?? { platformSuperadmin: false, organizations: [] };
+  const organizations = await Promise.all((context.organizations ?? []).map(async organization => {
+    const { data: entitlementData, error: entitlementError } = await supabase.rpc(
+      'get_effective_organization_entitlements',
+      { p_organization_id: organization.organizationId },
+    );
+    if (entitlementError) {
+      console.error('[authService] fetchEffectiveEntitlements error:', entitlementError.code, entitlementError.message);
+      return { ...organization, effectiveCapabilities: [], entitlementStatus: 'error' };
+    }
+    return {
+      ...organization,
+      effectiveCapabilities: (entitlementData?.capabilities ?? [])
+        .filter(capability => capability.enabled === true)
+        .map(capability => capability.capabilityId),
+      entitlementStatus: 'ready',
+    };
+  }));
+  return { ...context, organizations };
 }
 
 async function activateOrganizationInvitations() {
