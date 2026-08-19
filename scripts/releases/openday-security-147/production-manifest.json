@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "openday-security-release/v1",
+  "target": "production",
+  "approvedProjectRef": "szgbkeqornkdngoegyso",
+  "artifact": {
+    "file": "production-security-147.sql",
+    "sha256": "8a1864462376d06921aeb67e9b833ebef2453312e4b34f7c9e8ed8199bf307bd"
+  },
+  "migration": {
+    "number": 147,
+    "filename": "147_security_advisor_hardening.sql",
+    "sha256": "a3dcd7a577a2035b2863bc73a1a50711e2c93a705e3a201a0e6f8d31ca6a60c8"
+  }
+}

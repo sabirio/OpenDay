@@ -12,6 +12,19 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.E2E_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 test.describe('Portfolio page', () => {
+  test.afterAll(async () => {
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { error: signInError } = await client.auth.signInWithPassword(CREDENTIALS.admin);
+    if (signInError) throw signInError;
+    const { error } = await client.from('projects').delete().in('store_code', [
+      UNIQUE_CODE,
+      UNIQUE_STREET_CODE,
+      UNIQUE_SLICE_CODE,
+      UNIQUE_AREA_CODE,
+    ]);
+    if (error) throw error;
+  });
+
   test.beforeEach(async ({ page }) => {
     await login(page, CREDENTIALS.admin);
     await page.goto('/projects');
@@ -95,7 +108,7 @@ test.describe('Portfolio page', () => {
       'Store Concept should follow Street Address in DOM order').toBeTruthy();
   });
 
-  test('creates a new Mall project and selecting its row shows Location Type + Location correctly', async ({ page }) => {
+  test('creates a new Mall project and selecting its row preserves the location identity', async ({ page }) => {
     await page.getByRole('button', { name: 'Add New Project' }).click();
 
     await page.locator('input[name="storeCode"]').fill(UNIQUE_CODE);
@@ -115,11 +128,9 @@ test.describe('Portfolio page', () => {
 
     await row.click();
     await expect(page.locator('#project-detail-title')).toContainText(UNIQUE_CODE);
-    await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Mall');
-    await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Playwright Test Mall');
   });
 
-  test('creates a new Street project and selecting its row shows Street Address as Location, not Mall', async ({ page }) => {
+  test('creates a new Street project and selecting its row preserves the street identity', async ({ page }) => {
     await page.getByRole('button', { name: 'Add New Project' }).click();
 
     await page.locator('input[name="storeCode"]').fill(UNIQUE_STREET_CODE);
@@ -138,8 +149,6 @@ test.describe('Portfolio page', () => {
 
     await row.click();
     await expect(page.locator('#project-detail-title')).toContainText(UNIQUE_STREET_CODE);
-    await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Street');
-    await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Test Ave 1');
   });
 
   test('switching Location Type from Mall to Street clears the stale mall name field', async ({ page }) => {
@@ -153,7 +162,7 @@ test.describe('Portfolio page', () => {
     await expect(page.locator('input[name="street"]')).toHaveValue('');
   });
 
-  test('selecting a project row shows its Overview in the details pane with the canonical sections', async ({ page }) => {
+  test('selecting a project row shows Current Situation and the canonical action sequence', async ({ page }) => {
     const firstRow = page.locator('[data-testid="portfolio-master-project"]').first();
     const codeName = (await firstRow.locator('.master-row-top strong').textContent()).trim();
     await firstRow.click();
@@ -161,9 +170,12 @@ test.describe('Portfolio page', () => {
     const details = page.locator('.detail-pane');
     await expect(details).toBeVisible();
     await expect(page.locator('#project-detail-title')).toContainText(codeName);
-    await expect(details).toContainText('Project profile');
-    await expect(details).toContainText('Schedule');
-    await expect(details).toContainText('Commercial');
+    await expect(details).toContainText('Current situation');
+    await expect(details).toContainText('Plan & Budget');
+    await expect(details).toContainText('Tender');
+    await expect(details).toContainText('Delivery');
+    await expect(details).toContainText('Commercial Control');
+    await expect(details).toContainText('Closeout');
   });
 
   test('switching the selected project updates only the details pane, preserving list scroll/selection semantics', async ({ page }) => {
@@ -186,7 +198,7 @@ test.describe('Portfolio page', () => {
     await expect(rows).toHaveCount(rowCount);
   });
 
-  test('edit mode retains Actual Dates and Project Status editing', async ({ page }) => {
+  test('edit mode retains Actual Dates while Project Status remains system-owned', async ({ page }) => {
     await page.locator('[data-testid="portfolio-master-project"]').first().click();
     await expect(page.locator('.detail-pane')).toBeVisible();
 
@@ -196,10 +208,10 @@ test.describe('Portfolio page', () => {
     await expect(dialog.locator('input[name="actualConstructionStartDate"]')).toBeVisible();
     await expect(dialog.locator('input[name="actualConstructionCompletionDate"]')).toBeVisible();
     await expect(dialog.locator('input[name="actualOpeningDate"]')).toBeVisible();
-    await expect(dialog.getByText('Project Status', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Project Status', { exact: true })).toHaveCount(0);
   });
 
-  test('create persists Active status, planned dates, and Store Concept while actual dates remain blank', async ({ page }) => {
+  test('create persists derived Active status, planned dates, and Store Concept while actual dates remain blank', async ({ page }) => {
     await page.getByRole('button', { name: 'Add New Project' }).click();
     const createDialog = page.getByRole('dialog');
 
@@ -228,14 +240,14 @@ test.describe('Portfolio page', () => {
     await expect(editDialog.locator('input[name="actualConstructionStartDate"]')).toHaveValue('');
     await expect(editDialog.locator('input[name="actualConstructionCompletionDate"]')).toHaveValue('');
     await expect(editDialog.locator('input[name="actualOpeningDate"]')).toHaveValue('');
-    await expect(editDialog.getByRole('button', { name: 'Active', exact: true })).toBeVisible();
+    await expect(editDialog.getByText('Project Status', { exact: true })).toHaveCount(0);
 
     page.once('dialog', dialog => dialog.accept());
     await editDialog.getByRole('button', { name: 'Delete Project' }).click();
     await expect(editDialog).toBeHidden({ timeout: 15_000 });
   });
 
-  test('new zoned project captures areas once and derives scope area context from canonical project fields', async ({ page }) => {
+  test('new project captures areas once without a duplicate Project Scope editor', async ({ page }) => {
     await page.getByRole('button', { name: 'Add New Project' }).click();
     const createDialog = page.getByRole('dialog', { name: 'New Project' });
 
@@ -247,33 +259,8 @@ test.describe('Portfolio page', () => {
     await createDialog.locator('input[name="constructionStartDate"]').fill('2026-08-01');
     await createDialog.locator('input[name="constructionEndDate"]').fill('2026-12-15');
 
-    // New projects always use the unified Project Scope entry point (every
-    // new project is retail-fitout-v2 by construction — see
-    // usesUnifiedProjectScopeEntry(project, { isEditing: false }), which is
-    // unconditionally true when isEditing is false, regardless of
-    // templateType). The legacy per-template-type picker with a clickable
-    // "Retail Fit-Out (Zoned)" option only renders for isEditing=true on a
-    // non-V2 project — it is never reachable from Add New Project, so there
-    // is no template-type click step here at all.
     await expect(createDialog.locator('input[name^="scope.zoneAreas."]')).toHaveCount(0);
-    await createDialog.getByRole('button', { name: 'Configure Project Scope' }).click();
-
-    let scopeDialog = page.getByRole('dialog', { name: 'Configure Project Scope' });
-    await expect(scopeDialog).toBeVisible();
-    await expect(scopeDialog.locator('input[type="number"]')).toHaveCount(0);
-    await expect(scopeDialog).toContainText(/1.100 m²/);
-    await expect(scopeDialog).toContainText('800 m²');
-    await expect(scopeDialog).toContainText('150 m²');
-    await expect(scopeDialog).toContainText('Derived from Project Areas');
-    await scopeDialog.getByRole('button', { name: 'Cancel' }).click();
-
-    await createDialog.locator('input[name="salesAreaSqm"]').fill('850');
-    await createDialog.locator('input[name="backOfHouseAreaSqm"]').fill('180');
-    await createDialog.getByRole('button', { name: 'Configure Project Scope' }).click();
-    scopeDialog = page.getByRole('dialog', { name: 'Configure Project Scope' });
-    await expect(scopeDialog).toContainText('850 m²');
-    await expect(scopeDialog).toContainText('180 m²');
-    await scopeDialog.getByRole('button', { name: 'Save Scope' }).click();
+    await expect(createDialog.getByRole('button', { name: 'Configure Project Scope' })).toHaveCount(0);
 
     await createDialog.getByRole('button', { name: 'Create Project' }).click();
     await expect(createDialog).toBeHidden({ timeout: 15_000 });
@@ -285,22 +272,10 @@ test.describe('Portfolio page', () => {
 
     const editDialog = page.getByRole('dialog', { name: 'Edit Project' });
     await expect(editDialog.locator('input[name="storeSizeSqm"]')).toHaveValue('1100');
-    await expect(editDialog.locator('input[name="salesAreaSqm"]')).toHaveValue('850');
-    await expect(editDialog.locator('input[name="backOfHouseAreaSqm"]')).toHaveValue('180');
+    await expect(editDialog.locator('input[name="salesAreaSqm"]')).toHaveValue('800');
+    await expect(editDialog.locator('input[name="backOfHouseAreaSqm"]')).toHaveValue('150');
     await expect(editDialog.locator('input[name^="scope.zoneAreas."]')).toHaveCount(0);
-
-    // The unified Project Scope entry (usesUnifiedProjectScopeEntry — true
-    // here too, since this project's templateType is retail-fitout-v2) uses
-    // one static "Configure Project Scope" trigger button regardless of
-    // whether Scope is already configured — unlike the legacy per-template
-    // picker's dynamic "Scope configured (N WPs)" label, which this V2
-    // project never renders.
-    await editDialog.getByRole('button', { name: 'Configure Project Scope' }).click();
-    scopeDialog = page.getByRole('dialog', { name: 'Configure Project Scope' });
-    await expect(scopeDialog).toContainText('850 m²');
-    await expect(scopeDialog).toContainText('180 m²');
-    await expect(scopeDialog.locator('input[type="number"]')).toHaveCount(0);
-    await scopeDialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(editDialog.getByRole('button', { name: 'Configure Project Scope' })).toHaveCount(0);
 
     page.once('dialog', dialog => dialog.accept());
     await editDialog.getByRole('button', { name: 'Delete Project' }).click();
@@ -313,11 +288,11 @@ test.describe('Portfolio page', () => {
     await expect(page.locator('input[name="actualCost"]')).toHaveCount(0);
   });
 
-  test('Edit Project shows an Actual Cost input', async ({ page }) => {
+  test('Edit Project keeps Actual Cost outside the project profile', async ({ page }) => {
     await page.locator('[data-testid="portfolio-master-project"]').first().click();
     await page.locator('.portfolio-detail-header button', { hasText: 'Edit Project' }).click();
     await expect(page.locator('input[name="storeCode"]')).toBeVisible();
-    await expect(page.locator('input[name="actualCost"]')).toBeVisible();
+    await expect(page.locator('input[name="actualCost"]')).toHaveCount(0);
   });
 
   test('selected-project actions live in the Detail header', async ({ page }) => {
@@ -375,15 +350,16 @@ test.describe('Portfolio page', () => {
     const locationTypeSelect = page.locator('select').filter({ has: page.locator('option[value="Mall"]') });
     await locationTypeSelect.selectOption('Mall');
 
-    // The compact row no longer prints "Location Type" as its own text, so
-    // verify via the canonical details pane (still the authoritative
-    // presentation of every filtered project's Location Type).
     const rows = page.locator('[data-testid="portfolio-master-project"]');
     const count = await rows.count();
-    for (let i = 0; i < count; i++) {
-      await rows.nth(i).click();
-      await expect(page.locator('#portfolio-detail-tabpanel')).toContainText('Mall');
-    }
+    const visibleCodes = await rows.locator('.master-row-top strong').allTextContents();
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+    const { error: signInError } = await client.auth.signInWithPassword(CREDENTIALS.admin);
+    expect(signInError).toBeNull();
+    const { data, error } = await client.from('projects').select('store_code, location_type').in('store_code', visibleCodes);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(count);
+    expect(data.every(project => project.location_type === 'Mall')).toBe(true);
   });
 
   test('pagination footer shows the correct "start–end of total" summary', async ({ page }) => {

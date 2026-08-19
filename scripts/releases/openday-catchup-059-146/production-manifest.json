@@ -1,0 +1,452 @@
+{
+  "schemaVersion": "openday-database-catchup/v1",
+  "target": "production",
+  "approvedProjectRef": "szgbkeqornkdngoegyso",
+  "applicationCommit": "c79d45b104a0fe10b30c7b850b35949b615acba1",
+  "artifact": {
+    "file": "production-catchup.sql",
+    "sha256": "79e4a665f97945299b6066a2481773de6bafc5d9824010e98ec0f77432f373d1"
+  },
+  "migrations": [
+    {
+      "number": 59,
+      "filename": "059_reporting_evidence_provenance.sql",
+      "sha256": "c16fe9b0cd93d8f2ee3cded4557fc75be6140dc4ccc3b8a36f92b45f27bed05a"
+    },
+    {
+      "number": 60,
+      "filename": "060_work_ontology_foundation.sql",
+      "sha256": "6814b0b125f0fb35cc8b91f2b51778ef6d48e3400a8386aa8efba623db900e49"
+    },
+    {
+      "number": 61,
+      "filename": "061_project_work_ontology_scope.sql",
+      "sha256": "c7cbfc6f2fa1c2b1bd3ee84cc2cc9cb05f44ebb81d13b8ab0ed8ac7934f47976"
+    },
+    {
+      "number": 62,
+      "filename": "062_work_group_reporting_compatibility.sql",
+      "sha256": "a040e1d28a23b306267baf271a4ea6b22a21f97a216bbfcf7afaa134569663af"
+    },
+    {
+      "number": 63,
+      "filename": "063_project_execution_scope_foundation.sql",
+      "sha256": "b3c0dab69f34c25bb7715aa05a0b4fb0f6e9cfe11373174d2d536abacc61cecc"
+    },
+    {
+      "number": 64,
+      "filename": "064_contractor_schedule_setup.sql",
+      "sha256": "b8e1e1ff8812f78a63e163f97293caaff5f314454d69e8427a7bca5428a629f2"
+    },
+    {
+      "number": 65,
+      "filename": "065_gantt_baseline_scope_snapshot.sql",
+      "sha256": "eb46be0ef81436b2f45d9a5fa15e143c9e788ed4f36da3dae0eee4eb4396dfa0"
+    },
+    {
+      "number": 66,
+      "filename": "066_pm_schedule_baseline_approval.sql",
+      "sha256": "7205f93ced28546cf360a372550410782402ddd137fef184c8a87a4afe7a7116"
+    },
+    {
+      "number": 67,
+      "filename": "067_project_boq_foundation.sql",
+      "sha256": "37b0c97906063fd1e62da339b09050f99aba5b11dd2f4905c68b23bf9949784c"
+    },
+    {
+      "number": 68,
+      "filename": "068_project_boq_work_group_aggregation.sql",
+      "sha256": "8ec6721ed6a1aa1f6e52dbdfa0398d124246f77d2ea1fac1851c2da77a1a0e00"
+    },
+    {
+      "number": 69,
+      "filename": "069_project_boq_standard_custom_items.sql",
+      "sha256": "6e28339687c116aa04f0d8c3d44f5de9bdfa8eef5c99a70eeb3ece48f10c053c"
+    },
+    {
+      "number": 70,
+      "filename": "070_project_boq_execution_scope_mapping.sql",
+      "sha256": "19c96e579bed3991e12e1b0be3f9c17979ea80725984305552f3c0ad3b93b6da"
+    },
+    {
+      "number": 71,
+      "filename": "071_project_boq_excel_compatibility.sql",
+      "sha256": "56942cb0322283dfbcdbcd4884efdd9d9f565ae461bbd9b96617c8cbf81fdeb0"
+    },
+    {
+      "number": 72,
+      "filename": "072_tender_setup.sql",
+      "sha256": "6c32f2aa50032d6fcfc862aabef71d131beb55bef59436ed4bf53f1534ab1406"
+    },
+    {
+      "number": 73,
+      "filename": "073_tender_bidder_access.sql",
+      "sha256": "16bdafc1f53fdc3c38ffbd1723d5a49e89c1b6153e8935df30c652d3ed3766b5"
+    },
+    {
+      "number": 74,
+      "filename": "074_tender_bid_rounds.sql",
+      "sha256": "21f48e9397fdbe808b0aa6db4640f736106c7f0b05f60160b5322a91b99245b6"
+    },
+    {
+      "number": 75,
+      "filename": "075_tender_pm_bid_review.sql",
+      "sha256": "29b0aa4ed387aea56659bf1fd551468d1b5fc2f10c60db43371be2d523b78810"
+    },
+    {
+      "number": 76,
+      "filename": "076_tender_clarification_register.sql",
+      "sha256": "41f081d539e59673afd06906cfc5bf492a5a082723a3dec283650a7b5c437211"
+    },
+    {
+      "number": 77,
+      "filename": "077_tender_comparison_read_model.sql",
+      "sha256": "79110f6a3ce522378739e36f1657c9c666ca04f8aac2fe034598db303a051bf1"
+    },
+    {
+      "number": 78,
+      "filename": "078_tender_award.sql",
+      "sha256": "69117dfa7c3920213226fe60fca031933acdeb211ff33c834d60f90373303e6e"
+    },
+    {
+      "number": 79,
+      "filename": "079_awarded_boq_execution_scope.sql",
+      "sha256": "a1d9c0aeb45ce37eb26ede30a7910d83c13a81cf40b249db3df6c6ffeda57bcc"
+    },
+    {
+      "number": 80,
+      "filename": "080_collaborative_departmental_budget.sql",
+      "sha256": "df24aca5ac025b58ec7d786b4be26171fa1694ec3adcafb2d517ad7daa913504"
+    },
+    {
+      "number": 81,
+      "filename": "081_budget_ownership_notifications.sql",
+      "sha256": "e18c13d23e6d60fc0679883cb36dfb761ba5881ec8ba859b1531178cebe0bb42"
+    },
+    {
+      "number": 82,
+      "filename": "082_budget_rounds.sql",
+      "sha256": "2968bcda4ae58c73cc4e1b69e7cc330216f2fe42d972814d19377140ca6bccde"
+    },
+    {
+      "number": 83,
+      "filename": "083_budget_approval_workflow.sql",
+      "sha256": "a3bc83a4262cf3404c56863853904dcdaa72a719fd9f4a41a7b4f19753c534d5"
+    },
+    {
+      "number": 84,
+      "filename": "084_budget_vs_tender.sql",
+      "sha256": "0853034b796f43d8e7c62fdbfee140eb66ed88e8dd16237c7b97aaee767c0585"
+    },
+    {
+      "number": 85,
+      "filename": "085_budget_approval_report.sql",
+      "sha256": "00f39478fcd302e14d9e1810c8fab0e29f9c38dc936637f999d4eb725f659706"
+    },
+    {
+      "number": 86,
+      "filename": "086_project_variations.sql",
+      "sha256": "152d91be3710b2cf450c93a3c204184d9f36e196bd17e2caeedc8493889eae5d"
+    },
+    {
+      "number": 87,
+      "filename": "087_biweekly_commercial_review.sql",
+      "sha256": "5d7ad82f8abe6f4f56377d19eed1daecf3b796a27954e9ba00aeb637795e47a3"
+    },
+    {
+      "number": 88,
+      "filename": "088_approved_vs_pending_exposure.sql",
+      "sha256": "a6a481d4731370f96b44968e9cecae92d3f825804db8d60200819860baa72166"
+    },
+    {
+      "number": 89,
+      "filename": "089_forecast_engine.sql",
+      "sha256": "ab670e0a7b35648adc195fb1f283789334257f9d490b772fac7df9507cc22d12"
+    },
+    {
+      "number": 90,
+      "filename": "090_commercial_health.sql",
+      "sha256": "16e45557452eeaa606d187891d0127f2841cc77041a4ad10a010f7ba07c6aba6"
+    },
+    {
+      "number": 91,
+      "filename": "091_payment_schedule.sql",
+      "sha256": "eea7f440281b24925ad86dc32b88a6e343d2e3c1bf1fe64e078e5b58b7cf74cd"
+    },
+    {
+      "number": 92,
+      "filename": "092_payment_milestone_notifications.sql",
+      "sha256": "9c2e17e8a46ffda44b708acbc270c87514dbc6bf84e545fd0851dd6417ba06a8"
+    },
+    {
+      "number": 93,
+      "filename": "093_payment_certification_evidence.sql",
+      "sha256": "318cabf482bc2346a56f3fa244716d28057c3f78766db80666bfac169ead58d5"
+    },
+    {
+      "number": 94,
+      "filename": "094_payment_certification_decisions.sql",
+      "sha256": "c2d5202a982bfccad931f6be30d28b985a8409a75d723099c5527ad6ee0b8048"
+    },
+    {
+      "number": 95,
+      "filename": "095_payment_paid_tracking.sql",
+      "sha256": "233d6db4d2d19adb3b12f0ce9ea5f3f263a7b46c8ebc6039f7297e4591886488"
+    },
+    {
+      "number": 96,
+      "filename": "096_payment_retention.sql",
+      "sha256": "e2615a2cebb8e8211284d855695c683fb00e05e73c0c8fd5fcb962224f9f1c75"
+    },
+    {
+      "number": 97,
+      "filename": "097_project_cost_closeout.sql",
+      "sha256": "31a077c6b3ed16e83d20aee9b5f3dedc84e8764ed173321a9e7d8e3213d8a5c3"
+    },
+    {
+      "number": 98,
+      "filename": "098_project_schedule_closeout.sql",
+      "sha256": "786a631385b6004ff0e083f9731f877a1ab4ead337fb0a266b6a260d36bf12c9"
+    },
+    {
+      "number": 99,
+      "filename": "099_project_scope_closeout.sql",
+      "sha256": "1fc43adcc9f62302fc8c8a98695bb92363bb66dea808d318809bea1479a83492"
+    },
+    {
+      "number": 100,
+      "filename": "100_project_quality_closeout.sql",
+      "sha256": "999fccf5dba50c87d66769e0cf356f33175ac50cc1a0f7c93ae809ce7552e801"
+    },
+    {
+      "number": 101,
+      "filename": "101_project_variation_closeout.sql",
+      "sha256": "dd19336c84026ac91b4c1317d380517f60408ce642fba1c54d9fc839ae19129b"
+    },
+    {
+      "number": 102,
+      "filename": "102_project_payment_closeout.sql",
+      "sha256": "3dd4fd95a3455cc4ead2a5ba9030dddd3598d70a61c4eff8deabe61ca4553f32"
+    },
+    {
+      "number": 103,
+      "filename": "103_project_lessons_learned.sql",
+      "sha256": "3109377a4a62a567b22d126a066f3fc8e3bc58dcaf66fd0aeeaf10ac89548deb"
+    },
+    {
+      "number": 104,
+      "filename": "104_contractor_scorecard.sql",
+      "sha256": "6a62b52ac6b8c9c016e9b0fd1346b77bb4691b8208f7746e95db96022567cae0"
+    },
+    {
+      "number": 105,
+      "filename": "105_immutable_historical_project_record.sql",
+      "sha256": "bbedfd5043b02b1dcdc0f14bfd0043430966619e2b06eeeb0038b9cd292659ee"
+    },
+    {
+      "number": 106,
+      "filename": "106_historical_project_intelligence.sql",
+      "sha256": "c164d7199fb179fe4d5f658faf3cd152eb5590a19b55b712260a2dbe9818c744"
+    },
+    {
+      "number": 107,
+      "filename": "107_verified_management_outputs.sql",
+      "sha256": "f4cc23bf8f66d04ebedb565ffe522dce31397d4dc7dad3a159879519423076a1"
+    },
+    {
+      "number": 108,
+      "filename": "108_variation_evidence_storage_acl.sql",
+      "sha256": "80752f3213ef12215a6c3d7cadaf829b33a98345649bd2bef85c1a6abef6af7e"
+    },
+    {
+      "number": 109,
+      "filename": "109_contractor_report_snapshot_digest_path.sql",
+      "sha256": "fa091119c09f72800af3f0c501f0bc78ad08d70705994953322ccaa6b749687d"
+    },
+    {
+      "number": 110,
+      "filename": "110_enforce_project_currency.sql",
+      "sha256": "f527ce57359a2a985eae7c1f1e25964095c741552c9bb52912ccad35ab78c3a4"
+    },
+    {
+      "number": 111,
+      "filename": "111_budget_boq_scope_and_standard_details.sql",
+      "sha256": "841f26701eae94361dca9368836839ecdbc35543c2d4d975e14f9e1a1376bbff"
+    },
+    {
+      "number": 112,
+      "filename": "112_budget_independent_boq.sql",
+      "sha256": "da08038517fb107379523f27a80ca23c64b7a8a24615e16bcee261d4ba1fb37a"
+    },
+    {
+      "number": 113,
+      "filename": "113_boq_labour_material_pricing.sql",
+      "sha256": "87b2809ae3413c2152b17b9392dcb444743993101114ccf44d7d9aa6ea22e095"
+    },
+    {
+      "number": 114,
+      "filename": "114_boq_contractor_consultant_quantities.sql",
+      "sha256": "0f0760b8cfb3a89f7da5d22e277f31d0f33127805a46db445549637b5fc8bbaa"
+    },
+    {
+      "number": 115,
+      "filename": "115_boq_optional_contractor_quantity.sql",
+      "sha256": "11508efdd6275adc87be2e564b68c08b2c499560e4a97059418e297ceae6fd33"
+    },
+    {
+      "number": 116,
+      "filename": "116_tender_invitation_email.sql",
+      "sha256": "d11b2bc8cf92dde7897460ccd9145a8f07abfc7363b23dcc26c403b64a28f330"
+    },
+    {
+      "number": 117,
+      "filename": "117_tender_bid_contractor_consultant_quantities.sql",
+      "sha256": "7cd80008e8c96693e58ca07a3220f384039d0022494e60202e2bd717e6c5f203"
+    },
+    {
+      "number": 118,
+      "filename": "118_cost_package_procurement_tender_package_foundation.sql",
+      "sha256": "9b092098f153dbfc194ee5d58b462d66de0ae5c1ffb793fdca964ac3ca5629b7"
+    },
+    {
+      "number": 119,
+      "filename": "119_project_team_access_foundation.sql",
+      "sha256": "b52392c04b8bc0f702836d56331f18355d18e0f5086b4a8bb934095f118f73e9"
+    },
+    {
+      "number": 120,
+      "filename": "120_boq_template_v1_freeze.sql",
+      "sha256": "74a7b492ec279b0fead7b79bf019c6c7582b8050bbb9cb3a326ebb8fad1f33c6"
+    },
+    {
+      "number": 121,
+      "filename": "121_tender_package_identity.sql",
+      "sha256": "cf4282eb027e527ccd6e26ca7fffed9d3ef1ceb9e541dec35798126f1ef93fee"
+    },
+    {
+      "number": 122,
+      "filename": "122_consultant_boq_workflow.sql",
+      "sha256": "c597f44c918a0b74ec991fb60c12dd325280352d816e62613edc67de120a8d6c"
+    },
+    {
+      "number": 123,
+      "filename": "123_consultant_boq_read_model.sql",
+      "sha256": "5832b5c1103097f07ae9962da4a3919c67510316a973bb34bc8186fc3b0dd40a"
+    },
+    {
+      "number": 124,
+      "filename": "124_commercial_project_ontology_alignment.sql",
+      "sha256": "d35d9ceafa2b2e401cb586959e6df93da8a507cd38dbabb605466b93147a99e1"
+    },
+    {
+      "number": 125,
+      "filename": "125_tender_invitation_lifecycle.sql",
+      "sha256": "3c4e2d24f438e021a26b6b15ca5d0efa043f472420db75558ea289b6939e7138"
+    },
+    {
+      "number": 126,
+      "filename": "126_tender_setup_package_guard.sql",
+      "sha256": "7b5e58516f0da2540f7476f6b04fd9a6d4bff07fb3b95df2fbcec128b5e70d3a"
+    },
+    {
+      "number": 127,
+      "filename": "127_bid_round_accepted_participant_scope.sql",
+      "sha256": "3ef4f9f6a991ea35830c80d1fda18ea1d9eaee4eb72622108f6303e66b452847"
+    },
+    {
+      "number": 128,
+      "filename": "128_bid_scope_adjustments_and_comparison.sql",
+      "sha256": "df2218250c08815dc489542599c8f0ca83a43d0fd1acc20e96ea127d215429da"
+    },
+    {
+      "number": 129,
+      "filename": "129_clarification_subjects_and_lifecycle.sql",
+      "sha256": "0d8e2cfadf098f6ab80255069410c2ecbe61e04269ead21c43c649faa9032d93"
+    },
+    {
+      "number": 130,
+      "filename": "130_award_boq_commercial_baseline.sql",
+      "sha256": "2d306b065a36233043b76fd03ed63be2ceb68fb5fb09948af3f5e866f2a78f00"
+    },
+    {
+      "number": 131,
+      "filename": "131_cost_package_financial_foundation.sql",
+      "sha256": "2da6b148d757eea4f76fd98d56b810e9dfef20e64507bd5f91343661e2678323"
+    },
+    {
+      "number": 132,
+      "filename": "132_historical_commercial_data_foundation.sql",
+      "sha256": "c1d9a0037233f2b27f1b8afd46c19fa86bfd7230f84794b07c0a5c586722b70e"
+    },
+    {
+      "number": 133,
+      "filename": "133_project_access_alignment.sql",
+      "sha256": "569ddcb47042f79cf71bc88af9d1f78e53e940925d2530ea2090b86e3f79aa66"
+    },
+    {
+      "number": 134,
+      "filename": "134_canonical_financial_sources.sql",
+      "sha256": "64359a87734f6f274d7ea9b50b170303c1bb2e8ff34dabba6e8d77b9fc030c2f"
+    },
+    {
+      "number": 135,
+      "filename": "135_payment_commitment_scope.sql",
+      "sha256": "5b1ce1008d026f5fecce588bd133996d001ad1a3490905dd86a91f7911903e25"
+    },
+    {
+      "number": 136,
+      "filename": "136_legacy_operational_referential_integrity.sql",
+      "sha256": "6f925e8714ba23ff8378c6a9fc1ce0ea08bf734a9e37e5086c59f45575d2710f"
+    },
+    {
+      "number": 137,
+      "filename": "137_server_owned_project_budget_lifecycle.sql",
+      "sha256": "1bf101c215c5a4f51b6f7647527522f227c4a3bbb86ccb92f20c6725d3a98c1b"
+    },
+    {
+      "number": 138,
+      "filename": "138_admin_user_command_boundary.sql",
+      "sha256": "98641adff480a2a277017fb7acccf5d75c77565b1c333134f737ea69e29dba04"
+    },
+    {
+      "number": 139,
+      "filename": "139_schema_migration_ledger.sql",
+      "sha256": "2ff2d8b04f88be80b89e32015816a9eb63064895ca6a15eed404489e08496663"
+    },
+    {
+      "number": 140,
+      "filename": "140_project_risk_action_provenance.sql",
+      "sha256": "ccb390a7ec4ad3f0511a78f85459fde98a3bbcc32a5ee3ec1f7bfab4772b80af"
+    },
+    {
+      "number": 141,
+      "filename": "141_users_owned_project_team_membership.sql",
+      "sha256": "892f8d8cae38be30283a3306070eb62373740fa658db26730199bca18385669d"
+    },
+    {
+      "number": 142,
+      "filename": "142_user_directory_roles_and_removal.sql",
+      "sha256": "693a13873906dc86a338d7db842cffe61afc0b852d3c3912114214ef5b5bf50e"
+    },
+    {
+      "number": 143,
+      "filename": "143_retire_legacy_admin_user_update.sql",
+      "sha256": "24850428ebb410dea76538b787ea0ac1da00bdcef02a8fdf36ec391a73edee2d"
+    },
+    {
+      "number": 144,
+      "filename": "144_project_procurement_strategy.sql",
+      "sha256": "62839951fb570b5ba56d9c6817de058623c3c68f3dcc8369389ccbc494e3800e"
+    },
+    {
+      "number": 145,
+      "filename": "145_project_team_department_assignment.sql",
+      "sha256": "37cbafb1d184371e3ea6372fa62ea3546ed12ef2314bee0ef747fc72cf454ebe"
+    },
+    {
+      "number": 146,
+      "filename": "146_security_definer_execute_hardening.sql",
+      "sha256": "4d368ed91cc69df977226152724beb80288623c35dfb0bc7f99e5f3fb37bf5eb"
+    }
+  ]
+}

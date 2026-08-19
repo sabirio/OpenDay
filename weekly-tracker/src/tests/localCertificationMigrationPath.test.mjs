@@ -81,6 +81,8 @@ const architectureIntegrityMigrations = readFileSync(new URL('../../scripts/cert
 const architectureIntegrityLocal = readFileSync(new URL('../../scripts/certification/applyArchitectureIntegrityCorrectionsLocal.mjs', import.meta.url), 'utf8');
 const procurementStrategyLocal = readFileSync(new URL('../../scripts/certification/applyProcurementStrategyLocal.mjs', import.meta.url), 'utf8');
 const projectTeamDepartmentsLocal = readFileSync(new URL('../../scripts/certification/applyProjectTeamDepartmentsLocal.mjs', import.meta.url), 'utf8');
+const securityDefinerExecuteHardeningLocal = readFileSync(new URL('../../scripts/certification/applySecurityDefinerExecuteHardeningLocal.mjs', import.meta.url), 'utf8');
+const securityAdvisorHardeningLocal = readFileSync(new URL('../../scripts/certification/applySecurityAdvisorHardeningLocal.mjs', import.meta.url), 'utf8');
 const localDbTarget = readFileSync(new URL('../../scripts/certification/localDbTarget.mjs', import.meta.url), 'utf8');
 const tenderCommercialE2ERunner = readFileSync(new URL('../../scripts/certification/runTenderCommercialE2E.mjs', import.meta.url), 'utf8');
 const contractorScheduleAcl055 = readFileSync(new URL('../migrations/055_restrict_contractor_schedule_function_acl.sql', import.meta.url), 'utf8');
@@ -93,6 +95,7 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
 const seed = readFileSync(new URL('../../scripts/seed-test-users.mjs', import.meta.url), 'utf8');
 const seedSql = readFileSync(new URL('../../scripts/certification/seed-test-data.sql', import.meta.url), 'utf8');
 const playwright = readFileSync(new URL('../../playwright.config.js', import.meta.url), 'utf8');
+const p0RealFlow = readFileSync(new URL('../../tests/e2e/p0-real-flow.spec.js', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('../../scripts/certification/playwrightPreflight.mjs', import.meta.url), 'utf8');
 const legacySeed = readFileSync(new URL('../../seed.mjs', import.meta.url), 'utf8');
 const f03 = readFileSync(new URL('../../scripts/verify-f03-scope-narrowing.mjs', import.meta.url), 'utf8');
@@ -490,9 +493,13 @@ const paymentCommitmentScopeBatchFiles = [...paymentCommitmentScopeLocal.matchAl
 const architectureIntegrityBatchFiles = [...architectureIntegrityMigrations.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const procurementStrategyBatchFiles = [...procurementStrategyLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const projectTeamDepartmentsBatchFiles = [...projectTeamDepartmentsLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const securityDefinerExecuteHardeningBatchFiles = [...securityDefinerExecuteHardeningLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const securityAdvisorHardeningBatchFiles = [...securityAdvisorHardeningLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles, ...r1ReportingPersistenceBatchFiles, ...workOntologyFoundationBatchFiles, ...projectWorkOntologyScopeBatchFiles, ...workGroupReportingCompatibilityBatchFiles, ...projectExecutionScopeBatchFiles, ...contractorScheduleSetupBatchFiles, ...ganttBaselineScopeSnapshotBatchFiles, ...pmScheduleBaselineApprovalBatchFiles, ...projectBoqFoundationBatchFiles, ...projectBoqWorkGroupAggregationBatchFiles, ...projectBoqStandardCustomItemsBatchFiles, ...projectBoqExecutionScopeMappingBatchFiles, ...projectBoqExcelCompatibilityBatchFiles, ...tenderSetupBatchFiles, ...tenderBidderAccessBatchFiles, ...tenderBidRoundsBatchFiles, ...tenderPmBidReviewBatchFiles, ...tenderClarificationRegisterBatchFiles, ...tenderComparisonBatchFiles, ...tenderAwardBatchFiles, ...awardedExecutionScopeBatchFiles, ...departmentalBudgetBatchFiles, ...budgetOwnershipBatchFiles, ...budgetRoundsBatchFiles, ...budgetApprovalBatchFiles, ...budgetVsTenderBatchFiles, ...budgetApprovalReportBatchFiles, ...projectVariationsBatchFiles, ...biweeklyCommercialReviewBatchFiles, ...approvedVsPendingExposureBatchFiles, ...forecastEngineBatchFiles, ...commercialHealthBatchFiles, ...paymentScheduleBatchFiles, ...paymentNotificationsBatchFiles, ...paymentCertificationEvidenceBatchFiles, ...paymentCertificationDecisionsBatchFiles, ...paymentPaidTrackingBatchFiles, ...paymentRetentionBatchFiles, ...projectCostCloseoutBatchFiles, ...projectScheduleCloseoutBatchFiles, ...projectScopeCloseoutBatchFiles, ...projectQualityCloseoutBatchFiles, ...roadmapCompletionBatchFiles, ...budgetBoqScopeBatchFiles, ...budgetIndependentBoqBatchFiles, ...boqLabourMaterialPricingBatchFiles, ...boqContractorConsultantQuantitiesBatchFiles, ...boqOptionalContractorQuantityBatchFiles, ...tenderInvitationEmailBatchFiles, ...tenderCommercialRoadmapBatchFiles, ...projectAccessAlignmentBatchFiles, ...canonicalFinancialSourcesBatchFiles, ...paymentCommitmentScopeBatchFiles, ...architectureIntegrityBatchFiles, ...procurementStrategyBatchFiles]);
 projectTeamDepartmentsBatchFiles.forEach(file => coveredSet.add(file));
-check('fresh-install migration set is exactly covered through Project Team Department migration 145, no gaps',
+securityDefinerExecuteHardeningBatchFiles.forEach(file => coveredSet.add(file));
+securityAdvisorHardeningBatchFiles.forEach(file => coveredSet.add(file));
+check('fresh-install migration set is exactly covered through security hardening migration 147, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -564,6 +571,12 @@ check('migration 135 is covered by Commitment-scoped Payments', paymentCommitmen
 check('migrations 133-143 are covered by the hash-pinned integrity upgrade', architectureIntegrityBatchFiles.length === 11 && architectureIntegrityBatchFiles[0].startsWith('133_') && architectureIntegrityBatchFiles.at(-1).startsWith('143_'));
 check('migration 144 is covered by the hash-pinned Procurement Strategy upgrade', procurementStrategyBatchFiles.length === 1 && procurementStrategyBatchFiles[0] === '144_project_procurement_strategy.sql');
 check('migration 145 is covered by the hash-pinned Project Team Department upgrade', projectTeamDepartmentsBatchFiles.length === 1 && projectTeamDepartmentsBatchFiles[0] === '145_project_team_department_assignment.sql');
+check('migration 146 is covered by the hash-pinned Security Definer execute hardening upgrade', securityDefinerExecuteHardeningBatchFiles.length === 1 && securityDefinerExecuteHardeningBatchFiles[0] === '146_security_definer_execute_hardening.sql');
+check('migration 147 is covered by the hash-pinned security advisor hardening upgrade', securityAdvisorHardeningBatchFiles.length === 1 && securityAdvisorHardeningBatchFiles[0] === '147_security_advisor_hardening.sql');
+check('Security Definer execute hardening upgrade uses the local target guard before applying SQL', securityDefinerExecuteHardeningLocal.indexOf('assertLocalTarget') < securityDefinerExecuteHardeningLocal.indexOf("execFileSync('psql'"));
+check('Security Definer execute hardening upgrade verifies SHA-256 before applying SQL', securityDefinerExecuteHardeningLocal.indexOf("createHash('sha256')") < securityDefinerExecuteHardeningLocal.indexOf("execFileSync('psql'"));
+check('Security advisor hardening upgrade uses the local target guard before applying SQL', securityAdvisorHardeningLocal.indexOf('assertLocalTarget') < securityAdvisorHardeningLocal.indexOf("execFileSync('psql'"));
+check('Security advisor hardening upgrade verifies SHA-256 before applying SQL', securityAdvisorHardeningLocal.indexOf("createHash('sha256')") < securityAdvisorHardeningLocal.indexOf("execFileSync('psql'"));
 check('Project Team Department upgrade uses the local target guard before applying SQL', projectTeamDepartmentsLocal.indexOf('assertLocalTarget') < projectTeamDepartmentsLocal.indexOf("execFileSync('psql'"));
 check('Project Team Department upgrade verifies SHA-256 before applying SQL', projectTeamDepartmentsLocal.indexOf("createHash('sha256')") < projectTeamDepartmentsLocal.indexOf("execFileSync('psql'"));
 check('Procurement Strategy upgrade uses the local target guard before applying SQL', procurementStrategyLocal.indexOf('assertLocalTarget') < procurementStrategyLocal.indexOf("execFileSync('psql'"));
@@ -577,6 +590,8 @@ check('integrity upgrade skips every already registered migration before applyin
     && architectureIntegrityLocal.indexOf('shouldApplyRegisteredMigration') < architectureIntegrityLocal.indexOf("execFileSync('psql'"));
 check('Procurement Strategy upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(procurementStrategyLocal));
 check('Project Team Department upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(projectTeamDepartmentsLocal));
+check('Security Definer execute hardening upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(securityDefinerExecuteHardeningLocal));
+check('Security advisor hardening upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(securityAdvisorHardeningLocal));
 check('Tender Commercial E2E runner uses guarded local endpoints without downloading the Supabase CLI',
   /assertLocalTarget/.test(tenderCommercialE2ERunner)
     && !/supabase['"],\s*['"]status/.test(tenderCommercialE2ERunner)
@@ -598,6 +613,20 @@ check('Playwright guard runs before web server declaration', playwright.indexOf(
 check('Playwright requires fixture preflight before Vite', /playwrightPreflight\.mjs && npm\.cmd run dev/.test(playwright));
 check('fixture preflight guards before Auth client construction', preflight.indexOf('assertLocalTarget') < preflight.indexOf('createClient(target'));
 check('fixture preflight checks local Auth and database fixtures', /required local Auth fixtures/.test(preflight) && /deterministic local database fixtures/.test(preflight));
+check('P0 cleanup is guarded as local-only before direct PostgreSQL teardown',
+  p0RealFlow.indexOf('assertLocalTarget') < p0RealFlow.indexOf('execFileSync(PSQL_BIN'));
+check('P0 cleanup refuses to delete any project outside its exact generated fixture signature',
+  p0RealFlow.includes("store_code LIKE 'P0E2E-%'")
+    && p0RealFlow.includes("shopping_mall_name LIKE 'P0 E2E Mall %'")
+    && p0RealFlow.includes("city = 'E2E City'")
+    && p0RealFlow.includes("country = 'E2E Country'"));
+check('P0 cleanup removes capability children before memberships and projects',
+  p0RealFlow.indexOf('DELETE FROM public.project_team_membership_capabilities')
+      < p0RealFlow.indexOf('DELETE FROM public.project_team_memberships')
+    && p0RealFlow.indexOf('DELETE FROM public.project_team_memberships')
+      < p0RealFlow.indexOf('DELETE FROM public.projects'));
+check('P0 cleanup does not weaken or bypass the intentional API ACL for team capabilities',
+  !p0RealFlow.includes(".from('project_team_membership_capabilities')"));
 for (const [label, source] of [['legacy seed', legacySeed], ['F-03 verifier', f03], ['history backfill', backfill]]) {
   check(`${label} does not load .env.local`, !/loadDotEnv|loadEnv\(|readFileSync\([^)]*\.env\.local/.test(source));
   check(`${label} uses canonical local guard`, /assertLocalTarget/.test(source));

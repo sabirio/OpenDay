@@ -19,7 +19,7 @@ if (!requiredEmails.every(email => data.users.some(user => user.email === email)
 const sql = "SELECT (SELECT count(*) FROM public.projects WHERE id=910001)=1 AND (SELECT count(*) FROM public.profiles WHERE email IN ('admin@openday.fit','pm@openday.fit','gc@openday.fit','viewer@construction.com'))=4;";
 const result = execFileSync('psql', [target.dbUrl, '-v', 'ON_ERROR_STOP=1', '-tAc', sql], {
   encoding: 'utf8',
-  env: { ...process.env, PATH: `C:\\Program Files\\PostgreSQL\\100\\bin;${process.env.PATH}` },
+  env: { ...process.env, PATH: `C:\\Program Files\\PostgreSQL\\17\\bin;${process.env.PATH}` },
 }).trim();
 if (result !== 't') throw new Error('REFUSING E2E: deterministic local database fixtures are missing.');
 console.log(`Local E2E preflight PASS: ${new URL(target.apiUrl).host}; project=weekly-tracker`);
