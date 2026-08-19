@@ -22,6 +22,7 @@ const NAV_ICONS = {
   '/weight-audit': 'scale',
   '/admin/users': 'users',
   '/contractor-select': 'briefcase',
+  '/platform-admin': 'shield',
 };
 
 // UX-audit fix (2026-07-21): plain prefix-matching NavLink made "Portfolio"
@@ -124,7 +125,10 @@ function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [mobileOpen, onClose]);
 
-  const visibleNav = getAllowedNavItemsForRole(role, NAV_ITEMS);
+  const visibleNav = [
+    ...getAllowedNavItemsForRole(role, NAV_ITEMS),
+    ...(user?.platformSuperadmin ? [{ to: '/platform-admin',label: 'Platform Admin' }] : []),
+  ];
   const badgeStyle = ROLE_BADGE_STYLES[role] ?? {};
   const profileInitial = (user?.name || user?.email || 'O').trim().charAt(0).toUpperCase();
 

@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import Layout from "./components/Layout";
 import { ToastProvider } from "./components/shared/Toast.jsx";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import PlatformAdminRoute from "./auth/PlatformAdminRoute";
 import { useAuth } from "./auth/AuthContext";
 import { getDefaultRoute } from "./engines/permissionEngine";
 import * as projectService from "./services/projectService";
@@ -23,6 +24,7 @@ import "./styles/cost-package-financials.css";
 import "./styles/commercialReview.css";
 import "./styles/commercialFoundation.css";
 import "./styles/consultantBoq.css";
+import "./styles/platformAdmin.css";
 
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Home             = lazy(() => import("./pages/Home"));
@@ -63,6 +65,7 @@ const ProjectCloseout = lazy(() => import("./pages/ProjectCloseout"));
 const ProjectCommercialSetup = lazy(() => import("./pages/ProjectCommercialSetup"));
 const ConsultantBoqInbox = lazy(() => import("./pages/ConsultantBoqInbox"));
 const ConsultantBoq = lazy(() => import("./pages/ConsultantBoq"));
+const PlatformAdmin = lazy(() => import("./pages/PlatformAdmin"));
 
 const CONSTRUCTION_TEMPLATE = {
   phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
@@ -159,7 +162,7 @@ function GlobalErrorScreen({ onRetry }) {
 // fetch for external links and must keep working even if this load fails.
 function PortfolioDataGate({ isAuthenticated, portfolioState, onLoadPortfolioData, children }) {
   const location = useLocation();
-  const skipGate = location.pathname === '/projects' || location.pathname.startsWith('/contractor-report/') || location.pathname === '/snags' || location.pathname.includes('/snags') || location.pathname.includes('/plans');
+  const skipGate = location.pathname === '/projects' || location.pathname.startsWith('/platform-admin') || location.pathname.startsWith('/contractor-report/') || location.pathname === '/snags' || location.pathname.includes('/snags') || location.pathname.includes('/plans');
 
   useEffect(() => {
     if (!isAuthenticated || skipGate) return;
@@ -183,6 +186,7 @@ function PublicOnlyRoute({ children }) {
 function App() {
   const { isAuthenticated } = useAuth();
   const isContractorReportRoute = window.location.pathname.startsWith('/contractor-report/');
+  const isPlatformAdminRoute = window.location.pathname.startsWith('/platform-admin');
 
   const [projects, setProjects] = useState([]);
   const [reports, setReports] = useState([]);
@@ -320,8 +324,8 @@ function App() {
     return saved;
   }
 
-  if (isAuthenticated && projectsState === 'loading' && !isContractorReportRoute) return <GlobalLoadingScreen />;
-  if (isAuthenticated && projectsState === 'error' && !isContractorReportRoute) return <GlobalErrorScreen onRetry={loadProjects} />;
+  if (isAuthenticated && projectsState === 'loading' && !isContractorReportRoute && !isPlatformAdminRoute) return <GlobalLoadingScreen />;
+  if (isAuthenticated && projectsState === 'error' && !isContractorReportRoute && !isPlatformAdminRoute) return <GlobalErrorScreen onRetry={loadProjects} />;
 
   return (
     <ToastProvider>
@@ -552,6 +556,7 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route path="/platform-admin" element={<PlatformAdminRoute><PlatformAdmin/></PlatformAdminRoute>} />
                   <Route
                     path="/admin/template-editor"
                     element={

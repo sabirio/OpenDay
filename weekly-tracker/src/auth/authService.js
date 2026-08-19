@@ -20,8 +20,17 @@ async function fetchProfile(userId) {
   return data;
 }
 
+async function fetchOrganizationContext() {
+  const { data, error } = await supabase.rpc('get_my_organization_context');
+  if (error) {
+    console.error('[authService] fetchOrganizationContext error:', error.code, error.message);
+    return { platformSuperadmin: false, organizations: [] };
+  }
+  return data ?? { platformSuperadmin: false, organizations: [] };
+}
+
 // Builds a safe session object from a Supabase user + profile row
-function buildUser(supabaseUser, profile) {
+function buildUser(supabaseUser, profile, organizationContext) {
   const role = profile?.role ?? 'Executive';
   return {
     id: supabaseUser.id,
@@ -32,6 +41,8 @@ function buildUser(supabaseUser, profile) {
     companyId: profile?.company_id ?? null,
     assignedProjects: profile?.assigned_projects ?? [],
     permissions: PERMISSIONS[role] ?? [],
+    platformSuperadmin: organizationContext?.platformSuperadmin === true,
+    organizations: organizationContext?.organizations ?? [],
   };
 }
 
@@ -44,8 +55,10 @@ async function login(email, password) {
     return { success: false, error: userSafeError('auth') };
   }
 
-  const profile = await fetchProfile(data.user.id);
-  return { success: true, user: buildUser(data.user, profile) };
+  const [profile, organizationContext] = await Promise.all([
+    fetchProfile(data.user.id),fetchOrganizationContext(),
+  ]);
+  return { success: true, user: buildUser(data.user, profile, organizationContext) };
 }
 
 async function logout() {
@@ -87,8 +100,10 @@ async function getSession() {
     }
     if (!data?.session) return null;
 
-    const profile = await fetchProfile(data.session.user.id);
-    return buildUser(data.session.user, profile);
+    const [profile, organizationContext] = await Promise.all([
+      fetchProfile(data.session.user.id),fetchOrganizationContext(),
+    ]);
+    return buildUser(data.session.user, profile, organizationContext);
   } catch (err) {
     console.error('[authService] getSession exception:', err.message);
     return null;
