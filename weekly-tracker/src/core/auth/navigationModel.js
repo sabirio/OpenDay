@@ -1,4 +1,6 @@
-import { getAllowedNavItems, getDefaultRoute, canAccess } from '../../engines/permissionEngine.js';
+import {
+  getAllowedNavItems, getAllowedNavItemsForUser, getDefaultRoute, canAccess,
+} from '../../engines/permissionEngine.js';
 
 export function getDefaultRouteForRole(role) {
   return getDefaultRoute(role);
@@ -6,6 +8,10 @@ export function getDefaultRouteForRole(role) {
 
 export function getAllowedNavItemsForRole(role, navItems) {
   return getAllowedNavItems(role, navItems);
+}
+
+export function getAllowedNavItemsForSession(user, navItems) {
+  return getAllowedNavItemsForUser(user, navItems);
 }
 
 // Facade for canAccess — pages/components must never import engines/

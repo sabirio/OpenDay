@@ -20,7 +20,8 @@ check('Admin Users page has no direct Supabase persistence',
 check('Admin user reads and writes pass through orchestration',
   /useAdminUsers/.test(page) && /loadAdminUsers|saveAdminUser/.test(hook));
 check('Admin user service uses dedicated database commands',
-  /list_admin_users/.test(service) && /update_admin_user_profile/.test(service) && /remove_admin_user/.test(service));
+  /list_organization_users/.test(service) && /update_organization_user/.test(service)
+    && /deactivate_organization_user/.test(service) && /send-organization-invitation/.test(service));
 check('Role and assignment changes are immutable audited commands',
   /admin_user_change_events/.test(sql)
   && /ADMIN_USER_CHANGE_EVENT_IMMUTABLE/.test(sql)
@@ -29,7 +30,8 @@ check('Authenticated clients cannot directly update role or assignments',
   /REVOKE UPDATE ON public\.profiles FROM authenticated/.test(sql)
   && /GRANT UPDATE\(name\) ON public\.profiles TO authenticated/.test(sql));
 check('Internal assignments remain owned by Project Team',
-  /PROJECT_TEAM/.test(sql) && /CONTRACTOR_COMPATIBILITY/.test(sql));
+  /Project responsibilities remain on each project's Team page/.test(page)
+    && !/assignedProjects|toggleProject/.test(page));
 check('Job role is separate from authorization role',
   /job_role/.test(directorySql) && /p_job_role/.test(directorySql) && /p_access_role/.test(directorySql));
 check('Remove is audited and non-destructive',

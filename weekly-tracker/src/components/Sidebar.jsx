@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { getAllowedNavItemsForRole } from '../hooks/useDefaultRoute';
+import { getAllowedNavItemsForSession } from '../hooks/useDefaultRoute';
 import { NAV_ITEMS, ROLE_BADGE_STYLES } from '../auth/rolePermissions';
 import Icon from './shared/Icon';
 
@@ -126,7 +126,7 @@ function Sidebar({ navRef, mobileOpen = false, onClose = () => {} }) {
   }, [mobileOpen, onClose]);
 
   const visibleNav = [
-    ...getAllowedNavItemsForRole(role, NAV_ITEMS),
+    ...getAllowedNavItemsForSession(user, NAV_ITEMS),
     ...(user?.platformSuperadmin ? [{ to: '/platform-admin',label: 'Platform Admin' }] : []),
   ];
   const badgeStyle = ROLE_BADGE_STYLES[role] ?? {};

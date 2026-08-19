@@ -29,9 +29,22 @@ async function fetchOrganizationContext() {
   return data ?? { platformSuperadmin: false, organizations: [] };
 }
 
+async function activateOrganizationInvitations() {
+  const { error } = await supabase.rpc('activate_my_organization_invitations');
+  if (error && error.code !== 'PGRST202') {
+    console.error('[authService] activateOrganizationInvitations error:', error.code, error.message);
+  }
+}
+
 // Builds a safe session object from a Supabase user + profile row
 function buildUser(supabaseUser, profile, organizationContext) {
   const role = profile?.role ?? 'Executive';
+  const organizations = organizationContext?.organizations ?? [];
+  const permissions = [...(PERMISSIONS[role] ?? [])];
+  if (organizations.some(item => item.organizationRole === 'ORG_ADMIN')
+    && !permissions.includes('all') && !permissions.includes('admin_users')) {
+    permissions.push('admin_users');
+  }
   return {
     id: supabaseUser.id,
     email: supabaseUser.email,
@@ -40,9 +53,9 @@ function buildUser(supabaseUser, profile, organizationContext) {
     jobRole: profile?.job_role ?? null,
     companyId: profile?.company_id ?? null,
     assignedProjects: profile?.assigned_projects ?? [],
-    permissions: PERMISSIONS[role] ?? [],
+    permissions,
     platformSuperadmin: organizationContext?.platformSuperadmin === true,
-    organizations: organizationContext?.organizations ?? [],
+    organizations,
   };
 }
 
@@ -54,6 +67,8 @@ async function login(email, password) {
     console.error('[authService] login error:', error);
     return { success: false, error: userSafeError('auth') };
   }
+
+  await activateOrganizationInvitations();
 
   const [profile, organizationContext] = await Promise.all([
     fetchProfile(data.user.id),fetchOrganizationContext(),
@@ -99,6 +114,8 @@ async function getSession() {
       return null;
     }
     if (!data?.session) return null;
+
+    await activateOrganizationInvitations();
 
     const [profile, organizationContext] = await Promise.all([
       fetchProfile(data.session.user.id),fetchOrganizationContext(),

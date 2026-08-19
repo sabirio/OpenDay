@@ -10,6 +10,12 @@ export function canAccess(role, resource) {
   return perms.includes(resource);
 }
 
+export function canAccessUser(user, resource) {
+  if (!user || !resource) return false;
+  const permissions = user.permissions ?? [];
+  return permissions.includes('all') || permissions.includes(resource);
+}
+
 // Returns the default landing path for a given role after login.
 export function getDefaultRoute(role) {
   return ROLE_REDIRECTS[role] ?? '/login';
@@ -23,5 +29,15 @@ export function getAllowedNavItems(role, navItems) {
       return children.length ? [{ ...item, children }] : [];
     }
     return canAccess(role, item.resource) ? [item] : [];
+  });
+}
+
+export function getAllowedNavItemsForUser(user, navItems) {
+  return navItems.flatMap((item) => {
+    if (item.children) {
+      const children = item.children.filter(child => canAccessUser(user, child.resource));
+      return children.length ? [{ ...item, children }] : [];
+    }
+    return canAccessUser(user, item.resource) ? [item] : [];
   });
 }

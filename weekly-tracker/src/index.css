@@ -2350,6 +2350,11 @@ button.weekly-phase-row {
 .admin-users-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 20px 0 12px; }
 .admin-users-search { display: grid; gap: 5px; width: min(420px, 100%); font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
 .admin-users-count { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+.admin-users-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-users-organization { display: grid; gap: 6px; max-width: 420px; margin-bottom: 18px; }
+.admin-users-organization > span { color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.admin-users-pending { margin-top: 24px; }
+.admin-users-pending h2 { margin: 0 0 12px; font-size: 18px; }
 .admin-users-table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface-alpha); box-shadow: var(--shadow-card); }
 .admin-users-table { width: 100%; min-width: 1050px; border-collapse: collapse; }
 .admin-users-table th { padding: 10px 12px; text-align: left; color: var(--text-muted); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; background: var(--bg-elevated); border-bottom: 1px solid var(--border); }
