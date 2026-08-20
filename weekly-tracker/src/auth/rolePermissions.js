@@ -27,11 +27,11 @@ export const PERMISSIONS = {
   // Non-PM roles are deliberately excluded (Contractor never reviews their own
   // submission, Executive has no schedule-submission access at all — Phase
   // 4B.2 Section Q).
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'schedule_review', 'commercial_setup', 'boq_editor', 'consultant_boq', 'tender_setup', 'bidder_tenders', 'budget_workspace', 'variations', 'payments', 'closeout'],
-  Consultant: ['dashboard', 'projects', 'consultant_boq', 'bidder_tenders'],
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'schedule_review', 'commercial_setup', 'boq_editor', 'consultant_boq', 'tender_setup', 'bidder_tenders', 'budget_workspace', 'variations', 'payments', 'closeout', 'business_development', 'opportunities', 'estimates', 'proposals'],
+  Consultant: ['dashboard', 'projects', 'consultant_boq', 'bidder_tenders', 'business_development', 'opportunities', 'estimates', 'proposals'],
   Contractor: ['contractor_report', 'snags', 'contractor_schedule', 'bidder_tenders', 'variations', 'payments'],
-  Approver: ['dashboard', 'projects', 'commercial_approvals', 'bidder_tenders'],
-  Executive: ['dashboard', 'projects', 'bidder_tenders'],
+  Approver: ['dashboard', 'projects', 'commercial_approvals', 'bidder_tenders', 'business_development', 'opportunities', 'estimates', 'proposals'],
+  Executive: ['dashboard', 'projects', 'bidder_tenders', 'business_development', 'opportunities', 'estimates', 'proposals'],
 };
 
 // Resources only Admin can access (via 'all' wildcard, but useful as documentation)
@@ -57,6 +57,10 @@ export const NAV_ITEMS = [
   // module. Its canonical route (/projects/import) and permission
   // ('projects_import') are unchanged; only its sidebar presence moved.
   { to: '/projects',           label: 'Portfolio',        resource: 'projects', workspaceIds: ['portfolio', 'delivery', 'procurement', 'commercial'] },
+  { to: '/business-development', label: 'Home',           resource: 'business_development', workspaceIds: ['business-development'] },
+  { to: '/business-development/opportunities', label: 'Opportunities', resource: 'opportunities', workspaceIds: ['business-development'] },
+  { to: '/business-development/estimates', label: 'Estimates', resource: 'estimates', workspaceIds: ['business-development'] },
+  { to: '/business-development/proposals', label: 'Proposals', resource: 'proposals', workspaceIds: ['business-development'] },
   { to: '/consultant-boqs',    label: 'Consultant BOQs',  resource: 'consultant_boq', workspaceIds: ['procurement'] },
   { to: '/weekly-reports',     label: 'Weekly Reports',   resource: 'weekly_reports', workspaceIds: ['delivery'] },
   { to: '/snags',              label: 'Site Snag',        resource: 'snags', workspaceIds: ['field'] },

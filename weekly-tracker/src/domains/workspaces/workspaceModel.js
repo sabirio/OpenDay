@@ -10,8 +10,8 @@ export const WORKSPACES = Object.freeze([
     id: 'business-development',
     label: 'Business Development',
     capabilityIds: ['opportunities.pipeline', 'estimating.delivery', 'pricing.commercial', 'proposals.issue'],
-    resourceCandidates: [],
-    defaultRoutes: [],
+    resourceCandidates: ['business_development', 'opportunities', 'estimates', 'proposals'],
+    defaultRoutes: ['/business-development'],
   },
   {
     id: 'delivery',
@@ -66,6 +66,10 @@ export const RESOURCE_CAPABILITY_REQUIREMENTS = Object.freeze({
   payments: ['payments.management'],
   closeout: ['construction.control', 'commercial.cost'],
   commercial_approvals: ['financials.cost', 'commercial.cost'],
+  business_development: ['opportunities.pipeline', 'estimating.delivery', 'pricing.commercial', 'proposals.issue'],
+  opportunities: ['opportunities.pipeline'],
+  estimates: ['estimating.delivery'],
+  proposals: ['proposals.issue'],
 });
 
 function asCapabilitySet(capabilities = []) {

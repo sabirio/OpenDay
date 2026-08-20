@@ -32,6 +32,7 @@ export function getWorkspaceDefaultRoute(workspace, user) {
   const routeResource = {
     '/home': 'dashboard', '/projects': 'projects', '/weekly-reports': 'weekly_reports',
     '/consultant-boqs': 'consultant_boq', '/site-visit-select': 'site_visit', '/snags': 'snags',
+    '/business-development': 'business_development',
   };
   return resolveWorkspaceDefaultRoute(workspace, path => (
     !routeResource[path] || getAllowedNavItemsForUser(user, [{ resource: routeResource[path] }]).length > 0

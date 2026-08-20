@@ -26,6 +26,7 @@ import "./styles/commercialReview.css";
 import "./styles/commercialFoundation.css";
 import "./styles/consultantBoq.css";
 import "./styles/platformAdmin.css";
+import "./styles/businessDevelopment.css";
 
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Home             = lazy(() => import("./pages/Home"));
@@ -67,6 +68,7 @@ const ProjectCommercialSetup = lazy(() => import("./pages/ProjectCommercialSetup
 const ConsultantBoqInbox = lazy(() => import("./pages/ConsultantBoqInbox"));
 const ConsultantBoq = lazy(() => import("./pages/ConsultantBoq"));
 const PlatformAdmin = lazy(() => import("./pages/PlatformAdmin"));
+const BusinessDevelopment = lazy(() => import("./pages/BusinessDevelopment"));
 
 const CONSTRUCTION_TEMPLATE = {
   phases: constructionRetailV1.phases.map(({ id, label, order, progressWeight }) => ({ id, label, order, progressWeight })),
@@ -163,7 +165,7 @@ function GlobalErrorScreen({ onRetry }) {
 // fetch for external links and must keep working even if this load fails.
 function PortfolioDataGate({ isAuthenticated, portfolioState, onLoadPortfolioData, children }) {
   const location = useLocation();
-  const skipGate = location.pathname === '/projects' || location.pathname.startsWith('/platform-admin') || location.pathname.startsWith('/contractor-report/') || location.pathname === '/snags' || location.pathname.includes('/snags') || location.pathname.includes('/plans');
+  const skipGate = location.pathname === '/projects' || location.pathname.startsWith('/platform-admin') || location.pathname.startsWith('/business-development') || location.pathname.startsWith('/contractor-report/') || location.pathname === '/snags' || location.pathname.includes('/snags') || location.pathname.includes('/plans');
 
   useEffect(() => {
     if (!isAuthenticated || skipGate) return;
@@ -190,6 +192,7 @@ function App() {
   const { organizations, activeOrganization } = useWorkspace();
   const isContractorReportRoute = window.location.pathname.startsWith('/contractor-report/');
   const isPlatformAdminRoute = window.location.pathname.startsWith('/platform-admin');
+  const isBusinessDevelopmentRoute = window.location.pathname.startsWith('/business-development');
 
   const [projects, setProjects] = useState([]);
   const [reports, setReports] = useState([]);
@@ -342,8 +345,8 @@ function App() {
     return saved;
   }
 
-  if (isAuthenticated && projectsState === 'loading' && !isContractorReportRoute && !isPlatformAdminRoute) return <GlobalLoadingScreen />;
-  if (isAuthenticated && projectsState === 'error' && !isContractorReportRoute && !isPlatformAdminRoute) return <GlobalErrorScreen onRetry={loadProjects} />;
+  if (isAuthenticated && projectsState === 'loading' && !isContractorReportRoute && !isPlatformAdminRoute && !isBusinessDevelopmentRoute) return <GlobalLoadingScreen />;
+  if (isAuthenticated && projectsState === 'error' && !isContractorReportRoute && !isPlatformAdminRoute && !isBusinessDevelopmentRoute) return <GlobalErrorScreen onRetry={loadProjects} />;
 
   return (
     <ToastProvider>
@@ -496,6 +499,10 @@ function App() {
                       /import/projects URL redirects here so existing deep
                       links/bookmarks keep working (see the legacy route below). */}
                   <Route path="/projects/import" element={<ProtectedRoute resource="projects_import"><ImportProjectsPage onProjectsChanged={loadProjects}/></ProtectedRoute>} />
+                  <Route path="/business-development" element={<ProtectedRoute resource="business_development"><BusinessDevelopment section="home"/></ProtectedRoute>} />
+                  <Route path="/business-development/opportunities" element={<ProtectedRoute resource="opportunities"><BusinessDevelopment section="opportunities"/></ProtectedRoute>} />
+                  <Route path="/business-development/estimates" element={<ProtectedRoute resource="estimates"><BusinessDevelopment section="estimates"/></ProtectedRoute>} />
+                  <Route path="/business-development/proposals" element={<ProtectedRoute resource="proposals"><BusinessDevelopment section="proposals"/></ProtectedRoute>} />
                   {/* Legacy path — protected the same as the canonical route so a
                       forged/unauthorized direct hit is rejected before any
                       redirect happens (no route-based permission bypass),
