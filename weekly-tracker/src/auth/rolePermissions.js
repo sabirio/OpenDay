@@ -27,11 +27,11 @@ export const PERMISSIONS = {
   // Non-PM roles are deliberately excluded (Contractor never reviews their own
   // submission, Executive has no schedule-submission access at all — Phase
   // 4B.2 Section Q).
-  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'schedule_review', 'commercial_setup', 'boq_editor', 'consultant_boq', 'tender_setup', 'budget_workspace', 'variations', 'payments', 'closeout'],
-  Consultant: ['dashboard', 'projects', 'consultant_boq'],
+  PM: ['dashboard', 'projects', 'weekly_reports', 'risk_engine', 'site_visit', 'contractor_report', 'weight_audit', 'snags', 'projects_import', 'schedule_review', 'commercial_setup', 'boq_editor', 'consultant_boq', 'tender_setup', 'bidder_tenders', 'budget_workspace', 'variations', 'payments', 'closeout'],
+  Consultant: ['dashboard', 'projects', 'consultant_boq', 'bidder_tenders'],
   Contractor: ['contractor_report', 'snags', 'contractor_schedule', 'bidder_tenders', 'variations', 'payments'],
-  Approver: ['dashboard', 'projects', 'commercial_approvals'],
-  Executive: ['dashboard', 'projects'],
+  Approver: ['dashboard', 'projects', 'commercial_approvals', 'bidder_tenders'],
+  Executive: ['dashboard', 'projects', 'bidder_tenders'],
 };
 
 // Resources only Admin can access (via 'all' wildcard, but useful as documentation)

@@ -35,16 +35,16 @@ function buildTenderOverview({tender,latestSetup,boqReady,access,acceptedCount,b
   if(tender)completed.push('Tender Package created');
   if(boqReady)completed.push('Issue BOQ ready');
   if(latestSetup)completed.push(`Tender Setup R${latestSetup.revisionNumber} saved`);
-  if(access.length)completed.push(`${access.length} contractor invitation(s) issued`);
-  if(acceptedCount)completed.push(`${acceptedCount} contractor(s) accepted`);
+  if(access.length)completed.push(`${access.length} bidding organization invitation(s) issued`);
+  if(acceptedCount)completed.push(`${acceptedCount} bidding organization(s) accepted`);
   if(submittedCount)completed.push(`${submittedCount} immutable bid submission(s) received`);
   if(reviewedCount)completed.push(`${reviewedCount} bid submission(s) reviewed`);
   if(award)completed.push('Commercial award baseline frozen');
   if(award)return{completed,current:'Tender awarded and commercial baseline is immutable.',next:'Continue committed cost and forecast control from the awarded baseline.'};
   if(!latestSetup)return{completed,current:'Tender Setup is being prepared.',next:'Complete the issue details and save Tender Setup.'};
-  if(access.length===0)return{completed,current:'Tender Setup is ready for participants.',next:'Add contractors and send invitations.'};
-  if(acceptedCount===0)return{completed,current:'Contractor responses are pending.',next:'Wait for an acceptance, or record No Response after the deadline.'};
-  if(bidRounds.length===0)return{completed,current:'Accepted contractors can access the Tender Package.',next:'Open Bid Round 1.'};
+  if(access.length===0)return{completed,current:'Tender Setup is ready for participants.',next:'Add bidding organizations and send invitations.'};
+  if(acceptedCount===0)return{completed,current:'Bidding organization responses are pending.',next:'Wait for an acceptance, or record No Response after the deadline.'};
+  if(bidRounds.length===0)return{completed,current:'Accepted bidding organizations can access the Tender Package.',next:'Open Bid Round 1.'};
   if(submittedCount===0)return{completed,current:'The current Bid Round is open.',next:'Wait for immutable contractor submissions.'};
   if(reviewedCount<submittedCount)return{completed,current:'Submitted bids are under PM review.',next:'Complete review and raise any required clarifications.'};
   return{completed,current:'Current bid submissions are reviewed.',next:'Resolve clarifications, open the next round, or proceed to Award.'};
@@ -63,7 +63,7 @@ export function createTenderSetupDraft(project, context, createId = () => crypto
     invitationMessage: context.latestSetup?.invitationMessage || defaultInvitationMessage(project, title),
     issuedBoqVersionId: context.latestSetup?.issuedBoqVersionId || latest?.id || '',
     workGroupIds: context.availableWorkGroups.map(item => item.id),
-    participants: context.participants?.length ? context.participants.map(item => ({ ...item })) : [{ participantId: createId(), contractorName: '', contactEmail: '' }],
+    participants: context.participants?.length ? context.participants.map(item => ({ ...item, biddingOrganizationName: item.biddingOrganizationName || item.contractorName || '' })) : [{ participantId: createId(), biddingOrganizationId: null, biddingOrganizationName: '', contactEmail: '' }],
     expectedLatestRevision: context.latestSetup?.revisionNumber || 0,
   };
 }
@@ -73,10 +73,10 @@ export function isTenderInvitationSaved(draft, latestSetup) {
   return latestSetup.title === draft.title && latestSetup.deadlineAt?.slice(0, 16) === draft.deadlineAt?.slice(0, 16) && latestSetup.currencyCode === draft.currencyCode && latestSetup.invitationMessage === draft.invitationMessage;
 }
 
-export function appendTenderParticipant(draft,participantId){return{...draft,participants:[...draft.participants,{participantId,contractorName:'',contactEmail:''}]}}
+export function appendTenderParticipant(draft,participantId){return{...draft,participants:[...draft.participants,{participantId,biddingOrganizationId:null,biddingOrganizationName:'',contactEmail:''}]}}
 export function updateTenderParticipant(draft,participantId,field,value){return{...draft,participants:draft.participants.map(item=>item.participantId===participantId?{...item,[field]:value}:item)}}
 export function removeTenderParticipant(draft,participantId){return{...draft,participants:draft.participants.filter(item=>item.participantId!==participantId)}}
-export function pickTenderInvitationPreviewParticipant(draft){return draft.participants.find(item=>item.contractorName?.trim()||item.contactEmail?.trim())||{}}
+export function pickTenderInvitationPreviewParticipant(draft){return draft.participants.find(item=>(item.biddingOrganizationName||item.contractorName)?.trim()||item.contactEmail?.trim())||{}}
 
 export function validateTenderSetupDraft(draft) {
   const issues = [];
@@ -90,9 +90,9 @@ export function validateTenderSetupDraft(draft) {
   if ((draft.invitationMessage || '').length > 4000) issues.push({ code: 'TENDER_INVITATION_MESSAGE_TOO_LONG' });
   if (!draft.issuedBoqVersionId) issues.push({ code: 'TENDER_BOQ_VERSION_REQUIRED' });
   if (!draft.workGroupIds?.length) issues.push({ code: 'TENDER_SCOPE_REQUIRED' });
-  const validParticipants = (draft.participants || []).filter(item => item.contractorName?.trim() || item.contactEmail?.trim());
+  const validParticipants = (draft.participants || []).filter(item => (item.biddingOrganizationName||item.contractorName)?.trim() || item.contactEmail?.trim());
   if (!validParticipants.length) issues.push({ code: 'TENDER_PARTICIPANT_REQUIRED' });
-  validParticipants.forEach((item, index) => { if (!item.contractorName?.trim()) issues.push({ code: 'CONTRACTOR_NAME_REQUIRED', index }); if (!EMAIL.test(item.contactEmail?.trim() || '')) issues.push({ code: 'INVALID_PARTICIPANT_EMAIL', index }); });
+  validParticipants.forEach((item, index) => { if (!(item.biddingOrganizationName||item.contractorName)?.trim()) issues.push({ code: 'BIDDING_ORGANIZATION_NAME_REQUIRED', index }); if (!EMAIL.test(item.contactEmail?.trim() || '')) issues.push({ code: 'INVALID_PARTICIPANT_EMAIL', index }); });
   const emails = validParticipants.map(item => item.contactEmail.trim().toLowerCase());
   if (new Set(emails).size !== emails.length) issues.push({ code: 'DUPLICATE_TENDER_PARTICIPANT' });
   return issues;
@@ -101,5 +101,5 @@ export function validateTenderSetupDraft(draft) {
 export function buildTenderSetupPayload(draft) {
   const issues = validateTenderSetupDraft(draft);
   if (issues.length) { const error = new Error('INVALID_TENDER_SETUP'); error.code = 'INVALID_TENDER_SETUP'; error.issues = issues; throw error; }
-  return { ...draft, tenderNumber: draft.tenderNumber.trim(), title: draft.title.trim(), deadlineAt: new Date(draft.deadlineAt).toISOString(), currencyCode: draft.currencyCode.toUpperCase(), tenderRules: draft.tenderRules.trim(), invitationMessage: draft.invitationMessage.trim(), issuedBoqVersionId: Number(draft.issuedBoqVersionId), participants: draft.participants.filter(item => item.contractorName?.trim() || item.contactEmail?.trim()).map(item => ({ participantId: item.participantId, contractorName: item.contractorName.trim(), contactEmail: item.contactEmail.trim().toLowerCase() })) };
+  return { ...draft, tenderNumber: draft.tenderNumber.trim(), title: draft.title.trim(), deadlineAt: new Date(draft.deadlineAt).toISOString(), currencyCode: draft.currencyCode.toUpperCase(), tenderRules: draft.tenderRules.trim(), invitationMessage: draft.invitationMessage.trim(), issuedBoqVersionId: Number(draft.issuedBoqVersionId), participants: draft.participants.filter(item => (item.biddingOrganizationName||item.contractorName)?.trim() || item.contactEmail?.trim()).map(item => { const biddingOrganizationName=(item.biddingOrganizationName||item.contractorName).trim();return { participantId:item.participantId,biddingOrganizationId:item.biddingOrganizationId||null,biddingOrganizationName,contractorName:biddingOrganizationName,contactEmail:item.contactEmail.trim().toLowerCase() }; }) };
 }

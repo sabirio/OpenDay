@@ -1,6 +1,6 @@
 import { appendContractorBidLine, buildBidRoundPresentation, createBidRoundDraft, patchBidRoundDecimal, patchBidRoundItem, setBidLineInclusion, summarizeBidDraft, validateBidRoundDraft } from '../../domains/tender/bidRoundModel.js';
 import { createClientRequestId } from '../write/writeCommand.js';
-import { presentTenderInboxItems, presentTenderPortalUser } from '../../engines/bidderTenderAccessEngine.js';
+import { presentInvitationOrganizationChoices, presentTenderInboxItems, presentTenderPortalUser } from '../../engines/bidderTenderAccessEngine.js';
 
 export function prepareBidRoundDraft(context){return context?createBidRoundDraft(context):null}
 export function presentBidRound(draft,groups){return buildBidRoundPresentation(draft,groups)}
@@ -18,3 +18,4 @@ export function presentTenderWorkspace(data){
 
 export const presentTenderInbox=presentTenderInboxItems;
 export const presentTenderPortalAccess=presentTenderPortalUser;
+export const presentTenderInvitationOrganizationChoices=presentInvitationOrganizationChoices;

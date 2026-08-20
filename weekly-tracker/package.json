@@ -89,6 +89,7 @@
     "db:apply:effective-entitlement-resolver": "node scripts/certification/applyEffectiveEntitlementResolverLocal.mjs",
     "db:apply:platform-entitlement-control-plane": "node scripts/certification/applyPlatformEntitlementControlPlaneLocal.mjs",
     "db:apply:organization-admin-foundation": "node scripts/certification/applyOrganizationAdminFoundationLocal.mjs",
+    "db:apply:tender-organization-identity": "node scripts/certification/applyTenderOrganizationIdentityLocal.mjs",
     "release:build:security-148": "node ../scripts/release/build-security-148.mjs",
     "cert:reset:budget-vs-tender": "npm run cert:reset:budget-approval && node scripts/certification/applyBudgetVsTenderLocal.mjs",
     "cert:reset:budget-approval-report": "npm run cert:reset:budget-vs-tender && node scripts/certification/applyBudgetApprovalReportLocal.mjs",
@@ -133,6 +134,7 @@
     "test:effective-entitlement-resolver-db": "node scripts/certification/certifyEffectiveEntitlementResolver.mjs",
     "test:platform-entitlement-control-plane-db": "node scripts/certification/certifyPlatformEntitlementControlPlane.mjs",
     "test:organization-admin-foundation-db": "node scripts/certification/certifyOrganizationAdminFoundation.mjs",
+    "test:tender-organization-identity-db": "node scripts/certification/certifyTenderOrganizationIdentity.mjs",
     "test:storage": "node scripts/certification/certifyStorage.mjs",
     "test:import-phase2": "npm run cert:reset:import-phase2 && node scripts/certification/certifyImportPhase2.mjs",
     "test:certification": "npm run cert:reset && npm run test:db && npm run test:rls && npm run test:scope-templates && npm run test:storage"

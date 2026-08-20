@@ -91,6 +91,7 @@ const plansAndEntitlementsLocal = readFileSync(new URL('../../scripts/certificat
 const effectiveEntitlementResolverLocal = readFileSync(new URL('../../scripts/certification/applyEffectiveEntitlementResolverLocal.mjs', import.meta.url), 'utf8');
 const platformEntitlementControlPlaneLocal = readFileSync(new URL('../../scripts/certification/applyPlatformEntitlementControlPlaneLocal.mjs', import.meta.url), 'utf8');
 const organizationAdminFoundationLocal = readFileSync(new URL('../../scripts/certification/applyOrganizationAdminFoundationLocal.mjs', import.meta.url), 'utf8');
+const tenderOrganizationIdentityLocal = readFileSync(new URL('../../scripts/certification/applyTenderOrganizationIdentityLocal.mjs', import.meta.url), 'utf8');
 const localDbTarget = readFileSync(new URL('../../scripts/certification/localDbTarget.mjs', import.meta.url), 'utf8');
 const tenderCommercialE2ERunner = readFileSync(new URL('../../scripts/certification/runTenderCommercialE2E.mjs', import.meta.url), 'utf8');
 const contractorScheduleAcl055 = readFileSync(new URL('../migrations/055_restrict_contractor_schedule_function_acl.sql', import.meta.url), 'utf8');
@@ -511,6 +512,7 @@ const plansAndEntitlementsBatchFiles = [...plansAndEntitlementsLocal.matchAll(/[
 const effectiveEntitlementResolverBatchFiles = [...effectiveEntitlementResolverLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const platformEntitlementControlPlaneBatchFiles = [...platformEntitlementControlPlaneLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const organizationAdminFoundationBatchFiles = [...organizationAdminFoundationLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const tenderOrganizationIdentityBatchFiles = [...tenderOrganizationIdentityLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles, ...r1ReportingPersistenceBatchFiles, ...workOntologyFoundationBatchFiles, ...projectWorkOntologyScopeBatchFiles, ...workGroupReportingCompatibilityBatchFiles, ...projectExecutionScopeBatchFiles, ...contractorScheduleSetupBatchFiles, ...ganttBaselineScopeSnapshotBatchFiles, ...pmScheduleBaselineApprovalBatchFiles, ...projectBoqFoundationBatchFiles, ...projectBoqWorkGroupAggregationBatchFiles, ...projectBoqStandardCustomItemsBatchFiles, ...projectBoqExecutionScopeMappingBatchFiles, ...projectBoqExcelCompatibilityBatchFiles, ...tenderSetupBatchFiles, ...tenderBidderAccessBatchFiles, ...tenderBidRoundsBatchFiles, ...tenderPmBidReviewBatchFiles, ...tenderClarificationRegisterBatchFiles, ...tenderComparisonBatchFiles, ...tenderAwardBatchFiles, ...awardedExecutionScopeBatchFiles, ...departmentalBudgetBatchFiles, ...budgetOwnershipBatchFiles, ...budgetRoundsBatchFiles, ...budgetApprovalBatchFiles, ...budgetVsTenderBatchFiles, ...budgetApprovalReportBatchFiles, ...projectVariationsBatchFiles, ...biweeklyCommercialReviewBatchFiles, ...approvedVsPendingExposureBatchFiles, ...forecastEngineBatchFiles, ...commercialHealthBatchFiles, ...paymentScheduleBatchFiles, ...paymentNotificationsBatchFiles, ...paymentCertificationEvidenceBatchFiles, ...paymentCertificationDecisionsBatchFiles, ...paymentPaidTrackingBatchFiles, ...paymentRetentionBatchFiles, ...projectCostCloseoutBatchFiles, ...projectScheduleCloseoutBatchFiles, ...projectScopeCloseoutBatchFiles, ...projectQualityCloseoutBatchFiles, ...roadmapCompletionBatchFiles, ...budgetBoqScopeBatchFiles, ...budgetIndependentBoqBatchFiles, ...boqLabourMaterialPricingBatchFiles, ...boqContractorConsultantQuantitiesBatchFiles, ...boqOptionalContractorQuantityBatchFiles, ...tenderInvitationEmailBatchFiles, ...tenderCommercialRoadmapBatchFiles, ...projectAccessAlignmentBatchFiles, ...canonicalFinancialSourcesBatchFiles, ...paymentCommitmentScopeBatchFiles, ...architectureIntegrityBatchFiles, ...procurementStrategyBatchFiles]);
 projectTeamDepartmentsBatchFiles.forEach(file => coveredSet.add(file));
 securityDefinerExecuteHardeningBatchFiles.forEach(file => coveredSet.add(file));
@@ -523,7 +525,8 @@ plansAndEntitlementsBatchFiles.forEach(file => coveredSet.add(file));
 effectiveEntitlementResolverBatchFiles.forEach(file => coveredSet.add(file));
 platformEntitlementControlPlaneBatchFiles.forEach(file => coveredSet.add(file));
 organizationAdminFoundationBatchFiles.forEach(file => coveredSet.add(file));
-check('fresh-install migration set is exactly covered through Organization Admin Foundation migration 155, no gaps',
+tenderOrganizationIdentityBatchFiles.forEach(file => coveredSet.add(file));
+check('fresh-install migration set is exactly covered through Tender Organization Identity migration 156, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -605,6 +608,7 @@ check('migration 152 is covered by the hash-pinned Plans and Organization Entitl
 check('migration 153 is covered by the hash-pinned Effective Entitlement Resolver upgrade', effectiveEntitlementResolverBatchFiles.length === 1 && effectiveEntitlementResolverBatchFiles[0] === '153_effective_entitlement_resolver.sql');
 check('migration 154 is covered by the hash-pinned Platform Entitlement Control Plane upgrade', platformEntitlementControlPlaneBatchFiles.length === 1 && platformEntitlementControlPlaneBatchFiles[0] === '154_platform_entitlement_control_plane.sql');
 check('migration 155 is covered by the hash-pinned Organization Admin Foundation upgrade', organizationAdminFoundationBatchFiles.length === 1 && organizationAdminFoundationBatchFiles[0] === '155_organization_admin_foundation.sql');
+check('migration 156 is covered by the hash-pinned Tender Organization Identity upgrade', tenderOrganizationIdentityBatchFiles.length === 1 && tenderOrganizationIdentityBatchFiles[0] === '156_tender_organization_identity.sql');
 check('Security Definer execute hardening upgrade uses the local target guard before applying SQL', securityDefinerExecuteHardeningLocal.indexOf('assertLocalTarget') < securityDefinerExecuteHardeningLocal.indexOf("execFileSync('psql'"));
 check('Security Definer execute hardening upgrade verifies SHA-256 before applying SQL', securityDefinerExecuteHardeningLocal.indexOf("createHash('sha256')") < securityDefinerExecuteHardeningLocal.indexOf("execFileSync('psql'"));
 check('Security advisor hardening upgrade uses the local target guard before applying SQL', securityAdvisorHardeningLocal.indexOf('assertLocalTarget') < securityAdvisorHardeningLocal.indexOf("execFileSync('psql'"));
@@ -625,6 +629,8 @@ check('Platform Entitlement Control Plane upgrade uses the local target guard be
 check('Platform Entitlement Control Plane upgrade verifies SHA-256 before applying SQL', platformEntitlementControlPlaneLocal.indexOf("createHash('sha256')") < platformEntitlementControlPlaneLocal.indexOf("execFileSync('psql'"));
 check('Organization Admin Foundation upgrade uses the local target guard before applying SQL', organizationAdminFoundationLocal.indexOf('assertLocalTarget') < organizationAdminFoundationLocal.indexOf("execFileSync('psql'"));
 check('Organization Admin Foundation upgrade verifies SHA-256 before applying SQL', organizationAdminFoundationLocal.indexOf("createHash('sha256')") < organizationAdminFoundationLocal.indexOf("execFileSync('psql'"));
+check('Tender Organization Identity upgrade uses the local target guard before applying SQL', tenderOrganizationIdentityLocal.indexOf('assertLocalTarget') < tenderOrganizationIdentityLocal.indexOf("execFileSync('psql'"));
+check('Tender Organization Identity upgrade verifies SHA-256 before applying SQL', tenderOrganizationIdentityLocal.indexOf("createHash('sha256')") < tenderOrganizationIdentityLocal.indexOf("execFileSync('psql'"));
 check('Project Team Department upgrade uses the local target guard before applying SQL', projectTeamDepartmentsLocal.indexOf('assertLocalTarget') < projectTeamDepartmentsLocal.indexOf("execFileSync('psql'"));
 check('Project Team Department upgrade verifies SHA-256 before applying SQL', projectTeamDepartmentsLocal.indexOf("createHash('sha256')") < projectTeamDepartmentsLocal.indexOf("execFileSync('psql'"));
 check('Procurement Strategy upgrade uses the local target guard before applying SQL', procurementStrategyLocal.indexOf('assertLocalTarget') < procurementStrategyLocal.indexOf("execFileSync('psql'"));
@@ -647,6 +653,7 @@ check('Product Capability Catalog upgrade skips a matching registered migration'
 check('Plans and Organization Entitlements upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(plansAndEntitlementsLocal));
 check('Effective Entitlement Resolver upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(effectiveEntitlementResolverLocal));
 check('Platform Entitlement Control Plane upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(platformEntitlementControlPlaneLocal));
+check('Tender Organization Identity upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(tenderOrganizationIdentityLocal));
 check('Tender Commercial E2E runner uses guarded local endpoints without downloading the Supabase CLI',
   /assertLocalTarget/.test(tenderCommercialE2ERunner)
     && !/supabase['"],\s*['"]status/.test(tenderCommercialE2ERunner)

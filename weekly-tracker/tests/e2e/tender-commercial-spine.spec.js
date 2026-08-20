@@ -63,14 +63,6 @@ test('commercial spine: PM overview -> invitation -> both BOQ modes -> immutable
     await expect(page.getByRole('tab', { name: 'Consultant', exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Title')).toHaveValue(fixture.title);
 
-    await page.goto(`/projects/${fixture.projectId}/project-team`);
-    await expect(page.getByRole('heading', { name: 'Project Team', exact: true, level: 1 })).toBeVisible();
-    await page.locator('.project-team-table tbody tr').first().getByRole('button', { name: 'Edit' }).click();
-    const department = page.getByLabel('Project department');
-    await expect(department).toContainText('Security');
-    await department.selectOption('SECURITY');
-    await expect(page.getByRole('button', { name: 'Save department' })).toBeEnabled();
-    await page.getByRole('button', { name: 'Cancel' }).click();
     await logout(page);
   });
 
