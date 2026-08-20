@@ -1,29 +1,57 @@
 import { supabase } from '../lib/supabase';
 
-export async function listAdminUsers() {
-  const { data, error } = await supabase.rpc('list_admin_users');
+export async function listAdminUsers(organizationId) {
+  const { data, error } = await supabase.rpc('list_organization_users', {
+    p_organization_id: organizationId,
+  });
   if (error) throw error;
-  return data || [];
+  return data ?? { organizationId, users: [], invitations: [] };
 }
 
-export async function updateAdminUser(input, requestId) {
-  const { data, error } = await supabase.rpc('update_admin_user_profile', {
+export async function updateAdminUser(organizationId, input, requestId) {
+  const { data, error } = await supabase.rpc('update_organization_user', {
+    p_organization_id: organizationId,
     p_user_id: input.id,
     p_name: input.name || '',
-    p_job_role: input.accessRole === 'Contractor' ? null : input.role,
+    p_organization_role: input.organizationRole,
     p_access_role: input.accessRole,
-    p_assigned_project_ids: input.accessRole === 'Contractor' ? (input.assignedProjects || []) : [],
+    p_job_role: input.role || null,
+    p_expected_revision: input.revision,
     p_client_request_id: requestId,
   });
   if (error) throw error;
   return data;
 }
 
-export async function deactivateAdminUser(userId, requestId) {
-  const { data, error } = await supabase.rpc('remove_admin_user', {
-    p_user_id: userId,
+export async function deactivateAdminUser(organizationId, input, requestId) {
+  const { data, error } = await supabase.rpc('deactivate_organization_user', {
+    p_organization_id: organizationId,
+    p_user_id: input.id,
+    p_expected_revision: input.revision,
     p_client_request_id: requestId,
   });
   if (error) throw error;
+  return data;
+}
+
+export async function inviteAdminUser(organizationId, input, requestId) {
+  const { data, error } = await supabase.functions.invoke('send-organization-invitation', {
+    body: {
+      organizationId,
+      email: input.email,
+      name: input.name || null,
+      organizationRole: input.organizationRole,
+      accessRole: input.accessRole,
+      jobRole: input.role || null,
+      clientRequestId: requestId,
+      redirectOrigin: window.location.origin,
+    },
+  });
+  if (error) throw error;
+  if (data?.error) {
+    const failure = new Error(data.error);
+    failure.code = data.error;
+    throw failure;
+  }
   return data;
 }

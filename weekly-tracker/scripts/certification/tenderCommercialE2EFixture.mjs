@@ -41,6 +41,9 @@ function execute(sql, { tuplesOnly = false } = {}) {
 }
 
 const q = value => `'${String(value).replaceAll("'", "''")}'`;
+let createdAdminMembership=false;
+let createdContractorMembership=false;
+let createdOwnerSubscription=false;
 
 export function cleanupTenderCommercialE2EFixture() {
   const fixture = TENDER_COMMERCIAL_E2E;
@@ -89,8 +92,10 @@ export function cleanupTenderCommercialE2EFixture() {
     DELETE FROM public.project_commercial_baselines WHERE tender_id = ${q(fixture.tenderId)}::uuid;
     DELETE FROM public.project_tender_awards WHERE tender_id = ${q(fixture.tenderId)}::uuid;
     DELETE FROM public.project_tender_invitation_events WHERE tender_id = ${q(fixture.tenderId)}::uuid;
+    DELETE FROM public.project_tender_bidding_organization_claims WHERE tender_id = ${q(fixture.tenderId)}::uuid;
     DELETE FROM public.project_tender_bidder_access WHERE tender_id = ${q(fixture.tenderId)}::uuid;
     DELETE FROM public.project_tender_bid_rounds WHERE tender_id = ${q(fixture.tenderId)}::uuid;
+    DELETE FROM public.project_tender_organization_participants WHERE tender_id = ${q(fixture.tenderId)}::uuid;
     DELETE FROM public.project_tender_participants WHERE tender_id = ${q(fixture.tenderId)}::uuid;
     DELETE FROM public.project_tender_scope_work_groups WHERE tender_id = ${q(fixture.tenderId)}::uuid;
     DELETE FROM public.project_tender_setup_versions WHERE tender_id = ${q(fixture.tenderId)}::uuid;
@@ -119,11 +124,21 @@ export function cleanupTenderCommercialE2EFixture() {
 
     SET session_replication_role = origin;
   `);
+  if(createdAdminMembership)execute("DELETE FROM public.organization_memberships membership USING public.profiles profile,public.organizations organization_row WHERE membership.user_id=profile.id AND membership.organization_id=organization_row.id AND profile.email='admin@openday.fit' AND organization_row.legacy_company_id='company-a';");
+  if(createdContractorMembership)execute("DELETE FROM public.organization_memberships membership USING public.profiles profile,public.organizations organization_row WHERE membership.user_id=profile.id AND membership.organization_id=organization_row.id AND profile.email='gc@openday.fit' AND organization_row.legacy_company_id='company-b';");
+  if(createdOwnerSubscription)execute("DELETE FROM public.organization_subscriptions subscription USING public.organizations organization_row WHERE subscription.organization_id=organization_row.id AND organization_row.legacy_company_id='company-a' AND subscription.plan_id='owner' AND subscription.status='ACTIVE';");
+  createdAdminMembership=false;createdContractorMembership=false;createdOwnerSubscription=false;
 }
 
 export function setupTenderCommercialE2EFixture() {
   cleanupTenderCommercialE2EFixture();
   const fixture = TENDER_COMMERCIAL_E2E;
+  createdAdminMembership=execute("SELECT count(*) FROM public.organization_memberships membership JOIN public.profiles profile ON profile.id=membership.user_id JOIN public.organizations organization_row ON organization_row.id=membership.organization_id WHERE profile.email='admin@openday.fit' AND organization_row.legacy_company_id='company-a' AND membership.status='ACTIVE';",{tuplesOnly:true})==='0';
+  createdContractorMembership=execute("SELECT count(*) FROM public.organization_memberships membership JOIN public.profiles profile ON profile.id=membership.user_id JOIN public.organizations organization_row ON organization_row.id=membership.organization_id WHERE profile.email='gc@openday.fit' AND organization_row.legacy_company_id='company-b' AND membership.status='ACTIVE';",{tuplesOnly:true})==='0';
+  createdOwnerSubscription=execute("SELECT count(*) FROM public.organization_subscriptions subscription JOIN public.organizations organization_row ON organization_row.id=subscription.organization_id WHERE organization_row.legacy_company_id='company-a' AND subscription.status='ACTIVE';",{tuplesOnly:true})==='0';
+  if(createdAdminMembership)execute("INSERT INTO public.organization_memberships(organization_id,user_id,organization_role,status,access_role,job_role) SELECT organization_row.id,profile.id,'ORG_ADMIN','ACTIVE','Admin','Project Manager' FROM public.organizations organization_row CROSS JOIN public.profiles profile WHERE organization_row.legacy_company_id='company-a' AND profile.email='admin@openday.fit';");
+  if(createdContractorMembership)execute("INSERT INTO public.organization_memberships(organization_id,user_id,organization_role,status,access_role,job_role) SELECT organization_row.id,profile.id,'MEMBER','ACTIVE','Contractor','Construction Manager' FROM public.organizations organization_row CROSS JOIN public.profiles profile WHERE organization_row.legacy_company_id='company-b' AND profile.email='gc@openday.fit';");
+  if(createdOwnerSubscription)execute("INSERT INTO public.organization_subscriptions(organization_id,plan_id,status,starts_at) SELECT id,'owner','ACTIVE','2026-08-01'::timestamptz FROM public.organizations WHERE legacy_company_id='company-a';");
   execute(`
     DO $fixture$
     DECLARE
@@ -204,6 +219,18 @@ export function setupTenderCommercialE2EFixture() {
           ${q(fixture.primaryParticipantId)}::uuid, ${q(fixture.primaryContractor)}, ${q(fixture.primaryEmail)}),
         (fixture_setup_id, ${q(fixture.tenderId)}::uuid, source_setup.project_id, source_setup.ontology_version_id,
           ${q(fixture.competitorParticipantId)}::uuid, ${q(fixture.competitorContractor)}, ${q(fixture.competitorEmail)});
+
+      INSERT INTO public.project_tender_organization_participants(
+        tender_setup_version_id,participant_id,tender_id,project_id,procuring_organization_id,
+        bidding_organization_id,bidding_organization_name,contact_email
+      )VALUES
+        (fixture_setup_id,${q(fixture.primaryParticipantId)}::uuid,${q(fixture.tenderId)}::uuid,
+          source_setup.project_id,(SELECT organization_id FROM public.projects WHERE id=source_setup.project_id),
+          (SELECT id FROM public.organizations WHERE legacy_company_id='company-b'),
+          ${q(fixture.primaryContractor)},${q(fixture.primaryEmail)}),
+        (fixture_setup_id,${q(fixture.competitorParticipantId)}::uuid,${q(fixture.tenderId)}::uuid,
+          source_setup.project_id,(SELECT organization_id FROM public.projects WHERE id=source_setup.project_id),
+          NULL,${q(fixture.competitorContractor)},${q(fixture.competitorEmail)});
 
       INSERT INTO public.project_tender_bidder_access(
         tender_id, participant_id, tender_setup_version_id, project_id, ontology_version_id,

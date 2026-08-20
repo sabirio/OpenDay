@@ -1,5 +1,5 @@
 export function presentTenderPortalUser(user) {
-  return { canAccess: user?.role === 'Contractor', displayName: user?.name || '' };
+  return { canAccess: Boolean(user?.id), displayName: user?.name || '' };
 }
 
 export function presentTenderInboxItems(items) {
@@ -12,4 +12,9 @@ export function presentTenderInboxItems(items) {
     invitationTone: `is-${item.invitationStatus.toLowerCase()}`,
     responseActions: ['INVITED','NO_RESPONSE'].includes(item.invitationStatus) ? [{ decision: 'DECLINED', label: 'Decline', className: 'btn btn-secondary' }, { decision: 'ACCEPTED', label: 'Accept invitation', className: 'btn btn-primary' }] : [],
   }));
+}
+
+export function presentInvitationOrganizationChoices(item, organizations) {
+  const options=(organizations||[]).filter(organization=>organization.organizationId!==item?.procuringOrganizationId);
+  return{options,initialOrganizationId:item?.biddingOrganizationId||options[0]?.organizationId||''};
 }

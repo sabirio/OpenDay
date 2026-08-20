@@ -84,6 +84,16 @@ const projectTeamDepartmentsLocal = readFileSync(new URL('../../scripts/certific
 const securityDefinerExecuteHardeningLocal = readFileSync(new URL('../../scripts/certification/applySecurityDefinerExecuteHardeningLocal.mjs', import.meta.url), 'utf8');
 const securityAdvisorHardeningLocal = readFileSync(new URL('../../scripts/certification/applySecurityAdvisorHardeningLocal.mjs', import.meta.url), 'utf8');
 const authenticatedSecurityDefinerBoundaryLocal = readFileSync(new URL('../../scripts/certification/applyAuthenticatedSecurityDefinerBoundaryLocal.mjs', import.meta.url), 'utf8');
+const organizationTenantFoundationLocal = readFileSync(new URL('../../scripts/certification/applyOrganizationTenantFoundationLocal.mjs', import.meta.url), 'utf8');
+const organizationAuthorizationCutoverLocal = readFileSync(new URL('../../scripts/certification/applyOrganizationAuthorizationCutoverLocal.mjs', import.meta.url), 'utf8');
+const productCapabilityCatalogLocal = readFileSync(new URL('../../scripts/certification/applyProductCapabilityCatalogLocal.mjs', import.meta.url), 'utf8');
+const plansAndEntitlementsLocal = readFileSync(new URL('../../scripts/certification/applyPlansAndEntitlementsLocal.mjs', import.meta.url), 'utf8');
+const effectiveEntitlementResolverLocal = readFileSync(new URL('../../scripts/certification/applyEffectiveEntitlementResolverLocal.mjs', import.meta.url), 'utf8');
+const platformEntitlementControlPlaneLocal = readFileSync(new URL('../../scripts/certification/applyPlatformEntitlementControlPlaneLocal.mjs', import.meta.url), 'utf8');
+const organizationAdminFoundationLocal = readFileSync(new URL('../../scripts/certification/applyOrganizationAdminFoundationLocal.mjs', import.meta.url), 'utf8');
+const tenderOrganizationIdentityLocal = readFileSync(new URL('../../scripts/certification/applyTenderOrganizationIdentityLocal.mjs', import.meta.url), 'utf8');
+const businessDevelopmentEstimateLocal = readFileSync(new URL('../../scripts/certification/applyBusinessDevelopmentEstimateLocal.mjs', import.meta.url), 'utf8');
+const businessDevelopmentPricingProposalsLocal = readFileSync(new URL('../../scripts/certification/applyBusinessDevelopmentPricingProposalsLocal.mjs', import.meta.url), 'utf8');
 const localDbTarget = readFileSync(new URL('../../scripts/certification/localDbTarget.mjs', import.meta.url), 'utf8');
 const tenderCommercialE2ERunner = readFileSync(new URL('../../scripts/certification/runTenderCommercialE2E.mjs', import.meta.url), 'utf8');
 const contractorScheduleAcl055 = readFileSync(new URL('../migrations/055_restrict_contractor_schedule_function_acl.sql', import.meta.url), 'utf8');
@@ -497,12 +507,32 @@ const projectTeamDepartmentsBatchFiles = [...projectTeamDepartmentsLocal.matchAl
 const securityDefinerExecuteHardeningBatchFiles = [...securityDefinerExecuteHardeningLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const securityAdvisorHardeningBatchFiles = [...securityAdvisorHardeningLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const authenticatedSecurityDefinerBoundaryBatchFiles = [...authenticatedSecurityDefinerBoundaryLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const organizationTenantFoundationBatchFiles = [...organizationTenantFoundationLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const organizationAuthorizationCutoverBatchFiles = [...organizationAuthorizationCutoverLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const productCapabilityCatalogBatchFiles = [...productCapabilityCatalogLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const plansAndEntitlementsBatchFiles = [...plansAndEntitlementsLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const effectiveEntitlementResolverBatchFiles = [...effectiveEntitlementResolverLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const platformEntitlementControlPlaneBatchFiles = [...platformEntitlementControlPlaneLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const organizationAdminFoundationBatchFiles = [...organizationAdminFoundationLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const tenderOrganizationIdentityBatchFiles = [...tenderOrganizationIdentityLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const businessDevelopmentEstimateBatchFiles = [...businessDevelopmentEstimateLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
+const businessDevelopmentPricingProposalsBatchFiles = [...businessDevelopmentPricingProposalsLocal.matchAll(/['"](\d{3}_[a-z0-9_]+\.sql)['"]/g)].map(m => m[1]);
 const coveredSet = new Set([...contract.canonicalMigrationPath.included, ...snagBatchFiles, ...contractorReportLegacyWpScopeBatchFiles, ...importFoundationPhase2BatchFiles, ...masterCatalogSchemaV2BatchFiles, ...masterCatalogSlice5DBatchFiles, ...masterCatalogWeightCalibrationBatchFiles, ...masterCatalogDurationCalibrationBatchFiles, ...contractorScheduleDraftFoundationBatchFiles, ...createContractorManagedProjectBatchFiles, ...contractorManagedScopeSyncBatchFiles, ...r1ReportingPersistenceBatchFiles, ...workOntologyFoundationBatchFiles, ...projectWorkOntologyScopeBatchFiles, ...workGroupReportingCompatibilityBatchFiles, ...projectExecutionScopeBatchFiles, ...contractorScheduleSetupBatchFiles, ...ganttBaselineScopeSnapshotBatchFiles, ...pmScheduleBaselineApprovalBatchFiles, ...projectBoqFoundationBatchFiles, ...projectBoqWorkGroupAggregationBatchFiles, ...projectBoqStandardCustomItemsBatchFiles, ...projectBoqExecutionScopeMappingBatchFiles, ...projectBoqExcelCompatibilityBatchFiles, ...tenderSetupBatchFiles, ...tenderBidderAccessBatchFiles, ...tenderBidRoundsBatchFiles, ...tenderPmBidReviewBatchFiles, ...tenderClarificationRegisterBatchFiles, ...tenderComparisonBatchFiles, ...tenderAwardBatchFiles, ...awardedExecutionScopeBatchFiles, ...departmentalBudgetBatchFiles, ...budgetOwnershipBatchFiles, ...budgetRoundsBatchFiles, ...budgetApprovalBatchFiles, ...budgetVsTenderBatchFiles, ...budgetApprovalReportBatchFiles, ...projectVariationsBatchFiles, ...biweeklyCommercialReviewBatchFiles, ...approvedVsPendingExposureBatchFiles, ...forecastEngineBatchFiles, ...commercialHealthBatchFiles, ...paymentScheduleBatchFiles, ...paymentNotificationsBatchFiles, ...paymentCertificationEvidenceBatchFiles, ...paymentCertificationDecisionsBatchFiles, ...paymentPaidTrackingBatchFiles, ...paymentRetentionBatchFiles, ...projectCostCloseoutBatchFiles, ...projectScheduleCloseoutBatchFiles, ...projectScopeCloseoutBatchFiles, ...projectQualityCloseoutBatchFiles, ...roadmapCompletionBatchFiles, ...budgetBoqScopeBatchFiles, ...budgetIndependentBoqBatchFiles, ...boqLabourMaterialPricingBatchFiles, ...boqContractorConsultantQuantitiesBatchFiles, ...boqOptionalContractorQuantityBatchFiles, ...tenderInvitationEmailBatchFiles, ...tenderCommercialRoadmapBatchFiles, ...projectAccessAlignmentBatchFiles, ...canonicalFinancialSourcesBatchFiles, ...paymentCommitmentScopeBatchFiles, ...architectureIntegrityBatchFiles, ...procurementStrategyBatchFiles]);
 projectTeamDepartmentsBatchFiles.forEach(file => coveredSet.add(file));
 securityDefinerExecuteHardeningBatchFiles.forEach(file => coveredSet.add(file));
 securityAdvisorHardeningBatchFiles.forEach(file => coveredSet.add(file));
 authenticatedSecurityDefinerBoundaryBatchFiles.forEach(file => coveredSet.add(file));
-check('fresh-install migration set is exactly covered through security hardening migration 148, no gaps',
+organizationTenantFoundationBatchFiles.forEach(file => coveredSet.add(file));
+organizationAuthorizationCutoverBatchFiles.forEach(file => coveredSet.add(file));
+productCapabilityCatalogBatchFiles.forEach(file => coveredSet.add(file));
+plansAndEntitlementsBatchFiles.forEach(file => coveredSet.add(file));
+effectiveEntitlementResolverBatchFiles.forEach(file => coveredSet.add(file));
+platformEntitlementControlPlaneBatchFiles.forEach(file => coveredSet.add(file));
+organizationAdminFoundationBatchFiles.forEach(file => coveredSet.add(file));
+tenderOrganizationIdentityBatchFiles.forEach(file => coveredSet.add(file));
+businessDevelopmentEstimateBatchFiles.forEach(file => coveredSet.add(file));
+businessDevelopmentPricingProposalsBatchFiles.forEach(file => coveredSet.add(file));
+check('fresh-install migration set is exactly covered through Business Development Pricing and Proposals migration 158, no gaps',
   expectedFreshInstallSet.every(f => coveredSet.has(f)));
 check('fresh-install coverage contains no unexpected extras beyond the expected set',
   [...coveredSet].every(f => expectedFreshInstallSet.includes(f)));
@@ -577,12 +607,40 @@ check('migration 145 is covered by the hash-pinned Project Team Department upgra
 check('migration 146 is covered by the hash-pinned Security Definer execute hardening upgrade', securityDefinerExecuteHardeningBatchFiles.length === 1 && securityDefinerExecuteHardeningBatchFiles[0] === '146_security_definer_execute_hardening.sql');
 check('migration 147 is covered by the hash-pinned security advisor hardening upgrade', securityAdvisorHardeningBatchFiles.length === 1 && securityAdvisorHardeningBatchFiles[0] === '147_security_advisor_hardening.sql');
 check('migration 148 is covered by the hash-pinned authenticated Security Definer boundary upgrade', authenticatedSecurityDefinerBoundaryBatchFiles.length === 1 && authenticatedSecurityDefinerBoundaryBatchFiles[0] === '148_authenticated_security_definer_boundary.sql');
+check('migration 149 is covered by the hash-pinned Organization / Tenant foundation upgrade', organizationTenantFoundationBatchFiles.length === 1 && organizationTenantFoundationBatchFiles[0] === '149_organization_tenant_foundation.sql');
+check('migration 150 is covered by the hash-pinned Organization authorization cutover upgrade', organizationAuthorizationCutoverBatchFiles.length === 1 && organizationAuthorizationCutoverBatchFiles[0] === '150_organization_authorization_cutover.sql');
+check('migration 151 is covered by the hash-pinned Product Capability Catalog upgrade', productCapabilityCatalogBatchFiles.length === 1 && productCapabilityCatalogBatchFiles[0] === '151_product_capability_catalog.sql');
+check('migration 152 is covered by the hash-pinned Plans and Organization Entitlements upgrade', plansAndEntitlementsBatchFiles.length === 1 && plansAndEntitlementsBatchFiles[0] === '152_plans_and_organization_entitlements.sql');
+check('migration 153 is covered by the hash-pinned Effective Entitlement Resolver upgrade', effectiveEntitlementResolverBatchFiles.length === 1 && effectiveEntitlementResolverBatchFiles[0] === '153_effective_entitlement_resolver.sql');
+check('migration 154 is covered by the hash-pinned Platform Entitlement Control Plane upgrade', platformEntitlementControlPlaneBatchFiles.length === 1 && platformEntitlementControlPlaneBatchFiles[0] === '154_platform_entitlement_control_plane.sql');
+check('migration 155 is covered by the hash-pinned Organization Admin Foundation upgrade', organizationAdminFoundationBatchFiles.length === 1 && organizationAdminFoundationBatchFiles[0] === '155_organization_admin_foundation.sql');
+check('migration 156 is covered by the hash-pinned Tender Organization Identity upgrade', tenderOrganizationIdentityBatchFiles.length === 1 && tenderOrganizationIdentityBatchFiles[0] === '156_tender_organization_identity.sql');
+check('migration 157 is covered by the hash-pinned Business Development Estimate upgrade', businessDevelopmentEstimateBatchFiles.length === 1 && businessDevelopmentEstimateBatchFiles[0] === '157_business_development_estimate_foundation.sql');
+check('migration 158 is covered by the hash-pinned Business Development Pricing and Proposals upgrade', businessDevelopmentPricingProposalsBatchFiles.length === 1 && businessDevelopmentPricingProposalsBatchFiles[0] === '158_business_development_pricing_proposals.sql');
 check('Security Definer execute hardening upgrade uses the local target guard before applying SQL', securityDefinerExecuteHardeningLocal.indexOf('assertLocalTarget') < securityDefinerExecuteHardeningLocal.indexOf("execFileSync('psql'"));
 check('Security Definer execute hardening upgrade verifies SHA-256 before applying SQL', securityDefinerExecuteHardeningLocal.indexOf("createHash('sha256')") < securityDefinerExecuteHardeningLocal.indexOf("execFileSync('psql'"));
 check('Security advisor hardening upgrade uses the local target guard before applying SQL', securityAdvisorHardeningLocal.indexOf('assertLocalTarget') < securityAdvisorHardeningLocal.indexOf("execFileSync('psql'"));
 check('Security advisor hardening upgrade verifies SHA-256 before applying SQL', securityAdvisorHardeningLocal.indexOf("createHash('sha256')") < securityAdvisorHardeningLocal.indexOf("execFileSync('psql'"));
 check('Authenticated Security Definer boundary upgrade uses the local target guard before applying SQL', authenticatedSecurityDefinerBoundaryLocal.indexOf('assertLocalTarget') < authenticatedSecurityDefinerBoundaryLocal.indexOf("execFileSync('psql'"));
 check('Authenticated Security Definer boundary upgrade verifies SHA-256 before applying SQL', authenticatedSecurityDefinerBoundaryLocal.indexOf("createHash('sha256')") < authenticatedSecurityDefinerBoundaryLocal.indexOf("execFileSync('psql'"));
+check('Organization / Tenant foundation upgrade uses the local target guard before applying SQL', organizationTenantFoundationLocal.indexOf('assertLocalTarget') < organizationTenantFoundationLocal.indexOf("execFileSync('psql'"));
+check('Organization / Tenant foundation upgrade verifies SHA-256 before applying SQL', organizationTenantFoundationLocal.indexOf("createHash('sha256')") < organizationTenantFoundationLocal.indexOf("execFileSync('psql'"));
+check('Organization authorization cutover uses the local target guard before applying SQL', organizationAuthorizationCutoverLocal.indexOf('assertLocalTarget') < organizationAuthorizationCutoverLocal.indexOf("execFileSync('psql'"));
+check('Organization authorization cutover verifies SHA-256 before applying SQL', organizationAuthorizationCutoverLocal.indexOf("createHash('sha256')") < organizationAuthorizationCutoverLocal.indexOf("execFileSync('psql'"));
+check('Product Capability Catalog upgrade uses the local target guard before applying SQL', productCapabilityCatalogLocal.indexOf('assertLocalTarget') < productCapabilityCatalogLocal.indexOf("execFileSync('psql'"));
+check('Product Capability Catalog upgrade verifies SHA-256 before applying SQL', productCapabilityCatalogLocal.indexOf("createHash('sha256')") < productCapabilityCatalogLocal.indexOf("execFileSync('psql'"));
+check('Plans and Organization Entitlements upgrade uses the local target guard before applying SQL', plansAndEntitlementsLocal.indexOf('assertLocalTarget') < plansAndEntitlementsLocal.indexOf("execFileSync('psql'"));
+check('Plans and Organization Entitlements upgrade verifies SHA-256 before applying SQL', plansAndEntitlementsLocal.indexOf("createHash('sha256')") < plansAndEntitlementsLocal.indexOf("execFileSync('psql'"));
+check('Effective Entitlement Resolver upgrade uses the local target guard before applying SQL', effectiveEntitlementResolverLocal.indexOf('assertLocalTarget') < effectiveEntitlementResolverLocal.indexOf("execFileSync('psql'"));
+check('Effective Entitlement Resolver upgrade verifies SHA-256 before applying SQL', effectiveEntitlementResolverLocal.indexOf("createHash('sha256')") < effectiveEntitlementResolverLocal.indexOf("execFileSync('psql'"));
+check('Platform Entitlement Control Plane upgrade uses the local target guard before applying SQL', platformEntitlementControlPlaneLocal.indexOf('assertLocalTarget') < platformEntitlementControlPlaneLocal.indexOf("execFileSync('psql'"));
+check('Platform Entitlement Control Plane upgrade verifies SHA-256 before applying SQL', platformEntitlementControlPlaneLocal.indexOf("createHash('sha256')") < platformEntitlementControlPlaneLocal.indexOf("execFileSync('psql'"));
+check('Organization Admin Foundation upgrade uses the local target guard before applying SQL', organizationAdminFoundationLocal.indexOf('assertLocalTarget') < organizationAdminFoundationLocal.indexOf("execFileSync('psql'"));
+check('Organization Admin Foundation upgrade verifies SHA-256 before applying SQL', organizationAdminFoundationLocal.indexOf("createHash('sha256')") < organizationAdminFoundationLocal.indexOf("execFileSync('psql'"));
+check('Tender Organization Identity upgrade uses the local target guard before applying SQL', tenderOrganizationIdentityLocal.indexOf('assertLocalTarget') < tenderOrganizationIdentityLocal.indexOf("execFileSync('psql'"));
+check('Tender Organization Identity upgrade verifies SHA-256 before applying SQL', tenderOrganizationIdentityLocal.indexOf("createHash('sha256')") < tenderOrganizationIdentityLocal.indexOf("execFileSync('psql'"));
+check('Business Development Estimate upgrade uses the local target guard before applying SQL', businessDevelopmentEstimateLocal.indexOf('assertLocalTarget') < businessDevelopmentEstimateLocal.indexOf("execFileSync('psql'"));
+check('Business Development Estimate upgrade verifies SHA-256 before applying SQL', businessDevelopmentEstimateLocal.indexOf("createHash('sha256')") < businessDevelopmentEstimateLocal.indexOf("execFileSync('psql'"));
 check('Project Team Department upgrade uses the local target guard before applying SQL', projectTeamDepartmentsLocal.indexOf('assertLocalTarget') < projectTeamDepartmentsLocal.indexOf("execFileSync('psql'"));
 check('Project Team Department upgrade verifies SHA-256 before applying SQL', projectTeamDepartmentsLocal.indexOf("createHash('sha256')") < projectTeamDepartmentsLocal.indexOf("execFileSync('psql'"));
 check('Procurement Strategy upgrade uses the local target guard before applying SQL', procurementStrategyLocal.indexOf('assertLocalTarget') < procurementStrategyLocal.indexOf("execFileSync('psql'"));
@@ -599,6 +657,14 @@ check('Project Team Department upgrade skips a matching registered migration', /
 check('Security Definer execute hardening upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(securityDefinerExecuteHardeningLocal));
 check('Security advisor hardening upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(securityAdvisorHardeningLocal));
 check('Authenticated Security Definer boundary upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(authenticatedSecurityDefinerBoundaryLocal));
+check('Organization / Tenant foundation upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(organizationTenantFoundationLocal));
+check('Organization authorization cutover skips a matching registered migration', /shouldApplyRegisteredMigration/.test(organizationAuthorizationCutoverLocal));
+check('Product Capability Catalog upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(productCapabilityCatalogLocal));
+check('Plans and Organization Entitlements upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(plansAndEntitlementsLocal));
+check('Effective Entitlement Resolver upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(effectiveEntitlementResolverLocal));
+check('Platform Entitlement Control Plane upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(platformEntitlementControlPlaneLocal));
+check('Tender Organization Identity upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(tenderOrganizationIdentityLocal));
+check('Business Development Estimate upgrade skips a matching registered migration', /shouldApplyRegisteredMigration/.test(businessDevelopmentEstimateLocal));
 check('Tender Commercial E2E runner uses guarded local endpoints without downloading the Supabase CLI',
   /assertLocalTarget/.test(tenderCommercialE2ERunner)
     && !/supabase['"],\s*['"]status/.test(tenderCommercialE2ERunner)

@@ -357,12 +357,12 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
               <section className="weekly-template-alert-wrap">
                 {(
                   <div role="alert" className="weekly-template-alert">
-                    <span style={{ fontWeight: 700, color: 'var(--status-warn)' }}>
+                    <span className="font-bold text-ui-warning">
                       Active template is invalid — using built-in default weights. Fix in Template Editor:
                     </span>
-                    <ul style={{ margin: '6px 0 0 0', paddingLeft: 20 }}>
+                    <ul className="mt-1.5 pl-5">
                       {templateErrorIssues.map((e, idx) => (
-                        <li key={idx} style={{ color: 'var(--status-warn)', marginTop: 3 }}>{e.message}</li>
+                        <li key={idx} className="mt-1 text-ui-warning">{e.message}</li>
                       ))}
                     </ul>
                   </div>
@@ -372,13 +372,13 @@ function WeeklyReports({ projects, reports, siteVisits = [], templatesById = {},
 
             {/* Gantt chart */}
             {showGantt && selectedProject && (
-              <div className="dashboard-summary-card" style={{ marginBottom: 16 }}>
+              <div className="dashboard-summary-card mb-4">
                 {ganttLoading ? (
-                  <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>Loading Gantt…</div>
+                  <div className="py-6 text-center text-ui-muted">Loading Gantt…</div>
                 ) : ganttTasks.length === 0 ? (
-                  <div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>No Gantt schedule generated yet for this project.</div>
+                  <div className="py-6 text-center text-ui-muted">No Gantt schedule generated yet for this project.</div>
                 ) : (
-                  <React.Suspense fallback={<div style={{ color: "var(--text-muted)", padding: "24px 0", textAlign: "center" }}>Loading Gantt chart...</div>}>
+                  <React.Suspense fallback={<div className="py-6 text-center text-ui-muted">Loading Gantt chart...</div>}>
                     <GanttChart
                       project={selectedProject}
                       tasks={ganttTasks}

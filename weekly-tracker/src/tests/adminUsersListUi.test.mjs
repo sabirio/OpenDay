@@ -15,10 +15,14 @@ check('Edit opens one focused user editor',
 check('role selector uses the approved internal job roles',
   ['Construction Manager','Lease Manager','Project Manager','Security Manager','IT Manager','HR Manager','Store Designer','Supply Manager','Facility Manager'].every(role => page.includes(`'${role}'`))
     && /admin-user-role-select/.test(page));
-check('Remove is explicit and preserves history',
-  /'Remove'/.test(page) && /historical records will be preserved/.test(page) && /editor\.remove/.test(page));
-check('Contractor project assignments expand below the row',
-  /aria-expanded=\{isExpanded\}/.test(page) && /admin-user-projects-row/.test(page) && /Contractor project access/.test(page));
+check('Deactivate is explicit and preserves history',
+  /Deactivate/.test(page) && /Historical records will be preserved/.test(page) && /editor\.remove/.test(page));
+check('Organization Admin can invite employees with scoped roles',
+  /Invite colleague/.test(page) && /Send invitation/.test(page)
+    && /Organization Admin/.test(page) && /Operational access/.test(page));
+check('Project responsibility assignment remains on Project Team',
+  /Project responsibilities remain on each project's Team page/.test(page)
+    && !/Contractor project access|assignedProjects/.test(page));
 check('table has compact responsive styling',
   /\.admin-users-table-wrap \{ overflow: auto/.test(css) && /min-width: 1050px/.test(css) && /@media \(max-width: 720px\)/.test(css));
 console.log(`\nAdmin Users list UI: ${passed} passed, 0 failed`);

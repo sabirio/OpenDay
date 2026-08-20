@@ -1,4 +1,49 @@
+@import "tailwindcss";
 @import './design-system.css';
+
+@theme inline {
+  --color-ui-page: var(--bg-page);
+  --color-ui-surface: var(--bg-surface);
+  --color-ui-elevated: var(--bg-elevated);
+  --color-ui-input: var(--bg-input);
+  --color-ui-border: var(--border);
+  --color-ui-border-strong: var(--border-strong);
+  --color-ui-primary: var(--text-primary);
+  --color-ui-secondary: var(--text-secondary);
+  --color-ui-muted: var(--text-muted);
+  --color-ui-inverse: var(--text-inverse);
+  --color-ui-accent: var(--accent);
+  --color-ui-accent-subtle: var(--accent-subtle);
+  --color-ui-success: var(--status-done);
+  --color-ui-success-subtle: var(--status-done-bg);
+  --color-ui-warning: var(--status-warn);
+  --color-ui-warning-subtle: var(--status-warn-bg);
+  --color-ui-danger: var(--status-alert);
+  --color-ui-danger-subtle: var(--status-alert-bg);
+  --radius-ui-sm: var(--radius-sm);
+  --radius-ui: var(--radius-lg);
+  --radius-ui-pill: var(--radius-full);
+  --shadow-ui: var(--shadow);
+  --shadow-ui-raised: var(--shadow-lg);
+  --color-field-contractor-page: var(--field-bg-contractor);
+  --color-field-sitevisit-page: var(--field-bg-sitevisit);
+  --color-field-surface: var(--field-bg-card);
+  --color-field-neutral: var(--field-neutral-bg);
+  --color-field-border: var(--field-border);
+  --color-field-border-strong: var(--field-border-strong);
+  --color-field-primary: var(--field-text-heading);
+  --color-field-body: var(--field-text-body);
+  --color-field-secondary: var(--field-text-secondary);
+  --color-field-muted: var(--field-text-muted);
+  --color-field-inverse: var(--field-text-on-accent);
+  --color-field-accent: var(--field-accent-contractor);
+  --color-field-success: var(--field-success-fg);
+  --color-field-warning: var(--field-warning-fg);
+  --color-field-danger: var(--field-danger-fg);
+  --color-field-danger-subtle: var(--field-danger-bg);
+  --width-field: 75rem;
+  --shadow-field: var(--field-shadow-lg);
+}
 
 /* ============================================================
    C&F Tracker — Global Styles
@@ -2350,6 +2395,11 @@ button.weekly-phase-row {
 .admin-users-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 20px 0 12px; }
 .admin-users-search { display: grid; gap: 5px; width: min(420px, 100%); font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
 .admin-users-count { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+.admin-users-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-users-organization { display: grid; gap: 6px; max-width: 420px; margin-bottom: 18px; }
+.admin-users-organization > span { color: var(--text-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.admin-users-pending { margin-top: 24px; }
+.admin-users-pending h2 { margin: 0 0 12px; font-size: 18px; }
 .admin-users-table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-surface-alpha); box-shadow: var(--shadow-card); }
 .admin-users-table { width: 100%; min-width: 1050px; border-collapse: collapse; }
 .admin-users-table th { padding: 10px 12px; text-align: left; color: var(--text-muted); font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; background: var(--bg-elevated); border-bottom: 1px solid var(--border); }
@@ -2371,6 +2421,52 @@ button.weekly-phase-row {
   font-size: 0.8125rem;
   font-weight: 700;
   flex-shrink: 0;
+}
+
+.sidebar-workspace-context {
+  display: grid;
+  gap: 9px;
+  margin: 0 2px 14px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+
+.sidebar-workspace-context label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sidebar-workspace-context label > span {
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-workspace-context strong,
+.sidebar-workspace-context select {
+  width: 100%;
+  min-width: 0;
+  color: var(--text-primary);
+  font: 600 0.75rem/1.3 var(--font-sans);
+}
+
+.sidebar-workspace-context strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-workspace-context select {
+  height: 30px;
+  padding: 0 24px 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
 }
 .admin-user-name-input {
   width: min(240px, 100%);

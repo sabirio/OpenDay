@@ -16,7 +16,7 @@ export default function TenderComparison({ workspace }) {
 }
 
 function TotalTable({ rows }) {
-  return <table className="bidder-boq-table tender-comparison-table"><thead><tr><th>Contractor</th><th>Status</th><th>Total</th><th>vs Approved Budget</th><th>Rank</th><th>vs median</th><th>Missing prices</th><th>Excluded</th><th>Added</th><th>Changed vs prior</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} className={row.rowTone}><td><strong>{row.contractorName}</strong></td><td>{row.statusDisplay}</td><td className={row.totalTone}>{row.totalDisplay}</td><td>{row.budgetVarianceDisplay}<small>{row.budgetVariancePctDisplay}</small></td><td>{row.rankDisplay}</td><td>{row.medianDisplay}</td><td>{row.missingDisplay}</td><td>{row.excludedDisplay}</td><td>{row.addedDisplay}</td><td>{row.changedDisplay}</td></tr>)}</tbody></table>;
+  return <table className="bidder-boq-table tender-comparison-table"><thead><tr><th>Bidding organization</th><th>Status</th><th>Total</th><th>vs Approved Budget</th><th>Rank</th><th>vs median</th><th>Missing prices</th><th>Excluded</th><th>Added</th><th>Changed vs prior</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} className={row.rowTone}><td><strong>{row.biddingOrganizationName||row.contractorName}</strong></td><td>{row.statusDisplay}</td><td className={row.totalTone}>{row.totalDisplay}</td><td>{row.budgetVarianceDisplay}<small>{row.budgetVariancePctDisplay}</small></td><td>{row.rankDisplay}</td><td>{row.medianDisplay}</td><td>{row.missingDisplay}</td><td>{row.excludedDisplay}</td><td>{row.addedDisplay}</td><td>{row.changedDisplay}</td></tr>)}</tbody></table>;
 }
 
 function HierarchyTable({ view, rows, discipline }) {

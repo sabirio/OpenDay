@@ -1,40 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { setPhaseWeight, setWorkPackageDuration, movePhase, normalizeWeights, computeTemplateWeightSums, validateTemplate, isTemplateValid, countErrors, isWithinEpsilon, WEIGHT_SUM_TARGET } from '../hooks/useTemplateEditorModel.js';
 import { fetchActiveTemplate, saveTemplate } from '../data/templatesApi.js';
+import { Badge, Button, CONTROL_CLASS, Surface } from '../components/shared/UiPrimitives.jsx';
+import { PageShell, SectionHeader } from '../components/shared/LayoutPrimitives.jsx';
+import { LoadingState } from '../components/shared/UiPatterns.jsx';
 
 const EPS = 0.001;
-
-// UI-consistency fix (2026-07-16): borderRadius was a hardcoded 10 instead
-// of the shared --radius-lg token every other card-shaped surface in the
-// app uses (design-system.css's own .card class, which this hand-rolled
-// object otherwise duplicates). This page is currently hidden from nav
-// (unwired save path — see App.jsx), so a full inline-style-to-className
-// rewrite wasn't attempted here; kept to a token-only fix.
-const card = {
-  background: 'var(--bg-surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 'var(--radius-lg)',
-  padding: '12px 16px',
-};
-
-const btnBase = {
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 12,
-  padding: '3px 8px',
-  background: 'var(--bg-elevated)',
-  color: 'var(--text-secondary)',
-};
-
-const inputStyle = {
-  fontSize: 12,
-  padding: '3px 6px',
-  border: '1px solid var(--border)',
-  borderRadius: 6,
-  background: 'var(--bg-elevated)',
-  color: 'var(--text-primary)',
-};
 
 export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
   const [draft, setDraft]           = useState(initialTemplate);
@@ -101,54 +72,45 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
   }
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, color: 'var(--text-muted)', fontSize: 14 }}>
-        Loading template…
-      </div>
-    );
+    return <LoadingState label="Loading template…"/>;
   }
 
   return (
-    <div style={{ padding: 24, maxWidth: 760, margin: '0 auto' }}>
+    <PageShell width="narrow" inset="page">
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-xl font-bold text-ui-primary">
           Template Editor
         </h2>
-        <span style={{
-          padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700,
-          background: valid ? 'var(--status-done-bg)' : 'var(--status-alert-bg)',
-          color:      valid ? 'var(--status-done)'    : 'var(--status-alert)',
-        }}>
+        <Badge tone={valid ? 'positive' : 'danger'}>
           {valid ? 'Valid' : `${errorCount} error${errorCount !== 1 ? 's' : ''}`}
-        </span>
+        </Badge>
         {!templateId && (
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          <span className="text-xs italic text-ui-muted">
             (no active template in DB — changes cannot be saved)
           </span>
         )}
       </div>
 
       {/* Weight summary bar */}
-      <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+      <Surface className="flex items-center gap-3 p-4">
+        <span className="text-sm text-ui-secondary">
           Σ weight:{' '}
-          <strong style={{ color: weightOk ? 'var(--status-done)' : 'var(--status-alert)' }}>
+          <strong className={weightOk ? 'text-ui-success' : 'text-ui-danger'}>
             {weightSum}
           </strong>
           {' '}/ {WEIGHT_SUM_TARGET}
         </span>
-        <button
-          style={{ ...btnBase, marginLeft: 'auto' }}
+        <Button className="ml-auto"
           onClick={() => setDraft(normalizeWeights(draft))}
         >
           Normalize
-        </button>
-      </div>
+        </Button>
+      </Surface>
 
       {/* Phases list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+      <div className="grid gap-2">
         {sortedPhases.map((phase, i) => {
           const isFirst    = i === 0;
           const isLast     = i === sortedPhases.length - 1;
@@ -158,68 +120,61 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
           const isExpanded = !!expanded[phase.id];
 
           return (
-            <div key={phase.id} style={card}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Surface key={phase.id} className="p-4">
+              <div className="flex items-center gap-2">
 
                 {/* Move buttons */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
-                  <button
+                <div className="flex shrink-0 flex-col gap-0.5">
+                  <Button size="sm"
                     disabled={isFirst}
-                    style={{ ...btnBase, padding: '1px 5px', opacity: isFirst ? 0.3 : 1, cursor: isFirst ? 'default' : 'pointer' }}
                     onClick={() => setDraft(movePhase(draft, phase.id, 'up'))}
-                  >↑</button>
-                  <button
+                  >↑</Button>
+                  <Button size="sm"
                     disabled={isLast}
-                    style={{ ...btnBase, padding: '1px 5px', opacity: isLast ? 0.3 : 1, cursor: isLast ? 'default' : 'pointer' }}
                     onClick={() => setDraft(movePhase(draft, phase.id, 'down'))}
-                  >↓</button>
+                  >↓</Button>
                 </div>
 
                 {/* Phase label */}
-                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                <span className="flex-1 text-sm font-semibold text-ui-primary">
                   {phase.label}
                 </span>
 
                 {/* progressWeight input */}
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>
+                <label className="flex shrink-0 items-center gap-1.5 text-xs text-ui-muted">
                   weight:
                   <input
                     type="number"
                     step="1"
                     min="0"
                     value={phase.progressWeight ?? 0}
-                    style={{ ...inputStyle, width: 56 }}
+                    className={`${CONTROL_CLASS} w-16`}
                     onChange={e => setDraft(setPhaseWeight(draft, phase.id, Number(e.target.value)))}
                   />
                 </label>
 
                 {/* Duration sum */}
-                <span style={{ fontSize: 12, color: durOk ? 'var(--text-muted)' : 'var(--status-alert)', flexShrink: 0 }}>
+                <span className={`shrink-0 text-xs ${durOk ? 'text-ui-muted' : 'text-ui-danger'}`}>
                   Σ dur: {durSum.toFixed(2)}
                 </span>
 
                 {/* Expand toggle */}
                 {phaseWPs.length > 0 && (
-                  <button
-                    style={{ ...btnBase, flexShrink: 0 }}
+                  <Button size="sm" className="shrink-0"
                     onClick={() => setExpanded(prev => ({ ...prev, [phase.id]: !prev[phase.id] }))}
                   >
                     {isExpanded ? '▾' : '▸'} {phaseWPs.length} WPs
-                  </button>
+                  </Button>
                 )}
               </div>
 
               {/* Expanded WP rows */}
               {isExpanded && (
-                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                <div className="mt-3 border-t border-ui-border pt-3">
                   {phaseWPs.map((wp, j) => (
-                    <div key={wp.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '4px 0',
-                      borderBottom: j < phaseWPs.length - 1 ? '1px solid var(--border)' : 'none',
-                    }}>
-                      <span style={{ flex: 1, fontSize: 12, color: 'var(--text-secondary)' }}>{wp.label}</span>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
+                    <div key={wp.id} className={`flex items-center gap-2 py-1 ${j < phaseWPs.length - 1 ? 'border-b border-ui-border' : ''}`}>
+                      <span className="flex-1 text-xs text-ui-secondary">{wp.label}</span>
+                      <label className="flex shrink-0 items-center gap-1.5 text-xs text-ui-muted">
                         duration_pct:
                         <input
                           type="number"
@@ -227,7 +182,7 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
                           min="0"
                           max="1"
                           value={wp.duration_pct ?? 0}
-                          style={{ ...inputStyle, width: 68 }}
+                          className={`${CONTROL_CLASS} w-20`}
                           onChange={e => setDraft(setWorkPackageDuration(draft, wp.id, Number(e.target.value)))}
                         />
                       </label>
@@ -235,68 +190,49 @@ export default function TemplateEditor({ initialTemplate, onSave, onCancel }) {
                   ))}
                 </div>
               )}
-            </div>
+            </Surface>
           );
         })}
       </div>
 
       {/* Issues panel */}
       {issues.length > 0 && (
-        <div style={{ ...card, marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>
-            Issues ({issues.length})
-          </div>
+        <Surface><SectionHeader title={`Issues (${issues.length})`}/><div className="px-4">
           {issues.map((issue, idx) => (
-            <div key={idx} style={{
-              display: 'flex', gap: 8, padding: '5px 0',
-              borderBottom: idx < issues.length - 1 ? '1px solid var(--border)' : 'none',
-              fontSize: 12, lineHeight: 1.4, alignItems: 'flex-start',
-            }}>
-              <span style={{
-                flexShrink: 0, fontWeight: 700, fontSize: 11, padding: '1px 6px', borderRadius: 4,
-                background: issue.severity === 'error' ? 'var(--status-alert-bg)' : 'var(--status-warn-bg)',
-                color:      issue.severity === 'error' ? 'var(--status-alert)'    : 'var(--status-warn)',
-              }}>
+            <div key={idx} className={`flex items-start gap-2 py-2 text-xs leading-5 ${idx < issues.length - 1 ? 'border-b border-ui-border' : ''}`}>
+              <Badge tone={issue.severity === 'error' ? 'danger' : 'warning'}>
                 {issue.severity}
-              </span>
-              <span style={{ fontWeight: 700, color: 'var(--text-secondary)', flexShrink: 0 }}>
+              </Badge>
+              <span className="shrink-0 font-bold text-ui-secondary">
                 {issue.code}
               </span>
-              <span style={{ color: 'var(--text-muted)' }}>{issue.message}</span>
+              <span className="text-ui-muted">{issue.message}</span>
             </div>
           ))}
-        </div>
+        </div></Surface>
       )}
 
       {/* Footer */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+      <div className="flex items-center justify-end gap-3">
         {saveStatus === 'saved' && (
-          <span style={{ fontSize: 12, color: 'var(--status-done)', fontWeight: 600 }}>Saved</span>
+          <span className="text-xs font-semibold text-ui-success">Saved</span>
         )}
         {saveStatus?.error && (
-          <span style={{ fontSize: 12, color: 'var(--status-alert)' }}>{saveStatus.error}</span>
+          <span className="text-xs text-ui-danger">{saveStatus.error}</span>
         )}
         {saveStatus === 'saving' && (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Saving…</span>
+          <span className="text-xs text-ui-muted">Saving…</span>
         )}
-        <button style={{ ...btnBase, padding: '6px 18px' }} onClick={onCancel}>
+        <Button onClick={onCancel}>
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button variant="primary"
           disabled={!canSave}
-          style={{
-            ...btnBase, padding: '6px 18px', fontWeight: 700,
-            background: canSave ? 'var(--accent)'       : 'var(--bg-elevated)',
-            color:      canSave ? 'var(--text-inverse)' : 'var(--text-muted)',
-            border:     canSave ? '1px solid var(--accent)' : '1px solid var(--border)',
-            cursor:     canSave ? 'pointer'             : 'default',
-            opacity:    canSave ? 1                     : 0.6,
-          }}
           onClick={handleSave}
         >
           Save
-        </button>
+        </Button>
       </div>
-    </div>
+    </PageShell>
   );
 }

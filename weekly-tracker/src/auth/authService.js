@@ -20,9 +20,49 @@ async function fetchProfile(userId) {
   return data;
 }
 
+async function fetchOrganizationContext() {
+  const { data, error } = await supabase.rpc('get_my_organization_context');
+  if (error) {
+    console.error('[authService] fetchOrganizationContext error:', error.code, error.message);
+    return { platformSuperadmin: false, organizations: [] };
+  }
+  const context = data ?? { platformSuperadmin: false, organizations: [] };
+  const organizations = await Promise.all((context.organizations ?? []).map(async organization => {
+    const { data: entitlementData, error: entitlementError } = await supabase.rpc(
+      'get_effective_organization_entitlements',
+      { p_organization_id: organization.organizationId },
+    );
+    if (entitlementError) {
+      console.error('[authService] fetchEffectiveEntitlements error:', entitlementError.code, entitlementError.message);
+      return { ...organization, effectiveCapabilities: [], entitlementStatus: 'error' };
+    }
+    return {
+      ...organization,
+      effectiveCapabilities: (entitlementData?.capabilities ?? [])
+        .filter(capability => capability.enabled === true)
+        .map(capability => capability.capabilityId),
+      entitlementStatus: 'ready',
+    };
+  }));
+  return { ...context, organizations };
+}
+
+async function activateOrganizationInvitations() {
+  const { error } = await supabase.rpc('activate_my_organization_invitations');
+  if (error && error.code !== 'PGRST202') {
+    console.error('[authService] activateOrganizationInvitations error:', error.code, error.message);
+  }
+}
+
 // Builds a safe session object from a Supabase user + profile row
-function buildUser(supabaseUser, profile) {
+function buildUser(supabaseUser, profile, organizationContext) {
   const role = profile?.role ?? 'Executive';
+  const organizations = organizationContext?.organizations ?? [];
+  const permissions = [...(PERMISSIONS[role] ?? [])];
+  if (organizations.some(item => item.organizationRole === 'ORG_ADMIN')
+    && !permissions.includes('all') && !permissions.includes('admin_users')) {
+    permissions.push('admin_users');
+  }
   return {
     id: supabaseUser.id,
     email: supabaseUser.email,
@@ -31,7 +71,9 @@ function buildUser(supabaseUser, profile) {
     jobRole: profile?.job_role ?? null,
     companyId: profile?.company_id ?? null,
     assignedProjects: profile?.assigned_projects ?? [],
-    permissions: PERMISSIONS[role] ?? [],
+    permissions,
+    platformSuperadmin: organizationContext?.platformSuperadmin === true,
+    organizations,
   };
 }
 
@@ -44,8 +86,12 @@ async function login(email, password) {
     return { success: false, error: userSafeError('auth') };
   }
 
-  const profile = await fetchProfile(data.user.id);
-  return { success: true, user: buildUser(data.user, profile) };
+  await activateOrganizationInvitations();
+
+  const [profile, organizationContext] = await Promise.all([
+    fetchProfile(data.user.id),fetchOrganizationContext(),
+  ]);
+  return { success: true, user: buildUser(data.user, profile, organizationContext) };
 }
 
 async function logout() {
@@ -87,8 +133,12 @@ async function getSession() {
     }
     if (!data?.session) return null;
 
-    const profile = await fetchProfile(data.session.user.id);
-    return buildUser(data.session.user, profile);
+    await activateOrganizationInvitations();
+
+    const [profile, organizationContext] = await Promise.all([
+      fetchProfile(data.session.user.id),fetchOrganizationContext(),
+    ]);
+    return buildUser(data.session.user, profile, organizationContext);
   } catch (err) {
     console.error('[authService] getSession exception:', err.message);
     return null;

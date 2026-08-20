@@ -56,8 +56,8 @@ function ResetPassword() {
         <div className="login-header">
           <div className="login-logo">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="8" fill="var(--bg-elevated)" />
-              <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" fill="var(--accent)" />
+              <rect width="32" height="32" rx="8" className="fill-ui-elevated" />
+              <path d="M8 24V14l8-6 8 6v10H20v-6h-8v6H8Z" className="fill-ui-accent" />
             </svg>
           </div>
           <h1 className="login-title">OpenDay</h1>
@@ -66,8 +66,8 @@ function ResetPassword() {
 
         {stage === 'loading' && (
           <div className="login-form">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-muted)', fontSize: 14 }}>
-              <span className="login-spinner" style={{ borderTopColor: 'var(--text-muted)' }} />
+            <div className="flex items-center gap-2.5 text-sm text-ui-muted">
+              <span className="login-spinner !border-t-ui-muted" />
               Verifying reset link…
             </div>
           </div>

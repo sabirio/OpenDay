@@ -1,0 +1,16 @@
+import{readFileSync}from'node:fs';
+const read=p=>readFileSync(new URL(p,import.meta.url),'utf8');
+const migration=read('../migrations/156_tender_organization_identity.sql');
+const service=read('../services/tenderService.js');
+const setup=read('../engines/tenderSetupEngine.js');
+const portal=read('../pages/BidderTenderInbox.jsx');
+let passed=0,failed=0;const check=(name,value)=>value?(passed++,console.log(`  PASS ${name}`)):(failed++,console.error(`  FAIL ${name}`));
+check('tender stores the procuring organization from the project',/procuring_organization_id[\s\S]*REFERENCES public\.organizations/.test(migration)&&/set_tender_procuring_organization/.test(migration));
+check('setup snapshots canonical bidding organization identity',/project_tender_organization_participants/.test(migration)&&/bidding_organization_id/.test(migration)&&/bidding_organization_name/.test(migration));
+check('a bidding organization cannot equal the procuring organization',/BIDDING_ORGANIZATION_CANNOT_BE_PROCURER/.test(migration));
+check('bidder organization claims require active membership',/BIDDING_ORGANIZATION_MEMBERSHIP_REQUIRED/.test(migration)&&/organization_memberships/.test(migration));
+check('bidder identity response is scoped and does not expose competitors',/v_can_manage OR access\.bidder_user_id=v_uid/.test(migration));
+check('frontend submits canonical identity and retains compatibility alias',/biddingOrganizationName/.test(setup)&&/contractorName:biddingOrganizationName/.test(setup));
+check('project tender loader consumes organization participant snapshots',/project_tender_organization_participants/.test(service));
+check('invitation response lets the user select their responding organization',/Responding organization/.test(portal)&&/Procuring organization/.test(portal));
+console.log(`\nTender organization identity: ${passed} passed, ${failed} failed`);if(failed)process.exit(1);

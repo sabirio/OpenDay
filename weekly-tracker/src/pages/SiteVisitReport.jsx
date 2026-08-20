@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
+import { FieldState } from "../components/shared/FieldPrimitives.jsx";
 // TODO wave4: legacy-report fallback (no Gantt plan) — mirrors the same dual-
 // format design documented at the top of ContractorReport.jsx. Non-trivial to
 // replace with masterTaskLibrary (different task-name vocabulary). Audited
@@ -194,13 +195,7 @@ function SiteVisitReport({ projects, reports, onSaveSiteVisit }) {
 
   if (!project) {
     return (
-      <div style={{ minHeight: "100vh", background: "var(--field-bg-sitevisit)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", padding: 40 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🏗</div>
-          <h2 style={{ color: "var(--field-text-heading)", marginBottom: 8 }}>Project not found</h2>
-          <p style={{ color: "var(--field-text-secondary)" }}>This link is invalid or the project has been removed.</p>
-        </div>
-      </div>
+      <FieldState mode="sitevisit" icon="🏗" title="Project not found" body="This link is invalid or the project has been removed."/>
     );
   }
 
