@@ -26,7 +26,6 @@ import "./styles/commercialReview.css";
 import "./styles/commercialFoundation.css";
 import "./styles/consultantBoq.css";
 import "./styles/platformAdmin.css";
-import "./styles/businessDevelopment.css";
 
 const Dashboard        = lazy(() => import("./pages/Dashboard"));
 const Home             = lazy(() => import("./pages/Home"));

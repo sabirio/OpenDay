@@ -122,3 +122,24 @@ export function buildEstimateCommand(input = {}) {
     totals: calculation.totals,
   };
 }
+
+export function summarizeBusinessDevelopmentWorkspace(workspace = {}) {
+  const opportunities = Array.isArray(workspace.opportunities) ? workspace.opportunities : [];
+  const estimates = (Array.isArray(workspace.estimates) ? workspace.estimates : []).map(estimate => {
+    const external = parseDecimal(estimate.externalCost ?? 0, 2, true) ?? 0n;
+    const other = parseDecimal(estimate.otherDirectCost ?? 0, 2, true) ?? 0n;
+    return { ...estimate, externalAndOtherCost: formatCents(external + other) };
+  });
+  return {
+    ...workspace,
+    opportunities,
+    estimates,
+    metrics: {
+      opportunities: opportunities.length,
+      activeOpportunities: opportunities.filter(item => !['WON', 'LOST'].includes(item.status)).length,
+      estimates: estimates.length,
+      estimatesInReview: estimates.filter(item => item.status === 'INTERNAL_REVIEW').length,
+      approvedEstimates: estimates.filter(item => item.status === 'APPROVED').length,
+    },
+  };
+}

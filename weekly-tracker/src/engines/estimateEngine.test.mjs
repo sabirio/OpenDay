@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildEstimateCommand, calculateEstimate, createEstimateItem, validateEstimateItem } from './estimateEngine.js';
+import { buildEstimateCommand, calculateEstimate, createEstimateItem, summarizeBusinessDevelopmentWorkspace, validateEstimateItem } from './estimateEngine.js';
 
 const item = (overrides = {}) => ({
   id: 'line-1', category: 'INTERNAL_LABOUR', description: 'Detailed design',
@@ -52,4 +52,18 @@ test('empty estimates are invalid', () => assert.equal(calculateEstimate({ items
 test('new line defaults reflect labour and external semantics', () => {
   assert.equal(createEstimateItem('INTERNAL_LABOUR', 'a').unit, 'hours');
   assert.equal(createEstimateItem('EXTERNAL_COST', 'b').unit, 'item');
+});
+
+test('workspace summary derives status metrics and exact combined external cost', () => {
+  const output = summarizeBusinessDevelopmentWorkspace({
+    opportunities: [{ status: 'QUALIFYING' }, { status: 'WON' }],
+    estimates: [
+      { status: 'INTERNAL_REVIEW', externalCost: '10.10', otherDirectCost: '0.20' },
+      { status: 'APPROVED', externalCost: '0.00', otherDirectCost: '1.05' },
+    ],
+  });
+  assert.deepEqual(output.metrics, {
+    opportunities: 2, activeOpportunities: 1, estimates: 2, estimatesInReview: 1, approvedEstimates: 1,
+  });
+  assert.deepEqual(output.estimates.map(estimate => estimate.externalAndOtherCost), ['10.30', '1.05']);
 });
