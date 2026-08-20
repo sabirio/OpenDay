@@ -10,7 +10,7 @@ export const WORKSPACES = Object.freeze([
     id: 'business-development',
     label: 'Business Development',
     capabilityIds: ['opportunities.pipeline', 'estimating.delivery', 'pricing.commercial', 'proposals.issue'],
-    resourceCandidates: ['business_development', 'opportunities', 'estimates', 'proposals'],
+    resourceCandidates: ['business_development', 'opportunities', 'estimates', 'rate_cards', 'pricing', 'proposals'],
     defaultRoutes: ['/business-development'],
   },
   {
@@ -69,6 +69,8 @@ export const RESOURCE_CAPABILITY_REQUIREMENTS = Object.freeze({
   business_development: ['opportunities.pipeline', 'estimating.delivery', 'pricing.commercial', 'proposals.issue'],
   opportunities: ['opportunities.pipeline'],
   estimates: ['estimating.delivery'],
+  rate_cards: ['pricing.commercial'],
+  pricing: ['pricing.commercial'],
   proposals: ['proposals.issue'],
 });
 

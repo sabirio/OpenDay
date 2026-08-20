@@ -1,4 +1,10 @@
 import { Link } from 'react-router-dom';
+import {
+  Badge,
+  Button,
+} from '../shared/UiPrimitives.jsx';
+import { PageHeader as SharedPageHeader } from '../shared/LayoutPrimitives.jsx';
+import { EmptyState as SharedEmptyState, ErrorState as SharedErrorState, LoadingState as SharedLoadingState } from '../shared/UiPatterns.jsx';
 
 const ICONS = {
   plus: <path d="M12 5v14M5 12h14"/>,
@@ -12,53 +18,45 @@ export function Icon({ name, className = 'size-4' }) {
 }
 
 export function WorkspaceNavigation({ items, section }) {
-  return <nav className="flex gap-1 overflow-x-auto border-b border-[var(--border)]" aria-label="Business Development sections">
-    <Link className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold no-underline transition-colors ${section === 'home' ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`} to="/business-development">Overview</Link>
-    {items.map(item => <Link key={item.to} className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold no-underline transition-colors ${section === item.resource ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`} to={item.to}>{item.label}</Link>)}
+  return <nav className="flex gap-1 overflow-x-auto border-b border-ui-border" aria-label="Business Development sections">
+    <Link className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold no-underline transition-colors ${section === 'home' ? 'border-ui-accent text-ui-accent' : 'border-transparent text-ui-muted hover:text-ui-primary'}`} to="/business-development">Overview</Link>
+    {items.map(item => <Link key={item.to} className={`shrink-0 border-b-2 px-4 py-3 text-sm font-semibold no-underline transition-colors ${section === item.resource ? 'border-ui-accent text-ui-accent' : 'border-transparent text-ui-muted hover:text-ui-primary'}`} to={item.to}>{item.label}</Link>)}
   </nav>;
 }
 
 export function PageHeader({ title, description, organizationName, action }) {
-  return <header className="flex flex-col gap-5 border-b border-[var(--border)] pb-6 lg:flex-row lg:items-end lg:justify-between">
-    <div className="max-w-3xl">
-      <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]"><Icon name="briefcase"/>Business Development</div>
-      <h1 className="m-0 text-2xl font-bold tracking-[-0.025em] text-[var(--text-primary)] md:text-3xl">{title}</h1>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">{description}</p>
-    </div>
-    <div className="flex flex-wrap items-center gap-3">
-      <span className="rounded-full border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">{organizationName || 'Active organization'}</span>
-      {action}
-    </div>
-  </header>;
+  return <SharedPageHeader eyebrow="Business Development" icon={<Icon name="briefcase"/>} title={title} description={description} context={organizationName || 'Active organization'} action={action}/>;
 }
 
 export function PrimaryButton({ children, onClick, disabled, type = 'button' }) {
-  return <button type={type} onClick={onClick} disabled={disabled} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-transparent bg-[var(--accent)] px-4 text-sm font-bold text-[var(--text-inverse)] shadow-sm transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 focus:ring-offset-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50">{children}</button>;
+  return <Button type={type} onClick={onClick} disabled={disabled} variant="primary" size="lg">{children}</Button>;
 }
 
 export function SecondaryButton({ children, onClick, disabled, type = 'button', danger = false }) {
-  return <button type={type} onClick={onClick} disabled={disabled} className={`inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50 ${danger ? 'border-[var(--status-alert)] bg-transparent text-[var(--status-alert)] hover:bg-[var(--status-alert-bg)]' : 'border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'}`}>{children}</button>;
+  return <Button type={type} onClick={onClick} disabled={disabled} variant={danger ? 'danger' : 'secondary'}>{children}</Button>;
 }
 
 export function StatusBadge({ value }) {
-  const tone = ['WON', 'APPROVED'].includes(value)
-    ? 'border-[var(--status-done)] bg-[var(--status-done-bg)] text-[var(--status-done)]'
+  const tone = ['WON', 'APPROVED', 'ACCEPTED', 'AWARDED', 'APPROVED_FOR_ISSUE'].includes(value)
+    ? 'positive'
     : ['LOST', 'ARCHIVED'].includes(value)
-      ? 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)]'
-      : ['INTERNAL_REVIEW', 'SENT', 'PROPOSAL'].includes(value)
-        ? 'border-[var(--status-warn)] bg-[var(--status-warn-bg)] text-[var(--status-warn)]'
-        : 'border-[var(--accent)] bg-[var(--accent-subtle)] text-[var(--accent)]';
-  return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.08em] ${tone}`}>{String(value || 'DRAFT').replaceAll('_', ' ')}</span>;
+      ? 'neutral'
+      : ['REJECTED'].includes(value)
+        ? 'danger'
+        : ['INTERNAL_REVIEW', 'SENT', 'PROPOSAL', 'REVISED'].includes(value)
+          ? 'warning'
+          : 'accent';
+  return <Badge tone={tone}>{String(value || 'DRAFT').replaceAll('_', ' ')}</Badge>;
 }
 
 export function LoadingState() {
-  return <div className="grid min-h-64 place-items-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]"><div className="flex items-center gap-3 text-sm text-[var(--text-muted)]"><span className="size-5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--accent)]"/>Loading commercial workspace…</div></div>;
+  return <SharedLoadingState label="Loading commercial workspace…"/>;
 }
 
 export function ErrorState({ message, onRetry }) {
-  return <div role="alert" className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl border border-[var(--status-alert)] bg-[var(--status-alert-bg)] p-8 text-center"><strong className="text-[var(--status-alert)]">Workspace unavailable</strong><p className="max-w-lg text-sm text-[var(--text-secondary)]">{message}</p><SecondaryButton onClick={onRetry}><Icon name="refresh"/>Try again</SecondaryButton></div>;
+  return <SharedErrorState message={message} onRetry={onRetry}/>;
 }
 
 export function EmptyState({ title, body, action }) {
-  return <div className="grid min-h-64 place-items-center p-8 text-center"><div className="max-w-md"><div className="mx-auto mb-4 grid size-12 place-items-center rounded-xl bg-[var(--accent-subtle)] text-[var(--accent)]"><Icon name="briefcase" className="size-6"/></div><h3 className="text-base font-bold text-[var(--text-primary)]">{title}</h3><p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">{body}</p><div className="mt-5">{action}</div></div></div>;
+  return <SharedEmptyState title={title} body={body} action={action} icon={<Icon name="briefcase" className="size-6"/>}/>;
 }

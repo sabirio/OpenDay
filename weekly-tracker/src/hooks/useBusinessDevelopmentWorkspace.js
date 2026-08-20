@@ -2,20 +2,31 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   commitCommercialOpportunity,
   commitDeliveryEstimate,
+  commitEstimatePricing,
+  commitOrganizationRateCardEntry,
+  commitCommercialProposalRevision,
+  commitCommercialProposalTransition,
   loadBusinessDevelopment,
 } from '../core/businessDevelopment/businessDevelopmentOrchestration.js';
 import {
   createDeliveryEstimateLine,
   presentEstimateCalculation,
+  createCommercialPricingDraft,
+  createCustomerProposalSection,
+  presentPricingCalculation,
+  presentProposalCalculation,
 } from '../core/presentation/businessDevelopmentPresentationModel.js';
 
-const ZERO_METRICS = Object.freeze({ opportunities: 0, activeOpportunities: 0, estimates: 0, estimatesInReview: 0, approvedEstimates: 0 });
-const EMPTY_WORKSPACE = Object.freeze({ opportunities: [], estimates: [], metrics: ZERO_METRICS });
+const ZERO_METRICS = Object.freeze({ opportunities: 0, activeOpportunities: 0, estimates: 0, estimatesInReview: 0, approvedEstimates: 0, approvedPricings: 0, proposals: 0 });
+const EMPTY_WORKSPACE = Object.freeze({ opportunities: [], estimates: [], rateCards: [], pricings: [], proposals: [], metrics: ZERO_METRICS });
 
 function messageFromError(error) {
   if (error?.code === 'INVALID_DELIVERY_ESTIMATE' && error.issues?.length) {
     return 'Complete the required estimate fields before saving.';
   }
+  if (error?.code === 'INVALID_COMMERCIAL_PRICING') return 'Complete the pricing method inputs before saving.';
+  if (error?.code === 'INVALID_COMMERCIAL_PROPOSAL') return 'Complete the proposal header and customer-facing scope before saving.';
+  if (error?.message?.includes('PROPOSAL_TOTAL_MUST_MATCH_APPROVED_PRICE')) return 'Proposal sections must equal the approved selling price.';
   if (error?.message?.includes('REVISION_CONFLICT')) return 'This record changed in another session. Refresh and try again.';
   if (error?.code === '42501' || error?.message?.includes('FORBIDDEN')) return 'You do not have permission to update this organization.';
   return 'OpenDay could not save the change. Try again.';
@@ -91,6 +102,10 @@ export function useBusinessDevelopmentWorkspace(organizationId) {
   const saveOpportunity = useCallback((input) => persist(() => commitCommercialOpportunity(organizationId, input)), [organizationId, persist]);
 
   const saveEstimate = useCallback((draft) => persist(() => commitDeliveryEstimate(organizationId, draft)), [organizationId, persist]);
+  const saveRateCard = useCallback((draft) => persist(() => commitOrganizationRateCardEntry(organizationId, draft)), [organizationId, persist]);
+  const savePricing = useCallback((draft) => persist(() => commitEstimatePricing(organizationId, draft)), [organizationId, persist]);
+  const saveProposal = useCallback((draft) => persist(() => commitCommercialProposalRevision(organizationId, draft)), [organizationId, persist]);
+  const transitionProposal = useCallback((input) => persist(() => commitCommercialProposalTransition(organizationId, input)), [organizationId, persist]);
 
   const visibleWorkspace = resolvedOrganizationId === organizationId ? workspace : EMPTY_WORKSPACE;
   const visibleState = !organizationId ? 'ready' : resolvedOrganizationId !== organizationId ? 'loading' : state;
@@ -105,10 +120,24 @@ export function useBusinessDevelopmentWorkspace(organizationId) {
     refresh,
     saveOpportunity,
     saveEstimate,
+    saveRateCard,
+    savePricing,
+    saveProposal,
+    transitionProposal,
     createEstimateItem: createDeliveryEstimateLine,
+    createPricingDraft: createCommercialPricingDraft,
+    createProposalSection: createCustomerProposalSection,
   };
 }
 
 export function useEstimateCalculation(items) {
   return useMemo(() => presentEstimateCalculation(items), [items]);
+}
+
+export function usePricingCalculation(input) {
+  return useMemo(() => presentPricingCalculation(input), [input]);
+}
+
+export function useProposalCalculation(sections) {
+  return useMemo(() => presentProposalCalculation(sections), [sections]);
 }

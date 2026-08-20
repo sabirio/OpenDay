@@ -75,13 +75,6 @@ const emptyProject = {
 };
 
 
-const inputStyle = {
-  width: "100%", boxSizing: "border-box",
-  padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)",
-  fontSize: 13, color: "var(--text-primary)", background: "var(--bg-input)", outline: "none",
-};
-
-
 function Projects({ projects, onSaveProject, onDeleteProject, onProjectCreated }) {
   const toast = useToast();
   const { role } = useAuth();
@@ -573,7 +566,6 @@ function Projects({ projects, onSaveProject, onDeleteProject, onProjectCreated }
         email={gcEmail}
         initialEmail={initialGcEmail}
         status={gcInviteStatus}
-        inputStyle={inputStyle}
         onEmailChange={setGcEmail}
         onStatusReset={() => setGcInviteStatus("idle")}
         onInvite={handleGcInvite}

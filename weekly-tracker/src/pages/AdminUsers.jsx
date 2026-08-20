@@ -3,6 +3,9 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { userSafeError } from '../utils/userError';
 import { useAdminUsers } from '../hooks/useAdminUsers.js';
 import Modal from '../components/shared/Modal.jsx';
+import { Button } from '../components/shared/UiPrimitives.jsx';
+import { PageHeader } from '../components/shared/LayoutPrimitives.jsx';
+import { ErrorState, LoadingState } from '../components/shared/UiPatterns.jsx';
 
 const USER_ROLES = [
   'Construction Manager','Lease Manager','Project Manager','Security Manager',
@@ -86,17 +89,14 @@ function AdminUsers() {
     }
   }
 
-  if (organizations.length === 0) return <div className="admin-users-page"><div className="page-header"><div><h1 className="page-title">Users</h1><p className="page-subtitle">Organization Admin access is required.</p></div></div></div>;
-  if (editor.status === 'loading') return <div className="auth-loading" style={{ minHeight: 300 }}><div className="auth-loading-spinner" /></div>;
+  if (organizations.length === 0) return <div className="admin-users-page"><ErrorState message="Organization Admin access is required."/></div>;
+  if (editor.status === 'loading') return <LoadingState label="Loading organization users…"/>;
 
   return <div className="admin-users-page">
-    <div className="page-header">
-      <div><h1 className="page-title">Users</h1><p className="page-subtitle">Invite colleagues, assign organization roles, and deactivate access. Project responsibilities remain on each project's Team page.</p></div>
-      <div className="admin-users-header-actions"><button type="button" className="btn btn-secondary" onClick={editor.retry}>Refresh</button><button type="button" className="btn btn-primary" onClick={() => setInvite({ ...emptyInvite })}>Invite colleague</button></div>
-    </div>
+    <PageHeader title="Users" description="Invite colleagues, assign organization roles, and deactivate access. Project responsibilities remain on each project's Team page." action={<div className="admin-users-header-actions"><Button onClick={editor.retry}>Refresh</Button><Button variant="primary" onClick={() => setInvite({ ...emptyInvite })}>Invite colleague</Button></div>}/>
 
     {organizations.length > 1 && <label className="admin-users-organization"><span>Organization</span><select className="ds-input" value={organizationId} onChange={event => setSelectedOrganizationId(event.target.value)}>{organizations.map(item => <option key={item.organizationId} value={item.organizationId}>{item.name}</option>)}</select></label>}
-    {(error || editor.error) && <div className="login-error" role="alert" style={{ marginBottom: 20 }}>{error || userSafeError('load')}</div>}
+    {(error || editor.error) && <div className="login-error mb-5" role="alert">{error || userSafeError('load')}</div>}
 
     <div className="admin-users-toolbar"><label className="admin-users-search"><span>Search users</span><input className="ds-input" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, email, role, or access" /></label><span className="admin-users-count">{filteredUsers.length} of {users.length} colleagues</span></div>
     <div className="admin-users-table-wrap"><table className="admin-users-table"><thead><tr><th>Name</th><th>Email</th><th>Job role</th><th>Operational access</th><th>Organization role</th><th>Status</th><th>Actions</th></tr></thead><tbody>

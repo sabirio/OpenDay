@@ -1,10 +1,11 @@
 import Modal from "../shared/Modal";
+import { Button, CONTROL_CLASS, Eyebrow, Field, Surface } from "../shared/UiPrimitives.jsx";
+import { InlineAlert } from "../shared/UiPatterns.jsx";
 
 export default function GcInvitationModal({
   project,
   email,
   status,
-  inputStyle,
   onEmailChange,
   onStatusReset,
   onInvite,
@@ -22,97 +23,102 @@ export default function GcInvitationModal({
       titleId="gc-invitation-title"
       isDirty={isDirty}
       dirtyMessage="Discard this invitation email change?"
-      style={{ maxWidth: 460, width: "95vw", padding: 0, overflow: "hidden" }}
+      className="modal w-full max-w-md overflow-hidden p-0"
     >
-        <div style={{ padding: "24px 28px 20px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-            <div>
-              <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "var(--accent)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                GC Portal Invitation
-              </p>
-              <h2 id="gc-invitation-title" style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>
-                {project.shoppingMallName || project.storeCode}
-              </h2>
-              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
-                {project.storeCode} - {project.city}, {project.country}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 18, cursor: "pointer", padding: 4, lineHeight: 1, flexShrink: 0 }}
-            >x</button>
+      <div className="border-b border-ui-border px-7 pb-5 pt-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <Eyebrow>GC Portal Invitation</Eyebrow>
+            <h2 id="gc-invitation-title" className="mt-1 text-xl font-bold text-ui-primary">
+              {project.shoppingMallName || project.storeCode}
+            </h2>
+            <p className="mt-1 text-sm text-ui-muted">
+              {project.storeCode} - {project.city}, {project.country}
+            </p>
           </div>
+          <Button
+            onClick={onClose}
+            variant="ghost"
+            size="sm"
+            aria-label="Close invitation"
+            className="shrink-0 px-2 text-lg"
+          >
+            ×
+          </Button>
+        </div>
+      </div>
+
+      <div className="px-7 py-6">
+        <div className="mb-6 grid grid-cols-3 gap-3">
+          {[
+            { label: "Contractor", value: project.generalContractor || "-" },
+            { label: "Opening", value: project.targetOpeningDate || "-" },
+            { label: "Status", value: project.projectStatus || "-" },
+          ].map(({ label, value }) => (
+            <Surface key={label} as="div" className="bg-ui-accent-subtle px-3 py-2.5">
+              <div className="mb-1 text-xs font-bold uppercase tracking-wider text-ui-muted">{label}</div>
+              <div className="truncate text-xs font-semibold text-ui-primary">{value}</div>
+            </Surface>
+          ))}
         </div>
 
-        <div style={{ padding: "24px 28px" }}>
-          <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
-            {[
-              { label: "Contractor", value: project.generalContractor || "-" },
-              { label: "Opening", value: project.targetOpeningDate || "-" },
-              { label: "Status", value: project.projectStatus || "-" },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ flex: 1, background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: 8 }}>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Contractor Email
-            </label>
+        <div className="mb-2">
+          <Field label="Contractor email">
             <input
               type="email"
               value={email}
-              onChange={e => { onEmailChange(e.target.value); onStatusReset(); }}
-              style={{ ...inputStyle, fontSize: 14 }}
+              onChange={event => {
+                onEmailChange(event.target.value);
+                onStatusReset();
+              }}
+              className={CONTROL_CLASS}
               placeholder="gc@company.com"
               autoFocus
             />
-          </div>
-
-          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 20px", lineHeight: 1.5 }}>
-            The same email can be used across multiple projects - the contractor will see all assigned projects after login.
-          </p>
-
-          {status === "sent" && (
-            <div style={{ marginBottom: 20, padding: "12px 16px", background: "var(--status-done-bg)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 13, color: "var(--status-done)", lineHeight: 1.5 }}>
-              <strong>Invite sent</strong><br />
-              Magic link sent to <strong>{email}</strong>. The contractor will be logged in directly.
-            </div>
-          )}
-          {status === "access_granted" && (
-            <div style={{ marginBottom: 20, padding: "12px 16px", background: "var(--accent-subtle)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 13, color: "var(--accent)", lineHeight: 1.5 }}>
-              <strong>Access granted</strong><br />
-              This contractor is already registered. They will see this project on their next login.
-            </div>
-          )}
-          {status === "error" && (
-            <div style={{ marginBottom: 20, padding: "12px 16px", background: "var(--status-alert-bg)", border: "1px solid var(--border)", borderRadius: 10, fontSize: 13, color: "var(--status-alert)", lineHeight: 1.5 }}>
-              <strong>Something went wrong</strong><br />
-              Check the email address and try again.
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <button className="secondary-button" onClick={onClose}>Cancel</button>
-            <button
-              className="primary-button"
-              onClick={onInvite}
-              disabled={!emailValid || status === "sending"}
-              style={{ opacity: !emailValid ? 0.45 : 1, minWidth: 130 }}
-            >
-              {status === "sending"
-                ? "Sending..."
-                : status === "sent"
-                  ? "Resend Invite"
-                  : status === "access_granted"
-                    ? "Resend Link"
-                    : "Send Invite"}
-            </button>
-          </div>
+          </Field>
         </div>
+
+        <p className="mb-5 mt-2 text-xs leading-5 text-ui-muted">
+          The same email can be used across multiple projects - the contractor will see all assigned projects after login.
+        </p>
+
+        {status === "sent" && (
+          <InlineAlert tone="positive" className="mb-5 leading-5">
+            <strong>Invite sent</strong><br />
+            Magic link sent to <strong>{email}</strong>. The contractor will be logged in directly.
+          </InlineAlert>
+        )}
+        {status === "access_granted" && (
+          <InlineAlert tone="neutral" className="mb-5 leading-5">
+            <strong>Access granted</strong><br />
+            This contractor is already registered. They will see this project on their next login.
+          </InlineAlert>
+        )}
+        {status === "error" && (
+          <InlineAlert className="mb-5 leading-5">
+            <strong>Something went wrong</strong><br />
+            Check the email address and try again.
+          </InlineAlert>
+        )}
+
+        <div className="flex justify-end gap-2.5">
+          <Button onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            onClick={onInvite}
+            disabled={!emailValid || status === "sending"}
+            className="min-w-32"
+          >
+            {status === "sending"
+              ? "Sending..."
+              : status === "sent"
+                ? "Resend Invite"
+                : status === "access_granted"
+                  ? "Resend Link"
+                  : "Send Invite"}
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 }

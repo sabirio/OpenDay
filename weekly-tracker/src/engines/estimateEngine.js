@@ -130,16 +130,24 @@ export function summarizeBusinessDevelopmentWorkspace(workspace = {}) {
     const other = parseDecimal(estimate.otherDirectCost ?? 0, 2, true) ?? 0n;
     return { ...estimate, externalAndOtherCost: formatCents(external + other) };
   });
+  const rateCards = Array.isArray(workspace.rateCards) ? workspace.rateCards : [];
+  const pricings = Array.isArray(workspace.pricings) ? workspace.pricings : [];
+  const proposals = Array.isArray(workspace.proposals) ? workspace.proposals : [];
   return {
     ...workspace,
     opportunities,
     estimates,
+    rateCards,
+    pricings,
+    proposals,
     metrics: {
       opportunities: opportunities.length,
       activeOpportunities: opportunities.filter(item => !['WON', 'LOST'].includes(item.status)).length,
       estimates: estimates.length,
       estimatesInReview: estimates.filter(item => item.status === 'INTERNAL_REVIEW').length,
       approvedEstimates: estimates.filter(item => item.status === 'APPROVED').length,
+      approvedPricings: pricings.filter(item => item.status === 'APPROVED').length,
+      proposals: proposals.length,
     },
   };
 }

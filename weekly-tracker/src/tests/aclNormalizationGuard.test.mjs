@@ -56,7 +56,13 @@ function findAclNormalizationGaps(migrationText) {
       return serialCols.map(col => `${tableName}_${col}_seq`);
     });
 
-  const aclCoversObject = (objectName) => new RegExp(`(REVOKE|GRANT)[\\s\\S]{0,300}\\b${objectName}\\b`, 'i').test(activeLines);
+  // ACL object lists are often intentionally grouped into one multiline
+  // statement. Inspect complete SQL statements instead of using an arbitrary
+  // character distance, which rejects longer but still explicit lists.
+  const statements = activeLines.split(';');
+  const aclCoversObject = (objectName) => statements.some(statement =>
+    /\b(?:REVOKE|GRANT)\b/i.test(statement)
+      && new RegExp(`\\b${objectName}\\b`, 'i').test(statement));
 
   for (const name of newTables) {
     if (!aclCoversObject(name)) gaps.push({ type: 'table', name });

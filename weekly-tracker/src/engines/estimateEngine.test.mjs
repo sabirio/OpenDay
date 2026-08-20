@@ -64,6 +64,7 @@ test('workspace summary derives status metrics and exact combined external cost'
   });
   assert.deepEqual(output.metrics, {
     opportunities: 2, activeOpportunities: 1, estimates: 2, estimatesInReview: 1, approvedEstimates: 1,
+    approvedPricings: 0, proposals: 0,
   });
   assert.deepEqual(output.estimates.map(estimate => estimate.externalAndOtherCost), ['10.30', '1.05']);
 });

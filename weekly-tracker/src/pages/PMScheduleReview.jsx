@@ -12,6 +12,9 @@ import SubmissionSnapshotView from '../components/schedule/SubmissionSnapshotVie
 import { fmtDate } from '../components/schedule/scheduleSubmissionDisplay.js';
 import SubmissionHistoryList from '../components/schedule/SubmissionHistoryList.jsx';
 import { usePmBaselineApprovalSummary } from '../hooks/usePmBaselineApprovalSummary.js';
+import { Button, Field, TEXTAREA_CLASS } from '../components/shared/UiPrimitives.jsx';
+import { PageHeader, PageShell } from '../components/shared/LayoutPrimitives.jsx';
+import { EmptyState, ErrorState, InlineAlert, LoadingState } from '../components/shared/UiPatterns.jsx';
 
 // Simplification Phase 4B.2 — PM Schedule Review workspace.
 //
@@ -30,23 +33,11 @@ import { usePmBaselineApprovalSummary } from '../hooks/usePmBaselineApprovalSumm
 // role='pm' checks, ANDing can_write_project() for company-scoping) are the
 // final authority regardless of what this page renders or hides.
 function ProjectNotFoundState({ message }) {
-  return (
-    <div style={{ padding: 40, textAlign: 'center' }}>
-      <h2 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Project not found</h2>
-      <p style={{ color: 'var(--text-secondary)' }}>{message || 'This project is unavailable or you do not have access.'}</p>
-    </div>
-  );
+  return <ErrorState message={message || 'This project is unavailable or you do not have access.'}/>;
 }
 
 function ScheduleReviewUnavailableState({ project }) {
-  return (
-    <div style={{ padding: 40, textAlign: 'center' }}>
-      <h2 style={{ color: 'var(--text-primary)', marginBottom: 8 }}>Schedule Review unavailable</h2>
-      <p style={{ color: 'var(--text-secondary)' }}>
-        This project{project?.storeCode ? ` (${project.storeCode})` : ''} does not use Contractor-managed scheduling.
-      </p>
-    </div>
-  );
+  return <EmptyState title="Schedule Review unavailable" body={`This project${project?.storeCode ? ` (${project.storeCode})` : ''} does not use Contractor-managed scheduling.`}/>;
 }
 
 function CommentModal({ title, requireComment, onConfirm, onClose, confirmLabel, confirmNote }) {
@@ -65,35 +56,27 @@ function CommentModal({ title, requireComment, onConfirm, onClose, confirmLabel,
 
   return (
     <Modal onClose={onClose} titleId="schedule-review-comment-title">
-      <div style={{ padding: 24, minWidth: 380, maxWidth: 480 }}>
-        <h3 id="schedule-review-comment-title" style={{ color: 'var(--text-primary)', marginTop: 0 }}>{title}</h3>
-        {confirmNote && <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{confirmNote}</p>}
-        <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>
-          Comment{requireComment ? ' (required)' : ' (optional)'}
-        </label>
+      <div className="w-full max-w-md p-6">
+        <h3 id="schedule-review-comment-title" className="text-lg font-bold text-ui-primary">{title}</h3>
+        {confirmNote && <p className="mt-2 text-sm leading-5 text-ui-secondary">{confirmNote}</p>}
+        <Field className="mt-4" label={`Comment${requireComment ? ' (required)' : ' (optional)'}`}>
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={4}
-          style={{ width: '100%', boxSizing: 'border-box', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', padding: 10, fontSize: 14, resize: 'vertical' }}
+          className={TEXTAREA_CLASS}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-          <button type="button" onClick={onClose} disabled={submitting} style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid var(--border-strong)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+        </Field>
+        <div className="mt-4 flex justify-end gap-3">
+          <Button onClick={onClose} disabled={submitting}>
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button variant="primary"
             onClick={handleConfirm}
             disabled={!canConfirm || submitting}
-            style={{
-              padding: '9px 18px', borderRadius: 8, border: 'none',
-              background: (!canConfirm || submitting) ? 'var(--bg-elevated)' : 'var(--accent)',
-              color: (!canConfirm || submitting) ? 'var(--text-muted)' : 'var(--text-inverse)',
-              fontWeight: 700, cursor: (!canConfirm || submitting) ? 'not-allowed' : 'pointer',
-            }}
           >
             {submitting ? 'Working…' : confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </Modal>
@@ -168,35 +151,24 @@ function PMScheduleReview({ projects = [] }) {
     else toast.error(outcome.error.message);
   }, [requestChanges, activeVersion, toast]);
 
-  if (!project && contextLoading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)' }}>Loading…</div>;
+  if (!project && contextLoading) return <LoadingState label="Loading project…"/>;
   if (!project) return <ProjectNotFoundState message={contextError} />;
   if (!scheduleIsContractorManaged) return <ScheduleReviewUnavailableState project={project} />;
 
   const isPendingSelected = activeVersion?.status === 'PENDING_REVIEW';
 
   return (
-    <div style={{ padding: '24px 20px 60px', maxWidth: 1100, margin: '0 auto' }}>
-      <header style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.02em' }}>{project.storeCode}</div>
-        <h1 style={{ color: 'var(--text-primary)', margin: '2px 0 10px', fontSize: 22 }}>{project.shoppingMallName || 'Schedule Review'}</h1>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, fontSize: 13, color: 'var(--text-secondary)' }}>
-          <span>Construction Start: <strong style={{ color: 'var(--text-primary)' }}>{fmtDate(project.constructionStartDate)}</strong></span>
-          <span>Required Completion: <strong style={{ color: 'var(--text-primary)' }}>{fmtDate(project.constructionEndDate)}</strong></span>
-          <span>Opening: <strong style={{ color: 'var(--text-primary)' }}>{fmtDate(project.targetOpeningDate)}</strong></span>
-        </div>
-      </header>
+    <PageShell width="content" inset="page">
+      <PageHeader eyebrow={project.storeCode} title={project.shoppingMallName || 'Schedule Review'} description="Review the Contractor's immutable schedule submission and establish the approved baseline." context={`Opening ${fmtDate(project.targetOpeningDate)}`}/>
+      <div className="flex flex-wrap gap-5 text-sm text-ui-secondary"><span>Construction Start: <strong className="text-ui-primary">{fmtDate(project.constructionStartDate)}</strong></span><span>Required Completion: <strong className="text-ui-primary">{fmtDate(project.constructionEndDate)}</strong></span></div>
 
-      <main style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <main className="grid gap-4">
         {submissionLoading ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>Loading submissions…</div>
+          <LoadingState label="Loading submissions…"/>
         ) : loadError ? (
-          <div role="alert" style={{ padding: 24, textAlign: 'center', color: 'var(--status-alert)' }}>
-            Could not load this project's schedule submissions. Please try again.
-          </div>
+          <ErrorState message="Could not load this project's schedule submissions. Please try again."/>
         ) : !activeVersion ? (
-          <div role="status" style={{ padding: 40, textAlign: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text-secondary)' }}>
-            No schedule has been submitted for this project yet.
-          </div>
+          <EmptyState title="No schedule submitted" body="No schedule has been submitted for this project yet."/>
         ) : (
           <>
             <SubmissionSnapshotView
@@ -209,33 +181,29 @@ function PMScheduleReview({ projects = [] }) {
             />
 
             {snapshotError && (
-              <div role="alert" style={{ padding: 12, borderRadius: 8, color: 'var(--status-alert)', background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+              <InlineAlert>
                 The immutable baseline snapshot could not be verified. Approval is disabled until it reloads successfully.
-              </div>
+              </InlineAlert>
             )}
 
             {isPmRole && isPendingSelected && (
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
+              <div className="flex justify-end gap-3">
+                <Button
                   onClick={() => setModal('request-changes')}
                   disabled={actionPending || !approvalSummary.ready}
-                  style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid var(--border-strong)', background: 'transparent', color: 'var(--text-primary)', fontWeight: 700, cursor: actionPending ? 'not-allowed' : 'pointer' }}
                 >
                   Request Changes
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button variant="primary"
                   onClick={() => setModal('approve')}
                   disabled={actionPending}
-                  style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: approvalSummary.ready ? 'var(--accent)' : 'var(--bg-elevated)', color: approvalSummary.ready ? 'var(--text-inverse)' : 'var(--text-muted)', fontWeight: 700, cursor: (actionPending || !approvalSummary.ready) ? 'not-allowed' : 'pointer' }}
                 >
                   Approve
-                </button>
+                </Button>
               </div>
             )}
             {!isPmRole && isPendingSelected && (
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'right' }}>
+              <div className="text-right text-sm text-ui-muted">
                 Read-only oversight — only the assigned PM can decide.
               </div>
             )}
@@ -267,7 +235,7 @@ function PMScheduleReview({ projects = [] }) {
           onClose={() => setModal(null)}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 

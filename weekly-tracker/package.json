@@ -91,6 +91,7 @@
     "db:apply:organization-admin-foundation": "node scripts/certification/applyOrganizationAdminFoundationLocal.mjs",
     "db:apply:tender-organization-identity": "node scripts/certification/applyTenderOrganizationIdentityLocal.mjs",
     "db:apply:business-development-estimate": "node scripts/certification/applyBusinessDevelopmentEstimateLocal.mjs",
+    "db:apply:business-development-pricing-proposals": "node scripts/certification/applyBusinessDevelopmentPricingProposalsLocal.mjs",
     "release:build:security-148": "node ../scripts/release/build-security-148.mjs",
     "cert:reset:budget-vs-tender": "npm run cert:reset:budget-approval && node scripts/certification/applyBudgetVsTenderLocal.mjs",
     "cert:reset:budget-approval-report": "npm run cert:reset:budget-vs-tender && node scripts/certification/applyBudgetApprovalReportLocal.mjs",
@@ -137,6 +138,7 @@
     "test:organization-admin-foundation-db": "node scripts/certification/certifyOrganizationAdminFoundation.mjs",
     "test:tender-organization-identity-db": "node scripts/certification/certifyTenderOrganizationIdentity.mjs",
     "test:business-development-estimate-db": "node scripts/certification/certifyBusinessDevelopmentEstimate.mjs",
+    "test:business-development-pricing-proposals-db": "node scripts/certification/certifyBusinessDevelopmentPricingProposals.mjs",
     "test:storage": "node scripts/certification/certifyStorage.mjs",
     "test:import-phase2": "npm run cert:reset:import-phase2 && node scripts/certification/certifyImportPhase2.mjs",
     "test:certification": "npm run cert:reset && npm run test:db && npm run test:rls && npm run test:scope-templates && npm run test:storage"

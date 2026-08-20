@@ -501,6 +501,8 @@ function App() {
                   <Route path="/business-development" element={<ProtectedRoute resource="business_development"><BusinessDevelopment section="home"/></ProtectedRoute>} />
                   <Route path="/business-development/opportunities" element={<ProtectedRoute resource="opportunities"><BusinessDevelopment section="opportunities"/></ProtectedRoute>} />
                   <Route path="/business-development/estimates" element={<ProtectedRoute resource="estimates"><BusinessDevelopment section="estimates"/></ProtectedRoute>} />
+                  <Route path="/business-development/rate-cards" element={<ProtectedRoute resource="rate_cards"><BusinessDevelopment section="rate_cards"/></ProtectedRoute>} />
+                  <Route path="/business-development/pricing" element={<ProtectedRoute resource="pricing"><BusinessDevelopment section="pricing"/></ProtectedRoute>} />
                   <Route path="/business-development/proposals" element={<ProtectedRoute resource="proposals"><BusinessDevelopment section="proposals"/></ProtectedRoute>} />
                   {/* Legacy path — protected the same as the canonical route so a
                       forged/unauthorized direct hit is rejected before any

@@ -1,6 +1,50 @@
 @import "tailwindcss";
 @import './design-system.css';
 
+@theme inline {
+  --color-ui-page: var(--bg-page);
+  --color-ui-surface: var(--bg-surface);
+  --color-ui-elevated: var(--bg-elevated);
+  --color-ui-input: var(--bg-input);
+  --color-ui-border: var(--border);
+  --color-ui-border-strong: var(--border-strong);
+  --color-ui-primary: var(--text-primary);
+  --color-ui-secondary: var(--text-secondary);
+  --color-ui-muted: var(--text-muted);
+  --color-ui-inverse: var(--text-inverse);
+  --color-ui-accent: var(--accent);
+  --color-ui-accent-subtle: var(--accent-subtle);
+  --color-ui-success: var(--status-done);
+  --color-ui-success-subtle: var(--status-done-bg);
+  --color-ui-warning: var(--status-warn);
+  --color-ui-warning-subtle: var(--status-warn-bg);
+  --color-ui-danger: var(--status-alert);
+  --color-ui-danger-subtle: var(--status-alert-bg);
+  --radius-ui-sm: var(--radius-sm);
+  --radius-ui: var(--radius-lg);
+  --radius-ui-pill: var(--radius-full);
+  --shadow-ui: var(--shadow);
+  --shadow-ui-raised: var(--shadow-lg);
+  --color-field-contractor-page: var(--field-bg-contractor);
+  --color-field-sitevisit-page: var(--field-bg-sitevisit);
+  --color-field-surface: var(--field-bg-card);
+  --color-field-neutral: var(--field-neutral-bg);
+  --color-field-border: var(--field-border);
+  --color-field-border-strong: var(--field-border-strong);
+  --color-field-primary: var(--field-text-heading);
+  --color-field-body: var(--field-text-body);
+  --color-field-secondary: var(--field-text-secondary);
+  --color-field-muted: var(--field-text-muted);
+  --color-field-inverse: var(--field-text-on-accent);
+  --color-field-accent: var(--field-accent-contractor);
+  --color-field-success: var(--field-success-fg);
+  --color-field-warning: var(--field-warning-fg);
+  --color-field-danger: var(--field-danger-fg);
+  --color-field-danger-subtle: var(--field-danger-bg);
+  --width-field: 75rem;
+  --shadow-field: var(--field-shadow-lg);
+}
+
 /* ============================================================
    C&F Tracker — Global Styles
    Dark design system applied to every page except:

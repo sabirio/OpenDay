@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { usePlatformAdmin } from '../hooks/usePlatformAdmin.js';
+import { Button } from '../components/shared/UiPrimitives.jsx';
+import { PageHeader } from '../components/shared/LayoutPrimitives.jsx';
+import { LoadingState } from '../components/shared/UiPatterns.jsx';
 
 const today=()=>new Date().toISOString().slice(0,10);
 const dateValue=value=>value?String(value).slice(0,10):'';
@@ -72,9 +75,9 @@ function PlatformAdmin(){
     finally{setStatusSaving(false);}
   }
 
-  if(admin.status==='loading')return <div className="auth-loading" style={{minHeight:320}}><div className="auth-loading-spinner"/></div>;
+  if(admin.status==='loading')return <LoadingState label="Loading platform administration…"/>;
   return <div className="platform-admin-page">
-    <div className="page-header"><div><h1 className="page-title">Platform Admin</h1><p className="page-subtitle">Organizations, subscriptions and commercial product access.</p></div><button className="btn-ghost" type="button" onClick={admin.refresh}>Refresh</button></div>
+    <PageHeader title="Platform Admin" description="Organizations, subscriptions and commercial product access." action={<Button onClick={admin.refresh}>Refresh</Button>}/>
     {admin.error&&<div className="login-error" role="alert">Platform data could not be loaded. Try refreshing.</div>}
     <div className="platform-admin-layout">
       <aside className="platform-admin-organizations" aria-label="Organizations">

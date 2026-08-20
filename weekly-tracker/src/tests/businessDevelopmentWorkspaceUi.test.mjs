@@ -7,6 +7,12 @@ const page = read('../pages/BusinessDevelopment.jsx');
 const shell = read('../components/businessDevelopment/BusinessDevelopmentShell.jsx');
 const opportunities = read('../components/businessDevelopment/OpportunityWorkspace.jsx');
 const estimates = read('../components/businessDevelopment/EstimateWorkspace.jsx');
+const rateCards = read('../components/businessDevelopment/RateCardWorkspace.jsx');
+const pricing = read('../components/businessDevelopment/PricingWorkspace.jsx');
+const proposals = read('../components/businessDevelopment/ProposalWorkspace.jsx');
+const primitives = read('../components/shared/UiPrimitives.jsx');
+const layouts = read('../components/shared/LayoutPrimitives.jsx');
+const patterns = read('../components/shared/UiPatterns.jsx');
 const hook = read('../hooks/useBusinessDevelopmentWorkspace.js');
 const service = read('../services/businessDevelopmentService.js');
 const orchestration = read('../core/businessDevelopment/businessDevelopmentOrchestration.js');
@@ -21,6 +27,8 @@ for (const [path, resource] of [
   ['/business-development', 'business_development'],
   ['/business-development/opportunities', 'opportunities'],
   ['/business-development/estimates', 'estimates'],
+  ['/business-development/rate-cards', 'rate_cards'],
+  ['/business-development/pricing', 'pricing'],
   ['/business-development/proposals', 'proposals'],
 ]) {
   assert.match(app, new RegExp(`path=\\"${path}\\"[\\s\\S]*?resource=\\"${resource}\\"`));
@@ -41,6 +49,10 @@ assert.match(globalCss, /@import "tailwindcss"/);
 assert.match(service, /get_business_development_workspace/);
 assert.match(service, /save_commercial_opportunity/);
 assert.match(service, /save_delivery_estimate/);
+assert.match(service, /save_organization_rate_card_entry/);
+assert.match(service, /save_estimate_pricing/);
+assert.match(service, /save_commercial_proposal_revision/);
+assert.match(service, /transition_commercial_proposal/);
 assert.doesNotMatch(service, /\.from\(/);
 assert.match(hook, /commitDeliveryEstimate/);
 assert.match(hook, /presentEstimateCalculation/);
@@ -55,8 +67,26 @@ assert.match(estimates, /Other direct cost/);
 assert.match(estimates, /Estimated delivery cost/);
 assert.match(estimates, /Quantity/);
 assert.match(estimates, /Cost rate/);
+assert.match(estimates, /Apply organization rate card/);
+assert.match(rateCards, /Organization rate cards/);
+assert.match(pricing, /Commercial pricing/);
+assert.match(pricing, /Target margin/);
+assert.match(proposals, /Customer proposals/);
+assert.match(proposals, /immutable revisions/);
 assert.match(opportunities, /max-w-xl/);
-assert.match(shell, /focus:ring-2/);
-assert.doesNotMatch(`${opportunities}\n${estimates}`, /supabase|\.rpc\(|\.from\(/);
+assert.match(primitives, /focus:ring-2/);
+assert.match(primitives, /export function Surface/);
+assert.doesNotMatch(primitives, /PageShell|DataTable|FieldPage/);
+assert.match(layouts, /export function PageShell/);
+assert.match(layouts, /export function PageHeader/);
+assert.match(patterns, /export function DataTable/);
+assert.match(patterns, /export function EmptyState/);
+assert.match(shell, /SharedPageHeader/);
+assert.match(shell, /LayoutPrimitives\.jsx/);
+assert.match(shell, /UiPatterns\.jsx/);
+assert.match(opportunities, /<Surface elevated>/);
+assert.match(estimates, /<Surface elevated>/);
+assert.doesNotMatch(`${opportunities}\n${estimates}\n${rateCards}\n${pricing}\n${proposals}`, /supabase|\.rpc\(|\.from\(/);
+assert.doesNotMatch(`${page}\n${shell}\n${opportunities}\n${estimates}\n${rateCards}\n${pricing}\n${proposals}`, /var\(--|#[0-9a-fA-F]{3,8}\b|rgba?\(/);
 
 console.log('businessDevelopmentWorkspaceUi: all checks passed');

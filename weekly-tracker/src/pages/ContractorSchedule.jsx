@@ -1,4 +1,18 @@
 import React, { useCallback, useEffect, useState } from "react";
+import {
+  FIELD_TEXTAREA_CLASS,
+  FieldAlert,
+  FieldButton,
+  FieldContainer,
+  FieldLoading,
+  FieldModalContent,
+  FieldPage,
+  FieldPageHeader,
+  FieldPanel,
+  FieldState,
+  FieldStatus,
+  FieldStickyActions,
+} from "../components/shared/FieldPrimitives.jsx";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ROLES } from "../auth/rolePermissions";
@@ -73,25 +87,19 @@ function ScheduleUnavailableState({ project, reason }) {
     ? "Contractor Schedule editing is limited to the assigned Contractor."
     : `Contractor Schedule unavailable for this project${project?.storeCode ? ` (${project.storeCode})` : ""}.`;
   return (
-    <div style={{ minHeight: "100vh", background: "var(--field-bg-contractor)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ textAlign: "center", padding: 40, maxWidth: 420 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>—</div>
-        <h2 style={{ color: "var(--field-text-heading)", marginBottom: 8 }}>Contractor Schedule unavailable</h2>
-        <p style={{ color: "var(--field-text-secondary)" }}>{message}</p>
-      </div>
-    </div>
+    <FieldState title="Contractor Schedule unavailable" body={message}/>
   );
 }
 
 function DraftStatusLabel({ dirty, saving, saveError }) {
-  const { text, color } = saving
-    ? { text: "Saving…", color: "var(--field-text-secondary)" }
+  const { text, tone } = saving
+    ? { text: "Saving…", tone: "neutral" }
     : saveError
-      ? { text: "Save failed", color: "var(--field-danger-fg)" }
+      ? { text: "Save failed", tone: "danger" }
       : dirty
-        ? { text: "Unsaved changes", color: "var(--field-warning-fg)" }
-        : { text: "Saved", color: "var(--field-success-fg)" };
-  return <span role="status" style={{ fontSize: 13, fontWeight: 600, color }}>{text}</span>;
+        ? { text: "Unsaved changes", tone: "warning" }
+        : { text: "Saved", tone: "positive" };
+  return <FieldStatus tone={tone}>{text}</FieldStatus>;
 }
 
 // Simplification Phase 4B.2 — lifecycle status label for the header, distinct
@@ -101,14 +109,14 @@ function DraftStatusLabel({ dirty, saving, saveError }) {
 // submission, not just find themselves back in an editable Gantt with no
 // explanation.
 function LifecycleStatusLabel({ displayStatus, baselineRevisionNumber }) {
-  const { text, color } = displayStatus === "PENDING_REVIEW"
-    ? { text: "Pending PM Review", color: "var(--field-warning-fg)" }
+  const { text, tone } = displayStatus === "PENDING_REVIEW"
+    ? { text: "Pending PM Review", tone: "warning" }
     : displayStatus === "CHANGES_REQUESTED"
-      ? { text: "Changes Requested", color: "var(--field-danger-fg)" }
+      ? { text: "Changes Requested", tone: "danger" }
       : displayStatus === "APPROVED"
-        ? { text: `Approved Baseline${baselineRevisionNumber ? ` v${baselineRevisionNumber}` : ""}`, color: "var(--field-success-fg)" }
-        : { text: "Draft", color: "var(--field-text-secondary)" };
-  return <span role="status" style={{ fontSize: 13, fontWeight: 600, color }}>{text}</span>;
+        ? { text: `Approved Baseline${baselineRevisionNumber ? ` v${baselineRevisionNumber}` : ""}`, tone: "positive" }
+        : { text: "Draft", tone: "neutral" };
+  return <FieldStatus tone={tone}>{text}</FieldStatus>;
 }
 
 function SubmitModal({ completeness, onConfirm, onClose }) {
@@ -126,62 +134,41 @@ function SubmitModal({ completeness, onConfirm, onClose }) {
 
   return (
     <Modal onClose={onClose} titleId="submit-schedule-title">
-      <div style={{ padding: 24, minWidth: 320, maxWidth: 440 }}>
-        <h3 id="submit-schedule-title" style={{ color: "var(--field-text-heading)", marginTop: 0 }}>Submit Schedule</h3>
-        <p style={{ color: "var(--field-text-secondary)", fontSize: 13 }}>
-          The submitted schedule will be frozen for PM review. Editing will be locked until the PM makes a decision.
-        </p>
-        <div style={{ fontSize: 13, color: "var(--field-text-secondary)", marginBottom: 10 }}>
-          Scheduled WPs: <strong style={{ color: "var(--field-text-body)" }}>{completeness.scheduledCount} / {completeness.totalCount}</strong>
+      <FieldModalContent
+        title="Submit Schedule"
+        titleId="submit-schedule-title"
+        description="The submitted schedule will be frozen for PM review. Editing will be locked until the PM makes a decision."
+        footer={<><FieldButton onClick={onClose} disabled={submitting}>Cancel</FieldButton><FieldButton onClick={handleConfirm} disabled={submitting} variant="primary">{submitting ? "Submitting…" : "Submit Schedule"}</FieldButton></>}
+      >
+        <div className="mb-2.5 text-sm text-field-secondary">
+          Scheduled WPs: <strong className="text-field-body">{completeness.scheduledCount} / {completeness.totalCount}</strong>
         </div>
-        <label style={{ display: "block", fontSize: 13, color: "var(--field-text-secondary)", marginBottom: 6 }}>
+        <label className="mb-1.5 block text-sm font-semibold text-field-secondary" htmlFor="submit-schedule-comment">
           Comment for the PM (optional)
         </label>
         <textarea
+          id="submit-schedule-comment"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={3}
-          style={{ width: "100%", boxSizing: "border-box", borderRadius: 8, border: "1px solid var(--field-border)", background: "var(--field-bg-card)", color: "var(--field-text-body)", padding: 10, fontSize: 14, resize: "vertical" }}
+          className={FIELD_TEXTAREA_CLASS}
         />
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
-          <button type="button" onClick={onClose} disabled={submitting} style={{ padding: "9px 16px", borderRadius: 8, border: "1px solid var(--field-border-strong)", background: "transparent", color: "var(--field-text-secondary)", cursor: "pointer" }}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={submitting}
-            style={{
-              padding: "9px 18px", borderRadius: 8, border: "none",
-              background: submitting ? "var(--field-neutral-bg)" : "var(--field-accent-contractor)",
-              color: submitting ? "var(--field-text-muted)" : "var(--field-text-on-accent)",
-              fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer",
-            }}
-          >
-            {submitting ? "Submitting…" : "Submit Schedule"}
-          </button>
-        </div>
-      </div>
+      </FieldModalContent>
     </Modal>
   );
 }
 
 function PmCommentBanner({ version, onViewSubmission }) {
   return (
-    <div style={{
-      marginBottom: 16, padding: "14px 16px", borderRadius: 10,
-      background: "var(--field-danger-bg)", border: "1px solid var(--field-danger-fg)",
-    }}>
-      <div style={{ fontWeight: 700, color: "var(--field-danger-fg)", marginBottom: 4 }}>Changes Requested by PM</div>
-      {version.pmComment && <p style={{ margin: "0 0 10px", color: "var(--field-text-body)", fontSize: 14 }}>{version.pmComment}</p>}
-      <button
-        type="button"
+    <FieldAlert title="Changes Requested by PM" action={<FieldButton
         onClick={onViewSubmission}
-        style={{ background: "none", border: "none", padding: 0, color: "var(--field-danger-fg)", fontWeight: 600, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}
+        variant="ghost"
+        className="min-h-0 p-0 text-sm text-field-danger underline"
       >
         View the submitted schedule PM reviewed →
-      </button>
-    </div>
+      </FieldButton>}>
+      {version.pmComment || null}
+    </FieldAlert>
   );
 }
 
@@ -316,45 +303,40 @@ function ContractorSchedule({ projects = [] }) {
   if (!isContractorRole) return <ScheduleUnavailableState project={project} reason="role" />;
 
   return (
-    <div className="field-form-page" style={{ minHeight: "100vh", background: "var(--field-bg-contractor)", padding: "28px 20px 110px" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <header style={{ marginBottom: 20 }}>
-          <nav style={{ display: "flex", gap: 16, marginBottom: 10, fontSize: 13 }}>
-            <button
-              type="button"
+    <FieldPage>
+      <FieldContainer>
+        <FieldPageHeader
+          navigation={<>
+            <FieldButton
               onClick={() => guardedNavigate("/contractor-select")}
-              style={{ background: "none", border: "none", padding: 0, color: "var(--field-text-secondary)", cursor: "pointer", fontSize: 13 }}
+              variant="ghost"
+              className="min-h-0 p-0 text-sm"
             >
               ← Workspace
-            </button>
+            </FieldButton>
             <Link
               to={`/contractor-report/${project.id}`}
               onClick={(e) => guardLinkClick(e, `/contractor-report/${project.id}`)}
-              style={{ color: "var(--field-text-secondary)" }}
+              className="text-field-secondary hover:text-field-primary"
             >
               Report
             </Link>
             <Link
               to={`/field-snag/${project.id}`}
               onClick={(e) => guardLinkClick(e, `/field-snag/${project.id}`)}
-              style={{ color: "var(--field-text-secondary)" }}
+              className="text-field-secondary hover:text-field-primary"
             >
               Observations
             </Link>
-          </nav>
-          <div style={{ fontSize: 13, color: "var(--field-text-muted)", fontWeight: 600, letterSpacing: "0.02em" }}>
-            {project.storeCode}
-          </div>
-          <h1 style={{ color: "var(--field-text-heading)", margin: "2px 0 14px", fontSize: 22 }}>
-            {project.shoppingMallName || "Contractor Schedule"}
-          </h1>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 20, fontSize: 13, color: "var(--field-text-secondary)" }}>
-            <span>Construction Start: <strong style={{ color: "var(--field-text-body)" }}>{fmtDate(project.constructionStartDate)}</strong></span>
-            <span>Required Completion: <strong style={{ color: "var(--field-text-body)" }}>{fmtDate(project.constructionEndDate)}</strong></span>
-            <span>Opening: <strong style={{ color: "var(--field-text-body)" }}>{fmtDate(project.targetOpeningDate)}</strong></span>
-          </div>
-          <div style={{ marginTop: 10 }}>
-            {canEdit && !showingReadOnlyView ? (
+          </>}
+          eyebrow={project.storeCode}
+          title={project.shoppingMallName || "Contractor Schedule"}
+          metadata={[
+            { label: 'Construction Start', value: fmtDate(project.constructionStartDate) },
+            { label: 'Required Completion', value: fmtDate(project.constructionEndDate) },
+            { label: 'Opening', value: fmtDate(project.targetOpeningDate) },
+          ]}
+          status={canEdit && !showingReadOnlyView ? (
               <DraftStatusLabel dirty={dirty} saving={saving} saveError={saveError} />
             ) : (
               <LifecycleStatusLabel
@@ -362,14 +344,11 @@ function ContractorSchedule({ projects = [] }) {
                 baselineRevisionNumber={approvedVersion?.baselineRevisionNumber}
               />
             )}
-          </div>
-        </header>
+        />
 
         <main>
           {submissionLoading ? (
-            <div role="status" style={{ padding: 40, textAlign: "center", color: "var(--field-text-secondary)" }}>
-              Loading schedule status…
-            </div>
+            <FieldLoading>Loading schedule status…</FieldLoading>
           ) : showingReadOnlyView ? (
             <>
               <SubmissionSnapshotView
@@ -381,13 +360,13 @@ function ContractorSchedule({ projects = [] }) {
                 completeness={snapshotCompleteness}
               />
               {canEdit && (
-                <button
-                  type="button"
+                <FieldButton
                   onClick={() => setPeekVersionId(null)}
-                  style={{ marginTop: 14, background: "none", border: "none", padding: 0, color: "var(--field-text-secondary)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                  variant="ghost"
+                  className="mt-3.5 min-h-0 p-0 text-sm"
                 >
                   ← Back to my Draft
-                </button>
+                </FieldButton>
               )}
             </>
           ) : (
@@ -396,13 +375,9 @@ function ContractorSchedule({ projects = [] }) {
                 <PmCommentBanner version={latestVersion} onViewSubmission={() => setPeekVersionId(latestVersion.id)} />
               )}
               {scheduleSetup.loading ? (
-                <div role="status" style={{ padding: 40, textAlign: "center", color: "var(--field-text-secondary)" }}>
-                  Loading Execution Scope…
-                </div>
+                <FieldLoading>Loading Execution Scope…</FieldLoading>
               ) : scheduleSetup.error ? (
-                <div role="alert" style={{ padding: 40, textAlign: "center", color: "var(--field-danger-fg)" }}>
-                  Couldn't load the current Execution Scope. Reload the page before editing the schedule.
-                </div>
+                <FieldLoading danger>Couldn't load the current Execution Scope. Reload the page before editing the schedule.</FieldLoading>
               ) : editingScheduleSetup ? (
                 <ContractorScheduleSetupEditor
                   executionScope={scheduleSetup.executionScope}
@@ -420,15 +395,11 @@ function ContractorSchedule({ projects = [] }) {
                   onSave={handleSaveSetup}
                 />
               ) : tasks.length === 0 ? (
-                <div role="status" style={{
-                  display: "flex", alignItems: "center", justifyContent: "center", height: 200,
-                  background: "var(--field-bg-card)", borderRadius: 12, border: "1px solid var(--field-border)",
-                  color: "var(--field-text-secondary)", fontSize: 14,
-                }}>
+                <FieldPanel className="flex h-50 items-center justify-center text-sm text-field-secondary" role="status">
                   No work packages are available for scheduling.
-                </div>
+                </FieldPanel>
               ) : (
-                <React.Suspense fallback={<div style={{ padding: 24, color: "var(--field-text-secondary)" }}>Loading schedule…</div>}>
+                <React.Suspense fallback={<FieldLoading className="p-6">Loading schedule…</FieldLoading>}>
                   <GanttChart
                     project={project}
                     tasks={tasks}
@@ -444,94 +415,71 @@ function ContractorSchedule({ projects = [] }) {
                 </React.Suspense>
               )}
               {scheduleSetup.executionScope && scheduleSetup.configured && !editingScheduleSetup && (
-                <button
-                  type="button"
+                <FieldButton
                   onClick={() => setShowSetupEditor(true)}
-                  style={{ marginTop: 14, padding: "8px 12px", borderRadius: 8, border: "1px solid var(--field-border)", background: "transparent", color: "var(--field-text-secondary)", cursor: "pointer" }}
+                  className="mt-3.5 min-h-8 px-3"
                 >
                   Edit Schedule Setup
-                </button>
+                </FieldButton>
               )}
             </>
           )}
         </main>
 
         {versions.length >= 2 && (
-          <div style={{ marginTop: 16 }}>
+          <div className="mt-4">
             <SubmissionHistoryList versions={versions} selectedVersionId={readOnlyVersionId} onSelect={setPeekVersionId} />
           </div>
         )}
-      </div>
+      </FieldContainer>
 
       {/* Footer / action area — sticky so Save Draft stays reachable while
           scrolling a long task list, including at narrow/mobile widths.
           Only rendered while actually editing the Draft — PENDING_REVIEW/
           APPROVED/read-only-peek states have no Save/Submit action at all. */}
       {canEdit && scheduleDraftAvailable && !showingReadOnlyView && (
-        <div style={{
-          position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 100,
-          background: "var(--field-bg-card)", borderTop: "1px solid var(--field-border-strong)",
-          padding: "12px 20px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between",
-          boxShadow: "var(--field-shadow-lg)",
-        }}>
+        <FieldStickyActions>
           <div>
             <DraftStatusLabel dirty={dirty} saving={saving} saveError={saveError} />
-            <div style={{ fontSize: 12, color: "var(--field-text-muted)", marginTop: 2 }}>
+            <div className="mt-0.5 text-xs text-field-muted">
               Scheduled WPs: {completeness.scheduledCount} / {completeness.totalCount}
               {!completeness.isComplete && completeness.totalCount > 0 && (
                 <span> — unscheduled: {completeness.unscheduledWpIds.join(", ")}</span>
               )}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
+          <div className="flex flex-wrap gap-2.5">
+            <FieldButton
               onClick={handleDiscard}
               disabled={!dirty || saving}
-              style={{
-                padding: "10px 18px", borderRadius: 10, border: "1px solid var(--field-border-strong)",
-                background: "var(--field-bg-card)",
-                color: (!dirty || saving) ? "var(--field-text-muted)" : "var(--field-text-secondary)",
-                fontSize: 14, fontWeight: 600, cursor: (!dirty || saving) ? "not-allowed" : "pointer",
-              }}
             >
               Discard changes
-            </button>
-            <button
-              type="button"
+            </FieldButton>
+            <FieldButton
               onClick={handleSave}
               disabled={!dirty || saving}
-              style={{
-                padding: "10px 24px", borderRadius: 10, border: "none",
-                background: (!dirty || saving) ? "var(--field-neutral-bg)" : "var(--field-accent-contractor)",
-                color: (!dirty || saving) ? "var(--field-text-muted)" : "var(--field-text-on-accent)",
-                fontSize: 14, fontWeight: 700, cursor: (!dirty || saving) ? "not-allowed" : "pointer",
-              }}
+              variant="primary"
+              className="px-6"
             >
               {saving ? "Saving…" : `Save Draft${changedCount > 0 ? ` (${changedCount})` : ""}`}
-            </button>
-            <button
-              type="button"
+            </FieldButton>
+            <FieldButton
               onClick={() => setShowSubmitModal(true)}
               disabled={dirty || saving || !completeness.isComplete || actionPending}
               title={dirty ? "Save Draft before submitting" : !completeness.isComplete ? "Schedule every active work package first" : undefined}
-              style={{
-                padding: "10px 24px", borderRadius: 10, border: "none",
-                background: (dirty || saving || !completeness.isComplete || actionPending) ? "var(--field-neutral-bg)" : "var(--field-accent-contractor)",
-                color: (dirty || saving || !completeness.isComplete || actionPending) ? "var(--field-text-muted)" : "var(--field-text-on-accent)",
-                fontSize: 14, fontWeight: 700, cursor: (dirty || saving || !completeness.isComplete || actionPending) ? "not-allowed" : "pointer",
-              }}
+              variant="primary"
+              className="px-6"
             >
               {actionPending ? "Submitting…" : "Submit Schedule"}
-            </button>
+            </FieldButton>
           </div>
-        </div>
+        </FieldStickyActions>
       )}
 
       {showSubmitModal && (
         <SubmitModal completeness={completeness} onConfirm={handleSubmit} onClose={() => setShowSubmitModal(false)} />
       )}
-    </div>
+    </FieldPage>
   );
 }
 

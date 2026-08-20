@@ -365,7 +365,7 @@ function Dashboard({ projects, reports, siteVisits = [], templatesById = {}, act
   const detailHeader = (
     <header className="detail-pane-header dashboard-detail-header">
       <button type="button" className="btn btn-ghost-sm dashboard-back-to-master" onClick={() => setMobileView("master")}>
-        <Icon name="arrowRight" size={14} style={{ transform: 'rotate(180deg)' }} /> Back to Projects
+        <Icon name="arrowRight" size={14} className="rotate-180" /> Back to Projects
       </button>
       <div className="dashboard-detail-identity">
         <div className="dashboard-detail-copy">
